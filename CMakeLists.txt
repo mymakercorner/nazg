@@ -65,9 +65,9 @@ set(IMGUI_SOURCES ${IMGUI_CORE_SOURCES} ${IMGUI_BACKEND_SOURCES})
 
 set(NAZG_SOURCES
   src/Main.cpp
-  src/async/Task.h
-  src/transport/HidTransport.h
-  src/transport/HidTransport.cpp
+  src/async/NazgTask.h
+  src/transport/NazgHidTransport.h
+  src/transport/NazgHidTransport.cpp
 )
 
 add_executable(nazg
@@ -113,7 +113,7 @@ if(NAZG_BUILD_TESTS)
     # shared sources into a nazg_core static library and link both against that.
     add_executable(nazg_transport_shutdown_test
       tests/TransportShutdownTest.cpp
-      src/transport/HidTransport.cpp
+      src/transport/NazgHidTransport.cpp
     )
 
     target_include_directories(nazg_transport_shutdown_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)

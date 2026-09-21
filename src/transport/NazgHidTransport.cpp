@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com>
 
-#include "HidTransport.h"
+#include "NazgHidTransport.h"
 
 #include <utility>
 

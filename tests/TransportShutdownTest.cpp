@@ -18,8 +18,8 @@
 // No test framework, deliberately: that choice is still open and this needs none.
 // Registered with CTest:  ctest --test-dir build_VS2022 -C Debug --output-on-failure
 
-#include "async/Task.h"
-#include "transport/HidTransport.h"
+#include "async/NazgTask.h"
+#include "transport/NazgHidTransport.h"
 
 #include <cstdio>
 #include <vector>

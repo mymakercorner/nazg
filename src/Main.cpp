@@ -14,8 +14,8 @@
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_sdlgpu3.h"
 
-#include "async/Task.h"
-#include "transport/HidTransport.h"
+#include "async/NazgTask.h"
+#include "transport/NazgHidTransport.h"
 
 #include <string>
 #include <vector>
