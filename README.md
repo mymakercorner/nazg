@@ -72,8 +72,7 @@ On Windows, generate a Visual Studio 2022 solution in `build_VS2022/`:
 GenerateBuildForVS2022.bat
 ```
 
-Then open `build_VS2022
-azg.sln`, or build from the command line:
+Then open `build_VS2022\nazg.sln`, or build from the command line:
 
 ```
 cmake --build build_VS2022 --config Debug
