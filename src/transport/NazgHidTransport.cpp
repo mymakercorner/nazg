@@ -25,9 +25,41 @@ namespace nazg
             if (text == nullptr)
                 return out;
 
+            constexpr uint32_t c_ReplacementCharacter = 0xFFFD;
+            constexpr uint32_t c_MaxCodePoint          = 0x10FFFF;
+
             for (const wchar_t* p = text; *p != 0; ++p)
             {
-                const uint32_t codePoint = static_cast<uint32_t>(*p);
+                uint32_t codePoint = static_cast<uint32_t>(*p);
+
+                // Where wchar_t is 16 bits (Windows), anything outside the Basic
+                // Multilingual Plane arrives as a surrogate PAIR that has to be
+                // recombined; encoding the halves separately would emit two invalid
+                // sequences. Where wchar_t is 32 bits, code points arrive whole and
+                // none of this triggers.
+                if (codePoint >= 0xD800 && codePoint <= 0xDBFF)
+                {
+                    // Safe at the end of the string: the terminator is not a low
+                    // surrogate, so this reads the terminator and stops.
+                    const uint32_t lowSurrogate = static_cast<uint32_t>(*(p + 1));
+
+                    if (lowSurrogate >= 0xDC00 && lowSurrogate <= 0xDFFF)
+                    {
+                        codePoint = 0x10000 + ((codePoint - 0xD800) << 10) + (lowSurrogate - 0xDC00);
+                        ++p;
+                    }
+                    else
+                    {
+                        codePoint = c_ReplacementCharacter;   // unpaired high surrogate
+                    }
+                }
+                else if (codePoint >= 0xDC00 && codePoint <= 0xDFFF)
+                {
+                    codePoint = c_ReplacementCharacter;       // stray low surrogate
+                }
+
+                if (codePoint > c_MaxCodePoint)
+                    codePoint = c_ReplacementCharacter;
 
                 if (codePoint < 0x80)
                 {
