@@ -118,6 +118,11 @@ Vial and VIA are one backend with a Vial branch, not two backends.
   `VialProtocol.cpp`, `DeviceAgent.h` — under `src/`, `adapters/via/`, `external/`. This
   matches the Leyden Jar Diagnostic Tool, so code ported from it keeps its filenames and
   stays diffable against the original.
+- **Files whose contents live in `namespace nazg` are prefixed `Nazg`**, so the filename
+  hints at the namespace: `NazgTask.h`, `NazgHidTransport.cpp`. Files with global contents
+  are not prefixed — `Main.cpp` (global `main()`) and everything in `tests/`.
+  **The prefix is on filenames only.** Type names stay unprefixed inside the namespace:
+  the class in `NazgTask.h` is `nazg::Task`, not `nazg::NazgTask`, which would stutter.
 - **"Nazg" is a user-facing name only.** Source modules get boring, greppable names:
   `adapters/via`, `adapters/vial`, `transport/`, `descriptor/`. No lore-themed identifiers —
   naming adapters `narya`/`nenya`/`vilya` was considered and rejected as cryptic.
