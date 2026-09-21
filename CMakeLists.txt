@@ -8,8 +8,10 @@ project(
   VERSION 0.1.0
   LANGUAGES C CXX)
 
-# C++17 for std::variant, used by the capability model's typed descriptor parameters.
-set(CMAKE_CXX_STANDARD 17)
+# C++20 for coroutines: protocol sequences are hundreds of async round trips, and
+# co_await keeps them readable. Coroutines need no threads, so they port to Emscripten
+# where std::thread does not. std::variant (capability model) comes along for free.
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
@@ -61,17 +63,28 @@ set(IMGUI_SOURCES ${IMGUI_CORE_SOURCES} ${IMGUI_BACKEND_SOURCES})
 
 # --- Application --------------------------------------------------------------------
 
-add_executable(nazg
+set(NAZG_SOURCES
   src/Main.cpp
+  src/async/Task.h
+  src/transport/HidTransport.h
+  src/transport/HidTransport.cpp
+)
+
+add_executable(nazg
+  ${NAZG_SOURCES}
   ${IMGUI_SOURCES}
 )
 
 # IDE-only: file the vendored ImGui sources under their own group so they do not
 # clutter the project's own sources. Forward slashes nest the groups.
+# Mirror the src/ directory structure in the IDE.
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/src PREFIX "Source Files" FILES ${NAZG_SOURCES})
+
 source_group("Source Files/ImGui"          FILES ${IMGUI_CORE_SOURCES})
 source_group("Source Files/ImGui/Backends" FILES ${IMGUI_BACKEND_SOURCES})
 
 target_include_directories(nazg PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
   ${IMGUI_DIR}
   ${IMGUI_DIR}/backends
   ${CMAKE_CURRENT_SOURCE_DIR}/external/minlzma
@@ -85,6 +98,30 @@ target_link_libraries(nazg PRIVATE
   nlohmann_json::nlohmann_json
   minlzlib
 )
+
+# --- Tests --------------------------------------------------------------------------
+# CTest, not a test framework: CMake ships it, so there is no submodule and no
+# framework choice locked in. Run with:
+#   ctest --test-dir build_VS2022 -C Debug --output-on-failure
+
+option(NAZG_BUILD_TESTS "Build the test executables" ON)
+
+if(NAZG_BUILD_TESTS)
+    enable_testing()
+
+    # Compiles the sources it needs directly. When the test list grows, pull the
+    # shared sources into a nazg_core static library and link both against that.
+    add_executable(nazg_transport_shutdown_test
+      tests/TransportShutdownTest.cpp
+      src/transport/HidTransport.cpp
+    )
+
+    target_include_directories(nazg_transport_shutdown_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    target_link_libraries(nazg_transport_shutdown_test PRIVATE SDL3::SDL3 hidapi::hidapi)
+    set_property(TARGET nazg_transport_shutdown_test PROPERTY FOLDER tests)
+
+    add_test(NAME transport_shutdown COMMAND nazg_transport_shutdown_test)
+endif()
 
 # Make nazg the solution's startup project so F5 runs the app, not ALL_BUILD.
 # Must be set on the directory holding the top-level project().

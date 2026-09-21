@@ -14,11 +14,49 @@
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_sdlgpu3.h"
 
+#include "async/Task.h"
+#include "transport/HidTransport.h"
+
+#include <string>
+#include <vector>
+
 namespace
 {
     constexpr int   c_DefaultWindowWidth  = 1280;
     constexpr int   c_DefaultWindowHeight = 800;
     constexpr char  c_WindowTitle[]       = "Nazg";
+
+    // What the device-list view renders. Owned by main(), so it outlives every
+    // coroutine that writes to it -- coroutine frames outlive the calling scope, so
+    // anything captured by reference across a co_await must be long-lived.
+    struct DeviceListState
+    {
+        std::vector<nazg::HidDeviceInfo> devices;
+        std::string                      error;
+        bool                             isLoading = false;
+    };
+
+    // The payoff: an asynchronous sequence written as straight-line code. It suspends
+    // at the co_await, the frame loop keeps rendering, and HidTransport::Pump()
+    // resumes it on the main thread once the worker has the result.
+    nazg::Task<void> RefreshDeviceList(nazg::HidTransport& transport, DeviceListState& state)
+    {
+        state.isLoading = true;
+        state.error.clear();
+
+        try
+        {
+            state.devices = co_await transport.Enumerate();
+        }
+        catch (const nazg::HidTransportError& failure)
+        {
+            state.devices.clear();
+            state.error = failure.what();
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "enumeration failed: %s", failure.what());
+        }
+
+        state.isLoading = false;
+    }
 }
 
 int main(int, char**)
@@ -97,6 +135,12 @@ int main(int, char**)
     initInfo.PresentMode        = SDL_GPU_PRESENTMODE_VSYNC;
     ImGui_ImplSDLGPU3_Init(&initInfo);
 
+    // Owns a worker thread; every hidapi call happens there, never on this thread.
+    nazg::HidTransport transport;
+
+    DeviceListState  deviceListState;
+    nazg::Task<void> refreshTask = RefreshDeviceList(transport, deviceListState);
+
     const ImVec4 clearColor = ImVec4(0.09f, 0.09f, 0.11f, 1.0f);
     bool showDemoWindow = false;
     bool done = false;
@@ -113,6 +157,10 @@ int main(int, char**)
             if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED && event.window.windowID == SDL_GetWindowID(pWindow))
                 done = true;
         }
+
+        // Pump before the minimized early-out below, otherwise transport work stalls
+        // for as long as the window stays minimized.
+        transport.Pump();
 
         if ((SDL_GetWindowFlags(pWindow) & SDL_WINDOW_MINIMIZED) != 0)
         {
@@ -137,6 +185,73 @@ int main(int, char**)
             ImGui::Text("Frame          : %.3f ms (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
             ImGui::Separator();
             ImGui::Checkbox("Dear ImGui demo window", &showDemoWindow);
+            ImGui::End();
+        }
+
+        {
+            ImGui::Begin("HID Devices");
+
+            const bool isBusy = deviceListState.isLoading;
+
+            ImGui::BeginDisabled(isBusy);
+            if (ImGui::Button("Refresh"))
+            {
+                // Never replace a Task that still has work outstanding: destroying it
+                // would free a coroutine frame the transport still holds a handle to.
+                if (!refreshTask.IsValid() || refreshTask.IsDone())
+                    refreshTask = RefreshDeviceList(transport, deviceListState);
+            }
+            ImGui::EndDisabled();
+
+            ImGui::SameLine();
+            if (isBusy)
+                ImGui::TextUnformatted("enumerating...");
+            else
+                ImGui::Text("%zu device(s)", deviceListState.devices.size());
+
+            if (!deviceListState.error.empty())
+                ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", deviceListState.error.c_str());
+
+            ImGui::Separator();
+
+            const ImGuiTableFlags tableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
+                                               ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY;
+
+            if (ImGui::BeginTable("devices", 5, tableFlags))
+            {
+                ImGui::TableSetupColumn("Product");
+                ImGui::TableSetupColumn("Manufacturer");
+                ImGui::TableSetupColumn("VID:PID");
+                ImGui::TableSetupColumn("Usage");
+                ImGui::TableSetupColumn("Interface");
+                ImGui::TableSetupScrollFreeze(0, 1);
+                ImGui::TableHeadersRow();
+
+                for (const nazg::HidDeviceInfo& device : deviceListState.devices)
+                {
+                    ImGui::TableNextRow();
+
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted(device.product.empty() ? "(unnamed)" : device.product.c_str());
+                    if (ImGui::IsItemHovered() && !device.path.empty())
+                        ImGui::SetTooltip("%s", device.path.c_str());
+
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted(device.manufacturer.c_str());
+
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%04X:%04X", device.vendorId, device.productId);
+
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%04X:%04X", device.usagePage, device.usage);
+
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%d", device.interfaceNumber);
+                }
+
+                ImGui::EndTable();
+            }
+
             ImGui::End();
         }
 
@@ -171,6 +286,11 @@ int main(int, char**)
 
         SDL_SubmitGPUCommandBuffer(pCommandBuffer);
     }
+
+    // Shut the transport down explicitly, while deviceListState and refreshTask are
+    // still alive. Destructors run in reverse declaration order, so leaving this to
+    // ~HidTransport() would resume coroutines whose captured state had already died.
+    transport.Shutdown();
 
     SDL_WaitForGPUIdle(pGpuDevice);
     ImGui_ImplSDL3_Shutdown();

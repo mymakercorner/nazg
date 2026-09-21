@@ -87,6 +87,14 @@ nlohmann/json, minlzma — is built from `external/`, so there is nothing to ins
 The window reports which GPU backend SDL selected (D3D12 on Windows, Metal on macOS,
 Vulkan on Linux).
 
+### Tests
+
+Tests are registered with CTest and built by default (`-DNAZG_BUILD_TESTS=OFF` to skip):
+
+```
+ctest --test-dir build_VS2022 -C Debug --output-on-failure
+```
+
 ## Contributing
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) — the short version is that

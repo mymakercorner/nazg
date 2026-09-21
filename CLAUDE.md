@@ -110,6 +110,10 @@ Vial and VIA are one backend with a Vial branch, not two backends.
   expected — the *or-later* lives in the file headers.
 - **Commits are signed off** (DCO, `git commit -s`). No CLA.
 - **Commit messages are one short line, no body.** The diff carries the detail.
+- **Tests use CTest, no framework.** `tests/` holds plain executables returning 0 or 1,
+  registered with `add_test`. This deliberately leaves the framework choice open. On MSVC a
+  test's `main()` must redirect CRT asserts to stderr, or a failing assert opens a modal
+  dialog and hangs the run. Run: `ctest --test-dir build_VS2022 -C Debug --output-on-failure`.
 - **Source files use PascalCase; directories are lowercase.** `Main.cpp`,
   `VialProtocol.cpp`, `DeviceAgent.h` — under `src/`, `adapters/via/`, `external/`. This
   matches the Leyden Jar Diagnostic Tool, so code ported from it keeps its filenames and
