@@ -6,7 +6,7 @@ Nazg is a cross-platform desktop client for configuring mechanical keyboards at 
 speaks several configuration protocols through a single descriptor-driven interface, so one
 application handles boards that today need three different tools.
 
-*One config to rule them all.*
+*One keyboard configurator to rule them all.*
 
 > **Status: early development.** The protocol survey that informs the design is complete; the
 > application itself is just starting. There is nothing to install yet.
@@ -59,7 +59,34 @@ forked firmware or an embedded web server on the keyboard.
 
 ## Building
 
-Nothing to build yet. This section will cover it once there is code.
+All dependencies are git submodules pinned to exact commits, so clone recursively:
+
+```
+git clone --recurse-submodules https://github.com/mymakercorner/nazg.git
+cd nazg
+```
+
+On Windows, generate a Visual Studio 2022 solution in `build_VS2022/`:
+
+```
+GenerateBuildForVS2022.bat
+```
+
+Then open `build_VS2022
+azg.sln`, or build from the command line:
+
+```
+cmake --build build_VS2022 --config Debug
+```
+
+If you already cloned without `--recurse-submodules`, run
+`git submodule update --init --recursive` first.
+
+Requires CMake 3.21+ and a C++17 compiler. Everything else — SDL3, Dear ImGui, hidapi,
+nlohmann/json, minlzma — is built from `external/`, so there is nothing to install.
+
+The window reports which GPU backend SDL selected (D3D12 on Windows, Metal on macOS,
+Vulkan on Linux).
 
 ## Contributing
 

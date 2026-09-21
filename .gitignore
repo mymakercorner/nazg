@@ -1,5 +1,5 @@
 # Build output
-build/
+build*/
 out/
 cmake-build-*/
 install/
@@ -23,6 +23,9 @@ compile_commands.json
 *.exe
 *.pdb
 *.ilk
+
+# Dear ImGui runtime layout state
+imgui.ini
 
 # IDE and editor
 .vs/

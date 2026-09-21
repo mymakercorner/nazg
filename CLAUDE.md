@@ -3,7 +3,7 @@
 Cross-platform native configurator client speaking several keyboard configuration protocols —
 VIA and Vial first, QMK XAP later — through one descriptor-driven UI.
 
-Name: Black Speech for "ring" (*ash nazg durbatulûk*). Tagline: *one config to rule them all*.
+Name: Black Speech for "ring" (*ash nazg durbatulûk*). Tagline: *one keyboard configurator to rule them all*.
 
 # Status
 
@@ -68,6 +68,15 @@ obsolete" and steers toward SDL_GPU.
 
 The renderer and all SDL calls stay confined to `Main.cpp`, so switching backends is a
 one-file change. Keep it that way.
+
+**Build tooling: Visual Studio 2022 with the Visual Studio generator**, CMake 3.21+.
+Generate with `GenerateBuildForVS2022.bat`, which writes to `build_VS2022/`.
+**One script and one build directory per toolchain** — to add an IDE or platform, add a
+sibling `GenerateBuildFor<name>` script targeting its own `build_<name>/` directory, so they
+coexist without clobbering each other. `.gitignore` covers `build*/`. Ninja and VS2026 were both evaluated on
+2026-09-21 and **deliberately deferred** — nothing in the project needs the v145 toolset, and
+the current setup is verified working. Revisit later if desired; no known blockers (the
+dependency tree looks CMake 4 clean, and VS CMake folder mode keeps full IDE debugging).
 
 **Emscripten web build is explicitly deferred**, and note that SDL_GPU has no WebGPU backend
 (d3d12/metal/vulkan only) — a web build will need its own renderer path, either
