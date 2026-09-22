@@ -7,8 +7,9 @@ Name: Black Speech for "ring" (*ash nazg durbatulûk*). Tagline: *one keyboard c
 
 # Status
 
-Early development. No application code yet — the repository currently holds licence, README
-and contribution docs only. The design phase is finished; see below.
+Early development. The design phase is finished (see below) and the skeleton stands: CMake
+build, SDL3 + ImGui window, `Task<T>` coroutines, and a HID transport offering
+enumerate / open / request / close, with tests. No protocol adapter yet — Vial is next.
 
 # Prior research — read before re-researching anything
 
