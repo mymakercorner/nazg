@@ -19,8 +19,12 @@ Aquanaut). **The Vial-specific half is tested only against scripted bytes** — 
 paged definition download, entry counts, unlock status and encoders have never met a
 vial-qmk board.
 
-Next: decode the downloaded definition (minlzma, then nlohmann/json) and feed it into the
-capability model. The UI is still the placeholder device list.
+The Vial definition decodes end to end: XZ through minlzma, JSON through nlohmann, and a
+KLE walk yielding key geometry and matrix positions. Verified against a Model F Labs B104 --
+704 bytes compressed, 129 keys -- whose real definition is the fixture in
+`tests/ModelFDefinition.h`.
+
+Next: feed that into the capability model. The UI is still the placeholder device list.
 
 # Prior research — read before re-researching anything
 

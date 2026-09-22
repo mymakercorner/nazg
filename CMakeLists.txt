@@ -76,6 +76,8 @@ set(NAZG_CORE_SOURCES
   src/adapters/via/NazgViaProtocol.cpp
   src/adapters/vial/NazgVialProtocol.h
   src/adapters/vial/NazgVialProtocol.cpp
+  src/adapters/vial/NazgVialDefinition.h
+  src/adapters/vial/NazgVialDefinition.cpp
 )
 
 add_library(nazg_core STATIC ${NAZG_CORE_SOURCES})
@@ -83,7 +85,12 @@ add_library(nazg_core STATIC ${NAZG_CORE_SOURCES})
 # PUBLIC: anything linking nazg_core includes its headers and needs the same
 # libraries, so they propagate rather than being repeated per target.
 target_include_directories(nazg_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_link_libraries(nazg_core PUBLIC SDL3::SDL3 hidapi::hidapi)
+
+# minlzlib publishes no include directory of its own, so the path to minlzma.h is
+# spelled out here rather than arriving with the target.
+target_include_directories(nazg_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/minlzma)
+
+target_link_libraries(nazg_core PUBLIC SDL3::SDL3 hidapi::hidapi nlohmann_json::nlohmann_json minlzlib)
 
 # --- Application --------------------------------------------------------------------
 
@@ -106,17 +113,12 @@ source_group("Source Files/ImGui/Backends" FILES ${IMGUI_BACKEND_SOURCES})
 target_include_directories(nazg PRIVATE
   ${IMGUI_DIR}
   ${IMGUI_DIR}/backends
-  ${CMAKE_CURRENT_SOURCE_DIR}/external/minlzma
 )
 
 # hidapi::hidapi is a portable alias resolving to the right per-platform target
 # (winapi / darwin / hidraw), so no platform branching is needed here. It and SDL3
 # arrive through nazg_core, which links them PUBLIC.
-target_link_libraries(nazg PRIVATE
-  nazg_core
-  nlohmann_json::nlohmann_json
-  minlzlib
-)
+target_link_libraries(nazg PRIVATE nazg_core)
 
 # --- Tests --------------------------------------------------------------------------
 # CTest, not a test framework: CMake ships it, so there is no submodule and no
@@ -148,6 +150,7 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(transport_request  tests/TransportRequestTest.cpp)
     nazg_add_test(via_protocol       tests/ViaProtocolTest.cpp)
     nazg_add_test(vial_protocol      tests/VialProtocolTest.cpp)
+    nazg_add_test(vial_definition    tests/VialDefinitionTest.cpp)
 endif()
 
 # Make nazg the solution's startup project so F5 runs the app, not ALL_BUILD.
