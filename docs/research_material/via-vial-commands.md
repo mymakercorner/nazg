@@ -121,6 +121,22 @@ trips; this is the batching that exists because per-key requests were too chatty
 | `0x05` | `id_device_indication` | — | `[2]` u8 |
 | `0x06` | `id_keycodes_version` | `[2..5]` `QMK_KEYCODES_VERSION_BCD` | — *(protocol 13)* |
 
+### How `id_layout_options` packs its value
+
+*Verified on hardware 2026-09-22.* The u32 is a bit field, not an index. Each layout group
+declared in the definition's `layouts.labels` takes as many bits as its option count needs
+(one bit for a two-option group, three for a five-option group), and **the first group
+occupies the most significant bits**.
+
+A label that is a plain string is an on/off toggle; a label that is an array names the group
+in its first element and its options in the rest — `["Enter", "ISO Enter", "ANSI Enter"]` is
+one group with two options.
+
+Confirmed against a Model F Labs B104 with six one-bit groups: switching on group 0, "Split
+Backspace", made the board report `0x00000020`, which is bit 5. The opposite packing would
+have made that same value mean the last group. As a second check, the number of visible keys
+rose by exactly one, which is what splitting one key into two does.
+
 `id_switch_matrix_state` is the matrix tester. On mainline it returns **all zeroes** unless
 the build defines `VIA_INSECURE`, or defines `SECURE_ENABLE` and is currently unlocked —
 QMK's own comment calls the alternative a "wannabe keylogger". Rows per report are

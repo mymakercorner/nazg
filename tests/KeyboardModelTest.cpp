@@ -148,6 +148,14 @@ namespace
         Check(DecodeLayoutOptions(0b100, groups) == std::vector<uint8_t>({ 1, 0, 0 }),
               "and the highest bit to the first");
 
+        // The value a real board reported. A Model F with six one-bit groups had the
+        // FIRST of them -- "Split Backspace" -- switched on in the Vial GUI and
+        // answered 0x20. This is the case that pins the bit order: with the opposite
+        // packing the same value would select the last group instead.
+        std::vector<LayoutOptionGroup> modelF(6);
+        Check(DecodeLayoutOptions(0x20, modelF) == std::vector<uint8_t>({ 1, 0, 0, 0, 0, 0 }),
+              "0x20 selects the first of six groups, as the hardware reported");
+
         // A group with more than two options needs more than one bit.
         std::vector<LayoutOptionGroup> wide(2);
         wide[0].options = { "a", "b", "c", "d", "e" };   // 5 options -> 3 bits

@@ -101,10 +101,11 @@ namespace nazg
 
     // Unpack id_layout_options into one selected index per group.
     //
-    // NOT yet verified against hardware: VIA packs each group into as many bits as its
-    // option count needs, most significant group first, and that ordering is taken from
-    // reading the format rather than from watching a board change. Everything else in
-    // this file has been checked against a real definition.
+    // Each group takes as many bits as its option count needs, and the FIRST group
+    // occupies the most significant bits. Verified on hardware 2026-09-22: a Model F
+    // with six one-bit groups had "Split Backspace" -- group 0 -- switched on in the
+    // Vial GUI and reported 0x00000020, which is bit 5. The opposite packing would
+    // have made that value mean the last group instead.
     [[nodiscard]] std::vector<uint8_t> DecodeLayoutOptions(uint32_t                        raw,
                                                            const std::vector<LayoutOptionGroup>& groups);
 
