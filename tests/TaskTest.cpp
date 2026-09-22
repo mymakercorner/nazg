@@ -27,6 +27,8 @@
 
 #include "async/NazgTask.h"
 
+#include "TestSupport.h"
+
 #include <coroutine>
 #include <cstdio>
 #include <stdexcept>
@@ -34,24 +36,10 @@
 #include <utility>
 #include <vector>
 
-#ifdef _MSC_VER
-#include <crtdbg.h>
-#include <cstdlib>
-#endif
-
 using nazg::Task;
 
 namespace
 {
-    int g_failureCount = 0;
-
-    void Check(bool condition, const char* description)
-    {
-        std::printf("  [%s] %s\n", condition ? "PASS" : "FAIL", description);
-        if (!condition)
-            ++g_failureCount;
-    }
-
     // ---------------------------------------------------------------------------------
     // Test doubles
     // ---------------------------------------------------------------------------------
@@ -555,16 +543,7 @@ namespace
 
 int main()
 {
-#ifdef _MSC_VER
-    // A failing assert (Task::Destroy() has one) must fail the test, not open a modal
-    // dialog that blocks the run forever on CI or on a developer's machine.
-    _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
-    for (int reportType : { _CRT_WARN, _CRT_ERROR, _CRT_ASSERT })
-    {
-        _CrtSetReportMode(reportType, _CRTDBG_MODE_FILE);
-        _CrtSetReportFile(reportType, _CRTDBG_FILE_STDERR);
-    }
-#endif
+    ConfigureCrtReporting();
 
     TestSynchronousCompletion();
     TestTakeResultBeforeCompletion();
@@ -578,6 +557,5 @@ int main()
     TestTaskVoid();
     TestDeepChainStaysFlat();
 
-    std::printf("%s (%d failure(s))\n", g_failureCount == 0 ? "PASSED" : "FAILED", g_failureCount);
-    return g_failureCount == 0 ? 0 : 1;
+    return TestResult();
 }

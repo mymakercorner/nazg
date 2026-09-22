@@ -3,6 +3,7 @@
 
 #include "NazgHidTransport.h"
 
+#include <algorithm>
 #include <utility>
 
 #include <SDL3/SDL_log.h>
@@ -15,6 +16,15 @@ namespace nazg
     {
         // Guards against a coroutine that resubmits work on every resume.
         constexpr int c_MaxPumpPasses = 64;
+
+        // A pending read is broken into slices of this length so the worker notices a
+        // shutdown request without waiting out the whole timeout first. Long enough
+        // that the polling costs nothing, short enough that exit feels immediate.
+        constexpr uint32_t c_ReadSliceMs = 50;
+
+        // Read buffer size. 64 bytes is the Full Speed interrupt maximum, so no report
+        // from a QMK device can exceed it (RAW_EPSIZE is half that).
+        constexpr size_t c_MaxReportSize = 64;
 
         // hidapi returns wchar_t strings whose width differs per platform (16-bit on
         // Windows, 32-bit elsewhere). Encode the code points as UTF-8 by hand rather
@@ -87,6 +97,13 @@ namespace nazg
 
             return out;
         }
+
+        // hidapi's per-device error string, or its global one when no device is open.
+        std::string LastError(hid_device* device)
+        {
+            const std::string message = ToUtf8(hid_error(device));
+            return message.empty() ? "no further detail" : message;
+        }
     }
 
     HidTransport::HidTransport()
@@ -100,16 +117,51 @@ namespace nazg
         Shutdown();
     }
 
-    HidTransport::EnumerateOperation HidTransport::Enumerate(uint16_t usagePage, uint16_t usage)
+    HidTransport::EnumerateAwaitable HidTransport::Enumerate(uint16_t usagePage, uint16_t usage)
     {
-        auto request       = std::make_shared<Request>();
-        request->usagePage = usagePage;
-        request->usage     = usage;
+        auto operation       = std::make_shared<Operation>();
+        operation->kind      = OperationKind::Enumerate;
+        operation->usagePage = usagePage;
+        operation->usage     = usage;
 
-        return EnumerateOperation(*this, std::move(request));
+        return EnumerateAwaitable(*this, std::move(operation));
     }
 
-    void HidTransport::Submit(RequestPtr request)
+    HidTransport::OpenAwaitable HidTransport::Open(std::string path)
+    {
+        auto operation  = std::make_shared<Operation>();
+        operation->kind = OperationKind::Open;
+        operation->path = std::move(path);
+
+        return OpenAwaitable(*this, std::move(operation));
+    }
+
+    HidTransport::RequestAwaitable HidTransport::Request(DeviceId             device,
+                                                         std::vector<uint8_t> payload,
+                                                         uint32_t             timeoutMs)
+    {
+        auto operation       = std::make_shared<Operation>();
+        operation->kind      = OperationKind::Request;
+        operation->device    = device;
+        operation->payload   = std::move(payload);
+        operation->timeoutMs = timeoutMs;
+
+        return RequestAwaitable(*this, std::move(operation));
+    }
+
+    void HidTransport::Close(DeviceId device)
+    {
+        auto operation    = std::make_shared<Operation>();
+        operation->kind   = OperationKind::Close;
+        operation->device = device;
+
+        // No continuation: nothing awaits a close. After shutdown this lands in the
+        // completed queue and Pump() drops it, and the worker closes every device it
+        // still holds on its way out regardless.
+        Submit(std::move(operation));
+    }
+
+    void HidTransport::Submit(OperationPtr operation)
     {
         {
             std::lock_guard<std::mutex> lock(m_Mutex);
@@ -117,12 +169,12 @@ namespace nazg
             if (!m_Running.load())
             {
                 // Already shut down: fail immediately so the coroutine still unwinds.
-                request->error = "transport is shut down";
-                m_Completed.push_back(std::move(request));
+                operation->error = "transport is shut down";
+                m_Completed.push_back(std::move(operation));
                 return;
             }
 
-            m_Pending.push_back(std::move(request));
+            m_Pending.push_back(std::move(operation));
         }
 
         m_WorkAvailable.notify_one();
@@ -134,7 +186,7 @@ namespace nazg
 
         for (;;)
         {
-            RequestPtr request;
+            OperationPtr operation;
 
             {
                 std::unique_lock<std::mutex> lock(m_Mutex);
@@ -142,60 +194,179 @@ namespace nazg
 
                 // Stop as soon as shutdown is requested, leaving anything still
                 // queued for Shutdown() to fail. Draining it here would block exit on
-                // a blocking hidapi call per queued request, and would mean the
+                // a blocking hidapi call per queued operation, and would mean the
                 // fail-all-pending path never ran.
                 if (!m_Running.load())
                     break;
 
-                request = std::move(m_Pending.front());
+                operation = std::move(m_Pending.front());
                 m_Pending.pop_front();
             }
 
             // Blocking hidapi work happens here, off the main thread.
-            hid_device_info* enumerated = hid_enumerate(0, 0);
-
-            if (enumerated == nullptr)
-            {
-                // hid_enumerate returns null both for "no devices" and for failure.
-                // Treat it as an empty list; a genuine failure surfaces on open.
-                request->devices.clear();
-            }
-            else
-            {
-                for (hid_device_info* current = enumerated; current != nullptr; current = current->next)
-                {
-                    const bool matchesUsage =
-                        (request->usagePage == 0 || current->usage_page == request->usagePage) &&
-                        (request->usage     == 0 || current->usage      == request->usage);
-
-                    if (!matchesUsage)
-                        continue;
-
-                    HidDeviceInfo info;
-                    info.path            = current->path != nullptr ? current->path : "";
-                    info.manufacturer    = ToUtf8(current->manufacturer_string);
-                    info.product         = ToUtf8(current->product_string);
-                    info.serialNumber    = ToUtf8(current->serial_number);
-                    info.vendorId        = current->vendor_id;
-                    info.productId       = current->product_id;
-                    info.usagePage       = current->usage_page;
-                    info.usage           = current->usage;
-                    info.releaseNumber   = current->release_number;
-                    info.interfaceNumber = current->interface_number;
-
-                    request->devices.push_back(std::move(info));
-                }
-
-                hid_free_enumeration(enumerated);
-            }
+            Execute(*operation);
 
             {
                 std::lock_guard<std::mutex> lock(m_Mutex);
-                m_Completed.push_back(std::move(request));
+                m_Completed.push_back(std::move(operation));
             }
         }
 
+        // Whatever the protocol layer left open, plus anything whose queued Close was
+        // abandoned above. Must happen on this thread: the handles belong to it.
+        CloseAllDevices();
+
         hid_exit();
+    }
+
+    void HidTransport::Execute(Operation& operation)
+    {
+        switch (operation.kind)
+        {
+        case OperationKind::Enumerate: ExecuteEnumerate(operation); break;
+        case OperationKind::Open:      ExecuteOpen(operation);      break;
+        case OperationKind::Request:   ExecuteRequest(operation);   break;
+        case OperationKind::Close:     ExecuteClose(operation);     break;
+        }
+    }
+
+    void HidTransport::ExecuteEnumerate(Operation& operation)
+    {
+        hid_device_info* enumerated = hid_enumerate(0, 0);
+
+        if (enumerated == nullptr)
+        {
+            // hid_enumerate returns null both for "no devices" and for failure.
+            // Treat it as an empty list; a genuine failure surfaces on open.
+            operation.devices.clear();
+            return;
+        }
+
+        for (hid_device_info* current = enumerated; current != nullptr; current = current->next)
+        {
+            const bool matchesUsage =
+                (operation.usagePage == 0 || current->usage_page == operation.usagePage) &&
+                (operation.usage     == 0 || current->usage      == operation.usage);
+
+            if (!matchesUsage)
+                continue;
+
+            HidDeviceInfo info;
+            info.path            = current->path != nullptr ? current->path : "";
+            info.manufacturer    = ToUtf8(current->manufacturer_string);
+            info.product         = ToUtf8(current->product_string);
+            info.serialNumber    = ToUtf8(current->serial_number);
+            info.vendorId        = current->vendor_id;
+            info.productId       = current->product_id;
+            info.usagePage       = current->usage_page;
+            info.usage           = current->usage;
+            info.releaseNumber   = current->release_number;
+            info.interfaceNumber = current->interface_number;
+
+            operation.devices.push_back(std::move(info));
+        }
+
+        hid_free_enumeration(enumerated);
+    }
+
+    void HidTransport::ExecuteOpen(Operation& operation)
+    {
+        hid_device* device = hid_open_path(operation.path.c_str());
+
+        if (device == nullptr)
+        {
+            operation.error = "could not open " + operation.path + ": " + LastError(nullptr);
+            return;
+        }
+
+        // Ids come from a counter that is never reset and never reuses a value, so an
+        // id kept past its Close() fails cleanly instead of hitting a later device.
+        const DeviceId id = m_NextDeviceId++;
+        m_Devices.emplace(id, device);
+        operation.opened = id;
+    }
+
+    void HidTransport::ExecuteRequest(Operation& operation)
+    {
+        const auto entry = m_Devices.find(operation.device);
+        if (entry == m_Devices.end())
+        {
+            operation.error = "request for a device that is not open";
+            return;
+        }
+
+        hid_device* device = entry->second;
+
+        // hidapi wants the report ID as the first byte on every platform. QMK's raw
+        // HID interface uses unnumbered reports, so that byte is 0 and the firmware
+        // never sees it.
+        std::vector<uint8_t> framed;
+        framed.reserve(operation.payload.size() + 1);
+        framed.push_back(0x00);
+        framed.insert(framed.end(), operation.payload.begin(), operation.payload.end());
+
+        if (hid_write(device, framed.data(), framed.size()) < 0)
+        {
+            operation.error = "write failed: " + LastError(device);
+            return;
+        }
+
+        unsigned char buffer[c_MaxReportSize];
+        uint32_t      remaining = operation.timeoutMs;
+
+        for (;;)
+        {
+            const uint32_t slice     = std::min(remaining, c_ReadSliceMs);
+            const int      bytesRead = hid_read_timeout(device, buffer, sizeof(buffer),
+                                                        static_cast<int>(slice));
+
+            if (bytesRead < 0)
+            {
+                operation.error = "read failed: " + LastError(device);
+                return;
+            }
+
+            if (bytesRead > 0)
+            {
+                operation.reply.assign(buffer, buffer + bytesRead);
+                return;
+            }
+
+            remaining -= slice;
+
+            // A zero timeout polls once and gives up, which falls out of the order
+            // here: slice is 0, so remaining is still 0 on this first pass.
+            if (remaining == 0)
+            {
+                operation.error = "device did not answer within " +
+                                  std::to_string(operation.timeoutMs) + " ms";
+                return;
+            }
+
+            if (!m_Running.load())
+            {
+                operation.error = "transport shut down while waiting for the device";
+                return;
+            }
+        }
+    }
+
+    void HidTransport::ExecuteClose(Operation& operation)
+    {
+        const auto entry = m_Devices.find(operation.device);
+        if (entry == m_Devices.end())
+            return;   // unknown or already closed: nothing to do
+
+        hid_close(entry->second);
+        m_Devices.erase(entry);
+    }
+
+    void HidTransport::CloseAllDevices()
+    {
+        for (const auto& entry : m_Devices)
+            hid_close(entry.second);
+
+        m_Devices.clear();
     }
 
     void HidTransport::Pump()
@@ -205,7 +376,7 @@ namespace nazg
         // leave that completion stranded, and Shutdown()'s Pump() is the last one.
         for (int pass = 0; pass < c_MaxPumpPasses; ++pass)
         {
-            std::deque<RequestPtr> ready;
+            std::deque<OperationPtr> ready;
 
             {
                 std::lock_guard<std::mutex> lock(m_Mutex);
@@ -217,12 +388,12 @@ namespace nazg
 
             // Resume outside the lock: a resumed coroutine may submit more work, which
             // would deadlock if we still held the mutex.
-            for (RequestPtr& request : ready)
+            for (OperationPtr& operation : ready)
             {
-                if (request->continuation)
+                if (operation->continuation)
                 {
-                    std::coroutine_handle<> continuation = request->continuation;
-                    request->continuation = {};
+                    std::coroutine_handle<> continuation = operation->continuation;
+                    operation->continuation = {};
                     continuation.resume();
                 }
             }
@@ -250,10 +421,10 @@ namespace nazg
         // keeps a disconnect from presenting as a frozen UI.
         {
             std::lock_guard<std::mutex> lock(m_Mutex);
-            for (RequestPtr& request : m_Pending)
+            for (OperationPtr& operation : m_Pending)
             {
-                request->error = "transport shut down before the request was serviced";
-                m_Completed.push_back(std::move(request));
+                operation->error = "transport shut down before the operation was serviced";
+                m_Completed.push_back(std::move(operation));
             }
             m_Pending.clear();
         }

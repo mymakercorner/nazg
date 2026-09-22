@@ -61,14 +61,26 @@ set(IMGUI_BACKEND_SOURCES
 
 set(IMGUI_SOURCES ${IMGUI_CORE_SOURCES} ${IMGUI_BACKEND_SOURCES})
 
-# --- Application --------------------------------------------------------------------
+# --- Core library -------------------------------------------------------------------
+# Everything except main() and the ImGui front end. The app and the test executables
+# link the same objects instead of each recompiling the sources they need.
 
-set(NAZG_SOURCES
-  src/Main.cpp
+set(NAZG_CORE_SOURCES
   src/async/NazgTask.h
   src/transport/NazgHidTransport.h
   src/transport/NazgHidTransport.cpp
 )
+
+add_library(nazg_core STATIC ${NAZG_CORE_SOURCES})
+
+# PUBLIC: anything linking nazg_core includes its headers and needs the same
+# libraries, so they propagate rather than being repeated per target.
+target_include_directories(nazg_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(nazg_core PUBLIC SDL3::SDL3 hidapi::hidapi)
+
+# --- Application --------------------------------------------------------------------
+
+set(NAZG_SOURCES src/Main.cpp)
 
 add_executable(nazg
   ${NAZG_SOURCES}
@@ -79,22 +91,22 @@ add_executable(nazg
 # clutter the project's own sources. Forward slashes nest the groups.
 # Mirror the src/ directory structure in the IDE.
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/src PREFIX "Source Files" FILES ${NAZG_SOURCES})
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/src PREFIX "Source Files" FILES ${NAZG_CORE_SOURCES})
 
 source_group("Source Files/ImGui"          FILES ${IMGUI_CORE_SOURCES})
 source_group("Source Files/ImGui/Backends" FILES ${IMGUI_BACKEND_SOURCES})
 
 target_include_directories(nazg PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/src
   ${IMGUI_DIR}
   ${IMGUI_DIR}/backends
   ${CMAKE_CURRENT_SOURCE_DIR}/external/minlzma
 )
 
 # hidapi::hidapi is a portable alias resolving to the right per-platform target
-# (winapi / darwin / hidraw), so no platform branching is needed here.
+# (winapi / darwin / hidraw), so no platform branching is needed here. It and SDL3
+# arrive through nazg_core, which links them PUBLIC.
 target_link_libraries(nazg PRIVATE
-  SDL3::SDL3
-  hidapi::hidapi
+  nazg_core
   nlohmann_json::nlohmann_json
   minlzlib
 )
@@ -109,30 +121,23 @@ option(NAZG_BUILD_TESTS "Build the test executables" ON)
 if(NAZG_BUILD_TESTS)
     enable_testing()
 
-    # Compiles the sources it needs directly. When the test list grows, pull the
-    # shared sources into a nazg_core static library and link both against that.
-    add_executable(nazg_transport_shutdown_test
-      tests/TransportShutdownTest.cpp
-      src/transport/NazgHidTransport.cpp
-    )
+    # One executable per area, each linking nazg_core. tests/TestSupport.h holds the
+    # pass/fail counter and the MSVC assert plumbing they share -- that is all the
+    # scaffolding there is.
+    function(nazg_add_test testName sourceFile)
+        set(targetName nazg_${testName}_test)
 
-    target_include_directories(nazg_transport_shutdown_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-    target_link_libraries(nazg_transport_shutdown_test PRIVATE SDL3::SDL3 hidapi::hidapi)
-    set_property(TARGET nazg_transport_shutdown_test PROPERTY FOLDER tests)
+        add_executable(${targetName} ${sourceFile} tests/TestSupport.h)
+        target_include_directories(${targetName} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tests)
+        target_link_libraries(${targetName} PRIVATE nazg_core)
+        set_property(TARGET ${targetName} PROPERTY FOLDER tests)
 
-    add_test(NAME transport_shutdown COMMAND nazg_transport_shutdown_test)
+        add_test(NAME ${testName} COMMAND ${targetName})
+    endfunction()
 
-    # Task<T> is header-only and deliberately free of threading and platform code, so
-    # this target needs no sources and no libraries beyond the test itself.
-    add_executable(nazg_task_test
-      tests/TaskTest.cpp
-      src/async/NazgTask.h
-    )
-
-    target_include_directories(nazg_task_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-    set_property(TARGET nazg_task_test PROPERTY FOLDER tests)
-
-    add_test(NAME task COMMAND nazg_task_test)
+    nazg_add_test(task               tests/TaskTest.cpp)
+    nazg_add_test(transport_shutdown tests/TransportShutdownTest.cpp)
+    nazg_add_test(transport_request  tests/TransportRequestTest.cpp)
 endif()
 
 # Make nazg the solution's startup project so F5 runs the app, not ALL_BUILD.
