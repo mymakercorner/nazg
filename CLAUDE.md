@@ -26,7 +26,14 @@ it for both and only the sourcing differs -- Vial inflates XZ off the device
 Verified against a Model F Labs B104 -- 704 bytes compressed, 129 keys -- whose real
 definition is the fixture in `tests/ModelFDefinition.h`.
 
-Next: feed that into the capability model. The UI is still the placeholder device list.
+A whole board now loads into a plain `Keyboard` value (`model/NazgKeyboard.h`): geometry,
+layer count, layout options and a flat `Keymap` addressed by `At(layer, row, column)`.
+`LoadVialKeyboard()` is the only coroutine above the protocol -- everything it feeds is
+pure synchronous code, so the model tests with literals. Measured on the Model F: **890 ms**
+for the ~65 round trips a full load costs, which is why none of it can block the frame loop.
+
+Next: the keycode dictionary (version-keyed, generated from QMK's JSON), then drawing the
+board. The UI is still the placeholder device list.
 
 # Prior research — read before re-researching anything
 

@@ -80,6 +80,10 @@ set(NAZG_CORE_SOURCES
   src/adapters/vial/NazgVialProtocol.cpp
   src/adapters/vial/NazgVialDefinition.h
   src/adapters/vial/NazgVialDefinition.cpp
+  src/adapters/vial/NazgVialLoader.h
+  src/adapters/vial/NazgVialLoader.cpp
+  src/model/NazgKeyboard.h
+  src/model/NazgKeyboard.cpp
 )
 
 add_library(nazg_core STATIC ${NAZG_CORE_SOURCES})
@@ -153,6 +157,7 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(via_protocol       tests/ViaProtocolTest.cpp)
     nazg_add_test(vial_protocol      tests/VialProtocolTest.cpp)
     nazg_add_test(definition         tests/DefinitionTest.cpp)
+    nazg_add_test(keyboard_model     tests/KeyboardModelTest.cpp)
 endif()
 
 # Make nazg the solution's startup project so F5 runs the app, not ALL_BUILD.
