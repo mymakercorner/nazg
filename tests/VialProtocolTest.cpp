@@ -180,6 +180,44 @@ namespace
         Check(status.combo[1] == std::make_pair<uint8_t, uint8_t>(5, 6), "second key follows");
     }
 
+    // Vial does not use VIA's 0xFF marker. A sub-command the firmware was built without
+    // falls through its switch untouched, so the request comes back byte for byte.
+    // Found on real hardware: a board with no encoders "returned" a keycode of 0xFE03,
+    // which is the prefix and sub-command being read back.
+    void TestUnsupportedSubCommandEchoesTheRequest()
+    {
+        std::printf("unsupported Vial sub-command\n");
+
+        FakeDeviceChannel channel;
+        VialProtocol      vial(channel);
+
+        // Exactly what GetEncoder(0, 0) sends: prefix, sub-command, layer, index.
+        std::vector<uint8_t> echo(nazg::c_ViaReportSize, 0x00);
+        echo[0] = 0xFE;
+        echo[1] = 0x03;
+        channel.ReplyRaw(echo);
+
+        Check(Throws([&] { Run(vial.GetEncoder(0, 0)); }),
+              "an echoed request is reported as unsupported, not parsed as data");
+    }
+
+    // Detection has to survive the same convention: a device that echoes rather than
+    // answering 0xFF is still "not a Vial board", not an error.
+    void TestDetectOnEchoingDevice()
+    {
+        std::printf("detect on an echoing device\n");
+
+        FakeDeviceChannel channel;
+        VialProtocol      vial(channel);
+
+        std::vector<uint8_t> echo(nazg::c_ViaReportSize, 0x00);
+        echo[0] = 0xFE;
+        echo[1] = 0x00;
+        channel.ReplyRaw(echo);
+
+        Check(!Run(vial.Detect()).has_value(), "an echoed detect reports no Vial support");
+    }
+
     void TestEncoderReturnsBothDirections()
     {
         std::printf("encoder\n");
@@ -224,6 +262,8 @@ int main()
     TestImplausibleDefinitionSizeIsRefused();
     TestEntryCounts();
     TestUnlockStatus();
+    TestUnsupportedSubCommandEchoesTheRequest();
+    TestDetectOnEchoingDevice();
     TestEncoderReturnsBothDirections();
     TestInheritedViaCommands();
 

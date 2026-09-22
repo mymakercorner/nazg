@@ -12,6 +12,9 @@
 //
 //   - Vial replies OVERWRITE the buffer from byte 0, so there is no command id to echo
 //     back and no 0xFF marker to check. Every reply has to be validated by its content.
+//     A sub-command the firmware was built without does not answer 0xFF either: it
+//     falls through its switch and the request comes back unchanged, so "the reply
+//     equals the request" is how an absent Vial feature announces itself.
 //   - Vial's own scalars -- protocol version, definition size, page index, setting id --
 //     are LITTLE-endian, where VIA's are big-endian, because these commands copy bytes
 //     straight out of EEPROM. Keycodes are the exception and stay big-endian, since
@@ -129,9 +132,12 @@ namespace nazg
         [[nodiscard]] Task<EncoderPair> GetEncoder(uint8_t layer, uint8_t index);
 
     private:
-        // Like ViaProtocol::Send but without the echo check, for the reason in the
-        // header comment. Returns the raw 32 bytes for the caller to interpret.
-        [[nodiscard]] Task<std::vector<uint8_t>> SendVial(VialCommand command,
-                                                          std::initializer_list<uint8_t> arguments);
+        // Like ViaProtocol::Send but checked differently, for the reason in the header
+        // comment. Returns the raw 32 bytes for the caller to interpret. Pass
+        // expectsData = false for commands that answer with nothing, so their empty
+        // reply is not mistaken for an unsupported feature.
+        [[nodiscard]] Task<std::vector<uint8_t>> SendVial(VialCommand                    command,
+                                                          std::initializer_list<uint8_t> arguments,
+                                                          bool                           expectsData = true);
     };
 }

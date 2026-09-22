@@ -38,7 +38,8 @@ namespace nazg
     }
 
     Task<std::vector<uint8_t>> VialProtocol::SendVial(VialCommand                    command,
-                                                      std::initializer_list<uint8_t> arguments)
+                                                      std::initializer_list<uint8_t> arguments,
+                                                      bool                           expectsData)
     {
         // [0] prefix, [1] sub-command, arguments from [2] -- which is where the
         // firmware reads them, since it keeps the prefix and sub-command in place.
@@ -50,6 +51,8 @@ namespace nazg
         for (uint8_t argument : arguments)
             frame[index++] = argument;
 
+        const std::vector<uint8_t> sent = frame;
+
         std::vector<uint8_t> reply = co_await m_Channel.Request(std::move(frame));
 
         if (reply.size() < c_ViaReportSize)
@@ -57,15 +60,36 @@ namespace nazg
                                 std::to_string(static_cast<int>(command)) + ": " +
                                 std::to_string(reply.size()) + " bytes");
 
+        // Vial does NOT use VIA's 0xFF marker. A sub-command compiled out of the
+        // firmware falls through its switch without touching the buffer, so the reply
+        // is the request, echoed back byte for byte. Observed on a board without
+        // encoders: vial_get_encoder "returned" 0xFE03, which is the prefix and
+        // sub-command being read back as a keycode.
+        //
+        // Commands that legitimately return nothing (lock, unlock start, settings
+        // reset) echo the request too, so only callers expecting data check for it.
+        if (expectsData && reply == sent)
+            throw ProtocolError("Vial command " + std::to_string(static_cast<int>(command)) +
+                                " is not supported by this firmware");
+
         co_return reply;
     }
 
     Task<std::optional<VialIdentity>> VialProtocol::Detect()
     {
-        std::vector<uint8_t> reply = co_await SendVial(VialCommand::GetKeyboardId, {});
+        // "Not a Vial board" is an answer, not a failure, so this asks for the reply
+        // without the unsupported-feature check and inspects it here.
+        std::vector<uint8_t> reply = co_await SendVial(VialCommand::GetKeyboardId, {}, false);
 
         // A plain VIA board does not know 0xFE and answers with the unhandled marker.
         if (reply[0] == static_cast<uint8_t>(ViaCommand::Unhandled))
+            co_return std::nullopt;
+
+        // Belt and braces for firmware that echoes an unknown command instead: a real
+        // reply starts with the low byte of the protocol version, which runs 0 to 6 and
+        // can never be 0xFE.
+        if (reply[0] == static_cast<uint8_t>(ViaCommand::VialPrefix) &&
+            reply[1] == static_cast<uint8_t>(VialCommand::GetKeyboardId))
             co_return std::nullopt;
 
         VialIdentity identity;

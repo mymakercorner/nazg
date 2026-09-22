@@ -43,6 +43,37 @@ watching for `0xFF`.
 VIA no longer implements it** — there is no case for it in `via.c`, so it returns `0xFF`.
 Vial kept it, gated behind unlock and excluded from `VIAL_INSECURE` builds.
 
+### Vial commands do NOT use the 0xFF marker
+
+*Verified on hardware 2026-09-22.* The `0xFF` convention above covers VIA commands only.
+A Vial sub-command the firmware was built without falls through its `switch` **without
+touching the buffer**, so the reply is the request, echoed back byte for byte. On a board
+compiled without `ENCODER_MAP_ENABLE`, `vial_get_encoder` "returned" a keycode of `0xFE03` —
+which is the prefix and sub-command being read back as data.
+
+So the two halves of the same device announce a missing feature in two different ways:
+
+| | Missing feature answers with |
+|---|---|
+| VIA command | `0xFF` in byte 0 |
+| Vial sub-command | the request, unchanged |
+
+The catch is that commands which legitimately return nothing — `vial_lock`,
+`vial_unlock_start`, `vial_qmk_settings_reset` — also echo the request, so "reply equals
+request" means *absent* only for a command that was supposed to answer with data.
+
+### Stale reports desynchronise everything after them
+
+*Found on hardware 2026-09-22.* Because correlation is by discipline rather than by token,
+**one unread report left in the device's input queue shifts every reply by one command** for
+the rest of the session. A fresh process opened a board and got the *previous* run's last
+reply: it asked for `0x01` and was handed `0x12`.
+
+A client must therefore **drain the input queue immediately after opening** — read with a
+zero timeout until it comes back empty. Anything queued at that moment predates the first
+request and cannot be an answer to it. This is cheap, and without it the failure mode is
+baffling: every command appears to return the wrong thing, one step out of phase.
+
 ---
 
 ## VIA — command set
@@ -198,8 +229,13 @@ separate query.
 ### The definition payload
 
 `vial_get_size` then `ceil(size / 32)` calls to `vial_get_def`, page by page. The result is
-**LZMA-compressed JSON** — this is what `minlzma` is in the dependency list for. A few KB
-means roughly 100 round trips, about 200 ms.
+**LZMA-compressed JSON** — this is what `minlzma` is in the dependency list for.
+
+*Verified on hardware 2026-09-22*, against a Model F Labs B104 Beam Spring (Vial protocol 6):
+the payload is **704 bytes** and begins `FD 37 7A 58 5A 00`, which is the **XZ container
+magic** — not a raw LZMA-alone stream. minlzma decodes XZ, so it is the right decoder, and
+no wrapper is needed. Note how much smaller that is than the "few KB" the survey estimates:
+22 pages, about 22 round trips.
 
 ### What the lock gates
 
@@ -269,11 +305,15 @@ support from version 6.
    as "absent". The Aquanaut reports protocol 12, so it sits one below current mainline and
    has no `id_keycodes_version`.
 
-6. **`0xFF` is the whole error model.** Worth its own type in the protocol layer, mapped to
-   the same exception path as a transport failure, so a coroutine sequence unwinds identically
-   whether the device refused or the cable fell out.
+6. **`0xFF` is the whole error model for VIA commands, and Vial has a second one.** Both
+   deserve the same exception type, mapped to the same path as a transport failure, so a
+   coroutine sequence unwinds identically whether the device refused or the cable fell out.
+   But the detection differs per half: `0xFF` for VIA, request-echoed-back for Vial.
 
-7. **Write-then-read-back is required for Vial when locked**, because the keycode firewall
+7. **Drain the input queue on open.** One stale report puts every later reply one command
+   out of phase, and the resulting errors point everywhere except the cause.
+
+8. **Write-then-read-back is required for Vial when locked**, because the keycode firewall
    silently substitutes `0`. A write that reports success has not necessarily stored what was
    asked.
 

@@ -26,6 +26,10 @@ namespace nazg
         // from a QMK device can exceed it (RAW_EPSIZE is half that).
         constexpr size_t c_MaxReportSize = 64;
 
+        // Cap on the stale reports discarded when a device is opened, so a device that
+        // streams input cannot hold the worker in that loop.
+        constexpr int c_MaxStaleReports = 64;
+
         // hidapi returns wchar_t strings whose width differs per platform (16-bit on
         // Windows, 32-bit elsewhere). Encode the code points as UTF-8 by hand rather
         // than depending on the C locale, which is not reliably UTF-8 on Windows.
@@ -277,6 +281,22 @@ namespace nazg
         {
             operation.error = "could not open " + operation.path + ": " + LastError(nullptr);
             return;
+        }
+
+        // Throw away anything already waiting to be read. A report queued before we
+        // opened cannot be an answer to a request we have not sent yet -- it is a
+        // leftover from whoever held the device last, and with strict request/response
+        // pairing ONE leftover shifts every reply by one command for the rest of the
+        // session. Observed for real: a fresh run read the previous run's last reply
+        // and reported "reply 0x12 does not match command 0x01".
+        //
+        // A zero timeout makes each read a non-blocking poll, so this costs nothing
+        // when the queue is empty, which is the normal case.
+        unsigned char discarded[c_MaxReportSize];
+        for (int i = 0; i < c_MaxStaleReports; ++i)
+        {
+            if (hid_read_timeout(device, discarded, sizeof(discarded), 0) <= 0)
+                break;
         }
 
         // Ids come from a counter that is never reset and never reuses a value, so an
