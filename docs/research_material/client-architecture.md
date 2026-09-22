@@ -116,6 +116,57 @@ designed *against* it today aims at a moving target. The three seams above are
 protocol-agnostic good design that merely happen to make XAP cheap later — defensible even if
 XAP never ships. A speculative XAP abstraction layer would not be.
 
+## Sharing between protocols: union, not intersection
+
+*Added 2026-09-22, once the wire formats were read in detail — see
+[via-vial-commands.md](via-vial-commands.md).*
+
+The tempting move when supporting several protocols is to find what they all support and
+build the client against that. It produces the **weakest** protocol rather than a neutral
+one, and it is the opposite of the superset model above. Three layers, three different
+answers:
+
+| Layer | What it covers | Strategy |
+|---|---|---|
+| **Mechanics** | Framing, chunking, error checking, timeouts, feature probing | **Share aggressively** — no semantic commitment |
+| **Concepts** | Layers, bindings, macros, encoders, lighting, commit semantics, unlock | **Unify as a superset** — this is the capability model |
+| **Features** | What *this* board can actually do | **Never intersect** — discover per device at runtime |
+
+### Why the intersection fails, concretely
+
+- **Commit semantics.** VIA and Vial write straight through to EEPROM; ZMK Studio stages
+  edits behind explicit save/discard. An intersected API assumes write-through and cannot
+  express staged editing at all. A union expresses it as a capability, and the VIA adapter
+  reports "commits immediately".
+- **Addressing.** VIA and Vial address a key as `(layer, row, col)` in the switch matrix;
+  ZMK Studio addresses a position in a declared physical layout. Model **positions**, and let
+  the VIA/Vial adapter carry the matrix mapping. Intersect instead and matrix coordinates end
+  up baked into a model that will later meet a protocol without them.
+- **Security.** VIA has no unlock, Vial's is optional, ZMK Studio's is mandatory. The
+  intersection has no unlock concept, so it cannot drive ZMK Studio at all — nor express
+  Vial's keycode firewall silently rewriting a write while locked.
+
+### What VIA and VIAL genuinely share
+
+Within one protocol family the commonality *is* real, and it is most of the work: identical
+32-byte framing, the echo-and-`0xFF` convention, and byte-identical keymap, layer, macro,
+buffer, layout-option and custom-channel commands. They branch on encoders, definition
+sourcing, lighting sub-ids, security and keycode dictionaries. That is the evidence for
+"one backend with a Vial branch" rather than two backends; the full inventory is in
+[via-vial-commands.md](via-vial-commands.md#implications-for-the-nazg-backend).
+
+### Sequencing
+
+**Do not design the shared layer first.** Build the Vial adapter concretely, then VIA, and
+let the shared code fall out of the second one, where it can be observed instead of guessed.
+
+The exception worth factoring out early is the **mechanics** layer, because it carries no
+semantic commitment and because one piece of it is subtle enough to be worth writing once:
+**feature probing**. Protocol version numbers track features in neither direction — VIA
+gained its whole custom-channel system with no version bump, and Vial gained alt repeat key
+with none either. "Send the command and treat `0xFF` as absent" is the only reliable
+detection, and both adapters need it.
+
 ## The real cost of generic support: definition sourcing
 
 Not extensibility. Knowing what the keyboard *is*.
