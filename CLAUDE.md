@@ -125,13 +125,30 @@ but it means code cannot be moved between Nazg and the older Leyden Jar tool unc
 
 # Build order
 
-1. **Vial first** — self-describing devices make the pipeline testable end to end without
-   touching definition sourcing, and it dogfoods on Rico's own boards
-2. **VIA second**, reusing most of it; definition sourcing is its own scoped work item
-3. **Custom features** via device-served descriptors
-4. **XAP** / **ZMK Studio** as independent future decisions
+1. **Vial first — done.** Self-describing devices made the pipeline testable end to end
+   without touching definition sourcing, and it dogfoods on the Model F Labs B104 running
+   Rico's own `leyden_jar` controller firmware. Protocol, definition decode and the
+   keyboard model all landed this way, verified against hardware at each step.
+2. **Keycode dictionary** — turning `0x002A` into `KC_BSPC` and back. Version-keyed, since
+   protocol 11 renumbered the keycodes and 12 removed the VIA-specific ones, and the two
+   dogfood boards sit on opposite sides of that. Generate it from QMK's keycode JSON rather
+   than hand-maintaining a table. Scope it on its own; it is the item most likely to grow.
+3. **Draw the board, then edit one key.** The custom-drawn keyboard from the definition's
+   geometry, then `SetKeycode` with a read-back — which on Vial also exercises the lock and
+   the keycode firewall.
+4. **VIA is now only definition sourcing.** The protocol layer and the JSON parser are
+   already shared and tested, so what remains is where the definition comes from: bundled
+   registry snapshot, on-demand fetch, or user side-load, plus V2 vs V3 definition formats.
+   No new protocol code, and it can be picked up at any point after step 1.
+5. **Custom features** via device-served descriptors — and only here does the descriptor
+   vocabulary get designed, with two real producers in front of it rather than one.
+6. **XAP** / **ZMK Studio** as independent future decisions.
 
-Vial and VIA are one backend with a Vial branch, not two backends.
+Vial and VIA are one backend with a Vial branch, not two backends — confirmed at the wire
+level, and the definition parser turned out to be shared as well. See
+[docs/research_material/client-architecture.md](docs/research_material/client-architecture.md),
+"Sharing between protocols: union, not intersection", for what should and should not be
+factored together.
 
 # Conventions
 
