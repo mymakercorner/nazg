@@ -13,6 +13,9 @@ VIA is the baseline the others react against: it established that runtime remapp
 good graphical UI is possible, and its two structural choices (external definitions, browser
 client) are what VIAL, XAP and ZMK Studio each set out to fix.
 
+**For the wire format** — every command, its payload layout, and what each protocol version
+changed — see [via-vial-commands.md](via-vial-commands.md). This document stays strategic.
+
 ## Transport — USB raw HID
 
 Verified from QMK source:

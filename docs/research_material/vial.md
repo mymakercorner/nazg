@@ -11,6 +11,10 @@ no version skew.
 
 It pays for that with a **forked QMK repository**, which is its defining drawback.
 
+**For the wire format** — the `0xFE` command space, the definition download, the unlock flow
+and the protocol version history — see [via-vial-commands.md](via-vial-commands.md). This
+document stays strategic.
+
 ## What VIAL got right — the embedded definition
 
 VIAL ships a **compressed (LZMA) keyboard definition inside the firmware image**. On connect,

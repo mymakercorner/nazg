@@ -19,9 +19,15 @@ registry, a browser dependency, or a firmware fork?
 | [xap.md](xap.md) | QMK XAP — official in-tree successor, five years in draft |
 | [zmk-studio.md](zmk-studio.md) | ZMK Studio — protobuf over CDC-ACM/BLE, fully self-describing |
 | [client-architecture.md](client-architecture.md) | Design notes for a multi-protocol configurator client |
+| [via-vial-commands.md](via-vial-commands.md) | **Implementation level** — every VIA and VIAL command, payload layouts, and the protocol version history of both *(added 2026-09-22)* |
 
 Each protocol document carries an **"Extending with custom features"** section; they are
 summarised under [Adding custom features](#adding-custom-features) below.
+
+The documents above are a **strategic** comparison: which design to build on, and why. The
+command reference is the **implementation** layer under it, written when the VIA/VIAL backend
+work began. It repeats none of the strategy and the strategy documents contain no command
+detail, so the two do not overlap.
 
 ---
 
