@@ -121,6 +121,18 @@ if(NAZG_BUILD_TESTS)
     set_property(TARGET nazg_transport_shutdown_test PROPERTY FOLDER tests)
 
     add_test(NAME transport_shutdown COMMAND nazg_transport_shutdown_test)
+
+    # Task<T> is header-only and deliberately free of threading and platform code, so
+    # this target needs no sources and no libraries beyond the test itself.
+    add_executable(nazg_task_test
+      tests/TaskTest.cpp
+      src/async/NazgTask.h
+    )
+
+    target_include_directories(nazg_task_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    set_property(TARGET nazg_task_test PROPERTY FOLDER tests)
+
+    add_test(NAME task COMMAND nazg_task_test)
 endif()
 
 # Make nazg the solution's startup project so F5 runs the app, not ALL_BUILD.

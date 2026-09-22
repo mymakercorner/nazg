@@ -15,6 +15,11 @@
 //      being resumed inside Pump() was never resumed again. Shutdown() calls Pump()
 //      last, so nothing would ever pick that work up.
 //
+// The later cases pin the rest of the lifecycle around those two: submitting once the
+// transport is already down, calling Shutdown() twice (the destructor does, after
+// Main.cpp already did), and Pump()'s pass limit giving up on a resubmitting sequence
+// without losing it.
+//
 // No test framework, deliberately: that choice is still open and this needs none.
 // Registered with CTest:  ctest --test-dir build_VS2022 -C Debug --output-on-failure
 
@@ -44,9 +49,10 @@ namespace
             ++g_failureCount;
     }
 
-    int g_completed = 0;
-    int g_failed    = 0;
-    int g_retryDone = 0;
+    int g_completed      = 0;
+    int g_failed         = 0;
+    int g_retryDone      = 0;
+    int g_resolvedAwaits = 0;
 
     Task<void> Probe(HidTransport& transport)
     {
@@ -86,6 +92,24 @@ namespace
             {
                 ++g_retryDone;                    // only reached if resumed a second time
             }
+        }
+    }
+
+    // Awaits the transport over and over, which is how a protocol sequence behaves.
+    // Used to walk Pump() past its pass limit within a single call.
+    Task<void> Resubmitter(HidTransport& transport, int awaitCount)
+    {
+        for (int i = 0; i < awaitCount; ++i)
+        {
+            try
+            {
+                co_await transport.Enumerate();
+            }
+            catch (const HidTransportError&)
+            {
+            }
+
+            ++g_resolvedAwaits;
         }
     }
 
@@ -139,6 +163,97 @@ namespace
         Check(retry.IsDone(), "coroutine that awaited again from inside Pump() completed");
         Check(g_retryDone == 1, "the second await was resumed exactly once");
     }
+
+    // A request submitted after shutdown must fail immediately rather than sit in a
+    // queue no worker will ever service. Without this the coroutine never resumes and
+    // its frame leaks -- the same freeze as an unhandled disconnect.
+    void TestSubmitAfterShutdown()
+    {
+        std::printf("submit after shutdown\n");
+
+        g_completed = 0;
+        g_failed    = 0;
+
+        HidTransport transport;
+        transport.Shutdown();
+
+        Check(!transport.IsRunning(), "the transport reports itself shut down");
+
+        Task<void> probe = Probe(transport);
+
+        Check(!probe.IsDone(), "the request is completed, but resumption waits for Pump()");
+
+        transport.Pump();
+
+        Check(probe.IsDone(), "the coroutine was resumed and unwound");
+        Check(g_failed == 1 && g_completed == 0, "the request failed exactly once");
+    }
+
+    // Shutdown() is called by the destructor and also explicitly from Main.cpp, so the
+    // second call has to be a no-op: joining an already-joined thread terminates the
+    // process, and re-failing requests would resume coroutines twice.
+    void TestShutdownIsIdempotent()
+    {
+        std::printf("shutdown is idempotent\n");
+
+        g_completed = 0;
+        g_failed    = 0;
+
+        Task<void> probe;
+
+        {
+            HidTransport transport;
+            probe = Probe(transport);
+
+            transport.Shutdown();
+            transport.Shutdown();   // must return immediately, not join or fail twice
+            transport.Pump();       // must find nothing left to resume
+        }
+
+        Check(probe.IsDone(), "the request was resolved");
+        Check(g_completed + g_failed == 1, "the coroutine was resumed exactly once");
+    }
+
+    // Pump() caps its passes so one frame cannot spin forever on a coroutine that
+    // resubmits on every resume. The cap must BAIL OUT, not drop work: the next Pump()
+    // has to pick the sequence up where it stopped. Shutting the transport down first
+    // makes every completion immediate, so the whole case is deterministic.
+    //
+    // This case trips the cap on purpose, so the "still had work after N passes" errors
+    // SDL logs during the run are expected output, not a failure.
+    void TestPumpGuardBailsOutWithoutLosingWork()
+    {
+        std::printf("pump guard bails out without losing work\n");
+
+        g_resolvedAwaits = 0;
+
+        // Comfortably more than Pump()'s internal pass limit, without depending on its
+        // exact value.
+        constexpr int c_AwaitCount = 500;
+
+        HidTransport transport;
+        transport.Shutdown();
+
+        Task<void> task = Resubmitter(transport, c_AwaitCount);
+
+        transport.Pump();
+
+        const int afterFirstPump = g_resolvedAwaits;
+
+        Check(!task.IsDone(), "one Pump() gave up instead of spinning until the sequence ended");
+        Check(afterFirstPump > 0, "it still made progress before giving up");
+
+        int pumps = 1;
+        while (!task.IsDone() && pumps < 100)
+        {
+            transport.Pump();
+            ++pumps;
+        }
+
+        Check(task.IsDone(), "later Pump() calls resumed the sequence where it stopped");
+        Check(g_resolvedAwaits == c_AwaitCount, "every await resolved exactly once, none dropped");
+        Check(pumps > 1, "the sequence needed more than one frame, as the guard intends");
+    }
 }
 
 int main()
@@ -156,6 +271,9 @@ int main()
 
     TestShutdownFailsQueuedRequests();
     TestPumpResolvesWorkQueuedWhileResuming();
+    TestSubmitAfterShutdown();
+    TestShutdownIsIdempotent();
+    TestPumpGuardBailsOutWithoutLosingWork();
 
     std::printf("%s (%d failure(s))\n", g_failureCount == 0 ? "PASSED" : "FAILED", g_failureCount);
     return g_failureCount == 0 ? 0 : 1;
