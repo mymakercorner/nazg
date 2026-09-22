@@ -69,6 +69,12 @@ set(NAZG_CORE_SOURCES
   src/async/NazgTask.h
   src/transport/NazgHidTransport.h
   src/transport/NazgHidTransport.cpp
+  src/transport/NazgDeviceChannel.h
+  src/transport/NazgDeviceChannel.cpp
+  src/adapters/via/NazgViaProtocol.h
+  src/adapters/via/NazgViaProtocol.cpp
+  src/adapters/vial/NazgVialProtocol.h
+  src/adapters/vial/NazgVialProtocol.cpp
 )
 
 add_library(nazg_core STATIC ${NAZG_CORE_SOURCES})
@@ -127,7 +133,7 @@ if(NAZG_BUILD_TESTS)
     function(nazg_add_test testName sourceFile)
         set(targetName nazg_${testName}_test)
 
-        add_executable(${targetName} ${sourceFile} tests/TestSupport.h)
+        add_executable(${targetName} ${sourceFile} tests/TestSupport.h tests/FakeDeviceChannel.h)
         target_include_directories(${targetName} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tests)
         target_link_libraries(${targetName} PRIVATE nazg_core)
         set_property(TARGET ${targetName} PROPERTY FOLDER tests)
@@ -138,6 +144,8 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(task               tests/TaskTest.cpp)
     nazg_add_test(transport_shutdown tests/TransportShutdownTest.cpp)
     nazg_add_test(transport_request  tests/TransportRequestTest.cpp)
+    nazg_add_test(via_protocol       tests/ViaProtocolTest.cpp)
+    nazg_add_test(vial_protocol      tests/VialProtocolTest.cpp)
 endif()
 
 # Make nazg the solution's startup project so F5 runs the app, not ALL_BUILD.
