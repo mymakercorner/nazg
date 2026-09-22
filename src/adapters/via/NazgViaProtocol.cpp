@@ -6,27 +6,18 @@
 #include <algorithm>
 #include <utility>
 
+#include "protocol/NazgByteOrder.h"
+
 namespace nazg
 {
     namespace
     {
+        // Only used for the error messages below, so it stays here rather than joining
+        // the byte-order helpers.
         std::string Hex(uint8_t value)
         {
             constexpr char c_Digits[] = "0123456789ABCDEF";
             return std::string("0x") + c_Digits[(value >> 4) & 0x0F] + c_Digits[value & 0x0F];
-        }
-
-        uint16_t ReadBigEndian16(const std::vector<uint8_t>& bytes, size_t offset)
-        {
-            return static_cast<uint16_t>((bytes[offset] << 8) | bytes[offset + 1]);
-        }
-
-        uint32_t ReadBigEndian32(const std::vector<uint8_t>& bytes, size_t offset)
-        {
-            return (static_cast<uint32_t>(bytes[offset])     << 24) |
-                   (static_cast<uint32_t>(bytes[offset + 1]) << 16) |
-                   (static_cast<uint32_t>(bytes[offset + 2]) <<  8) |
-                   (static_cast<uint32_t>(bytes[offset + 3]));
         }
     }
 

@@ -67,6 +67,7 @@ set(IMGUI_SOURCES ${IMGUI_CORE_SOURCES} ${IMGUI_BACKEND_SOURCES})
 
 set(NAZG_CORE_SOURCES
   src/async/NazgTask.h
+  src/protocol/NazgByteOrder.h
   src/transport/NazgHidTransport.h
   src/transport/NazgHidTransport.cpp
   src/transport/NazgDeviceChannel.h
@@ -142,6 +143,7 @@ if(NAZG_BUILD_TESTS)
     endfunction()
 
     nazg_add_test(task               tests/TaskTest.cpp)
+    nazg_add_test(byte_order         tests/ByteOrderTest.cpp)
     nazg_add_test(transport_shutdown tests/TransportShutdownTest.cpp)
     nazg_add_test(transport_request  tests/TransportRequestTest.cpp)
     nazg_add_test(via_protocol       tests/ViaProtocolTest.cpp)

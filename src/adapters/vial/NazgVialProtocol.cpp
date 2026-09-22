@@ -7,34 +7,16 @@
 #include <string>
 #include <utility>
 
+#include "protocol/NazgByteOrder.h"
+
 namespace nazg
 {
     namespace
     {
-        // A definition is a few KB. This only exists so a wrong size byte cannot ask
-        // for a gigabyte before anything notices.
+        // A definition is a few KB -- 704 bytes on the board this was first run
+        // against. This only exists so a wrong size byte cannot ask for a gigabyte
+        // before anything notices.
         constexpr uint32_t c_MaxDefinitionSize = 256 * 1024;
-
-        uint32_t ReadLittleEndian32(const std::vector<uint8_t>& bytes, size_t offset)
-        {
-            return (static_cast<uint32_t>(bytes[offset])            ) |
-                   (static_cast<uint32_t>(bytes[offset + 1]) <<    8) |
-                   (static_cast<uint32_t>(bytes[offset + 2]) <<   16) |
-                   (static_cast<uint32_t>(bytes[offset + 3]) <<   24);
-        }
-
-        uint64_t ReadLittleEndian64(const std::vector<uint8_t>& bytes, size_t offset)
-        {
-            uint64_t value = 0;
-            for (size_t i = 0; i < 8; ++i)
-                value |= static_cast<uint64_t>(bytes[offset + i]) << (8 * i);
-            return value;
-        }
-
-        uint16_t ReadBigEndian16(const std::vector<uint8_t>& bytes, size_t offset)
-        {
-            return static_cast<uint16_t>((bytes[offset] << 8) | bytes[offset + 1]);
-        }
     }
 
     Task<std::vector<uint8_t>> VialProtocol::SendVial(VialCommand                    command,
