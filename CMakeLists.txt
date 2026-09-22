@@ -67,11 +67,11 @@ set(IMGUI_SOURCES ${IMGUI_CORE_SOURCES} ${IMGUI_BACKEND_SOURCES})
 
 set(NAZG_CORE_SOURCES
   src/async/NazgTask.h
-  src/protocol/NazgByteOrder.h
   src/transport/NazgHidTransport.h
   src/transport/NazgHidTransport.cpp
   src/transport/NazgDeviceChannel.h
   src/transport/NazgDeviceChannel.cpp
+  src/adapters/NazgByteOrder.h
   src/adapters/via/NazgViaProtocol.h
   src/adapters/via/NazgViaProtocol.cpp
   src/adapters/vial/NazgVialProtocol.h

@@ -9,7 +9,7 @@
 //
 // Registered with CTest:  ctest --test-dir build_VS2022 -C Debug --output-on-failure
 
-#include "protocol/NazgByteOrder.h"
+#include "adapters/NazgByteOrder.h"
 
 #include "TestSupport.h"
 

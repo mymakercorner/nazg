@@ -141,7 +141,7 @@ Vial and VIA are one backend with a Vial branch, not two backends.
   **The prefix is on filenames only.** Type names stay unprefixed inside the namespace:
   the class in `NazgTask.h` is `nazg::Task`, not `nazg::NazgTask`, which would stutter.
 - **"Nazg" is a user-facing name only.** Source modules get boring, greppable names:
-  `adapters/via`, `adapters/vial`, `transport/`, `protocol/`, `descriptor/`. No lore-themed identifiers —
+  `adapters/via`, `adapters/vial`, `transport/`, `descriptor/`. No lore-themed identifiers —
   naming adapters `narya`/`nenya`/`vilya` was considered and rejected as cryptic.
 - **Re-implement protocols from the wire format.** Do not port code from `vial-gui` or the VIA
   app; that would inherit a GPL lineage for no benefit.

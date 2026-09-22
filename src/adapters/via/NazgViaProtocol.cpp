@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <utility>
 
-#include "protocol/NazgByteOrder.h"
+#include "adapters/NazgByteOrder.h"
 
 namespace nazg
 {
