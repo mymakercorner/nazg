@@ -19,10 +19,12 @@ Aquanaut). **The Vial-specific half is tested only against scripted bytes** — 
 paged definition download, entry counts, unlock status and encoders have never met a
 vial-qmk board.
 
-The Vial definition decodes end to end: XZ through minlzma, JSON through nlohmann, and a
-KLE walk yielding key geometry and matrix positions. Verified against a Model F Labs B104 --
-704 bytes compressed, 129 keys -- whose real definition is the fixture in
-`tests/ModelFDefinition.h`.
+The keyboard definition decodes end to end. The JSON parser is **shared**: the document
+Vial embeds IS a VIA keyboard definition, so `adapters/via/NazgKeyboardDefinition.*` parses
+it for both and only the sourcing differs -- Vial inflates XZ off the device
+(`adapters/vial/NazgVialDefinition.*`), VIA will fetch it from a registry or a file.
+Verified against a Model F Labs B104 -- 704 bytes compressed, 129 keys -- whose real
+definition is the fixture in `tests/ModelFDefinition.h`.
 
 Next: feed that into the capability model. The UI is still the placeholder device list.
 

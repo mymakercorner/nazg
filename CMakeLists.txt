@@ -72,6 +72,8 @@ set(NAZG_CORE_SOURCES
   src/transport/NazgDeviceChannel.h
   src/transport/NazgDeviceChannel.cpp
   src/adapters/NazgByteOrder.h
+  src/adapters/via/NazgKeyboardDefinition.h
+  src/adapters/via/NazgKeyboardDefinition.cpp
   src/adapters/via/NazgViaProtocol.h
   src/adapters/via/NazgViaProtocol.cpp
   src/adapters/vial/NazgVialProtocol.h
@@ -150,7 +152,7 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(transport_request  tests/TransportRequestTest.cpp)
     nazg_add_test(via_protocol       tests/ViaProtocolTest.cpp)
     nazg_add_test(vial_protocol      tests/VialProtocolTest.cpp)
-    nazg_add_test(vial_definition    tests/VialDefinitionTest.cpp)
+    nazg_add_test(definition         tests/DefinitionTest.cpp)
 endif()
 
 # Make nazg the solution's startup project so F5 runs the app, not ALL_BUILD.

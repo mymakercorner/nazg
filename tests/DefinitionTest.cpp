@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com>
 //
-// Decodes a real keyboard's definition: XZ through minlzma, then JSON through
-// nlohmann, then the KLE walk that turns it into keys with matrix positions.
+// Decodes a real keyboard's definition: XZ through minlzma (Vial's sourcing), then
+// the SHARED VIA definition parser -- the same JSON a VIA registry serves.
 //
 // The fixture in ModelFDefinition.h is the genuine article, pulled off the board, so
 // this covers the awkward parts no invented sample would have: USB ids written as
@@ -15,8 +15,9 @@
 //
 // Registered with CTest:  ctest --test-dir build_VS2022 -C Debug --output-on-failure
 
-#include "adapters/vial/NazgVialDefinition.h"
+#include "adapters/via/NazgKeyboardDefinition.h"
 #include "adapters/via/NazgViaProtocol.h"
+#include "adapters/vial/NazgVialDefinition.h"
 
 #include "ModelFDefinition.h"
 #include "TestSupport.h"
@@ -29,7 +30,7 @@ using nazg::DecompressDefinition;
 using nazg::DefinitionKey;
 using nazg::ParseDefinition;
 using nazg::ProtocolError;
-using nazg::VialDefinition;
+using nazg::KeyboardDefinition;
 
 namespace
 {
@@ -83,7 +84,7 @@ namespace
     {
         std::printf("definition fields\n");
 
-        const VialDefinition definition = DecodeDefinition(ModelFDefinition());
+        const KeyboardDefinition definition = DecodeDefinition(ModelFDefinition());
 
         Check(definition.name == "leyden_jar/B104", "the name comes through");
         Check(definition.vendorId == 0x1209, "the vendor id parses from its \"0x1209\" string");
@@ -96,7 +97,7 @@ namespace
     {
         std::printf("key geometry\n");
 
-        const VialDefinition definition = DecodeDefinition(ModelFDefinition());
+        const KeyboardDefinition definition = DecodeDefinition(ModelFDefinition());
 
         Check(definition.keys.size() == 129, "129 keys were found");
 
@@ -137,7 +138,7 @@ namespace
     {
         std::printf("layout options\n");
 
-        const VialDefinition definition = DecodeDefinition(ModelFDefinition());
+        const KeyboardDefinition definition = DecodeDefinition(ModelFDefinition());
 
         int optional = 0;
         for (const DefinitionKey& key : definition.keys)
@@ -193,7 +194,7 @@ namespace
         const char* text =
             R"({"matrix":{"rows":2,"cols":2},"layouts":{"keymap":[["0,0","decal","1,1"]]}})";
 
-        const VialDefinition definition =
+        const KeyboardDefinition definition =
             ParseDefinition(std::vector<uint8_t>(text, text + std::char_traits<char>::length(text)));
 
         Check(definition.keys.size() == 2, "the decal did not become a key");
