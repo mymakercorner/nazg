@@ -7,9 +7,20 @@ Name: Black Speech for "ring" (*ash nazg durbatulûk*). Tagline: *one keyboard c
 
 # Status
 
-Early development. The design phase is finished (see below) and the skeleton stands: CMake
-build, SDL3 + ImGui window, `Task<T>` coroutines, and a HID transport offering
-enumerate / open / request / close, with tests. No protocol adapter yet — Vial is next.
+Early development. The design phase is finished (see below) and the pipeline runs end to end:
+CMake build, SDL3 + ImGui window, `Task<T>` coroutines, a HID transport offering
+enumerate / open / request / close, and the protocol layer on top of it — the VIA command
+set in `adapters/via`, with the Vial branch deriving from it in `adapters/vial`. Protocol
+code talks to a `DeviceChannel` rather than the transport, so it is testable with scripted
+bytes; five CTest executables cover `Task<T>`, the transport and both protocol halves.
+
+Verified against real hardware (see the VIA half of the adapter reading a keymap off The
+Aquanaut). **The Vial-specific half is tested only against scripted bytes** — detection, the
+paged definition download, entry counts, unlock status and encoders have never met a
+vial-qmk board.
+
+Next: decode the downloaded definition (minlzma, then nlohmann/json) and feed it into the
+capability model. The UI is still the placeholder device list.
 
 # Prior research — read before re-researching anything
 
