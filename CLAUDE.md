@@ -13,11 +13,16 @@ enumerate / open / request / close, with tests. No protocol adapter yet — Vial
 
 # Prior research — read before re-researching anything
 
-A ~2000-line survey of VIA, Vial, XAP, ZMK Studio and GP2040-CE's web configurator lives in
+A ~2300-line survey of VIA, Vial, XAP, ZMK Studio and GP2040-CE's web configurator lives in
 `docs/research_material/`. Start at
 [docs/research_material/README.md](docs/research_material/README.md); the architecture
 reasoning is in
 [docs/research_material/client-architecture.md](docs/research_material/client-architecture.md).
+
+The survey is strategic. The **wire format** — every VIA and Vial command, its payload
+layout, and the protocol version history of both — is in
+[docs/research_material/via-vial-commands.md](docs/research_material/via-vial-commands.md),
+which ends with the traps that shape the backend.
 
 **Do not re-derive conclusions already written there.** If something in it is wrong, correct
 the document rather than working around it.
