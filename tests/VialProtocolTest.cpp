@@ -11,6 +11,7 @@
 // Registered with CTest:  ctest --test-dir build_VS2022 -C Debug --output-on-failure
 
 #include "adapters/vial/NazgVialProtocol.h"
+#include "adapters/vial/NazgVialLoader.h"
 
 #include "FakeDeviceChannel.h"
 #include "TestSupport.h"
@@ -250,6 +251,22 @@ namespace
         channel.Reply({ 0x11, 4 });
         Check(Run(vial.GetLayerCount()) == 4, "layer count works unchanged on the Vial branch");
     }
+
+    // The keycode table follows the VIAL protocol. The VIA one is useless for this:
+    // vial-qmk always reports 9, the test above, whatever its keycodes are.
+    void TestKeycodeVersionFollowsVialProtocol()
+    {
+        std::printf("keycode version from the Vial protocol\n");
+
+        using nazg::QmkKeycodeVersion;
+        using nazg::QmkKeycodeVersionForVial;
+
+        Check(QmkKeycodeVersionForVial(6) == QmkKeycodeVersion::V0_0_7,
+              "protocol 6 -- the Model F -- uses vial-qmk's keycodes, 0.0.7");
+        Check(!QmkKeycodeVersionForVial(5).has_value(),
+              "protocol 5 is pre-renumbering and has no table yet");
+        Check(!QmkKeycodeVersionForVial(0).has_value(), "nor does anything older");
+    }
 }
 
 int main()
@@ -266,6 +283,7 @@ int main()
     TestDetectOnEchoingDevice();
     TestEncoderReturnsBothDirections();
     TestInheritedViaCommands();
+    TestKeycodeVersionFollowsVialProtocol();
 
     return TestResult();
 }

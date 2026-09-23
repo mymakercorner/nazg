@@ -3,12 +3,22 @@
 
 #include "NazgVialLoader.h"
 
+#include <string>
 #include <utility>
 
+#include "adapters/via/NazgViaKeymap.h"
 #include "adapters/vial/NazgVialDefinition.h"
 
 namespace nazg
 {
+    std::optional<QmkKeycodeVersion> QmkKeycodeVersionForVial(uint32_t vialProtocol) noexcept
+    {
+        if (vialProtocol >= 6)
+            return QmkKeycodeVersion::V0_0_7;
+
+        return std::nullopt;
+    }
+
     Task<Keyboard> LoadVialKeyboard(VialProtocol& protocol)
     {
         // The payoff of the coroutine layer: a sequence of round trips reading top to
@@ -17,6 +27,14 @@ namespace nazg
 
         if (!identity)
             throw ProtocolError("this device is not a Vial board");
+
+        // Decided before any download: without a keycode table there is no point
+        // fetching a keymap that cannot be read.
+        const std::optional<QmkKeycodeVersion> keycodeVersion = QmkKeycodeVersionForVial(identity->protocolVersion);
+
+        if (!keycodeVersion)
+            throw ProtocolError("Vial protocol " + std::to_string(identity->protocolVersion) +
+                                " uses pre-renumbering keycodes, which are not supported yet");
 
         KeyboardDefinition definition = DecodeDefinition(co_await protocol.DownloadDefinition());
 
@@ -44,12 +62,14 @@ namespace nazg
 
         // One bulk read rather than a call per key: 31 round trips instead of 432 for
         // a 3 x 8 x 18 board.
-        const size_t byteCount = Keymap::ByteCount(layers, definition.matrixRows,
-                                                   definition.matrixColumns);
+        const size_t byteCount = ViaKeymapByteCount(layers, definition.matrixRows, definition.matrixColumns);
 
         const std::vector<uint8_t> keymapBytes =
             co_await protocol.GetKeymapBuffer(0, static_cast<uint16_t>(byteCount));
 
-        co_return BuildKeyboard(std::move(definition), keymapBytes, layers, layoutOptions);
+        Keymap keymap = DecodeViaKeymap(keymapBytes, layers, definition.matrixRows,
+                                        definition.matrixColumns, *keycodeVersion);
+
+        co_return BuildKeyboard(std::move(definition), std::move(keymap), layoutOptions, *keycodeVersion);
     }
 }

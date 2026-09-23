@@ -18,7 +18,9 @@
 #include <string>
 #include <vector>
 
+#include "adapters/qmk/NazgQmkKeycodes.h"
 #include "adapters/via/NazgKeyboardDefinition.h"
+#include "model/NazgKeycode.h"
 
 namespace nazg
 {
@@ -32,14 +34,20 @@ namespace nazg
     // Cells, not keys: the protocol addresses (layer, row, column), and a board has
     // more cells than keys -- 144 against 129 on a Model F B104. Storing per key would
     // silently drop whatever lives in the unused cells on a read-modify-write.
+    //
+    // Cells hold Keycode, never a raw value: what a value means depends on the board's
+    // keycode version, so the adapter decodes on the way in (adapters/via/NazgViaKeymap.h)
+    // and encodes on the way out.
     class Keymap
     {
     public:
         Keymap() = default;
+
+        // Every cell starts as KC_NO.
         Keymap(uint8_t layers, uint8_t rows, uint8_t columns);
 
-        uint16_t At(uint8_t layer, uint8_t row, uint8_t column) const;
-        void     Set(uint8_t layer, uint8_t row, uint8_t column, uint16_t keycode);
+        const Keycode& At(uint8_t layer, uint8_t row, uint8_t column) const;
+        void           Set(uint8_t layer, uint8_t row, uint8_t column, Keycode keycode);
 
         bool Contains(uint8_t layer, uint8_t row, uint8_t column) const noexcept;
 
@@ -48,22 +56,13 @@ namespace nazg
         uint8_t Columns() const noexcept { return m_Columns; }
         bool    IsEmpty() const noexcept { return m_Keycodes.empty(); }
 
-        // How many bytes the device sends for a keymap of this shape: two per cell.
-        [[nodiscard]] static size_t ByteCount(uint8_t layers, uint8_t rows, uint8_t columns) noexcept;
-
-        // Decode the buffer exactly as dynamic_keymap_get_buffer returns it: keycodes
-        // big-endian, cells in row-major order, layers one after another. Throws
-        // std::invalid_argument if the buffer is the wrong size for the shape.
-        [[nodiscard]] static Keymap FromBuffer(const std::vector<uint8_t>& bytes,
-                                               uint8_t layers, uint8_t rows, uint8_t columns);
-
     private:
         size_t IndexOf(uint8_t layer, uint8_t row, uint8_t column) const;
 
-        std::vector<uint16_t> m_Keycodes;
-        uint8_t               m_Layers  = 0;
-        uint8_t               m_Rows    = 0;
-        uint8_t               m_Columns = 0;
+        std::vector<Keycode> m_Keycodes;
+        uint8_t              m_Layers  = 0;
+        uint8_t              m_Rows    = 0;
+        uint8_t              m_Columns = 0;
     };
 
     // One layout option group, as the definition's labels describe it.
@@ -86,13 +85,18 @@ namespace nazg
         uint32_t             layoutOptions = 0;
         std::vector<uint8_t> layoutSelection;
 
+        // The QMK keycode version the keymap was decoded with. Writing a key back must
+        // encode with the same one, and a keycode picker lists what it offers.
+        QmkKeycodeVersion keycodeVersion = c_LatestQmkKeycodeVersion;
+
         const std::string& Name() const noexcept { return definition.name; }
 
         // Is this key part of the currently selected layout? Keys with no layout
         // option are always shown; the alternatives to them are not.
         [[nodiscard]] bool IsKeyVisible(const DefinitionKey& key) const noexcept;
 
-        [[nodiscard]] uint16_t KeycodeFor(const DefinitionKey& key, uint8_t layer) const;
+        // KC_NO for a key whose cell is outside the keymap.
+        [[nodiscard]] Keycode KeycodeFor(const DefinitionKey& key, uint8_t layer) const;
     };
 
     // The label array mixes plain strings (toggles) with arrays whose first element is
@@ -109,9 +113,11 @@ namespace nazg
     [[nodiscard]] std::vector<uint8_t> DecodeLayoutOptions(uint32_t                        raw,
                                                            const std::vector<LayoutOptionGroup>& groups);
 
-    // Assemble the model. Pure: the caller has already done the talking.
-    [[nodiscard]] Keyboard BuildKeyboard(KeyboardDefinition          definition,
-                                         const std::vector<uint8_t>& keymapBytes,
-                                         uint8_t                     layers,
-                                         uint32_t                    layoutOptions);
+    // Assemble the model. Pure: the caller has already done the talking and decoded the
+    // keymap. Throws std::invalid_argument if the keymap's matrix is not the one the
+    // definition declares.
+    [[nodiscard]] Keyboard BuildKeyboard(KeyboardDefinition definition,
+                                         Keymap             keymap,
+                                         uint32_t           layoutOptions,
+                                         QmkKeycodeVersion  keycodeVersion);
 }

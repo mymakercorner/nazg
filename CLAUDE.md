@@ -38,9 +38,13 @@ named key, modified key, mod-tap, layer-tap, layer action, macro, tap dance, unk
 from a committed table of every keycode 0.0.1 to 0.0.9. The round trip is exact for every
 value in every version.
 
-Next: make the keymap hold `Keycode` instead of `uint16_t`, which means the Vial loader picks
-the keycode version (from the Vial protocol, not the VIA one), then drawing the board. The UI
-is still the placeholder device list.
+The keymap holds `Keycode`, never a raw value: `adapters/via/NazgViaKeymap.*` decodes the
+keymap buffer for the board's keycode version, which the Vial loader picks from the Vial
+protocol (6 -> 0.0.7) and records in `Keyboard::keycodeVersion` for writing back. Verified on
+the Model F 2026-09-23: all three layers decode to named keycodes -- including `HF_TOGG`,
+`HF_DWLD`, `HF_DWLU` on layer 2 -- with no unknown values, and every one encodes back.
+
+Next: drawing the board. The UI is still the placeholder device list.
 
 # Prior research — read before re-researching anything
 

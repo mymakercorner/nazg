@@ -81,6 +81,8 @@ set(NAZG_CORE_SOURCES
   src/adapters/via/NazgKeyboardDefinition.cpp
   src/adapters/via/NazgViaProtocol.h
   src/adapters/via/NazgViaProtocol.cpp
+  src/adapters/via/NazgViaKeymap.h
+  src/adapters/via/NazgViaKeymap.cpp
   src/adapters/vial/NazgVialProtocol.h
   src/adapters/vial/NazgVialProtocol.cpp
   src/adapters/vial/NazgVialDefinition.h

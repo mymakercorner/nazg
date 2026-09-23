@@ -6,7 +6,8 @@
 //
 // The keymap decode is the part most likely to be subtly wrong -- layer-major,
 // row-major, big-endian, two bytes per cell -- so it is pinned cell by cell rather
-// than by a checksum over the whole buffer.
+// than by a checksum over the whole buffer. It lives in adapters/via (the buffer is
+// VIA's wire format), but it produces the model's Keymap, so it is checked here.
 //
 // Registered with CTest:  ctest --test-dir build_VS2022 -C Debug --output-on-failure
 
@@ -14,20 +15,28 @@
 
 #include "ModelFDefinition.h"
 #include "TestSupport.h"
+#include "adapters/qmk/NazgQmkKeycodeCodec.h"
+#include "adapters/via/NazgViaKeymap.h"
 #include "adapters/vial/NazgVialDefinition.h"
 
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
 using nazg::BuildKeyboard;
 using nazg::DecodeLayoutOptions;
+using nazg::DecodeViaKeymap;
 using nazg::DefinitionKey;
+using nazg::FormatKeycode;
 using nazg::Keyboard;
 using nazg::KeyboardDefinition;
+using nazg::Keycode;
 using nazg::Keymap;
 using nazg::LayoutOptionGroup;
 using nazg::ParseLayoutGroups;
+using nazg::QmkKeycodeVersion;
+using nazg::ViaKeymapByteCount;
 
 namespace
 {
@@ -45,13 +54,23 @@ namespace
         return false;
     }
 
+    constexpr QmkKeycodeVersion c_Version = QmkKeycodeVersion::V0_0_7;
+
+    // A cell's keycode back as the raw value it was decoded from, -1 if it will not
+    // encode. The codec round-trips every value exactly, so this recovers the bytes.
+    int RawValue(const Keycode& keycode)
+    {
+        const std::optional<uint16_t> value = nazg::EncodeQmkKeycode(keycode, c_Version);
+        return value ? *value : -1;
+    }
+
     // A buffer whose every cell holds a value encoding its own position, so a mistake
     // in the index arithmetic produces an obviously wrong number rather than a
     // plausible one.
     std::vector<uint8_t> MakeKeymapBytes(uint8_t layers, uint8_t rows, uint8_t columns)
     {
         std::vector<uint8_t> bytes;
-        bytes.reserve(Keymap::ByteCount(layers, rows, columns));
+        bytes.reserve(ViaKeymapByteCount(layers, rows, columns));
 
         for (uint8_t layer = 0; layer < layers; ++layer)
             for (uint8_t row = 0; row < rows; ++row)
@@ -69,7 +88,7 @@ namespace
     {
         std::printf("keymap shape\n");
 
-        Check(Keymap::ByteCount(3, 8, 18) == 864, "a 3 x 8 x 18 keymap is 864 bytes on the wire");
+        Check(ViaKeymapByteCount(3, 8, 18) == 864, "a 3 x 8 x 18 keymap is 864 bytes on the wire");
 
         const Keymap empty;
         Check(empty.IsEmpty(), "a default keymap holds nothing");
@@ -81,33 +100,36 @@ namespace
         Check(!keymap.Contains(3, 0, 0), "one layer past the end is outside");
         Check(!keymap.Contains(0, 8, 0), "one row past the end is outside");
         Check(!keymap.Contains(0, 0, 18), "one column past the end is outside");
+        Check(FormatKeycode(keymap.At(0, 0, 0)) == "KC_NO", "a new keymap is all KC_NO");
 
-        keymap.Set(1, 2, 3, 0xABCD);
-        Check(keymap.At(1, 2, 3) == 0xABCD, "a written cell reads back");
-        Check(keymap.At(1, 2, 4) == 0, "and its neighbour is untouched");
+        keymap.Set(1, 2, 3, nazg::LayerKey{ nazg::LayerOp::Momentary, 1 });
+        Check(FormatKeycode(keymap.At(1, 2, 3)) == "MO(1)", "a written cell reads back");
+        Check(FormatKeycode(keymap.At(1, 2, 4)) == "KC_NO", "and its neighbour is untouched");
     }
 
     void TestKeymapDecode()
     {
         std::printf("keymap decode\n");
 
-        const std::vector<uint8_t> bytes = MakeKeymapBytes(3, 8, 18);
-        const Keymap               keymap = Keymap::FromBuffer(bytes, 3, 8, 18);
+        const std::vector<uint8_t> bytes  = MakeKeymapBytes(3, 8, 18);
+        const Keymap               keymap = DecodeViaKeymap(bytes, 3, 8, 18, c_Version);
 
-        Check(keymap.At(0, 0, 0) == 0x0000, "the first cell is the first two bytes");
-        Check(keymap.At(0, 0, 1) == 0x0001, "columns advance fastest");
-        Check(keymap.At(0, 1, 0) == 0x0100, "then rows");
-        Check(keymap.At(1, 0, 0) == 0x1000, "then layers -- the buffer is layer-major");
-        Check(keymap.At(2, 7, 17) == 0x2711, "the last cell lands at the end");
+        Check(RawValue(keymap.At(0, 0, 0)) == 0x0000, "the first cell is the first two bytes");
+        Check(RawValue(keymap.At(0, 0, 1)) == 0x0001, "columns advance fastest");
+        Check(RawValue(keymap.At(0, 1, 0)) == 0x0100, "then rows");
+        Check(RawValue(keymap.At(1, 0, 0)) == 0x1000, "then layers -- the buffer is layer-major");
+        Check(RawValue(keymap.At(2, 7, 17)) == 0x2711, "the last cell lands at the end");
 
-        // Big-endian, like every keycode in the protocol.
-        const std::vector<uint8_t> single = { 0x7C, 0x0A };
-        Check(Keymap::FromBuffer(single, 1, 1, 1).At(0, 0, 0) == 0x7C0A,
-              "keycodes are decoded big-endian");
+        // Big-endian, like every keycode in the protocol, and decoded on the way in.
+        const std::vector<uint8_t> real = { 0x00, 0x04, 0x41, 0x04, 0x7C, 0x42 };
+        const Keymap               row  = DecodeViaKeymap(real, 1, 1, 3, c_Version);
+        Check(FormatKeycode(row.At(0, 0, 0)) == "KC_A" && FormatKeycode(row.At(0, 0, 1)) == "LT(1,KC_A)" &&
+              FormatKeycode(row.At(0, 0, 2)) == "HF_TOGG",
+              "cells arrive as keycodes, not values");
 
-        Check(Throws([&] { (void)Keymap::FromBuffer(bytes, 3, 8, 17); }),
+        Check(Throws([&] { (void)DecodeViaKeymap(bytes, 3, 8, 17, c_Version); }),
               "a buffer that does not match the shape is rejected");
-        Check(Throws([&] { (void)Keymap::FromBuffer({}, 1, 1, 1); }),
+        Check(Throws([&] { (void)DecodeViaKeymap({}, 1, 1, 1, c_Version); }),
               "an empty buffer is rejected");
     }
 
@@ -197,15 +219,17 @@ namespace
         std::printf("build from the real definition\n");
 
         const KeyboardDefinition definition = nazg::DecodeDefinition(ModelFDefinition());
-        const std::vector<uint8_t> bytes =
-            MakeKeymapBytes(3, definition.matrixRows, definition.matrixColumns);
+        const Keymap             keymap     = DecodeViaKeymap(
+            MakeKeymapBytes(3, definition.matrixRows, definition.matrixColumns), 3,
+            definition.matrixRows, definition.matrixColumns, c_Version);
 
-        const Keyboard keyboard = BuildKeyboard(definition, bytes, 3, 0);
+        const Keyboard keyboard = BuildKeyboard(definition, keymap, 0, c_Version);
 
         Check(keyboard.Name() == "leyden_jar/B104", "the definition came along");
         Check(keyboard.keymap.Layers() == 3, "three layers");
         Check(keyboard.keymap.Rows() == 8 && keyboard.keymap.Columns() == 18, "8 x 18 of cells");
         Check(keyboard.layoutSelection.size() == 6, "six layout groups were decoded");
+        Check(keyboard.keycodeVersion == c_Version, "the keycode version is kept for writing back");
 
         // Every key the definition describes must address a cell that exists, or the
         // renderer would be asking for keycodes that are not there.
@@ -217,13 +241,13 @@ namespace
         Check(allAddressable, "every key addresses a real matrix cell");
 
         const DefinitionKey& first = keyboard.definition.keys.front();
-        Check(keyboard.KeycodeFor(first, 0) == ((first.row << 8) | first.column),
+        Check(RawValue(keyboard.KeycodeFor(first, 0)) == ((first.row << 8) | first.column),
               "a key reads the keycode of its own cell");
-        Check(keyboard.KeycodeFor(first, 2) == (0x2000 | (first.row << 8) | first.column),
+        Check(RawValue(keyboard.KeycodeFor(first, 2)) == (0x2000 | (first.row << 8) | first.column),
               "and a different layer reads a different one");
 
-        Check(Throws([&] { (void)BuildKeyboard(definition, bytes, 4, 0); }),
-              "a layer count that disagrees with the buffer is rejected");
+        Check(Throws([&] { (void)BuildKeyboard(definition, Keymap(3, 8, 17), 0, c_Version); }),
+              "a keymap whose matrix disagrees with the definition is rejected");
     }
 }
 

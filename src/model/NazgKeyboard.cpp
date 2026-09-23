@@ -31,7 +31,7 @@ namespace nazg
     }
 
     Keymap::Keymap(uint8_t layers, uint8_t rows, uint8_t columns)
-        : m_Keycodes(static_cast<size_t>(layers) * rows * columns, 0),
+        : m_Keycodes(static_cast<size_t>(layers) * rows * columns, Keycode{ NamedKey{ "KC_NO" } }),
           m_Layers(layers),
           m_Rows(rows),
           m_Columns(columns)
@@ -50,41 +50,14 @@ namespace nazg
         return layer < m_Layers && row < m_Rows && column < m_Columns;
     }
 
-    uint16_t Keymap::At(uint8_t layer, uint8_t row, uint8_t column) const
+    const Keycode& Keymap::At(uint8_t layer, uint8_t row, uint8_t column) const
     {
         return m_Keycodes[IndexOf(layer, row, column)];
     }
 
-    void Keymap::Set(uint8_t layer, uint8_t row, uint8_t column, uint16_t keycode)
+    void Keymap::Set(uint8_t layer, uint8_t row, uint8_t column, Keycode keycode)
     {
-        m_Keycodes[IndexOf(layer, row, column)] = keycode;
-    }
-
-    size_t Keymap::ByteCount(uint8_t layers, uint8_t rows, uint8_t columns) noexcept
-    {
-        return static_cast<size_t>(layers) * rows * columns * 2;
-    }
-
-    Keymap Keymap::FromBuffer(const std::vector<uint8_t>& bytes,
-                              uint8_t layers, uint8_t rows, uint8_t columns)
-    {
-        const size_t expected = ByteCount(layers, rows, columns);
-
-        if (bytes.size() != expected)
-            throw std::invalid_argument("keymap buffer is " + std::to_string(bytes.size()) +
-                                        " bytes; expected " + std::to_string(expected));
-
-        Keymap keymap(layers, rows, columns);
-
-        // The buffer is exactly the device's EEPROM layout: layer by layer, row-major
-        // within a layer, two big-endian bytes per cell.
-        for (size_t index = 0; index * 2 + 1 < bytes.size(); ++index)
-        {
-            keymap.m_Keycodes[index] = static_cast<uint16_t>((bytes[index * 2] << 8) |
-                                                              bytes[index * 2 + 1]);
-        }
-
-        return keymap;
+        m_Keycodes[IndexOf(layer, row, column)] = std::move(keycode);
     }
 
     std::vector<LayoutOptionGroup> ParseLayoutGroups(const std::vector<std::string>& labels)
@@ -161,25 +134,32 @@ namespace nazg
         return layoutSelection[group] == key.layoutOption;
     }
 
-    uint16_t Keyboard::KeycodeFor(const DefinitionKey& key, uint8_t layer) const
+    Keycode Keyboard::KeycodeFor(const DefinitionKey& key, uint8_t layer) const
     {
         if (!keymap.Contains(layer, key.row, key.column))
-            return 0;
+            return NamedKey{ "KC_NO" };
 
         return keymap.At(layer, key.row, key.column);
     }
 
-    Keyboard BuildKeyboard(KeyboardDefinition          definition,
-                           const std::vector<uint8_t>& keymapBytes,
-                           uint8_t                     layers,
-                           uint32_t                    layoutOptions)
+    Keyboard BuildKeyboard(KeyboardDefinition definition,
+                           Keymap             keymap,
+                           uint32_t           layoutOptions,
+                           QmkKeycodeVersion  keycodeVersion)
     {
         if (definition.matrixRows == 0 || definition.matrixColumns == 0)
             throw std::invalid_argument("the definition declares an empty matrix");
 
+        if (keymap.Layers() == 0 || keymap.Rows() != definition.matrixRows ||
+            keymap.Columns() != definition.matrixColumns)
+            throw std::invalid_argument("the keymap is " + std::to_string(keymap.Rows()) + " x " +
+                                        std::to_string(keymap.Columns()) + " but the definition declares " +
+                                        std::to_string(definition.matrixRows) + " x " +
+                                        std::to_string(definition.matrixColumns));
+
         Keyboard keyboard;
-        keyboard.keymap = Keymap::FromBuffer(keymapBytes, layers,
-                                             definition.matrixRows, definition.matrixColumns);
+        keyboard.keymap         = std::move(keymap);
+        keyboard.keycodeVersion = keycodeVersion;
 
         keyboard.layoutOptions   = layoutOptions;
         keyboard.layoutSelection = DecodeLayoutOptions(layoutOptions,
