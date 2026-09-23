@@ -3,6 +3,7 @@
 
 #include "NazgViaKeymap.h"
 
+#include <optional>
 #include <stdexcept>
 #include <string>
 
@@ -41,5 +42,27 @@ namespace nazg
                 }
 
         return keymap;
+    }
+
+    // `keycode` by value: a coroutine keeps its parameters in its frame, and a reference
+    // could dangle across the co_awaits if the caller's Keycode went away meanwhile.
+    Task<Keycode> WriteKeycode(ViaProtocol&      protocol,
+                               uint8_t           layer,
+                               uint8_t           row,
+                               uint8_t           column,
+                               Keycode           keycode,
+                               QmkKeycodeVersion version)
+    {
+        const std::optional<uint16_t> value = EncodeQmkKeycode(keycode, version);
+
+        if (!value)
+            throw std::invalid_argument(FormatKeycode(keycode) + " cannot be stored on QMK keycodes " +
+                                        QmkKeycodeVersionName(version));
+
+        co_await protocol.SetKeycode(layer, row, column, *value);
+
+        const uint16_t stored = co_await protocol.GetKeycode(layer, row, column);
+
+        co_return DecodeQmkKeycode(stored, version);
     }
 }

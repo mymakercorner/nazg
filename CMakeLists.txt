@@ -115,6 +115,8 @@ set(NAZG_SOURCES
   src/Main.cpp
   src/ui/NazgKeyboardView.h
   src/ui/NazgKeyboardView.cpp
+  src/ui/NazgKeycodePicker.h
+  src/ui/NazgKeycodePicker.cpp
 )
 
 add_executable(nazg

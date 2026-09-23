@@ -14,11 +14,14 @@
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_sdlgpu3.h"
 
+#include "adapters/qmk/NazgQmkKeycodeCodec.h"
+#include "adapters/via/NazgViaKeymap.h"
 #include "adapters/vial/NazgVialLoader.h"
 #include "async/NazgTask.h"
 #include "transport/NazgDeviceChannel.h"
 #include "transport/NazgHidTransport.h"
 #include "ui/NazgKeyboardView.h"
+#include "ui/NazgKeycodePicker.h"
 
 #include <exception>
 #include <optional>
@@ -67,9 +70,16 @@ namespace
     struct BoardState
     {
         std::optional<nazg::Keyboard> keyboard;
+        std::string                   path;        // where it was opened, for writes
         std::string                   error;
         bool                          isLoading = false;
         int                           layer     = 0;
+
+        nazg::KeySelection       selection;
+        nazg::KeycodePickerState picker;
+        std::string              editMessage;
+        bool                     editWarning = false;
+        bool                     isWriting   = false;
     };
 
     // Raw HID interface VIA and Vial answer on; only these rows get an Open button.
@@ -92,8 +102,11 @@ namespace
             nazg::HidDeviceChannel channel(transport, device);
             nazg::VialProtocol     protocol(channel);
 
-            state.keyboard = co_await nazg::LoadVialKeyboard(protocol);
-            state.layer    = 0;
+            state.keyboard  = co_await nazg::LoadVialKeyboard(protocol);
+            state.path      = path;
+            state.layer     = 0;
+            state.selection = {};
+            state.editMessage.clear();
         }
         catch (const std::exception& failure)
         {
@@ -105,6 +118,59 @@ namespace
         // right on both paths.
         transport.Close(device);
         state.isLoading = false;
+    }
+
+    // Write one key and keep the model in step with what the board says it stored.
+    // Everything the coroutine needs across its co_awaits is passed by value -- the
+    // version too, rather than read back from state.keyboard afterwards.
+    nazg::Task<void> EditKey(nazg::HidTransport&     transport,
+                             BoardState&             state,
+                             uint8_t                 layer,
+                             uint8_t                 row,
+                             uint8_t                 column,
+                             nazg::Keycode           keycode,
+                             nazg::QmkKeycodeVersion version)
+    {
+        state.isWriting = true;
+        state.editMessage.clear();
+        state.editWarning = false;
+
+        nazg::DeviceId device = nazg::c_InvalidDevice;
+
+        try
+        {
+            device = co_await transport.Open(state.path);
+
+            nazg::HidDeviceChannel channel(transport, device);
+            nazg::ViaProtocol      via(channel);
+
+            const nazg::Keycode stored = co_await nazg::WriteKeycode(via, layer, row, column, keycode, version);
+
+            if (state.keyboard)
+                state.keyboard->keymap.Set(layer, row, column, stored);
+
+            // Compared as the values on the wire: two Keycodes can differ as values yet
+            // be the same key (a macro by name or by index), and the wire is what counts.
+            if (nazg::EncodeQmkKeycode(stored, version) == nazg::EncodeQmkKeycode(keycode, version))
+            {
+                state.editMessage = "stored " + nazg::FormatKeycode(stored);
+            }
+            else
+            {
+                state.editMessage = "asked for " + nazg::FormatKeycode(keycode) + " but the board stored " +
+                                    nazg::FormatKeycode(stored) + " -- a locked Vial board filters some keycodes";
+                state.editWarning = true;
+            }
+        }
+        catch (const std::exception& failure)
+        {
+            state.editMessage = std::string("write failed: ") + failure.what();
+            state.editWarning = true;
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "writing a key failed: %s", failure.what());
+        }
+
+        transport.Close(device);
+        state.isWriting = false;
     }
 }
 
@@ -192,6 +258,7 @@ int main(int, char**)
 
     BoardState       boardState;
     nazg::Task<void> loadTask;
+    nazg::Task<void> editTask;
 
     const ImVec4 clearColor = ImVec4(0.09f, 0.09f, 0.11f, 1.0f);
     bool showDemoWindow = false;
@@ -288,7 +355,10 @@ int main(int, char**)
                     if (device.usagePage == c_ViaUsagePage && device.usage == c_ViaUsage)
                     {
                         // Same rule as Refresh: a Task still running must not be replaced.
-                        const bool isLoadBusy = loadTask.IsValid() && !loadTask.IsDone();
+                        // A write in flight blocks it too -- it updates the board a load
+                        // would swap out from under it.
+                        const bool isLoadBusy = (loadTask.IsValid() && !loadTask.IsDone()) ||
+                                                (editTask.IsValid() && !editTask.IsDone());
 
                         ImGui::PushID(device.path.c_str());
                         ImGui::BeginDisabled(isLoadBusy);
@@ -338,7 +408,41 @@ int main(int, char**)
                             nazg::QmkKeycodeVersionName(keyboard.keycodeVersion),
                             std::string(nazg::UsHostLayout().name).c_str());
 
-                nazg::DrawKeyboardView(keyboard, boardState.layer, nazg::UsHostLayout());
+                nazg::DrawKeyboardView(keyboard, boardState.layer, nazg::UsHostLayout(), boardState.selection);
+
+                ImGui::Separator();
+
+                if (!boardState.selection.active)
+                {
+                    ImGui::TextUnformatted("Click a key to change it.");
+                }
+                else
+                {
+                    const auto layer  = static_cast<uint8_t>(boardState.layer);
+                    const auto row    = boardState.selection.row;
+                    const auto column = boardState.selection.column;
+
+                    ImGui::Text("Layer %d, row %d, column %d: %s", layer, row, column,
+                                nazg::FormatKeycode(keyboard.keymap.At(layer, row, column)).c_str());
+
+                    if (boardState.isWriting)
+                        ImGui::TextUnformatted("writing...");
+                    else if (!boardState.editMessage.empty())
+                        ImGui::TextColored(boardState.editWarning ? ImVec4(1.0f, 0.7f, 0.3f, 1.0f)
+                                                                  : ImVec4(0.5f, 0.9f, 0.5f, 1.0f),
+                                           "%s", boardState.editMessage.c_str());
+
+                    const bool isEditBusy = editTask.IsValid() && !editTask.IsDone();
+
+                    ImGui::BeginDisabled(isEditBusy);
+                    const std::optional<nazg::Keycode> picked =
+                        nazg::DrawKeycodePicker(boardState.picker, keyboard.keycodeVersion, keyboard.keymap.Layers(),
+                                                nazg::UsHostLayout());
+                    ImGui::EndDisabled();
+
+                    if (picked && !isEditBusy)
+                        editTask = EditKey(transport, boardState, layer, row, column, *picked, keyboard.keycodeVersion);
+                }
             }
 
             ImGui::End();

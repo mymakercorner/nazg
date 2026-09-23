@@ -17,7 +17,15 @@
 
 namespace nazg
 {
+    // The key the user clicked, by matrix cell -- the address a write needs.
+    struct KeySelection
+    {
+        bool    active = false;
+        uint8_t row    = 0;
+        uint8_t column = 0;
+    };
+
     // Layer tabs and the board itself, into the current ImGui window. `layer` is the
-    // selected tab and is updated when the user picks another.
-    void DrawKeyboardView(const Keyboard& keyboard, int& layer, const HostLayout& layout);
+    // selected tab and `selection` the clicked key; both are updated by the user.
+    void DrawKeyboardView(const Keyboard& keyboard, int& layer, const HostLayout& layout, KeySelection& selection);
 }

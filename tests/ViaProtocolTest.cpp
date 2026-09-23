@@ -10,6 +10,7 @@
 //
 // Registered with CTest:  ctest --test-dir build_VS2022 -C Debug --output-on-failure
 
+#include "adapters/via/NazgViaKeymap.h"
 #include "adapters/via/NazgViaProtocol.h"
 
 #include "FakeDeviceChannel.h"
@@ -251,6 +252,70 @@ namespace
         Check(!Throws([&] { channel.ReplyUnhandled(); Run(via.Supports(ViaCommand::BootloaderJump)); }),
               "probing never throws, so it can be used to explore a device");
     }
+
+    // Writing one key: encode, set, read back, decode. What comes back is what the board
+    // stored, which is not always what was sent.
+    void TestWriteKeycode()
+    {
+        std::printf("write one keycode\n");
+
+        constexpr auto c_Version = nazg::QmkKeycodeVersion::V0_0_7;
+
+        {
+            FakeDeviceChannel channel;
+            ViaProtocol       via(channel);
+
+            channel.Reply({ 0x05 });                              // set: echoed
+            channel.Reply({ 0x04, 2, 3, 4, 0x7C, 0x42 });         // get: HF_TOGG
+
+            const nazg::Keycode stored =
+                Run(nazg::WriteKeycode(via, 2, 3, 4, nazg::NamedKey{ "HF_TOGG" }, c_Version));
+
+            Check(stored == nazg::Keycode{ nazg::NamedKey{ "HF_TOGG" } }, "the board stored the key sent");
+            Check(channel.RequestCount() == 2, "one set and one read-back");
+
+            const std::vector<uint8_t>& set = channel.RequestAt(0);
+            Check(set[0] == 0x05 && set[1] == 2 && set[2] == 3 && set[3] == 4 && set[4] == 0x7C && set[5] == 0x42,
+                  "the set carries layer, row, column and the value big-endian");
+
+            const std::vector<uint8_t>& get = channel.RequestAt(1);
+            Check(get[0] == 0x04 && get[1] == 2 && get[2] == 3 && get[3] == 4, "the read-back asks for the same cell");
+        }
+
+        {
+            // Vial's keycode firewall, as a locked board does it: success on the set,
+            // then 0x0000 in the cell.
+            FakeDeviceChannel channel;
+            ViaProtocol       via(channel);
+
+            channel.Reply({ 0x05 });
+            channel.Reply({ 0x04, 0, 0, 0, 0x00, 0x00 });
+
+            const nazg::Keycode stored =
+                Run(nazg::WriteKeycode(via, 0, 0, 0, nazg::NamedKey{ "QK_BOOT" }, c_Version));
+
+            Check(stored == nazg::Keycode{ nazg::NamedKey{ "KC_NO" } },
+                  "a firewalled QK_BOOT reads back as KC_NO -- the caller sees what really happened");
+        }
+
+        {
+            FakeDeviceChannel channel;
+            ViaProtocol       via(channel);
+
+            bool refused = false;
+            try
+            {
+                (void)Run(nazg::WriteKeycode(via, 0, 0, 0, nazg::LayerTapKey{ 16, "KC_A" }, c_Version));
+            }
+            catch (const std::invalid_argument&)
+            {
+                refused = true;
+            }
+
+            Check(refused, "a keycode this version cannot store is refused");
+            Check(channel.RequestCount() == 0, "before anything reaches the board");
+        }
+    }
 }
 
 int main()
@@ -268,6 +333,7 @@ int main()
     TestBufferOffsetIsBigEndian();
     TestMacroQueries();
     TestSupportsProbe();
+    TestWriteKeycode();
 
     return TestResult();
 }

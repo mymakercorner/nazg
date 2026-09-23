@@ -86,7 +86,7 @@ namespace nazg
         }
 
         void DrawKey(ImDrawList* drawList, ImVec2 origin, float unit, const DefinitionKey& key, Offset offset,
-                     const KeycapLegend& legend, bool& hovered)
+                     const KeycapLegend& legend, bool selected, bool& hovered)
         {
             const float gap      = unit * 0.06f;
             const float rounding = unit * 0.12f;
@@ -110,6 +110,14 @@ namespace nazg
             drawList->AddRectFilled(p0, p1, fill, rounding);
             if (key.HasSecondRectangle())
                 drawList->AddRectFilled(q0, q1, fill, rounding);
+
+            if (selected)
+            {
+                const ImU32 accent = IM_COL32(240, 180, 60, 255);
+                drawList->AddRect(p0, p1, accent, rounding, 0, 2.0f);
+                if (key.HasSecondRectangle())
+                    drawList->AddRect(q0, q1, accent, rounding, 0, 2.0f);
+            }
 
             // Legends from the top-left, the secondary (Shift, hold action) first and
             // smaller, clipped to the key and wrapped to its width.
@@ -135,7 +143,7 @@ namespace nazg
         }
     }
 
-    void DrawKeyboardView(const Keyboard& keyboard, int& layer, const HostLayout& layout)
+    void DrawKeyboardView(const Keyboard& keyboard, int& layer, const HostLayout& layout, KeySelection& selection)
     {
         if (ImGui::BeginTabBar("layers"))
         {
@@ -180,12 +188,20 @@ namespace nazg
             if (!keyboard.IsKeyVisible(key))
                 continue;
 
-            const Keycode keycode = keyboard.KeycodeFor(key, current);
-            bool          hovered = false;
-            DrawKey(drawList, origin, unit, key, OffsetOf(key, offsets), LegendFor(keycode, layout), hovered);
+            const Keycode keycode  = keyboard.KeycodeFor(key, current);
+            const bool    selected = selection.active && selection.row == key.row && selection.column == key.column;
+            bool          hovered  = false;
+            DrawKey(drawList, origin, unit, key, OffsetOf(key, offsets), LegendFor(keycode, layout), selected, hovered);
 
-            if (hovered)
+            // Only when this window is under the mouse, so a click on a window stacked
+            // above the board does not select the key beneath it.
+            if (hovered && ImGui::IsWindowHovered())
+            {
                 ImGui::SetTooltip("%s\nrow %d, column %d", FormatKeycode(keycode).c_str(), key.row, key.column);
+
+                if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+                    selection = { true, key.row, key.column };
+            }
         }
 
         // Claim the space drawn into, so the window scrolls and sizes around the board.

@@ -50,8 +50,14 @@ be thrown away** -- the look needs real visual design work. What outlives it is
 `ui/NazgKeycapLegend.*`: legends are a Keycode seen through a host layout (plain + Shift, one
 global setting, US for now -- decided in keycodes.md, "Host layouts").
 
-Next: edit one key -- `SetKeycode` with a read-back, which on Vial also exercises the lock and
-the keycode firewall.
+One key can be edited: click it, pick a keycode, and `WriteKeycode()`
+(`adapters/via/NazgViaKeymap.h`) encodes it for the board's version, sets it, reads the cell
+back and returns what the board really stored -- the read-back is what exposes Vial's keycode
+firewall. The picker (`ui/NazgKeycodePicker.*`) is a first draft like the board view: it
+lists the whole QMK table for the board's version, grouped, plus layer keys.
+
+Next: open question -- see the build order below. VIA definition sourcing, the QMK host
+layouts, and the pre-renumbering table are the candidates.
 
 # Prior research — read before re-researching anything
 
