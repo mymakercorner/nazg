@@ -97,14 +97,34 @@ Dates are the merge into `develop`.
 | VIA protocol 12 | `0.0.2` … `0.0.8` | Protocol 12 landed 2023-02 after `0.0.2`; protocol 13 landed 2026-04 before `0.0.9` |
 | VIA protocol 11 | `0.0.1`, possibly `0.0.2` | Came in with `0.0.1`; `0.0.2` reached `develop` three weeks before protocol 12. Whether a release ever paired 11 with `0.0.2` is unverified |
 | VIA protocol ≤ 10 | pre-renumbering | Trap 3 |
-| **Vial** protocol 6 | post-renumbering, `0.0.7` today | vial-gui's `v6` table |
-| **Vial** protocol ≤ 5 | pre-renumbering | vial-gui's `v5` table |
+| **Vial** protocol 6 | `0.0.2` … `0.0.7` | The bump to 6 arrived in the QMK merge that brought `0.0.2`; upstream is at `0.0.7` today |
+| **Vial** protocol ≤ 5 | pre-renumbering, strictly | No protocol-5 tree ever contained the renumbering (below) |
 
 **Never select a Vial board's dictionary from its VIA protocol version.** vial-qmk hard-codes
 `VIA_PROTOCOL_VERSION 0x0009` in `quantum/via.h` regardless of its QMK base — the Model F
 reports VIA 9 while using post-renumbering keycodes. Only the Vial protocol means anything
-there. vial-qmk last merged QMK on 2025-03-22, so its tree is at `0.0.7`, and it predates
-`QMK_KEYCODES_VERSION` entirely.
+there. Upstream vial-qmk (tip 2026-07-26) last merged QMK in `merge-2025-06-21`, and its
+tree is at `0.0.7`. That merge brought `QMK_KEYCODES_VERSION "0.0.7"` into `keycodes.h`, but
+nothing can read it: `id_keycodes_version` needs VIA protocol 13 and vial-qmk stays on 9.
+
+### Vial's protocol history against QMK's renumbering
+
+Traced through the `vial` branch history on 2026-09-23. The protocol is a clean split, with
+no overlap:
+
+| Vial protocol | On the `vial` branch | QMK merges in that time | Keycodes |
+|---|---|---|---|
+| 5 | 2022-04-09 (`next-0.5` merged) → 2023-03-18 | `qmk/master` 2022-07-11 and 2022-09-10 | pre-renumbering: both merges predate #18643 |
+| 6 | 2023-03-18 → today | the 2023-03-12 merge that carried the bump, then later ones | `0.0.2` from the first day |
+
+The bump to 6 was made **inside** merge `06a2fdcc9c` ("Merge qmk/master into
+merge-2023-03-12", 2023-03-18), not as a separate commit. Its vial-side parent contains none
+of #18643 (`0.0.1`), #19720 (`0.0.2`) or #19916 (VIA protocol 12); the merge result contains
+all three. So a Vial 5 board is pre-renumbering without exception, and a Vial 6 board is never
+on `0.0.1` — the MIDI renumbering between `0.0.1` and `0.0.2` cannot occur on Vial.
+
+Vial 5 firmware is therefore what vial-qmk built between April 2022 and March 2023: boards
+flashed in that window and never updated since.
 
 Both dogfood boards are therefore **post-renumbering**: the Aquanaut (VIA 12) is somewhere in
 `0.0.2`–`0.0.8`, the Model F (Vial 6) at `0.0.7`. Neither exercises the pre-renumbering table.

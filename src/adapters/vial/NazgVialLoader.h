@@ -37,12 +37,15 @@ namespace nazg
     // Which QMK keycode table a Vial board uses, from its VIAL protocol version -- never
     // its VIA one, which vial-qmk hard-codes to 9 whatever its keycodes are.
     //
-    // Protocol 6 means post-renumbering; vial-qmk's tree is at keycode spec 0.0.7 (last
-    // QMK merge 2025-03-22), so that is the table. A board built from an older vial-qmk
-    // can be anywhere from 0.0.2, and the only value that moved in between is the output
-    // group at 0.0.6 -- such a key decodes as an unknown value and still writes back
-    // unchanged. nullopt for protocol 5 and below: pre-renumbering keycodes have no table
-    // yet. See docs/research_material/keycodes.md, "Picking the dictionary".
+    // The split is clean: the bump to 6 came inside the very QMK merge that brought the
+    // renumbering, so every protocol-5 build is pre-renumbering and every protocol-6 build
+    // is keycode spec 0.0.2 or later. Upstream vial-qmk is at 0.0.7 (last QMK merge
+    // 2025-06-21), so that is the table. A board built from an older vial-qmk can be
+    // anywhere from 0.0.2, and the only value that moved in between is the output group at
+    // 0.0.6 -- such a key decodes as an unknown value and still writes back unchanged.
+    // nullopt for protocol 5 and below: pre-renumbering keycodes have no table yet. See
+    // docs/research_material/keycodes.md, "Vial's protocol history against QMK's
+    // renumbering".
     [[nodiscard]] std::optional<QmkKeycodeVersion> QmkKeycodeVersionForVial(uint32_t vialProtocol) noexcept;
 
     // Throws HidTransportError if the device goes away, or ProtocolError if it answers
