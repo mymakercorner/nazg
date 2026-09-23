@@ -32,8 +32,8 @@ layer count, layout options and a flat `Keymap` addressed by `At(layer, row, col
 pure synchronous code, so the model tests with literals. Measured on the Model F: **890 ms**
 for the ~65 round trips a full load costs, which is why none of it can block the frame loop.
 
-Next: the keycode dictionary (version-keyed, generated from QMK's JSON), then drawing the
-board. The UI is still the placeholder device list.
+Next: the keycode dictionary (version-keyed, committed tables derived from QMK's JSON), then
+drawing the board. The UI is still the placeholder device list.
 
 # Prior research — read before re-researching anything
 
@@ -132,8 +132,9 @@ but it means code cannot be moved between Nazg and the older Leyden Jar tool unc
    Rico's own `leyden_jar` controller firmware. Protocol, definition decode and the
    keyboard model all landed this way, verified against hardware at each step.
 2. **Keycode dictionary** — turning `0x002A` into `KC_BSPC` and back. Version-keyed: QMK's
-   keycode spec has nine versions and both values and names move between them. Generate it
-   from QMK's keycode JSON rather than hand-maintaining a table. **Both dogfood boards are
+   keycode spec has nine versions and both values and names move between them. The tables
+   are plain committed C++ source derived from QMK's keycode JSON — **no generator in the
+   repo**; when QMK adds a version, regenerate them by hand. **Both dogfood boards are
    post-renumbering** — the Model F reports VIA 9 only because vial-qmk hard-codes it, so a
    Vial board's dictionary comes from its Vial protocol, never its VIA one. The keymap holds
    a structured `Keycode`, not a `uint16_t`; the per-version codec sits below the protocol
