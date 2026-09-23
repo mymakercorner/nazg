@@ -93,6 +93,8 @@ set(NAZG_CORE_SOURCES
   src/model/NazgKeyboard.cpp
   src/model/NazgKeycode.h
   src/model/NazgKeycode.cpp
+  src/ui/NazgKeycapLegend.h
+  src/ui/NazgKeycapLegend.cpp
 )
 
 add_library(nazg_core STATIC ${NAZG_CORE_SOURCES})
@@ -109,7 +111,11 @@ target_link_libraries(nazg_core PUBLIC SDL3::SDL3 hidapi::hidapi nlohmann_json::
 
 # --- Application --------------------------------------------------------------------
 
-set(NAZG_SOURCES src/Main.cpp)
+set(NAZG_SOURCES
+  src/Main.cpp
+  src/ui/NazgKeyboardView.h
+  src/ui/NazgKeyboardView.cpp
+)
 
 add_executable(nazg
   ${NAZG_SOURCES}
@@ -169,6 +175,7 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(keyboard_model     tests/KeyboardModelTest.cpp)
     nazg_add_test(qmk_keycodes       tests/QmkKeycodesTest.cpp)
     nazg_add_test(qmk_keycode_codec  tests/QmkKeycodeCodecTest.cpp)
+    nazg_add_test(keycap_legend      tests/KeycapLegendTest.cpp)
 endif()
 
 # Make nazg the solution's startup project so F5 runs the app, not ALL_BUILD.

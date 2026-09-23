@@ -284,11 +284,48 @@ To add a version:
 
 - **Labels.** The spec's `label` is present for most keycodes but not all; the picker needs a
   short label for every key cap, so some table of overrides is likely.
-- **Keymap-language extras** (`extras/`) — whether to render `FR_A` on a French layout. Not
-  needed for the first cut.
+- **Keymap-language extras** (`extras/`) — settled, see [Host layouts](#host-layouts).
 - **Feature availability.** Vial reports some supported features (`caps_word`, `repeat_key`,
   `layer_lock`, `persistent_default_layer`, …); VIA reports none. The picker can use them to
   hide rather than merely grey out, where known.
+
+## Host layouts
+
+*Decided 2026-09-23.*
+
+The firmware stores **positions**, not characters. `KC_Q` is "the key where US QWERTY has Q";
+the host's layout decides it types `a` on French AZERTY. So the keymap, the model and any
+saved keymap stay positional, and the host layout is **presentation only**: it changes what
+a keycap says, never what is stored. A keymap saved on a French machine means the same thing
+on a US one.
+
+ISO and ANSI are a separate matter with two halves. The **physical** half — which keys exist,
+ISO Enter, the short left Shift — comes from the board's definition and its layout options,
+whatever the host. The **logical** half is two extra positions, `KC_NUHS` and `KC_NUBS`, whose
+legends come from the host layout like any other. Operating systems treat `KC_NUHS` as
+`KC_BSLS` (SDL's scancode notes say the same), so the two always show the same characters.
+
+What was decided:
+
+- **Legends: plain and Shift**, as on a printed keycap. AltGr is not shown. `LSFT(KC_1)` shows
+  the character it types (`!` on US), and a tap-hold key shows its tap below its hold action.
+- **One global host-layout setting**, chosen from QMK's keymap extras: 72 files in
+  `data/constants/keycodes/extras/`, of which 70 are host layouts (`plover` and
+  `plover_dvorak` are steno). Each gives, per basic keycode, the plain, `S(...)` and
+  `ALGR(...)` characters; QMK's API serves them merged
+  (`keyboards.qmk.fm/v1/constants/keycodes_french_0.0.1.json`). All still at `0.0.1`.
+- **Default US**, and US is what the web build keeps as its default. VIA offers only US, which
+  is why AZERTY users are poorly served there; vial-gui lets the user pick.
+- **US first, the rest later.** The first draft of the board hardcodes US
+  (`ui/NazgKeycapLegend.*`); the QMK layouts come as their own step.
+
+**Kept as a later possibility, not planned:** detect the layout from the OS through SDL3 —
+`SDL_GetKeyFromScancode()` (SDL scancodes *are* HID usages; Shift and AltGr supported,
+Unicode results) and `SDL_EVENT_KEYMAP_CHANGED` to follow Win+Space switches live. Its catches:
+it reflects this machine's layout, not necessarily where the board will be used; Windows
+keeps the active layout per application; SDL calls must stay in `Main.cpp`; and a browser has
+no equivalent. If it is ever added, it is an extra "follow the system" value of the same
+setting, never a replacement for choosing explicitly.
 
 ## Sources
 

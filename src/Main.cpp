@@ -14,9 +14,14 @@
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_sdlgpu3.h"
 
+#include "adapters/vial/NazgVialLoader.h"
 #include "async/NazgTask.h"
+#include "transport/NazgDeviceChannel.h"
 #include "transport/NazgHidTransport.h"
+#include "ui/NazgKeyboardView.h"
 
+#include <exception>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -55,6 +60,50 @@ namespace
             SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "enumeration failed: %s", failure.what());
         }
 
+        state.isLoading = false;
+    }
+
+    // The board being shown. Same lifetime rule as DeviceListState: owned by main().
+    struct BoardState
+    {
+        std::optional<nazg::Keyboard> keyboard;
+        std::string                   error;
+        bool                          isLoading = false;
+        int                           layer     = 0;
+    };
+
+    // Raw HID interface VIA and Vial answer on; only these rows get an Open button.
+    constexpr uint16_t c_ViaUsagePage = 0xFF60;
+    constexpr uint16_t c_ViaUsage     = 0x61;
+
+    // Open, load everything, close. Vial only for now -- a VIA board is refused by
+    // LoadVialKeyboard with a readable message, which is shown.
+    nazg::Task<void> LoadBoard(nazg::HidTransport& transport, std::string path, BoardState& state)
+    {
+        state.isLoading = true;
+        state.error.clear();
+
+        nazg::DeviceId device = nazg::c_InvalidDevice;
+
+        try
+        {
+            device = co_await transport.Open(path);
+
+            nazg::HidDeviceChannel channel(transport, device);
+            nazg::VialProtocol     protocol(channel);
+
+            state.keyboard = co_await nazg::LoadVialKeyboard(protocol);
+            state.layer    = 0;
+        }
+        catch (const std::exception& failure)
+        {
+            state.error = failure.what();
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "loading the board failed: %s", failure.what());
+        }
+
+        // Outside the catch: closing an id that never opened does nothing, so this is
+        // right on both paths.
+        transport.Close(device);
         state.isLoading = false;
     }
 }
@@ -141,6 +190,9 @@ int main(int, char**)
     DeviceListState  deviceListState;
     nazg::Task<void> refreshTask = RefreshDeviceList(transport, deviceListState);
 
+    BoardState       boardState;
+    nazg::Task<void> loadTask;
+
     const ImVec4 clearColor = ImVec4(0.09f, 0.09f, 0.11f, 1.0f);
     bool showDemoWindow = false;
     bool done = false;
@@ -217,8 +269,9 @@ int main(int, char**)
             const ImGuiTableFlags tableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
                                                ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY;
 
-            if (ImGui::BeginTable("devices", 5, tableFlags))
+            if (ImGui::BeginTable("devices", 6, tableFlags))
             {
+                ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
                 ImGui::TableSetupColumn("Product");
                 ImGui::TableSetupColumn("Manufacturer");
                 ImGui::TableSetupColumn("VID:PID");
@@ -230,6 +283,20 @@ int main(int, char**)
                 for (const nazg::HidDeviceInfo& device : deviceListState.devices)
                 {
                     ImGui::TableNextRow();
+
+                    ImGui::TableNextColumn();
+                    if (device.usagePage == c_ViaUsagePage && device.usage == c_ViaUsage)
+                    {
+                        // Same rule as Refresh: a Task still running must not be replaced.
+                        const bool isLoadBusy = loadTask.IsValid() && !loadTask.IsDone();
+
+                        ImGui::PushID(device.path.c_str());
+                        ImGui::BeginDisabled(isLoadBusy);
+                        if (ImGui::SmallButton("Open"))
+                            loadTask = LoadBoard(transport, device.path, boardState);
+                        ImGui::EndDisabled();
+                        ImGui::PopID();
+                    }
 
                     ImGui::TableNextColumn();
                     ImGui::TextUnformatted(device.product.empty() ? "(unnamed)" : device.product.c_str());
@@ -250,6 +317,28 @@ int main(int, char**)
                 }
 
                 ImGui::EndTable();
+            }
+
+            ImGui::End();
+        }
+
+        if (boardState.isLoading || boardState.keyboard || !boardState.error.empty())
+        {
+            ImGui::Begin("Keyboard");
+
+            if (boardState.isLoading)
+                ImGui::TextUnformatted("loading...");
+            else if (!boardState.error.empty())
+                ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", boardState.error.c_str());
+
+            if (boardState.keyboard && !boardState.isLoading)
+            {
+                const nazg::Keyboard& keyboard = *boardState.keyboard;
+                ImGui::Text("%s -- QMK keycodes %s, host layout %s", keyboard.Name().c_str(),
+                            nazg::QmkKeycodeVersionName(keyboard.keycodeVersion),
+                            std::string(nazg::UsHostLayout().name).c_str());
+
+                nazg::DrawKeyboardView(keyboard, boardState.layer, nazg::UsHostLayout());
             }
 
             ImGui::End();
@@ -287,8 +376,8 @@ int main(int, char**)
         SDL_SubmitGPUCommandBuffer(pCommandBuffer);
     }
 
-    // Shut the transport down explicitly, while deviceListState and refreshTask are
-    // still alive. Destructors run in reverse declaration order, so leaving this to
+    // Shut the transport down explicitly, while deviceListState, boardState and the tasks
+    // are still alive. Destructors run in reverse declaration order, so leaving this to
     // ~HidTransport() would resume coroutines whose captured state had already died.
     transport.Shutdown();
 

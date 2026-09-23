@@ -44,7 +44,14 @@ protocol (6 -> 0.0.7) and records in `Keyboard::keycodeVersion` for writing back
 the Model F 2026-09-23: all three layers decode to named keycodes -- including `HF_TOGG`,
 `HF_DWLD`, `HF_DWLU` on layer 2 -- with no unknown values, and every one encodes back.
 
-Next: drawing the board. The UI is still the placeholder device list.
+The board draws: "Open" on a raw-HID row of the device list loads it through the Vial loader,
+and `ui/NazgKeyboardView.*` shows it with layer tabs. **That drawing is a first draft meant to
+be thrown away** -- the look needs real visual design work. What outlives it is
+`ui/NazgKeycapLegend.*`: legends are a Keycode seen through a host layout (plain + Shift, one
+global setting, US for now -- decided in keycodes.md, "Host layouts").
+
+Next: edit one key -- `SetKeycode` with a read-back, which on Vial also exercises the lock and
+the keycode firewall.
 
 # Prior research — read before re-researching anything
 
