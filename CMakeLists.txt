@@ -83,6 +83,8 @@ set(NAZG_CORE_SOURCES
   src/adapters/via/NazgViaProtocol.cpp
   src/adapters/via/NazgViaKeymap.h
   src/adapters/via/NazgViaKeymap.cpp
+  src/adapters/via/NazgViaLoader.h
+  src/adapters/via/NazgViaLoader.cpp
   src/adapters/vial/NazgVialProtocol.h
   src/adapters/vial/NazgVialProtocol.cpp
   src/adapters/vial/NazgVialDefinition.h
@@ -184,6 +186,7 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(qmk_keycodes       tests/QmkKeycodesTest.cpp)
     nazg_add_test(qmk_keycode_codec  tests/QmkKeycodeCodecTest.cpp)
     nazg_add_test(keycap_legend      tests/KeycapLegendTest.cpp)
+    nazg_add_test(via_loader         tests/ViaLoaderTest.cpp)
 endif()
 
 # Make nazg the solution's startup project so F5 runs the app, not ALL_BUILD.

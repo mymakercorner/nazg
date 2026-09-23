@@ -58,8 +58,15 @@ back and returns what the board really stored -- the read-back is what exposes V
 firewall. The picker (`ui/NazgKeycodePicker.*`) is a first draft like the board view: it
 lists the whole QMK table for the board's version, grouped, plus layer keys.
 
-Next: open question -- see the build order below. VIA definition sourcing and the
-pre-renumbering table are the candidates.
+VIA boards load too: `adapters/via/NazgViaLoader.*` takes the definition from the caller and
+picks the keycode version from the protocol (13+: asked with `id_keycodes_version`; 12 ->
+0.0.8; 11 -> 0.0.1; <=10 refused until the pre-renumbering table exists). Sourcing is a
+first draft -- "Load VIA definition..." (SDL's file dialog) in the device list, paths saved
+in `imgui.ini`, matched to a board by VID:PID. Verified on the Aquanaut 2026-09-23 with its
+`via.json` from Rico's QMK fork: 108 keys, 4 layers, 0.0.8, no unknown values.
+
+Next: the pre-renumbering keycode table (Vial <= 5, VIA <= 10), or a registry for VIA
+definitions -- both open.
 
 # Prior research — read before re-researching anything
 

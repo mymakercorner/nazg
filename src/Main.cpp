@@ -16,7 +16,9 @@
 #include "imgui_impl_sdlgpu3.h"
 
 #include "adapters/qmk/NazgQmkKeycodeCodec.h"
+#include "adapters/via/NazgKeyboardDefinition.h"
 #include "adapters/via/NazgViaKeymap.h"
+#include "adapters/via/NazgViaLoader.h"
 #include "adapters/vial/NazgVialLoader.h"
 #include "async/NazgTask.h"
 #include "transport/NazgDeviceChannel.h"
@@ -24,11 +26,17 @@
 #include "ui/NazgKeyboardView.h"
 #include "ui/NazgKeycodePicker.h"
 
+#include <algorithm>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <exception>
 #include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <mutex>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -75,7 +83,8 @@ namespace
     // which can come when there is more than one setting worth a file.
     struct AppSettings
     {
-        std::string hostLayout = "us";   // a HostLayout id; see NazgKeycapLegend.h
+        std::string              hostLayout = "us";   // a HostLayout id; see NazgKeycapLegend.h
+        std::vector<std::string> viaDefinitions;      // paths of VIA definition files, in load order
     };
 
     void RegisterSettings(AppSettings& settings)
@@ -90,17 +99,31 @@ namespace
             return std::strcmp(name, "Settings") == 0 ? reinterpret_cast<void*>(1) : nullptr;
         };
 
+        handler.ReadInitFn = [](ImGuiContext*, ImGuiSettingsHandler* self)
+        {
+            static_cast<AppSettings*>(self->UserData)->viaDefinitions.clear();
+        };
+
         handler.ReadLineFn = [](ImGuiContext*, ImGuiSettingsHandler* self, void*, const char* line)
         {
-            constexpr char c_Key[] = "HostLayout=";
-            if (std::strncmp(line, c_Key, sizeof(c_Key) - 1) == 0)
-                static_cast<AppSettings*>(self->UserData)->hostLayout = line + sizeof(c_Key) - 1;
+            AppSettings& loaded = *static_cast<AppSettings*>(self->UserData);
+
+            constexpr char c_HostLayout[]    = "HostLayout=";
+            constexpr char c_ViaDefinition[] = "ViaDefinition=";
+
+            if (std::strncmp(line, c_HostLayout, sizeof(c_HostLayout) - 1) == 0)
+                loaded.hostLayout = line + sizeof(c_HostLayout) - 1;
+            else if (std::strncmp(line, c_ViaDefinition, sizeof(c_ViaDefinition) - 1) == 0)
+                loaded.viaDefinitions.emplace_back(line + sizeof(c_ViaDefinition) - 1);
         };
 
         handler.WriteAllFn = [](ImGuiContext*, ImGuiSettingsHandler* self, ImGuiTextBuffer* out)
         {
             const AppSettings& saved = *static_cast<AppSettings*>(self->UserData);
-            out->appendf("[%s][Settings]\nHostLayout=%s\n\n", self->TypeName, saved.hostLayout.c_str());
+            out->appendf("[%s][Settings]\nHostLayout=%s\n", self->TypeName, saved.hostLayout.c_str());
+            for (const std::string& path : saved.viaDefinitions)
+                out->appendf("ViaDefinition=%s\n", path.c_str());
+            out->append("\n");
         };
 
         ImGui::AddSettingsHandler(&handler);   // copied by ImGui
@@ -156,6 +179,71 @@ namespace
                 io.Fonts->AddFontFromFileTTF(path.c_str(), c_FontSize, &merge);
     }
 
+    // TEMPORARY: VIA definitions come from files the user picks, one list for the session,
+    // remembered in AppSettings. A registry snapshot or fetch can replace or join this.
+    struct ViaDefinitionFile
+    {
+        std::string                             path;
+        std::optional<nazg::KeyboardDefinition> definition;   // empty if the file did not parse
+        std::string                             error;
+    };
+
+    ViaDefinitionFile ReadViaDefinition(const std::string& path)
+    {
+        ViaDefinitionFile file;
+        file.path = path;
+
+        try
+        {
+            std::ifstream stream(std::filesystem::path(reinterpret_cast<const char8_t*>(path.c_str())),
+                                 std::ios::binary);
+            if (!stream)
+                throw std::runtime_error("cannot open the file");
+
+            const std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
+            file.definition = nazg::ParseDefinition(bytes);
+        }
+        catch (const std::exception& failure)
+        {
+            file.error = failure.what();
+        }
+
+        return file;
+    }
+
+    // Bring the parsed list in line with the saved paths: parse what is new, drop what was
+    // removed. Cheap when nothing changed, so it simply runs every frame -- which also
+    // covers the saved list arriving from imgui.ini during the first frame.
+    void SyncViaDefinitions(const AppSettings& settings, std::vector<ViaDefinitionFile>& files)
+    {
+        std::erase_if(files, [&](const ViaDefinitionFile& file)
+                      { return std::find(settings.viaDefinitions.begin(), settings.viaDefinitions.end(), file.path) ==
+                               settings.viaDefinitions.end(); });
+
+        for (const std::string& path : settings.viaDefinitions)
+            if (std::none_of(files.begin(), files.end(), [&](const ViaDefinitionFile& file) { return file.path == path; }))
+                files.push_back(ReadViaDefinition(path));
+    }
+
+    // SDL may run a file dialog's callback on another thread, so the chosen paths wait
+    // here until the frame loop collects them.
+    struct PendingDialogPaths
+    {
+        std::mutex               mutex;
+        std::vector<std::string> paths;
+    };
+
+    void SDLCALL OnViaDefinitionChosen(void* userdata, const char* const* filelist, int)
+    {
+        if (filelist == nullptr)   // an error; SDL_GetError() says which
+            return;
+
+        auto&                       pending = *static_cast<PendingDialogPaths*>(userdata);
+        const std::lock_guard<std::mutex> lock(pending.mutex);
+        for (const char* const* path = filelist; *path != nullptr; ++path)
+            pending.paths.emplace_back(*path);
+    }
+
     // The board being shown. Same lifetime rule as DeviceListState: owned by main().
     struct BoardState
     {
@@ -176,9 +264,14 @@ namespace
     constexpr uint16_t c_ViaUsagePage = 0xFF60;
     constexpr uint16_t c_ViaUsage     = 0x61;
 
-    // Open, load everything, close. Vial only for now -- a VIA board is refused by
-    // LoadVialKeyboard with a readable message, which is shown.
-    nazg::Task<void> LoadBoard(nazg::HidTransport& transport, std::string path, BoardState& state)
+    // Open, load everything, close. A Vial board describes itself; anything else needs the
+    // VIA definition the caller found for its VID:PID -- passed by value, so the load does
+    // not depend on the list it came from staying put.
+    nazg::Task<void> LoadBoard(nazg::HidTransport&                     transport,
+                               std::string                             path,
+                               std::string                             ids,
+                               std::optional<nazg::KeyboardDefinition> viaDefinition,
+                               BoardState&                             state)
     {
         state.isLoading = true;
         state.error.clear();
@@ -192,7 +285,15 @@ namespace
             nazg::HidDeviceChannel channel(transport, device);
             nazg::VialProtocol     protocol(channel);
 
-            state.keyboard  = co_await nazg::LoadVialKeyboard(protocol);
+            // Vial first: its probe is harmless on a VIA board, which answers 0xFF.
+            if (co_await protocol.Detect())
+                state.keyboard = co_await nazg::LoadVialKeyboard(protocol);
+            else if (viaDefinition)
+                state.keyboard = co_await nazg::LoadViaKeyboard(protocol, std::move(*viaDefinition));
+            else
+                throw std::runtime_error("not a Vial board, and no VIA definition is loaded for " + ids +
+                                         " -- use \"Load VIA definition...\"");
+
             state.path      = path;
             state.layer     = 0;
             state.selection = {};
@@ -356,6 +457,9 @@ int main(int, char**)
     nazg::Task<void> loadTask;
     nazg::Task<void> editTask;
 
+    std::vector<ViaDefinitionFile> viaFiles;
+    PendingDialogPaths             pendingPaths;   // must outlive any open dialog: main() scope
+
     const ImVec4 clearColor = ImVec4(0.09f, 0.09f, 0.11f, 1.0f);
     bool showDemoWindow = false;
     bool done = false;
@@ -376,6 +480,23 @@ int main(int, char**)
         // Pump before the minimized early-out below, otherwise transport work stalls
         // for as long as the window stays minimized.
         transport.Pump();
+
+        // Paths picked in the file dialog since last frame, then the parsed list brought in
+        // line with the saved one.
+        {
+            const std::lock_guard<std::mutex> lock(pendingPaths.mutex);
+            for (std::string& path : pendingPaths.paths)
+            {
+                if (std::find(settings.viaDefinitions.begin(), settings.viaDefinitions.end(), path) ==
+                    settings.viaDefinitions.end())
+                {
+                    settings.viaDefinitions.push_back(std::move(path));
+                    ImGui::MarkIniSettingsDirty();
+                }
+            }
+            pendingPaths.paths.clear();
+        }
+        SyncViaDefinitions(settings, viaFiles);
 
         if ((SDL_GetWindowFlags(pWindow) & SDL_WINDOW_MINIMIZED) != 0)
         {
@@ -427,6 +548,38 @@ int main(int, char**)
             if (!deviceListState.error.empty())
                 ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", deviceListState.error.c_str());
 
+            // TEMPORARY definition sourcing: files the user picks, remembered in imgui.ini.
+            ImGui::SameLine();
+            if (ImGui::Button("Load VIA definition..."))
+            {
+                // Static: SDL may read the filters until the dialog closes.
+                static const SDL_DialogFileFilter c_Filters[] = { { "VIA definition", "json" } };
+                SDL_ShowOpenFileDialog(OnViaDefinitionChosen, &pendingPaths, pWindow, c_Filters, 1, nullptr, true);
+            }
+
+            // Removing only edits the saved list; SyncViaDefinitions drops the file next frame,
+            // so viaFiles is never changed while this loop walks it.
+            for (const ViaDefinitionFile& file : viaFiles)
+            {
+                ImGui::PushID(file.path.c_str());
+                if (ImGui::SmallButton("Remove"))
+                {
+                    std::erase(settings.viaDefinitions, file.path);
+                    ImGui::MarkIniSettingsDirty();
+                }
+                ImGui::PopID();
+
+                ImGui::SameLine();
+                if (file.definition)
+                    ImGui::Text("%04X:%04X  %s", file.definition->vendorId, file.definition->productId,
+                                file.definition->name.c_str());
+                else
+                    ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", file.error.c_str());
+
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("%s", file.path.c_str());
+            }
+
             ImGui::Separator();
 
             const ImGuiTableFlags tableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
@@ -459,7 +612,22 @@ int main(int, char**)
                         ImGui::PushID(device.path.c_str());
                         ImGui::BeginDisabled(isLoadBusy);
                         if (ImGui::SmallButton("Open"))
-                            loadTask = LoadBoard(transport, device.path, boardState);
+                        {
+                            // The first loaded definition whose ids match; unused on a Vial board.
+                            std::optional<nazg::KeyboardDefinition> viaDefinition;
+                            for (const ViaDefinitionFile& file : viaFiles)
+                                if (file.definition && file.definition->vendorId == device.vendorId &&
+                                    file.definition->productId == device.productId)
+                                {
+                                    viaDefinition = file.definition;
+                                    break;
+                                }
+
+                            char ids[16];
+                            std::snprintf(ids, sizeof(ids), "%04X:%04X", device.vendorId, device.productId);
+
+                            loadTask = LoadBoard(transport, device.path, ids, std::move(viaDefinition), boardState);
+                        }
                         ImGui::EndDisabled();
                         ImGui::PopID();
                     }
