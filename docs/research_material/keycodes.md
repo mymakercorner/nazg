@@ -316,8 +316,11 @@ What was decided:
   (`keyboards.qmk.fm/v1/constants/keycodes_french_0.0.1.json`). All still at `0.0.1`.
 - **Default US**, and US is what the web build keeps as its default. VIA offers only US, which
   is why AZERTY users are poorly served there; vial-gui lets the user pick.
-- **US first, the rest later.** The first draft of the board hardcodes US
-  (`ui/NazgKeycapLegend.*`); the QMK layouts come as their own step.
+- **Implemented 2026-09-23**: 69 layouts in `ui/NazgHostLayoutTable.cpp`, chosen in a combo on
+  the board and saved in `imgui.ini` (`[Nazg][Settings] HostLayout=<id>`). Legends are UTF-8
+  (`/utf-8` on MSVC), drawn with a system font for now — Segoe UI plus Segoe UI Symbol, Yu
+  Gothic and Malgun Gothic on Windows — since ImGui's built-in font is ASCII only. Which font
+  Nazg ships with is design work for later.
 
 **Kept as a later possibility, not planned:** detect the layout from the OS through SDL3 —
 `SDL_GetKeyFromScancode()` (SDL scancodes *are* HID usages; Shift and AltGr supported,
@@ -326,6 +329,46 @@ it reflects this machine's layout, not necessarily where the board will be used;
 keeps the active layout per application; SDL calls must stay in `Main.cpp`; and a browser has
 no equivalent. If it is ever added, it is an extra "follow the system" value of the same
 setting, never a replacement for choosing explicitly.
+
+### Regenerating the host layouts
+
+`ui/NazgHostLayoutTable.cpp` is committed data like the keycode table, with no generator in
+the repo. It was produced from the **local QMK checkout**, not the API: QMK's API serves only
+40 of the 72 extras files. The 39 served host layouts were checked against a local parse and
+matched exactly. The rules:
+
+1. **Skip** `plover` and `plover_dvorak` (steno, not host layouts) and `nordic` (an old file
+   with 1 usable label of 10; `swedish`, `norwegian`, `danish` and `finnish` cover it).
+2. **Plain legends** come from aliases whose expression is a basic keycode (`"KC_Q": {"key":
+   "FR_A", "label": "A"}`). Expression names are QMK spellings (`KC_GRAVE` or `KC_GRV`),
+   normalised to Nazg's short name.
+3. **Shift legends** come from `S(X)`, where `X` is a basic keycode or one of the layout's
+   own aliases (`S(FR_AMPR)` → the position of `FR_AMPR`). Everything else is skipped:
+   `ALGR(...)`, `S(ALGR(...))`, the Mac layouts' `A(...)` (Option), `RCTL(...)`.
+4. **A position with a Shift legend but no plain one** (the US file lists only shifted
+   symbols) takes QMK's own label for the plain legend.
+5. **Labels are cleaned**: `^ (dead)` → `^`; `Eisū (英数)` and `| (not physically present)`
+   keep the part before the parenthesis; a label that is only a description, like
+   `(layer 3)`, keeps its words as a plain legend and is dropped as a Shift legend. Empty
+   labels are dropped. A Shift legend equal to the plain one in upper case is dropped: a
+   letter's one legend is its capital.
+6. **`KC_BSLS` and `KC_NUHS` are the same key to the OS**: whichever the layout describes is
+   copied to the other. **`KC_NUBS`** not described by the layout takes `KC_BSLS`'s legend,
+   which is what US-style layouts type on the extra ISO key.
+
+   Measured, not assumed — the [TMK wiki's ISO key tables](https://github.com/tmk/tmk_keyboard/wiki/ISO-International-Keys)
+   show `0x31` and `0x32` typing identical characters on Windows 10 and Linux for every layout
+   tested; on French both give `*` `µ`, and `0x64` gives `<` `>`. This is why vial-gui's `|\`
+   on a French `KC_BSLS` is wrong: its French table has no `KC_BSLS` entry and falls back to the
+   US legend, and French AZERTY has no key typing `|\` at all. Checked 2026-09-23 against the
+   Model F, whose keymap has `KC_BSLS` right of a split left Shift where a French ISO board
+   would carry `KC_NUBS`.
+
+   One known imperfection: on a **US** layout the same tables show `0x64` typing `\|` on Windows
+   but `<>` on Linux. Nazg uses the Windows answer; the difference only touches the ISO key on
+   a US host.
+7. Rows sorted by position name, layouts by id; strings containing `\` or `"` are raw
+   literals. `tests/KeycapLegendTest.cpp` pins the count (69) and French AZERTY.
 
 ## Sources
 

@@ -11,32 +11,6 @@ namespace nazg
 {
     namespace
     {
-        // US: what each layout-dependent position types. From QMK's keymap extras
-        // (keycodes_us_0.0.1) for the Shift column; the plain column is QMK's own label.
-        // KC_NUHS and KC_NUBS type what KC_BSLS does -- operating systems treat the ISO
-        // hash key as backslash, and a US layout gives the extra ISO key the same pair.
-        constexpr HostLegend c_UsLegends[] = {
-            { "KC_A", "A", "" }, { "KC_B", "B", "" }, { "KC_C", "C", "" }, { "KC_D", "D", "" },
-            { "KC_E", "E", "" }, { "KC_F", "F", "" }, { "KC_G", "G", "" }, { "KC_H", "H", "" },
-            { "KC_I", "I", "" }, { "KC_J", "J", "" }, { "KC_K", "K", "" }, { "KC_L", "L", "" },
-            { "KC_M", "M", "" }, { "KC_N", "N", "" }, { "KC_O", "O", "" }, { "KC_P", "P", "" },
-            { "KC_Q", "Q", "" }, { "KC_R", "R", "" }, { "KC_S", "S", "" }, { "KC_T", "T", "" },
-            { "KC_U", "U", "" }, { "KC_V", "V", "" }, { "KC_W", "W", "" }, { "KC_X", "X", "" },
-            { "KC_Y", "Y", "" }, { "KC_Z", "Z", "" },
-
-            { "KC_1", "1", "!" }, { "KC_2", "2", "@" }, { "KC_3", "3", "#" }, { "KC_4", "4", "$" },
-            { "KC_5", "5", "%" }, { "KC_6", "6", "^" }, { "KC_7", "7", "&" }, { "KC_8", "8", "*" },
-            { "KC_9", "9", "(" }, { "KC_0", "0", ")" },
-
-            { "KC_GRV",  "`", "~" }, { "KC_MINS", "-", "_" }, { "KC_EQL",  "=", "+" },
-            { "KC_LBRC", "[", "{" }, { "KC_RBRC", "]", "}" }, { "KC_BSLS", R"(\)", "|" },
-            { "KC_NUHS", R"(\)", "|" }, { "KC_SCLN", ";", ":" }, { "KC_QUOT", "'", "\"" },
-            { "KC_COMM", ",", "<" }, { "KC_DOT",  ".", ">" }, { "KC_SLSH", "/", "?" },
-            { "KC_NUBS", R"(\)", "|" },
-        };
-
-        constexpr HostLayout c_UsLayout = { "US", c_UsLegends };
-
         // "LCTL+LSFT" -- the short QMK wrapper names, joined.
         std::string ModNames(uint8_t mods)
         {
@@ -128,9 +102,20 @@ namespace nazg
         return nullptr;
     }
 
+    const HostLayout* FindHostLayout(std::string_view id) noexcept
+    {
+        for (const HostLayout& layout : HostLayouts())
+            if (layout.id == id)
+                return &layout;
+
+        return nullptr;
+    }
+
     const HostLayout& UsHostLayout() noexcept
     {
-        return c_UsLayout;
+        // The table always has "us"; a failure here is a broken regeneration, caught by
+        // the tests before it could reach anyone.
+        return *FindHostLayout("us");
     }
 
     KeycapLegend LegendFor(const Keycode& keycode, const HostLayout& layout)

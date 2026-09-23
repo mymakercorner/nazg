@@ -48,7 +48,9 @@ The board draws: "Open" on a raw-HID row of the device list loads it through the
 and `ui/NazgKeyboardView.*` shows it with layer tabs. **That drawing is a first draft meant to
 be thrown away** -- the look needs real visual design work. What outlives it is
 `ui/NazgKeycapLegend.*`: legends are a Keycode seen through a host layout (plain + Shift, one
-global setting, US for now -- decided in keycodes.md, "Host layouts").
+global setting saved in `imgui.ini`, US by default, 69 layouts from QMK's keymap extras in
+`ui/NazgHostLayoutTable.cpp` -- decided in keycodes.md, "Host layouts"). Legends are UTF-8
+(`/utf-8` on MSVC) and use a system font loaded in `Main.cpp`; the font choice is temporary.
 
 One key can be edited: click it, pick a keycode, and `WriteKeycode()`
 (`adapters/via/NazgViaKeymap.h`) encodes it for the board's version, sets it, reads the cell
@@ -56,8 +58,8 @@ back and returns what the board really stored -- the read-back is what exposes V
 firewall. The picker (`ui/NazgKeycodePicker.*`) is a first draft like the board view: it
 lists the whole QMK table for the board's version, grouped, plus layer keys.
 
-Next: open question -- see the build order below. VIA definition sourcing, the QMK host
-layouts, and the pre-renumbering table are the candidates.
+Next: open question -- see the build order below. VIA definition sourcing and the
+pre-renumbering table are the candidates.
 
 # Prior research — read before re-researching anything
 

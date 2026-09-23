@@ -11,7 +11,12 @@
 #include "ui/NazgKeycapLegend.h"
 
 #include "TestSupport.h"
+#include "adapters/qmk/NazgQmkKeycodes.h"
 
+#include <set>
+#include <string>
+
+using nazg::HostLayout;
 using nazg::KeycapLegend;
 using nazg::LegendFor;
 using nazg::UsHostLayout;
@@ -20,9 +25,74 @@ namespace Mod = nazg::Mod;
 
 namespace
 {
-    bool Legend(const nazg::Keycode& keycode, const char* primary, const char* secondary)
+    bool Legend(const nazg::Keycode& keycode, const char* primary, const char* secondary,
+                const HostLayout& layout = UsHostLayout())
     {
-        return LegendFor(keycode, UsHostLayout()) == KeycapLegend{ primary, secondary };
+        return LegendFor(keycode, layout) == KeycapLegend{ primary, secondary };
+    }
+
+    // The host layout table is committed data produced by hand, so its shape is checked
+    // the way the keycode table's is.
+    void TestLayoutTable()
+    {
+        std::printf("host layout table\n");
+
+        const auto layouts = nazg::HostLayouts();
+        Check(layouts.size() == 69, "69 layouts: QMK's 72 minus plover, plover_dvorak and nordic");
+
+        bool sorted     = true;
+        bool nonEmpty   = true;
+        bool uniqueKeys = true;
+        bool basicKeys  = true;
+        for (size_t i = 0; i < layouts.size(); ++i)
+        {
+            if (i > 0 && !(layouts[i - 1].id < layouts[i].id))
+                sorted = false;
+            if (layouts[i].legends.empty() || layouts[i].name.empty())
+                nonEmpty = false;
+
+            std::set<std::string_view> keys;
+            for (const nazg::HostLegend& legend : layouts[i].legends)
+            {
+                uniqueKeys &= keys.insert(legend.key).second;
+
+                // Every position must be a basic keycode, or LegendFor would never ask.
+                const nazg::QmkKeycode* keycode =
+                    nazg::FindQmkKeycodeByName(legend.key, nazg::c_LatestQmkKeycodeVersion);
+                basicKeys &= keycode != nullptr && keycode->value <= 0xFF;
+            }
+        }
+        Check(sorted, "sorted by id, so a list of them reads alphabetically");
+        Check(nonEmpty, "every layout has a name and legends");
+        Check(uniqueKeys, "no position appears twice in a layout");
+        Check(basicKeys, "every position is a basic keycode");
+
+        Check(nazg::FindHostLayout("french") != nullptr && nazg::FindHostLayout("french")->name == "French",
+              "a layout is found by its QMK id");
+        Check(nazg::FindHostLayout("french_mac_iso")->name == "French (Mac ISO)", "variants read naturally");
+        Check(nazg::FindHostLayout("plover") == nullptr, "steno layouts are not host layouts");
+        Check(nazg::FindHostLayout("klingon") == nullptr, "an unknown id finds nothing");
+        Check(UsHostLayout().id == "us", "US is the default");
+    }
+
+    // AZERTY, which is where this started: positions are QWERTY's, legends are not.
+    void TestFrench()
+    {
+        std::printf("French AZERTY\n");
+
+        const HostLayout& french = *nazg::FindHostLayout("french");
+
+        Check(Legend(nazg::NamedKey{ "KC_Q" }, "A", "", french), "KC_Q types A");
+        Check(Legend(nazg::NamedKey{ "KC_SCLN" }, "M", "", french), "KC_SCLN types M");
+        Check(Legend(nazg::NamedKey{ "KC_1" }, "&", "1", french), "the number row: & with 1 on Shift");
+        Check(Legend(nazg::NamedKey{ "KC_2" }, "é", "2", french), "é, in UTF-8");
+        Check(Legend(nazg::NamedKey{ "KC_LBRC" }, "^", "¨", french), "a dead key shows its accent, not a tag");
+        Check(Legend(nazg::NamedKey{ "KC_NUHS" }, "*", "µ", french), "the ISO hash key");
+        Check(Legend(nazg::NamedKey{ "KC_BSLS" }, "*", "µ", french), "and backslash, which the OS treats as the same key");
+        Check(Legend(nazg::NamedKey{ "KC_NUBS" }, "<", ">", french), "the extra ISO key");
+        Check(Legend(nazg::NamedKey{ "KC_ENT" }, "Enter", "", french), "layout-independent keys are unchanged");
+        Check(Legend(nazg::ModifiedKey{ Mod::LeftShift, "KC_1" }, "1", "", french),
+              "LSFT(KC_1) types 1 on AZERTY");
     }
 
     void TestNamedKeys()
@@ -64,8 +134,10 @@ int main()
 {
     ConfigureCrtReporting();
 
+    TestLayoutTable();
     TestNamedKeys();
     TestComposedKeys();
+    TestFrench();
 
     return TestResult();
 }

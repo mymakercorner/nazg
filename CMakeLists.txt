@@ -95,6 +95,7 @@ set(NAZG_CORE_SOURCES
   src/model/NazgKeycode.cpp
   src/ui/NazgKeycapLegend.h
   src/ui/NazgKeycapLegend.cpp
+  src/ui/NazgHostLayoutTable.cpp
 )
 
 add_library(nazg_core STATIC ${NAZG_CORE_SOURCES})
@@ -108,6 +109,11 @@ target_include_directories(nazg_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_include_directories(nazg_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/minlzma)
 
 target_link_libraries(nazg_core PUBLIC SDL3::SDL3 hidapi::hidapi nlohmann_json::nlohmann_json minlzlib)
+
+# Host-layout legends are UTF-8 string literals ("é", "ß", Cyrillic, CJK). MSVC reads
+# source in the system code page unless told otherwise; GCC and Clang default to UTF-8.
+# PUBLIC so the app and the tests, which compare against the same literals, agree.
+target_compile_options(nazg_core PUBLIC $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
 
 # --- Application --------------------------------------------------------------------
 

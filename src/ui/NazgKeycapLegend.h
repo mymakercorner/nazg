@@ -7,7 +7,8 @@
 // Q", and it types "a" on a French AZERTY host. So legends are presentation, computed
 // here at draw time from the keycode and a HostLayout; the keymap itself never changes
 // with the host. Decided 2026-09-23 -- see docs/research_material/keycodes.md, "Host
-// layouts": plain and Shift legends, one global host layout, US first.
+// layouts": plain and Shift legends, one global host layout, US by default, chosen from
+// QMK's keymap extras.
 //
 // Pure code, no ImGui, so it tests with literals.
 
@@ -36,12 +37,20 @@ namespace nazg
     // from the keycode table.
     struct HostLayout
     {
-        std::string_view            name;
+        std::string_view            id;        // QMK's name, stable: "french_mac_iso"
+        std::string_view            name;      // for people: "French (Mac ISO)"
         std::span<const HostLegend> legends;
 
         [[nodiscard]] const HostLegend* Find(std::string_view key) const noexcept;
     };
 
+    // Every layout, from QMK's keymap extras (NazgHostLayoutTable.cpp), sorted by id.
+    [[nodiscard]] std::span<const HostLayout> HostLayouts() noexcept;
+
+    // nullptr for an id no layout has -- a setting saved by a newer build, say.
+    [[nodiscard]] const HostLayout* FindHostLayout(std::string_view id) noexcept;
+
+    // The default, and the only choice a build without the table would have.
     [[nodiscard]] const HostLayout& UsHostLayout() noexcept;
 
     // Two legends, as on a printed keycap: `primary` is the main one, `secondary` the

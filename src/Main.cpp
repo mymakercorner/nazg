@@ -11,6 +11,7 @@
 #include <SDL3/SDL_main.h>
 
 #include "imgui.h"
+#include "imgui_internal.h"   // ImGuiSettingsHandler, to keep app settings in imgui.ini
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_sdlgpu3.h"
 
@@ -23,7 +24,10 @@
 #include "ui/NazgKeyboardView.h"
 #include "ui/NazgKeycodePicker.h"
 
+#include <cstdlib>
+#include <cstring>
 #include <exception>
+#include <filesystem>
 #include <optional>
 #include <string>
 #include <vector>
@@ -64,6 +68,92 @@ namespace
         }
 
         state.isLoading = false;
+    }
+
+    // Settings that outlive a run. Kept in imgui.ini through ImGui's own settings-handler
+    // hook -- one [Nazg][Settings] section -- rather than a settings file of Nazg's own,
+    // which can come when there is more than one setting worth a file.
+    struct AppSettings
+    {
+        std::string hostLayout = "us";   // a HostLayout id; see NazgKeycapLegend.h
+    };
+
+    void RegisterSettings(AppSettings& settings)
+    {
+        ImGuiSettingsHandler handler;
+        handler.TypeName = "Nazg";
+        handler.TypeHash = ImHashStr("Nazg");
+        handler.UserData = &settings;
+
+        handler.ReadOpenFn = [](ImGuiContext*, ImGuiSettingsHandler*, const char* name) -> void*
+        {
+            return std::strcmp(name, "Settings") == 0 ? reinterpret_cast<void*>(1) : nullptr;
+        };
+
+        handler.ReadLineFn = [](ImGuiContext*, ImGuiSettingsHandler* self, void*, const char* line)
+        {
+            constexpr char c_Key[] = "HostLayout=";
+            if (std::strncmp(line, c_Key, sizeof(c_Key) - 1) == 0)
+                static_cast<AppSettings*>(self->UserData)->hostLayout = line + sizeof(c_Key) - 1;
+        };
+
+        handler.WriteAllFn = [](ImGuiContext*, ImGuiSettingsHandler* self, ImGuiTextBuffer* out)
+        {
+            const AppSettings& saved = *static_cast<AppSettings*>(self->UserData);
+            out->appendf("[%s][Settings]\nHostLayout=%s\n\n", self->TypeName, saved.hostLayout.c_str());
+        };
+
+        ImGui::AddSettingsHandler(&handler);   // copied by ImGui
+    }
+
+    // TEMPORARY, like the board view: a system font with the glyphs host-layout legends
+    // need -- é, ß, Cyrillic, Greek, CJK -- since ImGui's built-in font is ASCII only.
+    // Which font Nazg ships with is visual design work for later. ImGui 1.92 rasterises
+    // glyphs on demand, so no glyph ranges are listed; merged fonts fill in what the first
+    // one lacks. Falls back to the built-in font when none is found.
+    void LoadFonts(ImGuiIO& io)
+    {
+        constexpr float c_FontSize = 16.0f;
+
+#if defined(_WIN32)
+        const char*       windir = std::getenv("WINDIR");
+        const std::string fonts  = std::string(windir != nullptr ? windir : "C:\\Windows") + "\\Fonts\\";
+
+        const std::vector<std::string> primary  = { fonts + "segoeui.ttf", fonts + "arial.ttf" };
+        const std::vector<std::string> fallback = { fonts + "seguisym.ttf", fonts + "YuGothM.ttc", fonts + "malgun.ttf" };
+#elif defined(__APPLE__)
+        const std::vector<std::string> primary  = { "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+                                                    "/System/Library/Fonts/Helvetica.ttc" };
+        const std::vector<std::string> fallback = {};
+#else
+        const std::vector<std::string> primary  = { "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                                                    "/usr/share/fonts/TTF/DejaVuSans.ttf",
+                                                    "/usr/share/fonts/noto/NotoSans-Regular.ttf" };
+        const std::vector<std::string> fallback = { "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+                                                    "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc" };
+#endif
+
+        bool haveBase = false;
+        for (const std::string& path : primary)
+        {
+            if (std::filesystem::exists(path) && io.Fonts->AddFontFromFileTTF(path.c_str(), c_FontSize) != nullptr)
+            {
+                haveBase = true;
+                break;
+            }
+        }
+
+        if (!haveBase)
+        {
+            SDL_Log("no system font found; legends beyond ASCII will not render");
+            return;
+        }
+
+        ImFontConfig merge;
+        merge.MergeMode = true;
+        for (const std::string& path : fallback)
+            if (std::filesystem::exists(path))
+                io.Fonts->AddFontFromFileTTF(path.c_str(), c_FontSize, &merge);
     }
 
     // The board being shown. Same lifetime rule as DeviceListState: owned by main().
@@ -233,6 +323,12 @@ int main(int, char**)
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+    // Before the first NewFrame(), which is when ImGui reads imgui.ini.
+    AppSettings settings;
+    RegisterSettings(settings);
+
+    LoadFonts(io);
 
     ImGui::StyleColorsDark();
 
@@ -404,11 +500,33 @@ int main(int, char**)
             if (boardState.keyboard && !boardState.isLoading)
             {
                 const nazg::Keyboard& keyboard = *boardState.keyboard;
-                ImGui::Text("%s -- QMK keycodes %s, host layout %s", keyboard.Name().c_str(),
-                            nazg::QmkKeycodeVersionName(keyboard.keycodeVersion),
-                            std::string(nazg::UsHostLayout().name).c_str());
 
-                nazg::DrawKeyboardView(keyboard, boardState.layer, nazg::UsHostLayout(), boardState.selection);
+                // A saved id this build does not know falls back to US rather than failing.
+                const nazg::HostLayout* found      = nazg::FindHostLayout(settings.hostLayout);
+                const nazg::HostLayout& hostLayout = found != nullptr ? *found : nazg::UsHostLayout();
+
+                ImGui::Text("%s -- QMK keycodes %s", keyboard.Name().c_str(),
+                            nazg::QmkKeycodeVersionName(keyboard.keycodeVersion));
+
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(ImGui::GetFontSize() * 14.0f);
+                if (ImGui::BeginCombo("Host layout", std::string(hostLayout.name).c_str()))
+                {
+                    for (const nazg::HostLayout& choice : nazg::HostLayouts())
+                    {
+                        const bool isCurrent = &choice == &hostLayout;
+                        if (ImGui::Selectable(std::string(choice.name).c_str(), isCurrent))
+                        {
+                            settings.hostLayout = choice.id;
+                            ImGui::MarkIniSettingsDirty();
+                        }
+                        if (isCurrent)
+                            ImGui::SetItemDefaultFocus();
+                    }
+                    ImGui::EndCombo();
+                }
+
+                nazg::DrawKeyboardView(keyboard, boardState.layer, hostLayout, boardState.selection);
 
                 ImGui::Separator();
 
@@ -437,7 +555,7 @@ int main(int, char**)
                     ImGui::BeginDisabled(isEditBusy);
                     const std::optional<nazg::Keycode> picked =
                         nazg::DrawKeycodePicker(boardState.picker, keyboard.keycodeVersion, keyboard.keymap.Layers(),
-                                                nazg::UsHostLayout());
+                                                hostLayout);
                     ImGui::EndDisabled();
 
                     if (picked && !isEditBusy)
