@@ -174,7 +174,7 @@ Keycode = Basic      { usage, mods }        // HID usage + held modifiers
         | OneShotMod { mods }
         | Macro      { index }
         | TapDance   { index }
-        | Named      { id }                 // any other fixed keycode: haptic, steno, magic, …
+        | Named      { name }               // any other fixed keycode: haptic, steno, magic, …
         | Unknown    { raw }                // shown and edited as hex
 ```
 
@@ -182,8 +182,10 @@ Keycode = Basic      { usage, mods }        // HID usage + held modifiers
   `encode(Keycode) -> optional<u16>`. `nullopt` means "this firmware cannot store that", which
   is exactly what the picker needs to grey an entry out. It lives under the protocol layer; the
   capability model and the UI never see a raw value except inside `Unknown`.
-- **`Named{id}` needs an identity that survives renames.** Use the newest QMK canonical name,
-  and chain history when producing the tables: across consecutive versions, *same value, new name* is a
+- **`Named{name}` needs an identity that survives renames.** Use the newest version's short
+  keymap name (`UG_TOGG`, `KC_ENT`) — one name serves as both identity and display, since it
+  is unique across the whole table and no name has ever meant two different keycodes. Chain
+  history when producing the tables: across consecutive versions, *same value, new name* is a
   rename and *same name, new value* is a move — both keep the identity. So `RGB_TOG` on a
   `0.0.1` board and `UG_TOGG` on a `0.0.9` board are one keycode, and `0x7110` decodes to two
   different identities on either side of `0.0.2`.
@@ -209,6 +211,42 @@ can be added later if regeneration ever becomes frequent enough to hurt.
 
 The inputs for that one-off work are unchanged: the nine merged JSON files from QMK's API,
 plus the pre-renumbering table extracted from QMK's history (trap 3).
+
+### Regenerating the table
+
+The table is `src/adapters/qmk/NazgQmkKeycodeTable.cpp`: one row per keycode per value it
+has held, `{ value, since, removedIn, name, group, label }`, sorted by value then version.
+To add a version:
+
+1. Fetch the merged JSON for **every** version, `keycodes_0.0.1.json` up to the new one. The
+   API output was checked against a local re-implementation of QMK's merge on 2026-09-23 and
+   matched exactly for all nine.
+2. **Chain identities from the newest version down.** In the newest version a keycode's id is
+   its `key`. For each older version, an entry takes its id from the next version up by:
+   - **same key** — its `key` is a key or alias there: unchanged, or moved to a new value;
+   - **same value, new key** — the key found at that value there did not exist in the older
+     version: a rename;
+   - otherwise it is its own id, removed in the next version.
+3. **Review every inferred rename by hand.** The value rule cannot tell a rename from a
+   removal whose value was reused. As of 0.0.9 there are 68 renames and they are all
+   genuine: mouse (0.0.5), RGB → underglow (0.0.4), magic, swap hands, sequencer and
+   `SAFE_RANGE` → `QK_KB_0` (0.0.2). The exceptions are `QK_STENO_BOLT`, `QK_STENO_GEMINI`,
+   `QK_STENO_COMB` and `QK_STENO_COMB_MAX`: removed in 0.0.9, and the `QK_STENO_X*` keys at
+   their old values are new keys, not renames. Those four are the only true removals so far.
+4. Split each id's history into runs of consecutive versions with the same value; each run
+   is a row. `name` is the first alias that is not all `_` or `X` (so `KC_TRNS`, not
+   `_______`), else the key, taken from the newest version; so are `group` and `label`.
+   Check the names are still unique across all ids — they are the identity in Nazg.
+5. **Labels are ASCII.** QMK's labels use nine non-ASCII characters, all replaced: `⇄` → `<->`
+   (`Swap LCtl<->Caps`), `≠` → `!=` (`Caps!=LCtl`), `♯` → `#` and subscript digits → digits
+   (`C♯₁` → `C#1`). Any other non-ASCII character in a new version needs a replacement
+   chosen before the table is written. ASCII keeps the source free of escapes and draws with
+   ImGui's default font, which has no glyphs beyond ASCII. Not `/` for the swap arrow:
+   `Swap \⇄Bspc` would become `Swap \/Bspc`. The five labels containing a backslash are
+   written as raw literals, `R"(\)"`, so they read as the keycap does.
+6. Update `QmkKeycodeVersion`, `c_LatestQmkKeycodeVersion`, `QmkKeycodeVersionName`, and the
+   per-version counts in `tests/QmkKeycodesTest.cpp`, which is what catches a bad
+   regeneration.
 
 ### Open questions for the implementation
 
