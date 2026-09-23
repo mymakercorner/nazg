@@ -79,10 +79,52 @@ Dates are the merge into `develop`.
    names breaks just as a keymap saved as numbers does.
 
 3. **Nothing before `0.0.1` is in the spec.** Protocol ≤ 10 boards use the pre-renumbering
-   values, which exist only in QMK's history — `quantum/keycode.h`,
-   `quantum/quantum_keycodes.h` and `quantum/via_ensure_keycode.h` at the parent of
-   `a69ab05dd6` (#18643). That table has to be extracted from there once and checked in; it
-   will never change again.
+   values, which exist only in QMK's history. Resolved 2026-09-23 — see
+   [Before the renumbering](#before-the-renumbering).
+
+### Before the renumbering
+
+Before #18643, `quantum_keycodes.h` was one long `enum`: adding a feature shifted every
+value after it, so "the old numbering" is not one table. What makes it tractable is
+`quantum/via_ensure_keycode.h`, added in March 2021 by QMK #12130 ("ensure they don't change
+within protocol"): **316 `_Static_assert`s pinning the keycodes VIA relies on**, compiled into
+every VIA build — Vial's included. Traced across all six revisions of that header (2021-03 to
+2022-11): keycodes were renamed or newly pinned, **never moved**. So the pinned set is one
+stable table for VIA ≤ 10 and Vial ≤ 5.
+
+- **Fixed keycodes:** the 316 pinned, less the 21 shifted symbols (`KC_EXLM` = `0x021E` =
+  `LSFT(KC_1)`, a modifier-range value in every version) — **295**. They include VIA's own
+  `FN_MO13`/`FN_MO23` (`0x5F10`), `MACRO00`–`15` (`0x5F12`) and `USER00`–`15` (`0x5F80`), whose
+  values agree with `quantum/via.h` one commit before #18643 removed them.
+- **Not pinned means not listed.** Haptics, for instance, moved between builds back then;
+  those values decode as unknown rather than under a guessed name.
+- **Names chain to today's identities**, so a keymap moves between numberings: `RESET` is
+  `QK_BOOT`, `RGB_TOG` is `UG_TOGG`. Eleven renames happened inside #18643 itself and are
+  mapped by hand: `AU_TOG` → `AU_TOGG`, `CLICKY_TOGGLE/ENABLE/DISABLE/UP/DOWN/RESET` →
+  `CK_TOGG/ON/OFF/UP/DOWN/RST`, `MU_TOG` → `MU_TOGG`, `MU_MOD` → `MU_NEXT`, `BL_DEC`/`BL_INC` →
+  `BL_DOWN`/`BL_UP`; plus `FN_MO13`/`FN_MO23` → `TL_LOWR`/`TL_UPPR` (VIA generalised them into
+  tri-layer), `MACROnn` → macro n, `USERnn` → `QK_KB_n`.
+- **One trap in QMK's own source:** the enum's comments put `BL_DEC` at `5CBE`; the pinned
+  assert says `0x5CBD`. The assert is compiled, the comment is not.
+- **Range layout** (quantum_keycodes.h at the parent of #18643): modifiers `0x0100`, `LT`
+  `0x4000`, swap hands `0x5600` and tap dance `0x5700` as today; one 256-value block per
+  layer action — `TO` `0x5000`, `MO` `0x5100`, `DF` `0x5200`, `TG` `0x5300`, `OSL` `0x5400`,
+  `OSM` `0x5500`, `TT` `0x5800`; `LM` `0x5900` as `layer << 4 | mods` with **four** mod bits
+  (left hand only); `MT` `0x6000`. No `PDF`.
+
+**`TO(n)` changed inside this era**, which is why there are two Legacy versions. Until
+#17989 (2022-08) it carried an `ON_PRESS` bit — `0x5010 | n` — and firmware read
+`0x5001` as "TO 1, never": a key that does nothing. After, `0x5000 | n`. VIA's app switches at
+protocol 10 (its `default.ts` has `_QK_TO: 0x5010`, `v10.ts` has `0x5000`); vial-gui's v5
+table uses `0x5010 | n`. Nazg follows both:
+
+| Version | Used for | `TO(n)` |
+|---|---|---|
+| `Legacy` | VIA ≤ 9, Vial ≤ 5 | `0x5010 \| n`, layers 0–15; other `0x50xx` values decode as unknown |
+| `LegacyVia10` | VIA 10 | `0x5000 \| n` |
+
+Firmware built before #12130 (March 2021) may disagree with the pinned values on a few
+keycodes — that is what the fix was about. Nothing here can detect it.
 
 4. **Ranges overlap.** `QK_UNICODE` is `0x8000/0x7FFF`, which covers both `QK_UNICODEMAP`
    (`0x8000/0x3FFF`) and `QK_UNICODEMAP_PAIR` (`0xC000/0x3FFF`). The three features are
@@ -96,9 +138,10 @@ Dates are the merge into `develop`.
 | VIA protocol ≥ 13 | exact | `id_keycodes_version` (`0x02 0x06`) returns `QMK_KEYCODES_VERSION_BCD` |
 | VIA protocol 12 | `0.0.2` … `0.0.8` | Protocol 12 landed 2023-02 after `0.0.2`; protocol 13 landed 2026-04 before `0.0.9` |
 | VIA protocol 11 | `0.0.1`, possibly `0.0.2` | Came in with `0.0.1`; `0.0.2` reached `develop` three weeks before protocol 12. Whether a release ever paired 11 with `0.0.2` is unverified |
-| VIA protocol ≤ 10 | pre-renumbering | Trap 3 |
+| VIA protocol 10 | `LegacyVia10` | [Before the renumbering](#before-the-renumbering) |
+| VIA protocol ≤ 9 | `Legacy` | [Before the renumbering](#before-the-renumbering) |
 | **Vial** protocol 6 | `0.0.2` … `0.0.7` | The bump to 6 arrived in the QMK merge that brought `0.0.2`; upstream is at `0.0.7` today |
-| **Vial** protocol ≤ 5 | pre-renumbering, strictly | No protocol-5 tree ever contained the renumbering (below) |
+| **Vial** protocol ≤ 5 | `Legacy`, strictly | No protocol-5 tree ever contained the renumbering (below) |
 
 **Never select a Vial board's dictionary from its VIA protocol version.** vial-qmk hard-codes
 `VIA_PROTOCOL_VERSION 0x0009` in `quantum/via.h` regardless of its QMK base — the Model F
@@ -127,7 +170,8 @@ Vial 5 firmware is therefore what vial-qmk built between April 2022 and March 20
 flashed in that window and never updated since.
 
 Both dogfood boards are therefore **post-renumbering**: the Aquanaut (VIA 12) is somewhere in
-`0.0.2`–`0.0.8`, the Model F (Vial 6) at `0.0.7`. Neither exercises the pre-renumbering table.
+`0.0.2`–`0.0.8`, the Model F (Vial 6) at `0.0.7`. Neither exercises the Legacy tables, which are
+tested only against scripted bytes.
 
 Where the version is a span, the remaining ambiguity is small: within `0.0.2`–`0.0.8` the only
 value that moved is the output group at `0.0.6`. Default to the newest version in the span and
@@ -279,6 +323,12 @@ To add a version:
 6. Update `QmkKeycodeVersion`, `c_LatestQmkKeycodeVersion`, `QmkKeycodeVersionName`, and the
    per-version counts in `tests/QmkKeycodesTest.cpp`, which is what catches a bad
    regeneration.
+7. **The Legacy rows never change**, but regeneration must carry them: 295 keycodes from
+   `via_ensure_keycode.h` at the parent of #18643, identities resolved through the modern
+   spellings plus the hand mapping in [Before the renumbering](#before-the-renumbering), and
+   `since = Legacy` with `removedIn = V0_0_1` — or no `removedIn` at all where the value
+   survived the renumbering, as every basic keycode did. They sit before `V0_0_1` in the
+   enum, so a new QMK version never touches them.
 
 ### Open questions for the implementation
 

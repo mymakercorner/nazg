@@ -11,14 +11,16 @@
 
 namespace nazg
 {
-    std::optional<QmkKeycodeVersion> QmkKeycodeVersionForVia(uint16_t viaProtocol) noexcept
+    QmkKeycodeVersion QmkKeycodeVersionForVia(uint16_t viaProtocol) noexcept
     {
         if (viaProtocol >= 12)
             return QmkKeycodeVersion::V0_0_8;
         if (viaProtocol == 11)
             return QmkKeycodeVersion::V0_0_1;
+        if (viaProtocol == 10)
+            return QmkKeycodeVersion::LegacyVia10;
 
-        return std::nullopt;
+        return QmkKeycodeVersion::Legacy;
     }
 
     // `definition` by value: it lives in the coroutine frame for the whole load, whatever
@@ -27,7 +29,7 @@ namespace nazg
     {
         const uint16_t viaProtocol = co_await protocol.GetProtocolVersion();
 
-        std::optional<QmkKeycodeVersion> keycodeVersion;
+        QmkKeycodeVersion keycodeVersion = QmkKeycodeVersionForVia(viaProtocol);
 
         if (viaProtocol >= 13)
         {
@@ -35,24 +37,12 @@ namespace nazg
             // is read with the newest table there is: keycodes added since decode as
             // unknown values and write back unchanged, which beats refusing the board.
             const uint32_t bcd = co_await protocol.GetKeyboardValue(ViaKeyboardValue::KeycodesVersion);
-            keycodeVersion     = QmkKeycodeVersionFromBcd(bcd);
 
-            if (!keycodeVersion)
-            {
-                if (bcd == 0)
-                    throw ProtocolError("the board reports keycode version 0.0.0");
+            if (bcd == 0)
+                throw ProtocolError("the board reports keycode version 0.0.0");
 
-                keycodeVersion = c_LatestQmkKeycodeVersion;
-            }
+            keycodeVersion = QmkKeycodeVersionFromBcd(bcd).value_or(c_LatestQmkKeycodeVersion);
         }
-        else
-        {
-            keycodeVersion = QmkKeycodeVersionForVia(viaProtocol);
-        }
-
-        if (!keycodeVersion)
-            throw ProtocolError("VIA protocol " + std::to_string(viaProtocol) +
-                                " uses pre-renumbering keycodes, which are not supported yet");
 
         const uint8_t layers = co_await protocol.GetLayerCount();
 
@@ -81,8 +71,8 @@ namespace nazg
             co_await protocol.GetKeymapBuffer(0, static_cast<uint16_t>(byteCount));
 
         Keymap keymap = DecodeViaKeymap(keymapBytes, layers, definition.matrixRows, definition.matrixColumns,
-                                        *keycodeVersion);
+                                        keycodeVersion);
 
-        co_return BuildKeyboard(std::move(definition), std::move(keymap), layoutOptions, *keycodeVersion);
+        co_return BuildKeyboard(std::move(definition), std::move(keymap), layoutOptions, keycodeVersion);
     }
 }

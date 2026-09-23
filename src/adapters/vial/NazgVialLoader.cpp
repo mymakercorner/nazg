@@ -11,12 +11,12 @@
 
 namespace nazg
 {
-    std::optional<QmkKeycodeVersion> QmkKeycodeVersionForVial(uint32_t vialProtocol) noexcept
+    QmkKeycodeVersion QmkKeycodeVersionForVial(uint32_t vialProtocol) noexcept
     {
         if (vialProtocol >= 6)
             return QmkKeycodeVersion::V0_0_7;
 
-        return std::nullopt;
+        return QmkKeycodeVersion::Legacy;
     }
 
     Task<Keyboard> LoadVialKeyboard(VialProtocol& protocol)
@@ -28,13 +28,7 @@ namespace nazg
         if (!identity)
             throw ProtocolError("this device is not a Vial board");
 
-        // Decided before any download: without a keycode table there is no point
-        // fetching a keymap that cannot be read.
-        const std::optional<QmkKeycodeVersion> keycodeVersion = QmkKeycodeVersionForVial(identity->protocolVersion);
-
-        if (!keycodeVersion)
-            throw ProtocolError("Vial protocol " + std::to_string(identity->protocolVersion) +
-                                " uses pre-renumbering keycodes, which are not supported yet");
+        const QmkKeycodeVersion keycodeVersion = QmkKeycodeVersionForVial(identity->protocolVersion);
 
         KeyboardDefinition definition = DecodeDefinition(co_await protocol.DownloadDefinition());
 
@@ -68,8 +62,8 @@ namespace nazg
             co_await protocol.GetKeymapBuffer(0, static_cast<uint16_t>(byteCount));
 
         Keymap keymap = DecodeViaKeymap(keymapBytes, layers, definition.matrixRows,
-                                        definition.matrixColumns, *keycodeVersion);
+                                        definition.matrixColumns, keycodeVersion);
 
-        co_return BuildKeyboard(std::move(definition), std::move(keymap), layoutOptions, *keycodeVersion);
+        co_return BuildKeyboard(std::move(definition), std::move(keymap), layoutOptions, keycodeVersion);
     }
 }

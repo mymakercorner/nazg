@@ -30,6 +30,7 @@ using nazg::QmkKeycodeVersionFromBcd;
 namespace
 {
     constexpr QmkKeycodeVersion c_AllVersions[] = {
+        QmkKeycodeVersion::Legacy, QmkKeycodeVersion::LegacyVia10,
         QmkKeycodeVersion::V0_0_1, QmkKeycodeVersion::V0_0_2, QmkKeycodeVersion::V0_0_3,
         QmkKeycodeVersion::V0_0_4, QmkKeycodeVersion::V0_0_5, QmkKeycodeVersion::V0_0_6,
         QmkKeycodeVersion::V0_0_7, QmkKeycodeVersion::V0_0_8, QmkKeycodeVersion::V0_0_9,
@@ -100,7 +101,9 @@ namespace
     {
         std::printf("keycodes per version\n");
 
-        const size_t expected[] = { 628, 695, 697, 719, 719, 732, 732, 736, 815 };
+        // Legacy: the 316 keycodes VIA pinned, less the 21 shifted symbols (KC_EXLM is
+        // LSFT(KC_1), a modifier-range value rather than a table entry).
+        const size_t expected[] = { 295, 295, 628, 695, 697, 719, 719, 732, 732, 736, 815 };
 
         for (size_t i = 0; i < std::size(c_AllVersions); ++i)
         {
@@ -109,7 +112,7 @@ namespace
                 if (row.ExistsIn(c_AllVersions[i]))
                     ++count;
 
-            const std::string description = std::string("0.0.") + std::to_string(i + 1) + " has " +
+            const std::string description = std::string(nazg::QmkKeycodeVersionName(c_AllVersions[i])) + " has " +
                                             std::to_string(expected[i]) + " keycodes";
             Check(count == expected[i], description.c_str());
         }
@@ -132,8 +135,9 @@ namespace
         // Haptic: the gap in VIA's picker that started this. Unchanged since 0.0.1.
         bool hapticEverywhere = true;
         for (QmkKeycodeVersion version : c_AllVersions)
-            hapticEverywhere &= Is(FindQmkKeycode(0x7C42, version), "HF_TOGG");
-        Check(hapticEverywhere, "0x7C42 is HF_TOGG in every version");
+            if (!nazg::IsLegacy(version))
+                hapticEverywhere &= Is(FindQmkKeycode(0x7C42, version), "HF_TOGG");
+        Check(hapticEverywhere, "0x7C42 is HF_TOGG in every version since the renumbering");
 
         Check(FindQmkKeycode(0x0002, latest) == nullptr, "an unassigned value finds nothing");
         Check(FindQmkKeycode(0x5221, latest) == nullptr, "nor does MO(1) -- ranges are not table entries");
@@ -185,6 +189,31 @@ namespace
               "the 0.0.2 magic renames chain back to 0.0.1");
     }
 
+    // Before the renumbering: other values, and names that chain to today's.
+    void TestLegacy()
+    {
+        std::printf("before the renumbering\n");
+
+        const QmkKeycodeVersion legacy = QmkKeycodeVersion::Legacy;
+
+        Check(Is(FindQmkKeycode(0x0004, legacy), "KC_A"), "basic keycodes kept their values");
+        Check(Is(FindQmkKeycode(0x5C00, legacy), "QK_BOOT"), "RESET at 0x5C00 is today's QK_BOOT");
+        Check(FindQmkKeycode(0x5C00, QmkKeycodeVersion::V0_0_1) == nullptr, "and 0x5C00 means nothing after");
+        Check(ValueOf("QK_BOOT", QmkKeycodeVersion::V0_0_1) == 0x7C00, "where QK_BOOT moved to 0x7C00");
+        Check(Is(FindQmkKeycode(0x5CC2, legacy), "UG_TOGG"), "RGB_TOG chains to UG_TOGG");
+        Check(Is(FindQmkKeycode(0x5C23, legacy), "CK_UP"), "CLICKY_UP was renamed inside the renumbering");
+        Check(Is(FindQmkKeycode(0x5CBD, legacy), "BL_DOWN"),
+              "BL_DEC is 0x5CBD, as VIA's assert says -- not 0x5CBE, as QMK's comment did");
+        Check(Is(FindQmkKeycode(0x5F10, legacy), "TL_LOWR"), "FN_MO13 became the tri-layer lower key");
+        Check(Is(FindQmkKeycode(0x5F80, legacy), "QK_KB_0"), "USER00 became QK_KB_0");
+        Check(FindQmkKeycode(0x021E, legacy) == nullptr, "KC_EXLM is LSFT(KC_1), not a table entry");
+        Check(ValueOf("HF_TOGG", legacy) == -1, "haptics were never pinned, so they have no legacy value");
+
+        Check(std::string_view(nazg::QmkKeycodeVersionName(legacy)) == "legacy" &&
+              std::string_view(nazg::QmkKeycodeVersionName(QmkKeycodeVersion::LegacyVia10)) == "legacy (VIA 10)",
+              "the Legacy versions have names");
+    }
+
     // Writing: a keycode newer than the board has no value there.
     void TestNotYetInVersion()
     {
@@ -222,6 +251,7 @@ int main()
     TestLookups();
     TestReusedValues();
     TestRenames();
+    TestLegacy();
     TestNotYetInVersion();
     TestVersionFromBcd();
 

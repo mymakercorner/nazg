@@ -10,6 +10,7 @@
 #include <utility>
 #include <vector>
 
+#include "adapters/qmk/NazgQmkKeycodeCodec.h"
 #include "imgui.h"
 
 namespace nazg
@@ -68,10 +69,9 @@ namespace nazg
                     group = groups.end() - 1;
                 }
 
-                // A macro is a macro by its index, as the codec decodes it.
-                const Keycode keycode = std::string_view(row.group) == "macro"
-                                            ? Keycode{ MacroKey{ static_cast<uint8_t>(row.value & 0x7F) } }
-                                            : Keycode{ NamedKey{ row.name } };
+                // Whatever the codec makes of this value on this version -- a NamedKey, or a
+                // MacroKey for the macro rows, whose index depends on the numbering.
+                const Keycode keycode = DecodeQmkKeycode(row.value, version);
 
                 const KeycapLegend legend  = LegendFor(keycode, layout);
                 std::string        caption = legend.primary.empty() ? std::string(row.name) : legend.primary;

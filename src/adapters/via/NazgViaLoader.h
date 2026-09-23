@@ -30,12 +30,14 @@ namespace nazg
     //          an older board anywhere from 0.0.2 differs only in the output keys moved
     //          at 0.0.6, which then decode as unknown values and still write back intact
     //   11  -> 0.0.1, which arrived in the same commit as protocol 11
-    //   <=10 -> nullopt: pre-renumbering keycodes have no table yet
-    // Protocol 13 and later report their version, so the loader asks instead of calling this.
-    [[nodiscard]] std::optional<QmkKeycodeVersion> QmkKeycodeVersionForVia(uint16_t viaProtocol) noexcept;
+    //   10  -> LegacyVia10: before the renumbering, TO(n) without its ON_PRESS bit
+    //   <=9 -> Legacy: before the renumbering, TO(n) = 0x5010 | n
+    // The two Legacy choices follow VIA's own app, which switches TO's encoding at
+    // protocol 10. Protocol 13 and later report their version, so the loader asks instead.
+    [[nodiscard]] QmkKeycodeVersion QmkKeycodeVersionForVia(uint16_t viaProtocol) noexcept;
 
     // Throws HidTransportError if the device goes away, ProtocolError if it answers
-    // something unusable -- including a protocol whose keycodes have no table -- and
-    // std::invalid_argument if the definition's matrix does not fit the keymap.
+    // something unusable, and std::invalid_argument if the definition's matrix does not
+    // fit the keymap.
     [[nodiscard]] Task<Keyboard> LoadViaKeyboard(ViaProtocol& protocol, KeyboardDefinition definition);
 }

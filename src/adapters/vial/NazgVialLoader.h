@@ -25,7 +25,6 @@
 #pragma once
 
 #include <cstdint>
-#include <optional>
 
 #include "adapters/qmk/NazgQmkKeycodes.h"
 #include "adapters/vial/NazgVialProtocol.h"
@@ -43,10 +42,10 @@ namespace nazg
     // 2025-06-21), so that is the table. A board built from an older vial-qmk can be
     // anywhere from 0.0.2, and the only value that moved in between is the output group at
     // 0.0.6 -- such a key decodes as an unknown value and still writes back unchanged.
-    // nullopt for protocol 5 and below: pre-renumbering keycodes have no table yet. See
-    // docs/research_material/keycodes.md, "Vial's protocol history against QMK's
-    // renumbering".
-    [[nodiscard]] std::optional<QmkKeycodeVersion> QmkKeycodeVersionForVial(uint32_t vialProtocol) noexcept;
+    // Protocol 5 and below are Legacy, with TO(n) carrying its ON_PRESS bit as vial-gui's
+    // own v5 table assumes. See docs/research_material/keycodes.md, "Vial's protocol
+    // history against QMK's renumbering".
+    [[nodiscard]] QmkKeycodeVersion QmkKeycodeVersionForVial(uint32_t vialProtocol) noexcept;
 
     // Throws HidTransportError if the device goes away, or ProtocolError if it answers
     // something unusable -- including when it turns out not to be a Vial board.

@@ -26,11 +26,18 @@ namespace nazg
     // QMK's keycode spec versions, in order. The numbering is Nazg's own: QMK reports
     // 0.0.9 as QMK_KEYCODES_VERSION_BCD 0x00000009, converted by QmkKeycodeVersionFromBcd.
     //
-    // Everything before 0.0.1 -- protocol <= 10, the pre-renumbering values -- is not in
-    // the table yet. Neither dogfood board uses it.
+    // The two Legacy values are the numbering before QMK's renumbering (#18643, 2022-11).
+    // Its fixed keycodes are the ones VIA pinned with static asserts, which never moved
+    // while that header existed; the two differ only in how TO(n) is encoded, because QMK
+    // dropped TO's ON_PRESS bit (#17989, 2022-08) just after VIA protocol 10 arrived.
+    // Keycodes VIA never pinned (haptics, for instance) moved between builds back then, so
+    // they are not in the table and decode as unknown values.
     enum class QmkKeycodeVersion : uint8_t
     {
-        V0_0_1 = 1,
+        Legacy = 1,    // VIA protocol <= 9, Vial <= 5: TO(n) = 0x5010 | n
+        LegacyVia10,   // VIA protocol 10:               TO(n) = 0x5000 | n
+
+        V0_0_1,
         V0_0_2,
         V0_0_3,
         V0_0_4,
@@ -44,6 +51,12 @@ namespace nazg
     };
 
     inline constexpr QmkKeycodeVersion c_LatestQmkKeycodeVersion = QmkKeycodeVersion::V0_0_9;
+
+    // Before the renumbering: different range bases, so the codec takes another path.
+    [[nodiscard]] constexpr bool IsLegacy(QmkKeycodeVersion version) noexcept
+    {
+        return version < QmkKeycodeVersion::V0_0_1;
+    }
 
     // One row of the table: a keycode at one value, over the versions it held that value.
     struct QmkKeycode
@@ -79,6 +92,6 @@ namespace nazg
     // anything newer than c_LatestQmkKeycodeVersion.
     [[nodiscard]] std::optional<QmkKeycodeVersion> QmkKeycodeVersionFromBcd(uint32_t bcd) noexcept;
 
-    // "0.0.9", for display and logs.
+    // "0.0.9", or "legacy" / "legacy (VIA 10)", for display and logs.
     [[nodiscard]] const char* QmkKeycodeVersionName(QmkKeycodeVersion version) noexcept;
 }

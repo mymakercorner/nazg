@@ -60,13 +60,17 @@ lists the whole QMK table for the board's version, grouped, plus layer keys.
 
 VIA boards load too: `adapters/via/NazgViaLoader.*` takes the definition from the caller and
 picks the keycode version from the protocol (13+: asked with `id_keycodes_version`; 12 ->
-0.0.8; 11 -> 0.0.1; <=10 refused until the pre-renumbering table exists). Sourcing is a
+0.0.8; 11 -> 0.0.1; 10 -> LegacyVia10; <=9 -> Legacy). Sourcing is a
 first draft -- "Load VIA definition..." (SDL's file dialog) in the device list, paths saved
 in `imgui.ini`, matched to a board by VID:PID. Verified on the Aquanaut 2026-09-23 with its
 `via.json` from Rico's QMK fork: 108 keys, 4 layers, 0.0.8, no unknown values.
 
-Next: the pre-renumbering keycode table (Vial <= 5, VIA <= 10), or a registry for VIA
-definitions -- both open.
+Keycodes from before QMK's renumbering are covered too: two `Legacy` versions in the same
+table, from the 316 keycodes VIA pinned with static asserts, differing only in how `TO(n)` is
+encoded (keycodes.md, "Before the renumbering"). Tested against scripted bytes only -- no
+pre-renumbering board is at hand.
+
+Next: open -- a registry for VIA definitions, or step 5 (custom features).
 
 # Prior research — read before re-researching anything
 

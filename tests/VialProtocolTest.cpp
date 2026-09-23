@@ -263,9 +263,9 @@ namespace
 
         Check(QmkKeycodeVersionForVial(6) == QmkKeycodeVersion::V0_0_7,
               "protocol 6 -- the Model F -- uses vial-qmk's keycodes, 0.0.7");
-        Check(!QmkKeycodeVersionForVial(5).has_value(),
-              "protocol 5 is pre-renumbering and has no table yet");
-        Check(!QmkKeycodeVersionForVial(0).has_value(), "nor does anything older");
+        Check(QmkKeycodeVersionForVial(5) == QmkKeycodeVersion::Legacy,
+              "protocol 5 is pre-renumbering, with TO's ON_PRESS bit as vial-gui's v5 table has it");
+        Check(QmkKeycodeVersionForVial(0) == QmkKeycodeVersion::Legacy, "and so is anything older");
     }
 }
 

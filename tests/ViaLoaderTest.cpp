@@ -73,8 +73,9 @@ namespace
         Check(QmkKeycodeVersionForVia(12) == QmkKeycodeVersion::V0_0_8,
               "12 -- the Aquanaut -- takes 0.0.8, the newest a protocol-12 build can have");
         Check(QmkKeycodeVersionForVia(11) == QmkKeycodeVersion::V0_0_1, "11 came with 0.0.1");
-        Check(!QmkKeycodeVersionForVia(10).has_value(), "10 is pre-renumbering: no table yet");
-        Check(!QmkKeycodeVersionForVia(9).has_value(), "and so is 9");
+        Check(QmkKeycodeVersionForVia(10) == QmkKeycodeVersion::LegacyVia10,
+              "10 is pre-renumbering, with TO(n) as 0x5000 | n");
+        Check(QmkKeycodeVersionForVia(9) == QmkKeycodeVersion::Legacy, "9 and below carry TO's ON_PRESS bit");
     }
 
     void TestProtocol12()
@@ -135,27 +136,29 @@ namespace
         }
     }
 
-    void TestPreRenumberingIsRefused()
+    // A protocol-9 board speaks the numbering from before QMK's renumbering: MO(1) is
+    // 0x5101 there, and QK_BOOT -- RESET, back then -- is 0x5C00.
+    void TestPreRenumbering()
     {
-        std::printf("pre-renumbering\n");
+        std::printf("load, pre-renumbering\n");
 
         FakeDeviceChannel channel;
         ViaProtocol       via(channel);
 
         channel.Reply({ 0x01, 0x00, 0x09 });              // protocol version 9
+        channel.Reply({ 0x11, 2 });
+        channel.Reply({ 0xFF });
+        channel.Reply({ 0x12, 0x00, 0x00, 8,
+                        0x00, 0x04, 0x51, 0x01,
+                        0x00, 0x01, 0x5C, 0x00 });
 
-        bool refused = false;
-        try
-        {
-            (void)Run(nazg::LoadViaKeyboard(via, TinyDefinition()));
-        }
-        catch (const nazg::ProtocolError& failure)
-        {
-            refused = std::string(failure.what()).find("pre-renumbering") != std::string::npos;
-        }
+        const Keyboard keyboard = Run(nazg::LoadViaKeyboard(via, TinyDefinition()));
 
-        Check(refused, "protocol 9 is refused with a reason");
-        Check(channel.RequestCount() == 1, "before the keymap is fetched");
+        Check(keyboard.keycodeVersion == QmkKeycodeVersion::Legacy, "protocol 9 reads with the Legacy table");
+        Check(FormatKeycode(keyboard.keymap.At(0, 0, 0)) == "KC_A" &&
+              FormatKeycode(keyboard.keymap.At(0, 0, 1)) == "MO(1)" &&
+              FormatKeycode(keyboard.keymap.At(1, 0, 1)) == "QK_BOOT",
+              "old values arrive as today's keycodes");
     }
 }
 
@@ -166,7 +169,7 @@ int main()
     TestVersionFromProtocol();
     TestProtocol12();
     TestProtocol13();
-    TestPreRenumberingIsRefused();
+    TestPreRenumbering();
 
     return TestResult();
 }

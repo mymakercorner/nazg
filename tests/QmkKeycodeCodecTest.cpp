@@ -147,11 +147,50 @@ namespace
         Check(Encoded(outputAuto, QmkKeycodeVersion::V0_0_6) == 0x7780, "OU_AUTO follows its move in 0.0.6");
     }
 
+    // Before the renumbering: same shapes, other bases, and TO's two encodings.
+    void TestLegacy()
+    {
+        std::printf("before the renumbering\n");
+
+        const QmkKeycodeVersion legacy = QmkKeycodeVersion::Legacy;
+        const QmkKeycodeVersion via10  = QmkKeycodeVersion::LegacyVia10;
+
+        Check(Decoded(0x0104, legacy) == "LCTL(KC_A)" && Decoded(0x4104, legacy) == "LT(1,KC_A)",
+              "modifiers and LT kept their layout");
+        Check(Decoded(0x6104, legacy) == "MT(MOD_LCTL,KC_A)", "MT was at 0x6000");
+        Check(Decoded(0x5101, legacy) == "MO(1)" && Decoded(0x5202, legacy) == "DF(2)" &&
+              Decoded(0x5303, legacy) == "TG(3)" && Decoded(0x5401, legacy) == "OSL(1)" &&
+              Decoded(0x5804, legacy) == "TT(4)",
+              "each layer action had its own 256-value block");
+        Check(Decoded(0x5502, legacy) == "OSM(MOD_LSFT)", "OSM at 0x5500");
+        Check(Decoded(0x5912, legacy) == "LM(1,MOD_LSFT)", "LM packed layer << 4 | mods");
+        Check(Decoded(0x5703, legacy) == "TD(3)", "tap dance where it still is");
+        Check(Decoded(0x5F12, legacy) == "MC_0" && Decoded(0x5F21, legacy) == "MC_15", "VIA's MACRO00..15");
+
+        Check(Decoded(0x5011, legacy) == "TO(1)", "TO(1) with its ON_PRESS bit, up to VIA 9");
+        Check(Decoded(0x5001, legacy) == "0x5001", "without it, a TO that never fired, shown as it is");
+        Check(Decoded(0x5001, via10) == "TO(1)", "on VIA 10, TO(1) has no ON_PRESS bit");
+        Check(Encoded(nazg::LayerKey{ nazg::LayerOp::To, 1 }, legacy) == 0x5011 &&
+              Encoded(nazg::LayerKey{ nazg::LayerOp::To, 1 }, via10) == 0x5001,
+              "and each writes its own form");
+
+        Check(Encoded(nazg::MacroKey{ 16 }, legacy) == -1, "VIA had 16 macros");
+        Check(Encoded(nazg::LayerKey{ nazg::LayerOp::PersistentDefault, 1 }, legacy) == -1, "and no PDF yet");
+        Check(Encoded(nazg::LayerModKey{ 1, Mod::RightShift }, legacy) == -1, "nor right-hand mods in LM");
+        Check(Encoded(nazg::NamedKey{ "HF_TOGG" }, legacy) == -1, "nor a pinned value for the haptic keys");
+
+        // A keymap moving between the two numberings keeps its meaning.
+        Check(Encoded(DecodeQmkKeycode(0x5C00, legacy)) == 0x7C00, "RESET read before becomes QK_BOOT after");
+        Check(Encoded(DecodeQmkKeycode(0x5221, c_Latest), legacy) == 0x5101, "MO(1) written back to an old board");
+        Check(Encoded(DecodeQmkKeycode(0x5F10, legacy)) == 0x7C77, "FN_MO13 becomes TL_LOWR");
+    }
+
     void TestRoundTrip()
     {
         std::printf("round trip, every value in every version\n");
 
         const QmkKeycodeVersion versions[] = {
+            QmkKeycodeVersion::Legacy, QmkKeycodeVersion::LegacyVia10,
             QmkKeycodeVersion::V0_0_1, QmkKeycodeVersion::V0_0_2, QmkKeycodeVersion::V0_0_3,
             QmkKeycodeVersion::V0_0_4, QmkKeycodeVersion::V0_0_5, QmkKeycodeVersion::V0_0_6,
             QmkKeycodeVersion::V0_0_7, QmkKeycodeVersion::V0_0_8, QmkKeycodeVersion::V0_0_9,
@@ -195,6 +234,7 @@ int main()
     TestIndexed();
     TestUnknown();
     TestAcrossVersions();
+    TestLegacy();
     TestRoundTrip();
 
     return TestResult();

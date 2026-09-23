@@ -51,17 +51,22 @@ namespace nazg
             patch = patch * 10 + digit;
         }
 
-        if (patch < static_cast<uint32_t>(QmkKeycodeVersion::V0_0_1) ||
-            patch > static_cast<uint32_t>(c_LatestQmkKeycodeVersion))
+        // 0.0.1 is the first enumerator after the two Legacy ones.
+        const uint32_t first = static_cast<uint32_t>(QmkKeycodeVersion::V0_0_1);
+        const uint32_t count = static_cast<uint32_t>(c_LatestQmkKeycodeVersion) - first + 1;
+
+        if (patch < 1 || patch > count)
             return std::nullopt;
 
-        return static_cast<QmkKeycodeVersion>(patch);
+        return static_cast<QmkKeycodeVersion>(first + patch - 1);
     }
 
     const char* QmkKeycodeVersionName(QmkKeycodeVersion version) noexcept
     {
         switch (version)
         {
+        case QmkKeycodeVersion::Legacy:      return "legacy";
+        case QmkKeycodeVersion::LegacyVia10: return "legacy (VIA 10)";
         case QmkKeycodeVersion::V0_0_1: return "0.0.1";
         case QmkKeycodeVersion::V0_0_2: return "0.0.2";
         case QmkKeycodeVersion::V0_0_3: return "0.0.3";
