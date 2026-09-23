@@ -75,6 +75,8 @@ set(NAZG_CORE_SOURCES
   src/adapters/qmk/NazgQmkKeycodes.h
   src/adapters/qmk/NazgQmkKeycodes.cpp
   src/adapters/qmk/NazgQmkKeycodeTable.cpp
+  src/adapters/qmk/NazgQmkKeycodeCodec.h
+  src/adapters/qmk/NazgQmkKeycodeCodec.cpp
   src/adapters/via/NazgKeyboardDefinition.h
   src/adapters/via/NazgKeyboardDefinition.cpp
   src/adapters/via/NazgViaProtocol.h
@@ -87,6 +89,8 @@ set(NAZG_CORE_SOURCES
   src/adapters/vial/NazgVialLoader.cpp
   src/model/NazgKeyboard.h
   src/model/NazgKeyboard.cpp
+  src/model/NazgKeycode.h
+  src/model/NazgKeycode.cpp
 )
 
 add_library(nazg_core STATIC ${NAZG_CORE_SOURCES})
@@ -162,6 +166,7 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(definition         tests/DefinitionTest.cpp)
     nazg_add_test(keyboard_model     tests/KeyboardModelTest.cpp)
     nazg_add_test(qmk_keycodes       tests/QmkKeycodesTest.cpp)
+    nazg_add_test(qmk_keycode_codec  tests/QmkKeycodeCodecTest.cpp)
 endif()
 
 # Make nazg the solution's startup project so F5 runs the app, not ALL_BUILD.

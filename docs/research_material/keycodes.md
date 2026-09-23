@@ -178,6 +178,18 @@ Keycode = Basic      { usage, mods }        // HID usage + held modifiers
         | Unknown    { raw }                // shown and edited as hex
 ```
 
+**As implemented** (2026-09-23, `model/NazgKeycode.h`, codec in
+`adapters/qmk/NazgQmkKeycodeCodec.h`), with one deliberate change: there is no `Basic{usage}`.
+A basic key is a `NamedKey` like any other fixed keycode, and the modifier forms carry the
+key by name — `ModifiedKey{mods, "KC_A"}`. QMK's basic byte is only a HID usage below `0xA5`
+(media, system and mouse keys above it are QMK's own numbering), and the name is the identity
+everywhere else, so a second identity for a subset of keys bought nothing. A ZMK codec maps
+names to HID usages with a small table when it exists. Modifiers are the 8-bit HID layout,
+which QMK's 5-bit form cannot always express (it cannot mix sides) — the encoder refuses
+those rather than dropping a modifier. Also present: `LayerMod` (`LM`), `SwapHandsTap`
+(`SH_T`). Every 16-bit value in every version survives decode then encode unchanged; the
+test checks all 65536 × 9.
+
 - **The QMK codec** is table-driven per keycode version: `decode(u16) -> Keycode` and
   `encode(Keycode) -> optional<u16>`. `nullopt` means "this firmware cannot store that", which
   is exactly what the picker needs to grey an entry out. It lives under the protocol layer; the

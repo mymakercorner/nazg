@@ -32,8 +32,15 @@ layer count, layout options and a flat `Keymap` addressed by `At(layer, row, col
 pure synchronous code, so the model tests with literals. Measured on the Model F: **890 ms**
 for the ~65 round trips a full load costs, which is why none of it can block the frame loop.
 
-Next: the keycode dictionary (version-keyed, committed tables derived from QMK's JSON), then
-drawing the board. The UI is still the placeholder device list.
+Keycodes have a model of their own: `Keycode` (`model/NazgKeycode.h`) is a variant --
+named key, modified key, mod-tap, layer-tap, layer action, macro, tap dance, unknown -- and
+`adapters/qmk/` turns a QMK board's 16-bit values into it and back, per QMK keycode version,
+from a committed table of every keycode 0.0.1 to 0.0.9. The round trip is exact for every
+value in every version.
+
+Next: make the keymap hold `Keycode` instead of `uint16_t`, which means the Vial loader picks
+the keycode version (from the Vial protocol, not the VIA one), then drawing the board. The UI
+is still the placeholder device list.
 
 # Prior research — read before re-researching anything
 
