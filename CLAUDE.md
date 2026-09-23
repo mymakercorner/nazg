@@ -46,7 +46,9 @@ reasoning is in
 The survey is strategic. The **wire format** — every VIA and Vial command, its payload
 layout, and the protocol version history of both — is in
 [docs/research_material/via-vial-commands.md](docs/research_material/via-vial-commands.md),
-which ends with the traps that shape the backend.
+which ends with the traps that shape the backend. Keycodes — their version history, what
+VIA and Vial cover, and the protocol-neutral representation — are in
+[docs/research_material/keycodes.md](docs/research_material/keycodes.md).
 
 **Do not re-derive conclusions already written there.** If something in it is wrong, correct
 the document rather than working around it.
@@ -129,10 +131,15 @@ but it means code cannot be moved between Nazg and the older Leyden Jar tool unc
    without touching definition sourcing, and it dogfoods on the Model F Labs B104 running
    Rico's own `leyden_jar` controller firmware. Protocol, definition decode and the
    keyboard model all landed this way, verified against hardware at each step.
-2. **Keycode dictionary** — turning `0x002A` into `KC_BSPC` and back. Version-keyed, since
-   protocol 11 renumbered the keycodes and 12 removed the VIA-specific ones, and the two
-   dogfood boards sit on opposite sides of that. Generate it from QMK's keycode JSON rather
-   than hand-maintaining a table. Scope it on its own; it is the item most likely to grow.
+2. **Keycode dictionary** — turning `0x002A` into `KC_BSPC` and back. Version-keyed: QMK's
+   keycode spec has nine versions and both values and names move between them. Generate it
+   from QMK's keycode JSON rather than hand-maintaining a table. **Both dogfood boards are
+   post-renumbering** — the Model F reports VIA 9 only because vial-qmk hard-codes it, so a
+   Vial board's dictionary comes from its Vial protocol, never its VIA one. The keymap holds
+   a structured `Keycode`, not a `uint16_t`; the per-version codec sits below the protocol
+   layer. All of it is in
+   [docs/research_material/keycodes.md](docs/research_material/keycodes.md). Scope it on its
+   own; it is the item most likely to grow.
 3. **Draw the board, then edit one key.** The custom-drawn keyboard from the definition's
    geometry, then `SetKeycode` with a read-back — which on Vial also exercises the lock and
    the keycode firewall.

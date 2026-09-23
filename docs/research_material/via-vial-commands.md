@@ -313,7 +313,9 @@ support from version 6.
    renumbered them and 12 removed the VIA-specific ones. Protocol 13 finally exposes
    `id_keycodes_version` so a client can stop guessing — but only boards on 13 answer it, so
    the fallback table is version-keyed anyway. This belongs in the capability model as an
-   explicit keycode-dictionary selection, not as a hardcoded table.
+   explicit keycode-dictionary selection, not as a hardcoded table. On a Vial board use the
+   Vial protocol instead: vial-qmk always reports VIA 9. Full detail in
+   [keycodes.md](keycodes.md).
 
 5. **Detection order that actually works:** `id_get_protocol_version` first (it is the one
    command guaranteed at every version), then `0xFE 0x00` to see whether Vial answers, then
