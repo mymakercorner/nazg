@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cfloat>
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -17,17 +18,54 @@ namespace nazg
         constexpr float c_MinUnit = 28.0f;   // pixels per key unit, before DPI scaling
         constexpr float c_MaxUnit = 64.0f;
 
-        // Where a key's top-left corner is, in key units.
+        // A key's rotation: a turn by its angle about its origin -- clockwise on screen,
+        // since y grows downward. In key units for the board's extent, in pixels for
+        // drawing and hit-testing.
+        struct Rotation
+        {
+            float  cosine = 1.0f;
+            float  sine   = 0.0f;
+            ImVec2 pivot;
+
+            Rotation(const DefinitionKey& key, ImVec2 pivotPoint) : pivot(pivotPoint)
+            {
+                const float radians = key.rotation * 3.14159265358979f / 180.0f;
+                cosine = std::cos(radians);
+                sine   = std::sin(radians);
+            }
+
+            ImVec2 Apply(ImVec2 point) const { return Turn(point, sine); }
+            ImVec2 Undo(ImVec2 point) const { return Turn(point, -sine); }
+
+        private:
+            ImVec2 Turn(ImVec2 point, float s) const
+            {
+                const float dx = point.x - pivot.x;
+                const float dy = point.y - pivot.y;
+                return ImVec2(pivot.x + dx * cosine - dy * s, pivot.y + dx * s + dy * cosine);
+            }
+        };
+
+        // What the board covers, in key units -- rotated keys by their rotated corners, as
+        // VIA measures it.
         struct Bounds
         {
             float minX = FLT_MAX, minY = FLT_MAX, maxX = -FLT_MAX, maxY = -FLT_MAX;
 
-            void Add(float x, float y, float width, float height)
+            void Add(ImVec2 point)
             {
-                minX = std::min(minX, x);
-                minY = std::min(minY, y);
-                maxX = std::max(maxX, x + width);
-                maxY = std::max(maxY, y + height);
+                minX = std::min(minX, point.x);
+                minY = std::min(minY, point.y);
+                maxX = std::max(maxX, point.x);
+                maxY = std::max(maxY, point.y);
+            }
+
+            void Add(float x, float y, float width, float height, const Rotation& rotation)
+            {
+                Add(rotation.Apply(ImVec2(x, y)));
+                Add(rotation.Apply(ImVec2(x + width, y)));
+                Add(rotation.Apply(ImVec2(x, y + height)));
+                Add(rotation.Apply(ImVec2(x + width, y + height)));
             }
 
             bool IsEmpty() const { return minX > maxX; }
@@ -35,21 +73,40 @@ namespace nazg
 
         void AddKey(Bounds& bounds, const DefinitionKey& key)
         {
-            bounds.Add(key.x, key.y, key.width, key.height);
+            const Rotation rotation(key, ImVec2(key.rotationX, key.rotationY));
+
+            bounds.Add(key.x, key.y, key.width, key.height, rotation);
             if (key.HasSecondRectangle())
-                bounds.Add(key.x + key.secondX, key.y + key.secondY, key.secondWidth, key.secondHeight);
+                bounds.Add(key.x + key.secondX, key.y + key.secondY, key.secondWidth, key.secondHeight, rotation);
         }
 
+        bool Contains(ImVec2 p0, ImVec2 p1, ImVec2 point)
+        {
+            return point.x >= p0.x && point.x < p1.x && point.y >= p0.y && point.y < p1.y;
+        }
+
+        // A rotated key is drawn unrotated, then the vertices it just added to the draw
+        // list are turned about its origin -- rounded corners, outline and legends alike,
+        // with no rotated variant of any drawing call. Hovering turns the mouse the other
+        // way and tests the unrotated rectangles.
         void DrawKey(ImDrawList* drawList, ImVec2 origin, float unit, const DefinitionKey& key,
                      const KeycapLegend& legend, bool selected, bool& hovered)
         {
             const float gap      = unit * 0.06f;
             const float rounding = unit * 0.12f;
 
+            const Rotation rotation(key, ImVec2(origin.x + key.rotationX * unit, origin.y + key.rotationY * unit));
+            const int      firstVertex = drawList->VtxBuffer.Size;
+
             const ImVec2 p0(origin.x + key.x * unit + gap, origin.y + key.y * unit + gap);
             const ImVec2 p1(p0.x + key.width * unit - 2 * gap, p0.y + key.height * unit - 2 * gap);
 
-            hovered = ImGui::IsMouseHoveringRect(p0, p1);
+            // Only a mouse inside the visible part of the window counts, as with
+            // ImGui::IsMouseHoveringRect().
+            const ImVec2 mouse = rotation.Undo(ImGui::GetIO().MousePos);
+            const bool   inView = ImGui::IsMouseHoveringRect(drawList->GetClipRectMin(), drawList->GetClipRectMax());
+
+            hovered = inView && Contains(p0, p1, mouse);
 
             ImVec2 q0, q1;
             if (key.HasSecondRectangle())
@@ -57,7 +114,7 @@ namespace nazg
                 q0 = ImVec2(origin.x + (key.x + key.secondX) * unit + gap,
                             origin.y + (key.y + key.secondY) * unit + gap);
                 q1 = ImVec2(q0.x + key.secondWidth * unit - 2 * gap, q0.y + key.secondHeight * unit - 2 * gap);
-                hovered = hovered || ImGui::IsMouseHoveringRect(q0, q1);
+                hovered = hovered || (inView && Contains(q0, q1, mouse));
             }
 
             const ImU32 fill = hovered ? IM_COL32(88, 92, 110, 255) : IM_COL32(58, 60, 72, 255);
@@ -95,6 +152,10 @@ namespace nazg
             if (!legend.primary.empty())
                 drawList->AddText(font, fontSize, text, IM_COL32(235, 235, 240, 255), legend.primary.c_str(), nullptr,
                                   wrapWidth, &clip);
+
+            if (key.rotation != 0.0f)
+                for (int vertex = firstVertex; vertex < drawList->VtxBuffer.Size; ++vertex)
+                    drawList->VtxBuffer[vertex].pos = rotation.Apply(drawList->VtxBuffer[vertex].pos);
         }
     }
 

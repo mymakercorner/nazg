@@ -265,6 +265,22 @@ namespace
                   dropped.keys[0].x == 0.0f,
               "properties left at the end of a row do not reach the next one");
 
+        // Rotation: r holds across keys and rows until the next r; each key turns about
+        // the cluster origin rx/ry that was current when it was placed.
+        const KeyboardDefinition rotated =
+            parse(R"([[{"r":15,"rx":1,"ry":2},"0,0","0,1"],["1,0"],[{"r":-30,"rx":5},"2,0"],[{"r":0},"3,0"]])");
+        Check(rotated.keys[0].rotation == 15.0f && rotated.keys[0].rotationX == 1.0f &&
+                  rotated.keys[0].rotationY == 2.0f && rotated.keys[0].x == 1.0f && rotated.keys[0].y == 2.0f,
+              "r, rx and ry give the angle and the origin, and move the cursor there");
+        Check(rotated.keys[1].rotation == 15.0f && rotated.keys[2].rotation == 15.0f && rotated.keys[2].x == 1.0f &&
+                  rotated.keys[2].y == 3.0f,
+              "the angle holds for the next key and the next row");
+        Check(rotated.keys[3].rotation == -30.0f && rotated.keys[3].rotationX == 5.0f &&
+                  rotated.keys[3].rotationY == 2.0f && rotated.keys[3].y == 2.0f,
+              "a new rx keeps the previous ry, and the cursor jumps to both");
+        Check(rotated.keys[4].rotation == 0.0f && rotated.keys[4].rotationX == 5.0f,
+              "r: 0 ends the rotation but keeps the cluster");
+
         // xelus pachi, stratos: spaces around the numbers of a label.
         const KeyboardDefinition spaced = parse(R"([["0,8    ","2,1\n\n\n1 ,0"]])");
         Check(spaced.keys.size() == 2 && spaced.keys[0].column == 8, "trailing spaces in a matrix cell are allowed");
@@ -332,11 +348,14 @@ namespace
         const KeyboardDefinition definition = ParseDefinition(IsoMacroBytes(
             R"({"name":{"options":["EC60X","DC60"],"content":["id_board_variant",0,245]},)"
             R"("vendorProductId":1298469376,"matrix":{"rows":1,"cols":2},"layouts":{"keys":[)"
-            R"({"row":0,"col":0,"x":0,"y":0},)"
+            R"({"row":0,"col":0,"x":0,"y":0,"r":-10,"rx":2.5,"ry":-1},)"
             R"({"row":-1,"col":-1,"x":1,"y":0,"ei":0},)"
             R"({"row":4294967296,"col":1,"x":2,"y":0}]}})"));
 
         Check(definition.keys.size() == 1, "only the key with a real matrix cell is kept");
+        Check(definition.keys[0].rotation == -10.0f && definition.keys[0].rotationX == 2.5f &&
+                  definition.keys[0].rotationY == -1.0f,
+              "r, rx and ry are read as they are");
         Check(definition.name == "EC60X", "a dynamic name gives its first option");
 
         Check(Throws([] { (void)ParseDefinition(IsoMacroBytes(

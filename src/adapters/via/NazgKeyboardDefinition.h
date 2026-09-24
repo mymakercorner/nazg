@@ -22,9 +22,6 @@
 // The matrix cell on each key is the reason any of this is needed: the protocol
 // addresses keys as (layer, row, column), and only the definition says which key on the
 // board that is.
-//
-// Not handled in either form: KLE rotation (r, rx, ry) -- 214 of VIA's 2029 V3 boards
-// use it, and they draw unrotated.
 
 #pragma once
 
@@ -49,6 +46,14 @@ namespace nazg
         float secondY      = 0.0f;
         float secondWidth  = 0.0f;
         float secondHeight = 0.0f;
+
+        // KLE's rotation: `rotation` degrees clockwise about (rotationX, rotationY), in the
+        // same key units. x and y stay the position BEFORE rotating -- how both forms
+        // store it, and what lining up layout options works on. Ortho splits and
+        // Alice-style boards rely on it: 214 of VIA's 2029 V3 boards.
+        float rotation  = 0.0f;
+        float rotationX = 0.0f;
+        float rotationY = 0.0f;
 
         uint8_t row    = 0;
         uint8_t column = 0;

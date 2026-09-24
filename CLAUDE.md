@@ -77,7 +77,10 @@ rule, decals counted. Verified 2026-09-24 against all 2029 of VIA's V3 definitio
 parses, and every board draws the same from its source and from VIA's conversion, in every
 layout choice -- after fixing six KLE-parser bugs the comparison found (via-registry.md,
 "The converted-form entry"); the Model F and the Aquanaut still draw correctly on hardware.
-**KLE rotation is not drawn** -- 214 of those boards appear unrotated.
+KLE rotation is drawn too -- 214 of those boards use it, ortho splits and Alice-style boards;
+angle and origin match VIA's for all of them. No rotated board is at hand, so it was verified
+in the app with the Aquanaut and a copy of its `via.json` with the bottom row turned 6°:
+drawing, hover and editing a tilted key all work.
 
 Next: the official VIA definitions as a bundle -- decided in
 [docs/research_material/via-registry.md](docs/research_material/via-registry.md),

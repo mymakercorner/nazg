@@ -122,7 +122,8 @@ namespace nazg
     // VIA's rule, from its reader (kle-parser.ts, extractGroups): a choice's pivot is its
     // topmost key, the leftmost of those, decals counted -- and that key's second
     // rectangle's corner when it sticks out up or left. On the converted form the choices
-    // are already lined up, so every shift comes out zero.
+    // are already lined up, so every shift comes out zero. Like VIA's, the shift moves x
+    // and y but not a rotated key's rotation origin; definitions are tuned to VIA.
     //
     // `selection` holds one choice per group; a key of a group beyond it is kept unmoved.
     [[nodiscard]] std::vector<DefinitionKey> PlaceKeys(const KeyboardDefinition&   definition,

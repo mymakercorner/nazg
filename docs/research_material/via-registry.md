@@ -298,9 +298,19 @@ also affected Vial boards and vendors' `via.json`, and each now has a unit test:
   (ogr, fallacy). Nazg read them in base auto-detect without checking the whole string was
   used, so `"414B"` silently became 414.
 
-**Still not handled: rotation.** 214 of the 2029 V3 boards rotate keys (`r`); they place
-correctly and draw unrotated — `DefinitionKey` has no angle. Their `rx`/`ry` cursor moves are
-handled, so drawing the rotation is the only piece missing.
+**Rotation** — 214 of the 2029 V3 boards rotate keys (`r`): ortho splits' thumb clusters,
+Alice-style boards. `DefinitionKey` carries the angle and origin (`rotation`, `rotationX`,
+`rotationY`, degrees clockwise, x/y staying the position before rotating). In the source form
+`r` holds across keys and rows until the next `r`, and each key turns about the `rx`/`ry`
+cluster current when it was placed; the converted form gives all three per key. The sweep,
+rerun comparing angle and origin too, still finds **2029 / 2029** boards alike. A layout
+choice's shift moves x/y but not the origin, as VIA's does. The view draws a rotated key
+unrotated and turns the vertices it emitted about the origin — corners, outline and legends
+alike — and hit-tests by turning the mouse back. Arisu and Sofle Choc, rendered from Nazg's
+parse with the same formula, look as they should. **Verified in the app 2026-09-24** on the
+Aquanaut, loaded with a copy of its `via.json` whose bottom row turns 6° about its left end:
+the row, its legends and the view's extent are right, hover follows the tilted keys, and a
+tilted key edits and reads back.
 
 ## Bundle size
 

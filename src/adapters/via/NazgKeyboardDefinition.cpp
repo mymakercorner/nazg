@@ -134,10 +134,14 @@ namespace nazg
             float y = 0.0f;
 
             // Set by rx/ry: the cursor jumps there, and every later row starts at clusterX
-            // rather than 0. Boards use it without any rotation, to place a block of keys
-            // -- often a layout alternative -- somewhere else.
+            // rather than 0. It is also the origin keys rotate about. Boards use it
+            // without any rotation too, to place a block of keys -- often a layout
+            // alternative -- somewhere else.
             float clusterX = 0.0f;
             float clusterY = 0.0f;
+
+            // Set by r, and kept -- across keys and rows -- until the next r.
+            float rotation = 0.0f;
 
             float width        = 1.0f;
             float height       = 1.0f;
@@ -151,6 +155,8 @@ namespace nazg
             // gives the next key a width of 2.25.
             void Apply(const nlohmann::json& entry)
             {
+                rotation = ReadFloat(entry, "r", rotation);
+
                 const bool movesCluster = entry.contains("rx") || entry.contains("ry");
                 clusterX = ReadFloat(entry, "rx", clusterX);
                 clusterY = ReadFloat(entry, "ry", clusterY);
@@ -236,6 +242,9 @@ namespace nazg
                     key.secondY      = cursor.secondY;
                     key.secondWidth  = cursor.secondWidth;
                     key.secondHeight = cursor.secondHeight;
+                    key.rotation     = cursor.rotation;
+                    key.rotationX    = cursor.clusterX;
+                    key.rotationY    = cursor.clusterY;
                     key.decal        = cursor.decal;
                     if (isSwitch)
                     {
@@ -274,8 +283,7 @@ namespace nazg
         }
 
         // One key of the converted form: every field explicit, positions absolute. Only
-        // what DefinitionKey holds is read -- colour, rotation, encoder and LED indexes
-        // are not.
+        // what DefinitionKey holds is read -- colour, encoder and LED indexes are not.
         //
         // A key with no matrix cell (row -1) that is not a decal is an encoder drawn on
         // the board; like the source form's legend-only keys, it is not recorded.
@@ -319,6 +327,9 @@ namespace nazg
             key.secondY      = ReadFloat(entry, "y2", 0.0f);
             key.secondWidth  = ReadFloat(entry, "w2", 0.0f);
             key.secondHeight = ReadFloat(entry, "h2", 0.0f);
+            key.rotation     = ReadFloat(entry, "r", 0.0f);
+            key.rotationX    = ReadFloat(entry, "rx", 0.0f);
+            key.rotationY    = ReadFloat(entry, "ry", 0.0f);
             key.layoutIndex  = layoutIndex;
             key.layoutOption = layoutOption;
 
