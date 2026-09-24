@@ -113,6 +113,21 @@ namespace nazg
     [[nodiscard]] std::vector<uint8_t> DecodeLayoutOptions(uint32_t                        raw,
                                                            const std::vector<LayoutOptionGroup>& groups);
 
+    // The keys of the selected layout, where they are drawn -- decals included, for the
+    // space they take; a caller skips them when drawing. The always-present keys stay
+    // where the definition put them; each option group's selected choice moves so that
+    // its pivot lands on choice 0's, as a source definition draws its alternatives
+    // beside the board.
+    //
+    // VIA's rule, from its reader (kle-parser.ts, extractGroups): a choice's pivot is its
+    // topmost key, the leftmost of those, decals counted -- and that key's second
+    // rectangle's corner when it sticks out up or left. On the converted form the choices
+    // are already lined up, so every shift comes out zero.
+    //
+    // `selection` holds one choice per group; a key of a group beyond it is kept unmoved.
+    [[nodiscard]] std::vector<DefinitionKey> PlaceKeys(const KeyboardDefinition&   definition,
+                                                       const std::vector<uint8_t>& selection);
+
     // Assemble the model. Pure: the caller has already done the talking and decoded the
     // keymap. Throws std::invalid_argument if the keymap's matrix is not the one the
     // definition declares.

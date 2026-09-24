@@ -19,6 +19,7 @@
 #include "adapters/via/NazgViaProtocol.h"
 #include "adapters/vial/NazgVialDefinition.h"
 
+#include "IsoMacroDefinition.h"
 #include "ModelFDefinition.h"
 #include "TestSupport.h"
 
@@ -200,6 +201,152 @@ namespace
         Check(definition.keys.size() == 2, "the decal did not become a key");
         Check(definition.keys[1].x == 2.0f, "but it still advanced the position");
     }
+
+    const DefinitionKey* FindKey(const KeyboardDefinition& definition, int row, int column, int option)
+    {
+        for (const DefinitionKey& key : definition.keys)
+            if (!key.decal && key.row == row && key.column == column && key.layoutOption == option)
+                return &key;
+        return nullptr;
+    }
+
+    int CountDecals(const KeyboardDefinition& definition)
+    {
+        int decals = 0;
+        for (const DefinitionKey& key : definition.keys)
+            decals += key.decal ? 1 : 0;
+        return decals;
+    }
+
+    // A key marked "d" in KLE is a decal even when its label names a matrix cell, and
+    // it keeps its layout option -- lining up the choices depends on it.
+    void TestSourceDecalMarkedWithD()
+    {
+        std::printf("source form: decals marked with d\n");
+
+        const KeyboardDefinition definition = ParseDefinition(IsoMacroSource());
+
+        Check(definition.keys.size() == 11, "7 keys, 2 per choice, and the decal");
+        Check(CountDecals(definition) == 1, "one of them is a decal");
+
+        const DefinitionKey& decal = definition.keys.front();
+        Check(decal.decal && decal.x == 0.0f && decal.y == 0.0f, "the decal is the first entry, at the origin");
+        Check(decal.layoutIndex == 0 && decal.layoutOption == 1, "and belongs to choice 1 of the option");
+
+        const DefinitionKey* next = FindKey(definition, 2, 1, 0);
+        Check(next != nullptr && next->x == 1.5f, "the decal still took its space");
+    }
+
+    // KLE details real definitions rely on, each found by comparing every board in VIA's
+    // registry with VIA's own conversion of it (via-registry.md, "The converted-form entry").
+    void TestKleDetails()
+    {
+        std::printf("KLE details from real definitions\n");
+
+        auto parse = [](const char* keymap)
+        {
+            const std::string text = std::string(R"({"matrix":{"rows":4,"cols":4},"layouts":{"keymap":)") + keymap + "}}";
+            return ParseDefinition(std::vector<uint8_t>(text.begin(), text.end()));
+        };
+
+        // bevi: a second property object must not undo the first one's width.
+        const KeyboardDefinition consecutive = parse(R"([[{"w":2.25},{"c":"#777777"},"0,0","0,1"]])");
+        Check(consecutive.keys[0].width == 2.25f && consecutive.keys[1].x == 2.25f,
+              "a property object changes only what it names");
+
+        // dz60: rx/ry move the cursor, and later rows start at rx -- with no rotation.
+        const KeyboardDefinition cluster = parse(R"([["0,0"],[{"rx":0.25,"y":6.5,"x":13.5},"1,0"],["2,0"]])");
+        Check(cluster.keys[1].x == 13.75f && cluster.keys[1].y == 6.5f, "rx/ry move the cursor to the cluster");
+        Check(cluster.keys[2].x == 0.25f && cluster.keys[2].y == 7.5f, "and the next row starts at rx");
+
+        // bm16a: a row with a property object and no key drops it.
+        const KeyboardDefinition dropped = parse(R"([[{"x":4.25,"w":14,"h":5,"d":true}],["0,0","0,1"]])");
+        Check(dropped.keys.size() == 2 && !dropped.keys[0].decal && dropped.keys[0].width == 1.0f &&
+                  dropped.keys[0].x == 0.0f,
+              "properties left at the end of a row do not reach the next one");
+
+        // xelus pachi, stratos: spaces around the numbers of a label.
+        const KeyboardDefinition spaced = parse(R"([["0,8    ","2,1\n\n\n1 ,0"]])");
+        Check(spaced.keys.size() == 2 && spaced.keys[0].column == 8, "trailing spaces in a matrix cell are allowed");
+        Check(spaced.keys[1].layoutIndex == 1 && spaced.keys[1].layoutOption == 0,
+              "a space before the comma of a layout option is allowed");
+    }
+
+    // ogr, fallacy: string ids are hex even without "0x", as VIA reads them.
+    void TestUsbIdStrings()
+    {
+        std::printf("USB id strings\n");
+
+        auto ids = [](const char* vendor, const char* product)
+        {
+            const std::string text = std::string(R"({"vendorId":)") + vendor + R"(,"productId":)" + product +
+                                     R"(,"matrix":{"rows":1,"cols":1},"layouts":{"keymap":[["0,0"]]}})";
+            return ParseDefinition(std::vector<uint8_t>(text.begin(), text.end()));
+        };
+
+        const KeyboardDefinition bare = ids(R"("414B")", R"("BF00")");
+        Check(bare.vendorId == 0x414B && bare.productId == 0xBF00, "a string with no 0x is still hex");
+        Check(ids(R"("0X1209")", "4617").vendorId == 0x1209, "0X works, and a JSON number is taken as it is");
+
+        Check(Throws([&] { (void)ids(R"("0x12345")", R"("1")"); }), "an id wider than 16 bits is rejected");
+        Check(Throws([&] { (void)ids(R"("12G4")", R"("1")"); }), "an id that is not hex is rejected");
+    }
+
+    void TestConvertedForm()
+    {
+        std::printf("converted form\n");
+
+        const KeyboardDefinition definition = ParseDefinition(IsoMacroConverted());
+
+        Check(definition.name == "ISO Macro", "the name comes through");
+        Check(definition.vendorId == 0x4D65 && definition.productId == 0x1200,
+              "vendorProductId splits into the two USB ids");
+        Check(definition.matrixRows == 3 && definition.matrixColumns == 3, "the matrix is 3x3");
+        Check(definition.layoutLabels.size() == 1 && definition.layoutLabels[0] == "Single Encoder",
+              "the layout option label is kept");
+
+        Check(definition.keys.size() == 11, "7 keys, 2 per choice, and the decal");
+        Check(CountDecals(definition) == 1, "the row -1 key marked d is a decal");
+
+        const DefinitionKey* first = FindKey(definition, 0, 0, -1);
+        Check(first != nullptr && first->x == 1.25f && first->y == 0.0f && first->layoutIndex == -1,
+              "a key from layouts.keys keeps its absolute position and no option");
+
+        const DefinitionKey* enter = FindKey(definition, 2, 0, -1);
+        Check(enter != nullptr && enter->width == 1.25f && enter->height == 2.0f && enter->secondX == -0.25f &&
+                  enter->secondWidth == 1.5f && enter->secondHeight == 1.0f,
+              "ISO Enter keeps its second rectangle");
+
+        const DefinitionKey* optional = FindKey(definition, 2, 2, 1);
+        Check(optional != nullptr && optional->layoutIndex == 0 && optional->y == 1.0f,
+              "optionKeys[group][choice] becomes layoutIndex and layoutOption");
+    }
+
+    void TestConvertedEdgeCases()
+    {
+        std::printf("converted form: edge cases\n");
+
+        // An encoder drawn on the board has no matrix cell and is not a decal: skipped,
+        // like a legend-only key in the source form. A cell id too large for a byte is
+        // skipped too, rather than wrapped into a real cell.
+        const KeyboardDefinition definition = ParseDefinition(IsoMacroBytes(
+            R"({"name":{"options":["EC60X","DC60"],"content":["id_board_variant",0,245]},)"
+            R"("vendorProductId":1298469376,"matrix":{"rows":1,"cols":2},"layouts":{"keys":[)"
+            R"({"row":0,"col":0,"x":0,"y":0},)"
+            R"({"row":-1,"col":-1,"x":1,"y":0,"ei":0},)"
+            R"({"row":4294967296,"col":1,"x":2,"y":0}]}})"));
+
+        Check(definition.keys.size() == 1, "only the key with a real matrix cell is kept");
+        Check(definition.name == "EC60X", "a dynamic name gives its first option");
+
+        Check(Throws([] { (void)ParseDefinition(IsoMacroBytes(
+                  R"({"matrix":{"rows":1,"cols":1},"layouts":{"keys":[{"row":-1,"col":-1,"d":true}]}})")); }),
+              "a layout of decals only is rejected");
+
+        Check(Throws([] { (void)ParseDefinition(IsoMacroBytes(
+                  R"({"vendorProductId":4294967296,"matrix":{"rows":1,"cols":1},"layouts":{"keys":[{"row":0,"col":0}]}})")); }),
+              "a vendorProductId wider than 32 bits is rejected");
+    }
 }
 
 int main()
@@ -213,6 +360,11 @@ int main()
     TestLayoutOptions();
     TestParseFailures();
     TestDecalsAdvanceWithoutBecomingKeys();
+    TestSourceDecalMarkedWithD();
+    TestKleDetails();
+    TestUsbIdStrings();
+    TestConvertedForm();
+    TestConvertedEdgeCases();
 
     return TestResult();
 }

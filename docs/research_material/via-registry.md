@@ -138,12 +138,20 @@ Served as `v3/1298469376.json` — one line, laid out here, `keys` cut after two
 
 ISO Enter's `w2`/`h2`/`x2` pass through, and so do `menus` and `keycodes`, still by name.
 
-**The conversion also moves keys.** The choices of an option group are stacked on one spot:
-in the source, choice 1 sits at x = 0 and choice 0 at x = 1.5, side by side as KLE draws
-alternatives; converted, both are at `x: 0`. And **the whole board shifts** left by the 1.5
-the column of alternatives no longer takes — key `0,0` goes from x = 2.75 to 1.25 — the same
-value appearing as `"rx": -1.5` on every key. With `r: 0`, `rx` has no effect; for rotated
-boards, what VIA intends is to be checked against their source rather than guessed.
+**The conversion also moves keys**, in two steps (`kleLayoutToVIALayout()` and
+`extractGroups()` in the reader's `kle-parser.ts`):
+
+1. **Each choice moves onto choice 0.** Its pivot — the topmost key, the leftmost of those,
+   **decals counted**, taking that key's second rectangle's corner when it sticks out up or
+   left — is moved onto choice 0's pivot. Here choice 1's pivot is its decal at (0, 0), and it
+   lands on choice 0's key at (1.5, 0).
+2. **The whole board shifts** so that the bounding box of the always-present keys and choice 0
+   (rotation included) starts at the origin: left by 1.5 here, key `0,0` going from x = 2.75
+   to 1.25, both choices ending at `x: 0`. The same shift is subtracted from `rx`/`ry`, hence
+   `"rx": -1.5` on every key.
+
+The app then draws `keys` plus the selected choice's `optionKeys` as stored; nothing is
+aligned at run time. It skips decals (`keys.filter((k) => !k.d)`).
 
 ## Which version a board gets
 
@@ -234,9 +242,9 @@ mapping into the same `DefinitionKey` list, with only the layout options needing
 from `optionKeys`. It is the price of reusing VIA's build output, and the benefit it buys is
 that output's validation.
 
-**Nazg already aligns layout options** — at draw time: `ui/NazgKeyboardView.cpp` computes,
-per group, the shift that lines the selected choice up with choice 0, about 30 lines run every
-frame at no measurable cost. So the conversion's heavy lifting is not work Nazg lacks.
+**Nazg aligns layout options itself** — `PlaceKeys()` in `model/NazgKeyboard.h`, run every
+frame at no measurable cost, with VIA's pivot rule above. So the conversion's heavy lifting is
+not work Nazg lacks.
 
 **Nazg does not convert on disk.** User and community definitions are stored as given (see
 "Storage"), and the conversion happens where it already does — in memory, at load: both
@@ -246,14 +254,53 @@ vendors' `via.json`, and it would lose an export identical to the import, parser
 reach old imports — a bug written to disk is permanent, the original gone — and one source of
 truth.
 
-**The two forms align to different reference points.** VIA stacks the choices on the leftmost
-one and shifts the board — ISO Macro's choice 0 goes from 1.5 to 0 — where Nazg moves the
-selected choice onto choice 0. On converted data Nazg's shift comes out zero, so there is no
-conflict and a converted file draws at VIA's positions; but one board loaded from its two
-forms can differ by a constant offset. The test comparing the two forms, board by board,
-compares positions **up to a translation**. Moving the alignment from the view into the model,
-so both forms arrive aligned and the view only draws, is worth doing only if that test or the
-converted entry makes it simpler.
+### The converted-form entry — verified on the whole registry
+
+*Implemented 2026-09-24.* `ParseDefinition()` reads either form: `layouts.keymap` means the
+source form, `layouts.keys` the converted one (`keys` and `optionKeys`, `vendorProductId`
+split into the two ids, a dynamic `name` giving its first option). Keys with `row: -1` that
+are not decals — encoders drawn on the board — are skipped, like legend-only keys in the
+source form. Decals are kept, flagged: they count for alignment and the board's extent, and
+are never drawn or edited.
+
+**Alignment moved from the view into the model**: `PlaceKeys(definition, selection)` in
+`model/NazgKeyboard.h`, VIA's pivot rule, which the view draws and the tests can call. On the
+converted form every shift comes out zero, since VIA already lined the choices up. The two
+forms of one board still differ by one translation — VIA's step 2 — so drawings are
+compared **up to a translation**.
+
+**Checked against all of VIA's work** (a scratch program, not in the repo): the 2029 served
+V3 files, and each board's source from `via-keyboards`, placed with `PlaceKeys()` for the
+default layout and for every choice of every group.
+
+| | Boards |
+|---|---|
+| Served files that parse | **2029 / 2029** |
+| Same drawing from both forms, every choice — first run | 1858 |
+| — after fixing the source parser | **2029 / 2029**, rotated boards included (as unrotated) |
+
+The first run's differences were **bugs in Nazg's KLE parser**, not in the new entry — each
+also affected Vial boards and vendors' `via.json`, and each now has a unit test:
+
+- **A property object reset what it did not name.** `{"w": 2.25}, {"c": "#777"}, "5,7"`
+  (bevi) gave a 1u key; an object changes only what it names.
+- **`rx`/`ry` were ignored.** They move the cursor to (`rx`, `ry`), and later rows start at
+  `rx` — used without any rotation to place a block of keys, as dz60 places a layout
+  alternative with `{"rx": 0.25, "y": 6.5, ...}`, which Nazg drew 18 rows too low.
+- **Decals were ignored** — `{"d": true}` before a labelled key made a real key. 260 boards
+  have decals inside layout options, where they can be the pivot (ISO Macro's choice 1).
+- **Properties left at the end of a row leaked into the next.** bm16a's first row is a lone
+  `{"w": 14, "h": 5, "d": true}`; VIA drops it, where kle-serial would make key (0,0) a
+  14×5 decal.
+- **Spaces in labels** — `"0,8    "` (xelus pachi), `"1 ,0"` (stratos) — dropped a key or an
+  option. VIA allows them.
+- **String USB ids are always hex**, as VIA reads them: `"414B"`, `"BF00"` with no `0x`
+  (ogr, fallacy). Nazg read them in base auto-detect without checking the whole string was
+  used, so `"414B"` silently became 414.
+
+**Still not handled: rotation.** 214 of the 2029 V3 boards rotate keys (`r`); they place
+correctly and draw unrotated — `DefinitionKey` has no angle. Their `rx`/`ry` cursor moves are
+handled, so drawing the rotation is the only piece missing.
 
 ## Bundle size
 
@@ -745,7 +792,9 @@ HTTP cache handles it. Web-only limits:
   community work: ~2000 boards with no user action, no new storage, and it builds what the
   rest reuses. Steps: the converted-form entry in the parser (dynamic `name` accepted), with
   two tests — every V3 file in the bundle parses, and each board with a source in
-  `via-keyboards` gives the same keys and options from both forms, up to a translation; then
+  `via-keyboards` gives the same keys and options from both forms, up to a translation
+  (**done 2026-09-24**, see "The converted-form entry"; the two checks run as a scratch
+  program until the bundle is in the repo, ISO Macro as a unit test meanwhile); then
   the bundle (solid `.xz` of a tar, a small ustar reader, lookup by id and protocol); then
   wiring (`SDL_GetBasePath()` in `Main.cpp`, bundle used when no remembered file). Still to
   decide: how the bundle is produced with no generator in the repo (download the served files

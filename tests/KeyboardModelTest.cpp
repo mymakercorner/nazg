@@ -13,15 +13,18 @@
 
 #include "model/NazgKeyboard.h"
 
+#include "IsoMacroDefinition.h"
 #include "ModelFDefinition.h"
 #include "TestSupport.h"
 #include "adapters/qmk/NazgQmkKeycodeCodec.h"
 #include "adapters/via/NazgViaKeymap.h"
 #include "adapters/vial/NazgVialDefinition.h"
 
+#include <algorithm>
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <tuple>
 #include <vector>
 
 using nazg::BuildKeyboard;
@@ -34,7 +37,9 @@ using nazg::KeyboardDefinition;
 using nazg::Keycode;
 using nazg::Keymap;
 using nazg::LayoutOptionGroup;
+using nazg::ParseDefinition;
 using nazg::ParseLayoutGroups;
+using nazg::PlaceKeys;
 using nazg::QmkKeycodeVersion;
 using nazg::ViaKeymapByteCount;
 
@@ -249,6 +254,68 @@ namespace
         Check(Throws([&] { (void)BuildKeyboard(definition, Keymap(3, 8, 17), 0, c_Version); }),
               "a keymap whose matrix disagrees with the definition is rejected");
     }
+
+    const DefinitionKey* FindPlaced(const std::vector<DefinitionKey>& placed, int row, int column)
+    {
+        for (const DefinitionKey& key : placed)
+            if (!key.decal && key.row == row && key.column == column)
+                return &key;
+        return nullptr;
+    }
+
+    // What is drawn, moved so its top-left corner is the origin, in a fixed order: two
+    // placements are the same drawing exactly when these match.
+    std::vector<std::tuple<bool, int, int, float, float, float, float>> Drawing(std::vector<DefinitionKey> placed)
+    {
+        float minX = placed.front().x;
+        float minY = placed.front().y;
+        for (const DefinitionKey& key : placed)
+        {
+            minX = std::min(minX, key.x);
+            minY = std::min(minY, key.y);
+        }
+
+        std::vector<std::tuple<bool, int, int, float, float, float, float>> drawing;
+        for (const DefinitionKey& key : placed)
+            drawing.emplace_back(key.decal, key.decal ? -1 : key.row, key.decal ? -1 : key.column,
+                                 key.x - minX, key.y - minY, key.width, key.height);
+
+        std::sort(drawing.begin(), drawing.end());
+        return drawing;
+    }
+
+    void TestPlaceKeys()
+    {
+        std::printf("placing layout options\n");
+
+        const KeyboardDefinition source    = ParseDefinition(IsoMacroSource());
+        const KeyboardDefinition converted = ParseDefinition(IsoMacroConverted());
+
+        const std::vector<DefinitionKey> byDefault = PlaceKeys(source, { 0 });
+        Check(byDefault.size() == 9, "choice 0: the 7 keys plus its 2");
+        const DefinitionKey* top = FindPlaced(byDefault, 2, 1);
+        Check(top != nullptr && top->x == 1.5f && top->y == 0.0f, "choice 0 stays where it is drawn");
+
+        // Choice 1's topmost-leftmost key is its decal. Lining up without it would take
+        // key (2,2), one row lower, as the pivot and pull it up into the wrong row.
+        const std::vector<DefinitionKey> alternative = PlaceKeys(source, { 1 });
+        Check(alternative.size() == 9, "choice 1: the 7 keys, its key and its decal");
+        const DefinitionKey* bottom = FindPlaced(alternative, 2, 2);
+        Check(bottom != nullptr && bottom->x == 1.5f && bottom->y == 1.0f,
+              "choice 1 moves onto choice 0, its decal counting as the pivot");
+
+        const std::vector<DefinitionKey> lined = PlaceKeys(converted, { 1 });
+        const DefinitionKey*             unmoved = FindPlaced(lined, 2, 2);
+        Check(unmoved != nullptr && unmoved->x == 0.0f && unmoved->y == 1.0f,
+              "the converted form is already lined up, so nothing moves");
+
+        Check(Drawing(PlaceKeys(source, { 0 })) == Drawing(PlaceKeys(converted, { 0 })),
+              "both forms draw the same board with choice 0, up to a translation");
+        Check(Drawing(PlaceKeys(source, { 1 })) == Drawing(PlaceKeys(converted, { 1 })),
+              "and with choice 1");
+
+        Check(PlaceKeys(source, {}).size() == 11, "with no selection every key is kept, unmoved");
+    }
 }
 
 int main()
@@ -261,6 +328,7 @@ int main()
     TestLayoutOptionDecoding();
     TestKeyVisibility();
     TestBuildFromRealDefinition();
+    TestPlaceKeys();
 
     return TestResult();
 }

@@ -70,7 +70,18 @@ table, from the 316 keycodes VIA pinned with static asserts, differing only in h
 encoded (keycodes.md, "Before the renumbering"). Tested against scripted bytes only -- no
 pre-renumbering board is at hand.
 
-Next: open -- a registry for VIA definitions, or step 5 (custom features).
+Definitions are read in both forms: the source (KLE `layouts.keymap`, what Vial embeds and
+vendors ship) and VIA's converted form (`layouts.keys` + `optionKeys`, what its registry
+serves). Layout options are placed by `PlaceKeys()` (`model/NazgKeyboard.h`) with VIA's pivot
+rule, decals counted. Verified 2026-09-24 against all 2029 of VIA's V3 definitions: every one
+parses, and every board draws the same from its source and from VIA's conversion, in every
+layout choice -- after fixing six KLE-parser bugs the comparison found (via-registry.md,
+"The converted-form entry"); the Model F and the Aquanaut still draw correctly on hardware.
+**KLE rotation is not drawn** -- 214 of those boards appear unrotated.
+
+Next: the official VIA definitions as a bundle -- decided in
+[docs/research_material/via-registry.md](docs/research_material/via-registry.md),
+"Decisions to take": the bundle reader, then wiring it into loading.
 
 # Prior research — read before re-researching anything
 

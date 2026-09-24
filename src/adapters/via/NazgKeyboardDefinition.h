@@ -12,9 +12,19 @@
 //     Vial : device -> XZ -> this parser        (adapters/vial/NazgVialDefinition.h)
 //     VIA  : registry or file -> this parser    (sourcing still to be built)
 //
+// Two forms of the same document are read. The SOURCE form carries a KLE keymap in
+// `layouts.keymap` -- what Vial embeds and what a vendor's via.json holds. The CONVERTED
+// form is what VIA's build serves from its registry: the KLE already parsed into
+// `layouts.keys` and `layouts.optionKeys`, layout options already aligned. Both end in
+// the same DefinitionKey list; the conversion is never written anywhere (see
+// docs/research_material/via-registry.md, "Why VIA converts").
+//
 // The matrix cell on each key is the reason any of this is needed: the protocol
 // addresses keys as (layer, row, column), and only the definition says which key on the
 // board that is.
+//
+// Not handled in either form: KLE rotation (r, rx, ry) -- 214 of VIA's 2029 V3 boards
+// use it, and they draw unrotated.
 
 #pragma once
 
@@ -49,6 +59,11 @@ namespace nazg
         int layoutIndex  = -1;
         int layoutOption = -1;
 
+        // A decal is a blank: it takes space and counts when layout options are lined up
+        // -- a choice's top-left spot is often one -- but it is not a switch and is not
+        // drawn. Its row and column mean nothing.
+        bool decal = false;
+
         bool HasSecondRectangle() const noexcept
         {
             return secondWidth != 0.0f && secondHeight != 0.0f;
@@ -57,6 +72,8 @@ namespace nazg
 
     struct KeyboardDefinition
     {
+        // A dynamic name -- an object whose value the board picks -- gives its first
+        // option; reading the board's choice is not done yet.
         std::string name;
         uint16_t    vendorId  = 0;
         uint16_t    productId = 0;
@@ -72,7 +89,8 @@ namespace nazg
         std::vector<std::string> layoutLabels;
     };
 
-    // Throws ProtocolError on anything malformed. A definition that cannot be read is
-    // a device or registry problem, reported the same way as a bad reply.
+    // Either form; a document with `layouts.keymap` is read as the source form. Throws
+    // ProtocolError on anything malformed. A definition that cannot be read is a device
+    // or registry problem, reported the same way as a bad reply.
     [[nodiscard]] KeyboardDefinition ParseDefinition(const std::vector<uint8_t>& json);
 }

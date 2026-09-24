@@ -17,12 +17,6 @@ namespace nazg
         constexpr float c_MinUnit = 28.0f;   // pixels per key unit, before DPI scaling
         constexpr float c_MaxUnit = 64.0f;
 
-        struct Offset
-        {
-            float x = 0.0f;
-            float y = 0.0f;
-        };
-
         // Where a key's top-left corner is, in key units.
         struct Bounds
         {
@@ -39,59 +33,20 @@ namespace nazg
             bool IsEmpty() const { return minX > maxX; }
         };
 
-        void AddKey(Bounds& bounds, const DefinitionKey& key, Offset offset)
+        void AddKey(Bounds& bounds, const DefinitionKey& key)
         {
-            bounds.Add(key.x + offset.x, key.y + offset.y, key.width, key.height);
+            bounds.Add(key.x, key.y, key.width, key.height);
             if (key.HasSecondRectangle())
-                bounds.Add(key.x + key.secondX + offset.x, key.y + key.secondY + offset.y,
-                           key.secondWidth, key.secondHeight);
+                bounds.Add(key.x + key.secondX, key.y + key.secondY, key.secondWidth, key.secondHeight);
         }
 
-        // VIA definitions draw each layout alternative away from the board, and VIA's app
-        // moves the selected one onto the spot where option 0 sits. Same here: per
-        // group, the shift that lines the selected option's top-left up with option 0's.
-        std::vector<Offset> LayoutOffsets(const Keyboard& keyboard)
-        {
-            const size_t groups = keyboard.layoutSelection.size();
-
-            std::vector<Bounds> defaults(groups);
-            std::vector<Bounds> selected(groups);
-
-            for (const DefinitionKey& key : keyboard.definition.keys)
-            {
-                if (key.layoutIndex < 0 || static_cast<size_t>(key.layoutIndex) >= groups)
-                    continue;
-
-                const size_t group = static_cast<size_t>(key.layoutIndex);
-                if (key.layoutOption == 0)
-                    AddKey(defaults[group], key, {});
-                if (key.layoutOption == keyboard.layoutSelection[group])
-                    AddKey(selected[group], key, {});
-            }
-
-            std::vector<Offset> offsets(groups);
-            for (size_t group = 0; group < groups; ++group)
-                if (!defaults[group].IsEmpty() && !selected[group].IsEmpty())
-                    offsets[group] = { defaults[group].minX - selected[group].minX,
-                                       defaults[group].minY - selected[group].minY };
-
-            return offsets;
-        }
-
-        Offset OffsetOf(const DefinitionKey& key, const std::vector<Offset>& offsets)
-        {
-            if (key.layoutIndex < 0 || static_cast<size_t>(key.layoutIndex) >= offsets.size())
-                return {};
-            return offsets[static_cast<size_t>(key.layoutIndex)];
-        }
-
-        void DrawKey(ImDrawList* drawList, ImVec2 origin, float unit, const DefinitionKey& key, Offset offset,
+        void DrawKey(ImDrawList* drawList, ImVec2 origin, float unit, const DefinitionKey& key,
                      const KeycapLegend& legend, bool selected, bool& hovered)
         {
             const float gap      = unit * 0.06f;
             const float rounding = unit * 0.12f;
 
-            const ImVec2 p0(origin.x + (key.x + offset.x) * unit + gap, origin.y + (key.y + offset.y) * unit + gap);
+            const ImVec2 p0(origin.x + key.x * unit + gap, origin.y + key.y * unit + gap);
             const ImVec2 p1(p0.x + key.width * unit - 2 * gap, p0.y + key.height * unit - 2 * gap);
 
             hovered = ImGui::IsMouseHoveringRect(p0, p1);
@@ -99,8 +54,8 @@ namespace nazg
             ImVec2 q0, q1;
             if (key.HasSecondRectangle())
             {
-                q0 = ImVec2(origin.x + (key.x + key.secondX + offset.x) * unit + gap,
-                            origin.y + (key.y + key.secondY + offset.y) * unit + gap);
+                q0 = ImVec2(origin.x + (key.x + key.secondX) * unit + gap,
+                            origin.y + (key.y + key.secondY) * unit + gap);
                 q1 = ImVec2(q0.x + key.secondWidth * unit - 2 * gap, q0.y + key.secondHeight * unit - 2 * gap);
                 hovered = hovered || ImGui::IsMouseHoveringRect(q0, q1);
             }
@@ -159,12 +114,12 @@ namespace nazg
             ImGui::EndTabBar();
         }
 
-        const std::vector<Offset> offsets = LayoutOffsets(keyboard);
+        // Decals count for the board's extent, as in VIA, but are never drawn.
+        const std::vector<DefinitionKey> placed = PlaceKeys(keyboard.definition, keyboard.layoutSelection);
 
         Bounds board;
-        for (const DefinitionKey& key : keyboard.definition.keys)
-            if (keyboard.IsKeyVisible(key))
-                AddKey(board, key, OffsetOf(key, offsets));
+        for (const DefinitionKey& key : placed)
+            AddKey(board, key);
 
         if (board.IsEmpty())
         {
@@ -183,15 +138,15 @@ namespace nazg
         ImDrawList* drawList = ImGui::GetWindowDrawList();
         const auto  current  = static_cast<uint8_t>(layer);
 
-        for (const DefinitionKey& key : keyboard.definition.keys)
+        for (const DefinitionKey& key : placed)
         {
-            if (!keyboard.IsKeyVisible(key))
+            if (key.decal)
                 continue;
 
             const Keycode keycode  = keyboard.KeycodeFor(key, current);
             const bool    selected = selection.active && selection.row == key.row && selection.column == key.column;
             bool          hovered  = false;
-            DrawKey(drawList, origin, unit, key, OffsetOf(key, offsets), LegendFor(keycode, layout), selected, hovered);
+            DrawKey(drawList, origin, unit, key, LegendFor(keycode, layout), selected, hovered);
 
             // Only when this window is under the mouse, so a click on a window stacked
             // above the board does not select the key beneath it.
