@@ -53,8 +53,12 @@ https://usevia.app/definitions/...        static files, CORS *
 
 - An id is **`vendorId * 65536 + productId`** as a decimal number (`getVendorProductId()` in
   the reader); the file is `<id>.json`. `0x4040:0xAA66` (enter67) is `1077979750.json`.
-- **`v3` lists only the boards with no V2 definition.** Every V2 board also has a V3 file —
-  the app treats "in v2" as "in v2 and v3". So 1484 + 577 = **2061 boards** on 2026-09-24.
+- **`v3` lists only the boards with no V2 definition**, and the app treats "in v2" as "in v2
+  and v3" — so 1484 + 577 = 2061 boards on 2026-09-24. **That assumption is false for 32
+  boards**: they have a V2 file and no V3 one (mostly Keychron, `0x3434:02xx`), and their V3
+  URL returns the HTML page. There are exactly **2029 V3 files**, one per V3 source. It does
+  not bite VIA, which asks for V3 only on protocol 11+ and these boards are presumably older;
+  a client reading the index must not assume it either.
 - A **VID:PID can appear only once** per version; the build fails on a duplicate. So the
   registry is keyed by VID:PID alone — two boards sharing an id cannot both be in it.
   `0xFEED` is refused as a vendor id outright.
@@ -174,6 +178,31 @@ mapping into the same `DefinitionKey` list, with only the layout options needing
 from `optionKeys`. It is the price of reusing VIA's build output, and the benefit it buys is
 that output's validation.
 
+## Bundle size
+
+*Measured 2026-09-24* on every file the live index lists, downloaded from `usevia.app`
+(Node is not installed here, so VIA's build could not be run locally; the served files are
+its output anyway). The 32 missing V3 files are left out.
+
+| Set | Files | Raw | zip (per file, deflate 9) | tar.gz (solid) | tar.xz (solid, -9e) |
+|---|---|---|---|---|---|
+| V3 only | 2029 | 20.6 MB | 2.20 MB | 1.31 MB | **0.34 MB** |
+| V2 + V3 | 3513 | 31.1 MB | 3.41 MB | 1.89 MB | **0.41 MB** |
+
+Plus 71 KB of index files (`supported_kbs.json`, `keyboard_names.json`, `hash.json`),
+included above. A V3 file is 7.5 KB median, 145 KB at most.
+
+- **Solid compression is what matters**: the files are near-identical boilerplate, so one
+  stream compressing them all together is 6× smaller than zip, which compresses each file
+  alone. xz is another 4–5× below gzip.
+- **Nazg already decodes xz** — minlzma is there for Vial's embedded definitions. A bundle
+  of all official definitions in 0.4 MB costs no new dependency; only the container inside
+  the stream (a tar, or one JSON map keyed by id) is to be chosen.
+- **Decompressed, it is 31 MB in memory**, parsed per board on demand — no reason to parse
+  all 3513 at start.
+- V2 adds only 0.07 MB compressed. Whether to carry it depends only on whether protocol ≤ 10
+  boards are worth supporting, not on size.
+
 ## Proposed design — not decided
 
 *Written 2026-09-24 as a basis for discussion. Nothing here is agreed.*
@@ -186,9 +215,9 @@ Nazg, not VIA, so none of that applies.
 ### Official VIA definitions: bundle, refresh on request
 
 - **Ship a snapshot of VIA's built output with each Nazg release** — the converted `v2/` and
-  `v3/` files plus `supported_kbs.json`. About 2000 small files, an estimated ~10 MB raw and
-  1–2 MB compressed (**to be measured**). Works offline and on first launch, already
-  validated, GPL-3.0 compatible.
+  `v3/` files plus `supported_kbs.json`. **0.4 MB as one `.xz`** for all 3513 files — see
+  "Bundle size" below. Works offline and on first launch, already validated, GPL-3.0
+  compatible.
 - **Later, a user-triggered "Update VIA definitions"** that downloads into the app's data
   folder beside the bundle, never over it. HTTPS in C++ is a new dependency, so this waits;
   until then a Nazg release brings new definitions.
@@ -252,7 +281,8 @@ Proposed: level 1 now, level 3 as the long-term answer, level 2 only if users as
 ### Decisions to take
 
 - Whether a community repository (level 2) is wanted at all, and who would run it.
-- Bundle format: the `dist/` tree as files, or one archive.
+- Bundle format: the `dist/` tree as files, or one archive — measured below; one `.xz`
+  looks right.
 - Where the data directory is, given SDL calls stay in `Main.cpp` (`SDL_GetPrefPath` there,
   handed down as a path).
 - What "remember the choice per device" keys on, and where it is saved — `imgui.ini` holds
@@ -261,7 +291,6 @@ Proposed: level 1 now, level 3 as the long-term answer, level 2 only if users as
 ## Open for the next part of the study
 
 - How vial-gui and other third-party clients source VIA definitions, if they do.
-- Measure the converted set, raw and compressed, to confirm the bundle estimate.
 - HTTPS in C++ for the later refresh and import-from-URL: which library, and its cost.
 - V2 definitions: needed only for protocol ≤ 10 boards; what differs from V3 beyond
   `lighting`/`customFeatures`/`customMenus`.
