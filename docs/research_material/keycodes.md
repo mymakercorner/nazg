@@ -359,6 +359,11 @@ What was decided:
 
 - **Legends: plain and Shift**, as on a printed keycap. AltGr is not shown. `LSFT(KC_1)` shows
   the character it types (`!` on US), and a tap-hold key shows its tap below its hold action.
+- **AltGr is in the table, not on the key** (2026-09-24): each position also carries its
+  AltGr and Shift+AltGr characters -- Option and Shift+Option on the Mac layouts -- so whether
+  and how to draw them (a third legend, lower right, as on ISO keycaps) is left to the visual
+  design of the board. 52 layouts put `€` somewhere; UK has it on AltGr+4. Plain US has no
+  AltGr level at all; US International does.
 - **One global host-layout setting**, chosen from QMK's keymap extras: 72 files in
   `data/constants/keycodes/extras/`, of which 70 are host layouts (`plover` and
   `plover_dvorak` are steno). Each gives, per basic keycode, the plain, `S(...)` and
@@ -393,8 +398,14 @@ matched exactly. The rules:
    "FR_A", "label": "A"}`). Expression names are QMK spellings (`KC_GRAVE` or `KC_GRV`),
    normalised to Nazg's short name.
 3. **Shift legends** come from `S(X)`, where `X` is a basic keycode or one of the layout's
-   own aliases (`S(FR_AMPR)` → the position of `FR_AMPR`). Everything else is skipped:
-   `ALGR(...)`, `S(ALGR(...))`, the Mac layouts' `A(...)` (Option), `RCTL(...)`.
+   own aliases (`S(FR_AMPR)` → the position of `FR_AMPR`).
+3b. **AltGr legends** come from `ALGR(X)` and **Shift+AltGr** from `S(ALGR(X))`; on the Mac
+   layouts from `A(X)` and `S(A(X))` (Option). `X` resolves through the layout's aliases,
+   which can themselves be shifted: bépo's `ALGR(BP_QUES)` is Shift+AltGr because `BP_QUES`
+   is `S(...)`. Farsi uses QMK's US shifted names (`KC_LT` = `S(KC_COMM)`), found in
+   `keycodes_us_0.0.1.hjson`. Rules 5 and 6 apply to them as to Shift legends. A position with
+   an AltGr legend but no row gets one with QMK's label as its plain legend (bépo's space,
+   AltGr `_`). Still skipped: `RCTL(...)` (Canadian Multilingual's second group).
 4. **A position with a Shift legend but no plain one** (the US file lists only shifted
    symbols) takes QMK's own label for the plain legend.
 5. **Labels are cleaned**: `^ (dead)` → `^`; `Eisū (英数)` and `| (not physically present)`

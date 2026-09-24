@@ -24,12 +24,15 @@ namespace nazg
 {
     // What one position types on a host layout: plain, and with Shift held. `shifted`
     // is empty where Shift adds nothing worth printing -- the letters, whose one legend
-    // is the capital.
+    // is the capital. `altgr` and `shiftAltgr` are the third and fourth levels -- AltGr on
+    // PC layouts, Option on the Mac ones -- kept as data but not drawn yet.
     struct HostLegend
     {
         std::string_view key;       // basic keycode name: KC_1, KC_Q, KC_NUBS
         std::string_view plain;
         std::string_view shifted;
+        std::string_view altgr;
+        std::string_view shiftAltgr;
     };
 
     // A host keyboard layout: the positions whose legend depends on it. Everything else

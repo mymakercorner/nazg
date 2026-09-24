@@ -95,6 +95,27 @@ namespace
               "LSFT(KC_1) types 1 on AZERTY");
     }
 
+    // The third and fourth levels are in the table, though no legend shows them yet.
+    void TestAltGr()
+    {
+        std::printf("AltGr\n");
+
+        const nazg::HostLegend* ukFour = nazg::FindHostLayout("uk")->Find("KC_4");
+        Check(ukFour != nullptr && ukFour->altgr == "€", "UK: AltGr+4 is the euro");
+
+        const nazg::HostLegend* frenchZero = nazg::FindHostLayout("french")->Find("KC_0");
+        Check(frenchZero != nullptr && frenchZero->altgr == "@", "AZERTY: AltGr+à is @");
+
+        const nazg::HostLegend* intlFour = nazg::FindHostLayout("us_international")->Find("KC_4");
+        Check(intlFour != nullptr && intlFour->altgr == "¤" && intlFour->shiftAltgr == "£",
+              "US International: Shift+AltGr is the fourth level");
+
+        const nazg::HostLegend* macE = nazg::FindHostLayout("french_mac_iso")->Find("KC_E");
+        Check(macE != nullptr && !macE->altgr.empty(), "the Mac layouts fill it from Option");
+
+        Check(UsHostLayout().Find("KC_4")->altgr.empty(), "plain US has no AltGr level");
+    }
+
     void TestNamedKeys()
     {
         std::printf("named keys\n");
@@ -138,6 +159,7 @@ int main()
     TestNamedKeys();
     TestComposedKeys();
     TestFrench();
+    TestAltGr();
 
     return TestResult();
 }
