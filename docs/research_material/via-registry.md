@@ -203,6 +203,106 @@ included above. A V3 file is 7.5 KB median, 145 KB at most.
 - V2 adds only 0.07 MB compressed. Whether to carry it depends only on whether protocol ≤ 10
   boards are worth supporting, not on size.
 
+## VID:PID collisions in QMK
+
+*Measured 2026-09-24* on Rico's QMK fork (`rico_forked_qmk_firmware`, branch
+`the_concordia`, 2026-09-19 — master plus his boards). Every folder holding a
+`keyboard.json` is a buildable keyboard; its `usb`, `manufacturer` and `keyboard_name` are
+merged from each `info.json` on the way down to it, as QMK does. The files are read as hjson
+(comments, trailing commas) like QMK reads them; 25 of 3762 still failed to parse and are
+left out. The script is not in the repo.
+
+**QMK does not enforce unique ids.** A quarter of its keyboards share theirs:
+
+| | Ids | Keyboards |
+|---|---|---|
+| All keyboards | 2992 | 3762 |
+| **Ids shared by more than one keyboard** | **257** | **1002** |
+| — on `0xFEED`, QMK's placeholder vendor | 57 | 488 |
+| — revisions and variants of one board | 174 | 422 |
+| — unrelated boards | 26 | 92 |
+
+- **`0xFEED`**: `0xFEED:0x0000` alone is on 175 keyboards, `0xFEED:0x6060` on 114. VIA
+  refuses the vendor outright, so none of these can be in its registry — the hobby and
+  handwired boards whose owners would side-load a definition.
+- **Revisions and variants** are the dangerous group: one id over different layouts or
+  matrices. `planck/rev1`…`rev5` are all `0x03A8:0xAE01`; `gmmk/pro` rev1/rev2 in ANSI and
+  ISO are all `0x320F:0x5044`; Kyria rev1, rev2 and the Elora share `0x8D1D:0x9D9D`.
+  **VIA serves 128 of the 200 non-`0xFEED` shared ids** — each with one definition standing
+  for every board on it, with layout options where the boards differ only in layout.
+- **Unrelated boards** come from generic USB stacks — `0x20A0:0x422D` is ps2avrGB's id, on
+  13 boards, served by VIA as `ymd75.json`; `0x16C0:0x27DB` is V-USB's, on 11 — or from
+  copy-paste: `fortitude60/rev1` and `keebio/nyquist/rev1` on `0xCB10:0x1156`,
+  `cannonkeys/instant60` and `kbdfans/d60b` on `0xCA04:0x1600` (served as
+  `instant60.json`), `ferris/sweep` and `a_dux` on `0xC2AB:0x3939`. Plugging in the board VIA
+  did not pick draws it with the other's layout.
+
+**VIA builds are QMK master.** VIA has no firmware fork — only Vial does — just `VIA_ENABLE`
+and a `via` keymap in `the-via/qmk_userspace_via`. Of that userspace's 2224 keymaps (Rico's
+clone, 2026-09-08) **one changes the USB identity**: `dm9records/plaid` moves off the shared
+V-USB id to `0x0D39:0x0001`. None changes the manufacturer or product string. So a VIA
+board reports what QMK master's `keyboard.json` says, short of a user's own build.
+
+### What the device reports does not tell them all apart
+
+QMK builds the USB manufacturer string from `manufacturer`, the product string from
+`keyboard_name`, and bcdDevice from `usb.device_version` (set on 3737 of 3762 keyboards);
+hidapi reads all three as `manufacturer_string`, `product_string` and `release_number`.
+Boards on a shared id still ambiguous:
+
+| Boards on a shared id | Total | By manufacturer + name | Adding device version |
+|---|---|---|---|
+| All | 1002 | 379 | **245** |
+| `0xFEED` | 488 | 84 | 59 |
+| Revisions and variants | 422 | 282 | 182 |
+| Unrelated boards | 92 | 13 | 4 |
+
+- **Unrelated boards separate** — the strings differ even where the ids collide.
+- **Revisions often keep their name** (Planck, GMMK Pro, Kyria); the device version tells
+  many of them apart, Planck's and the GMMK Pro's among them.
+- **What is left is mostly harmless**: one PCB built for different controllers —
+  `prkl30/feather` and `promicro`, `mechwild/obe/f401` and `f411`, `kyria/rev1/base` and
+  `proton_c` — one layout, one definition fits all.
+- **A few are not**: `dumbpad/v0x` and `v0x_right`, `lazydesigners/dimple/ortho` and
+  `staggered` (same name, same version, different layout), `atreus/astar` and
+  `astar_mirrored`, `input_club/infinity60/led` and `rev1`.
+
+### A VIA definition's name is not the firmware's
+
+A VIA definition has **no manufacturer**, only `name` — a label typed by whoever submitted
+it, never checked against the firmware, and never used for matching: VIA matches on VID:PID
+alone. Against QMK's `keyboard_name` for the same id, across the 2061 VIA ids:
+
+| | Ids | |
+|---|---|---|
+| Identical | 941 | 46% |
+| Differs only in case (`aleth42` / `ALETH42`) | 118 | 6% |
+| Differs only in spaces and punctuation (`Titan 60` / `Titan60`) | 103 | 5% |
+| VIA name is manufacturer + name (`AEboards AEGIS`) | 273 | 13% |
+| One contains the other (`sweet16 v1` / `Sweet16`, `Zinc` / `Zinc rev.1`) | 366 | 18% |
+| Different (`Crkbd` / `Corne`, `1up60rgb` / `1UP RGB Underglow PCB`) | 117 | 6% |
+| Id not in QMK — board removed, id changed, or one of the 25 unparsed files | 143 | 7% |
+
+So the name can rank candidates, loosely (lowercase, alphanumerics only, containment), but
+not match them.
+
+### VIA's own answer: a name read from the board
+
+Three Cipulot definitions (`ec_60x`, `ec_65x`, `hybrid_hhkb`) give `name` as an object
+rather than a string — a **dynamic name**, new in the app (`src/utils/definition-name.ts`,
+`src/store/definitionNameSlice.ts`, present at `935106a`):
+
+```json
+"name": { "options": ["EC60X | EC60X-SE", "DC60"],
+          "content": ["id_board_variant", 0, 245] }
+```
+
+`content` is a custom-menu value reference — channel 0, value id 245 — which the app reads
+from the board on connect and uses as an index into `options`. One definition, one id,
+several boards, and **the board says which it is**. It only names the board; the layout is
+the same definition's. Nazg's parser keeps `name` only when it is a string, so such a
+definition loads with an empty name.
+
 ## Proposed design — not decided
 
 *Written 2026-09-24 as a basis for discussion. Nothing here is agreed.*
@@ -256,11 +356,14 @@ Proposed: level 1 now, level 3 as the long-term answer, level 2 only if users as
 - **An invalid file is rejected at import**, by the same parser that loads boards, with its
   error shown. Nothing broken enters the library.
 - **Collisions are normal, not an error.** Unlike VIA's registry, allow several definitions
-  per VID:PID — hobby boards reuse VIDs, and one PCB often has several definitions.
+  per VID:PID — a quarter of QMK's keyboards share their id (see "VID:PID collisions in
+  QMK"), and one PCB often has several definitions.
 - **Priority: user > community > official**, the order VIA overlays in. With more than one
-  candidate, ask once and **remember the choice per device**. HID's product and
-  manufacturer strings, and a serial number when there is one, tell apart devices sharing a
-  VID:PID, though definitions do not carry them.
+  candidate, ask once and **remember the choice per device** — the main path, not an edge
+  case: manufacturer, product and device version still leave 245 of QMK's 1002 colliding
+  boards ambiguous. Those three HID values are worth recording with a user definition when
+  it is bound, since a VIA definition carries no manufacturer and a `name` matching the
+  firmware's only half the time; against the official ones they can only rank candidates.
 - **Check a definition against the connected board** where the protocol allows — layout keys
   outside the matrix, say. How much VIA can confirm is to be checked against
   [via-vial-commands.md](via-vial-commands.md); probably not much.
@@ -292,5 +395,7 @@ Proposed: level 1 now, level 3 as the long-term answer, level 2 only if users as
 
 - How vial-gui and other third-party clients source VIA definitions, if they do.
 - HTTPS in C++ for the later refresh and import-from-URL: which library, and its cost.
+- Dynamic names: whether Nazg reads them (a custom-menu value read on connect), and whether
+  the same mechanism is worth borrowing to let a board pick among several definitions.
 - V2 definitions: needed only for protocol ≤ 10 boards; what differs from V3 beyond
   `lighting`/`customFeatures`/`customMenus`.
