@@ -809,7 +809,10 @@ HTTP cache handles it. Web-only limits:
   2026-09-24**: `adapters/via/NazgViaBundle.h`, XZ decoding shared with Vial in
   `adapters/NazgXz.h`; against the full 3513-file bundle every file comes back byte for byte,
   a lookup taking 41 ms on Rico's desktop); then wiring (`SDL_GetBasePath()` in `Main.cpp`,
-  bundle used when no remembered file). Still to decide: **how the bundle is produced** —
+  bundle used when no remembered file — **done 2026-09-24**, verified on Rico's Phoenix
+  Project No 1, which is in VIA's registry; the bundle is still placed beside the executable
+  by hand, and inflated on the main thread, which a background decode could fix later). Still
+  to decide: **how the bundle is produced** —
   Rico, 2026-09-24: the no-generator rule is about tools used rarely; fetching VIA's
   definitions, and converting them if wanted, will be done regularly and may well deserve a
   tool, to be designed; V3 only at first, V2 when a board needs it — the reader handles both;

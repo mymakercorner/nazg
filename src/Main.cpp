@@ -17,6 +17,7 @@
 
 #include "adapters/qmk/NazgQmkKeycodeCodec.h"
 #include "adapters/via/NazgKeyboardDefinition.h"
+#include "adapters/via/NazgViaBundle.h"
 #include "adapters/via/NazgViaKeymap.h"
 #include "adapters/via/NazgViaLoader.h"
 #include "adapters/vial/NazgVialLoader.h"
@@ -211,6 +212,32 @@ namespace
         return file;
     }
 
+    // VIA's official definitions, beside the executable: read once at start -- 0.4 MB -- and
+    // inflated only when a board needs one (adapters/via/NazgViaBundle.h). TEMPORARY in
+    // where it comes from: the file is only looked for there, nothing installs it yet.
+    constexpr char c_ViaBundleName[] = "via_definitions.tar.xz";
+
+    struct ViaBundle
+    {
+        std::string          path;
+        std::vector<uint8_t> bytes;   // empty when the file is missing or unreadable
+    };
+
+    ViaBundle ReadViaBundle()
+    {
+        ViaBundle bundle;
+
+        const char* base = SDL_GetBasePath();   // owned by SDL, ends with a separator
+        bundle.path      = std::string(base != nullptr ? base : "") + c_ViaBundleName;
+
+        std::ifstream stream(std::filesystem::path(reinterpret_cast<const char8_t*>(bundle.path.c_str())),
+                             std::ios::binary);
+        if (stream)
+            bundle.bytes.assign(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>());
+
+        return bundle;
+    }
+
     // Bring the parsed list in line with the saved paths: parse what is new, drop what was
     // removed. Cheap when nothing changed, so it simply runs every frame -- which also
     // covers the saved list arriving from imgui.ini during the first frame.
@@ -248,7 +275,8 @@ namespace
     struct BoardState
     {
         std::optional<nazg::Keyboard> keyboard;
-        std::string                   path;        // where it was opened, for writes
+        std::string                   path;               // where it was opened, for writes
+        std::string                   definitionSource;   // where its definition came from, shown with it
         std::string                   error;
         bool                          isLoading = false;
         int                           layer     = 0;
@@ -264,13 +292,17 @@ namespace
     constexpr uint16_t c_ViaUsagePage = 0xFF60;
     constexpr uint16_t c_ViaUsage     = 0x61;
 
-    // Open, load everything, close. A Vial board describes itself; anything else needs the
-    // VIA definition the caller found for its VID:PID -- passed by value, so the load does
-    // not depend on the list it came from staying put.
+    // Open, load everything, close. A Vial board describes itself. A VIA board takes the
+    // definition file the caller found for its VID:PID -- passed by value, so the load does
+    // not depend on the list it came from staying put -- or else VIA's own, out of the
+    // bundle, which main() owns and so outlives this coroutine.
     nazg::Task<void> LoadBoard(nazg::HidTransport&                     transport,
                                std::string                             path,
-                               std::string                             ids,
+                               uint16_t                                vendorId,
+                               uint16_t                                productId,
                                std::optional<nazg::KeyboardDefinition> viaDefinition,
+                               std::string                             viaDefinitionPath,
+                               const ViaBundle&                        bundle,
                                BoardState&                             state)
     {
         state.isLoading = true;
@@ -285,16 +317,45 @@ namespace
             nazg::HidDeviceChannel channel(transport, device);
             nazg::VialProtocol     protocol(channel);
 
+            std::string source;
+
             // Vial first: its probe is harmless on a VIA board, which answers 0xFF.
             if (co_await protocol.Detect())
+            {
                 state.keyboard = co_await nazg::LoadVialKeyboard(protocol);
-            else if (viaDefinition)
-                state.keyboard = co_await nazg::LoadViaKeyboard(protocol, std::move(*viaDefinition));
+                source         = "the board (Vial)";
+            }
             else
-                throw std::runtime_error("not a Vial board, and no VIA definition is loaded for " + ids +
-                                         " -- use \"Load VIA definition...\"");
+            {
+                source = viaDefinitionPath;
 
-            state.path      = path;
+                // A file the user loaded wins over VIA's own, as VIA's side-loading does.
+                // The bundle needs the protocol to choose V2 or V3. It is inflated here, on
+                // the main thread: ~40 ms once per open on a fast desktop, while "loading"
+                // is showing anyway.
+                if (!viaDefinition && !bundle.bytes.empty())
+                {
+                    const uint16_t viaProtocol = co_await protocol.GetProtocolVersion();
+                    if (const auto bytes = nazg::FindViaDefinition(bundle.bytes, vendorId, productId, viaProtocol))
+                    {
+                        viaDefinition = nazg::ParseDefinition(*bytes);
+                        source        = "VIA's official definitions";
+                    }
+                }
+
+                if (!viaDefinition)
+                {
+                    char ids[16];
+                    std::snprintf(ids, sizeof(ids), "%04X:%04X", vendorId, productId);
+                    throw std::runtime_error(std::string("not a Vial board, VIA has no definition for ") + ids +
+                                             ", and none is loaded -- use \"Load VIA definition...\"");
+                }
+
+                state.keyboard = co_await nazg::LoadViaKeyboard(protocol, std::move(*viaDefinition));
+            }
+
+            state.definitionSource = source;
+            state.path             = path;
             state.layer     = 0;
             state.selection = {};
             state.editMessage.clear();
@@ -453,6 +514,9 @@ int main(int, char**)
     DeviceListState  deviceListState;
     nazg::Task<void> refreshTask = RefreshDeviceList(transport, deviceListState);
 
+    // Before loadTask, which holds a reference to it, so it is destroyed after.
+    const ViaBundle viaBundle = ReadViaBundle();
+
     BoardState       boardState;
     nazg::Task<void> loadTask;
     nazg::Task<void> editTask;
@@ -557,6 +621,13 @@ int main(int, char**)
                 SDL_ShowOpenFileDialog(OnViaDefinitionChosen, &pendingPaths, pWindow, c_Filters, 1, nullptr, true);
             }
 
+            if (viaBundle.bytes.empty())
+                ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.3f, 1.0f), "VIA's official definitions: not found");
+            else
+                ImGui::Text("VIA's official definitions: %.1f KB", viaBundle.bytes.size() / 1024.0);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("%s", viaBundle.path.c_str());
+
             // Removing only edits the saved list; SyncViaDefinitions drops the file next frame,
             // so viaFiles is never changed while this loop walks it.
             for (const ViaDefinitionFile& file : viaFiles)
@@ -615,18 +686,19 @@ int main(int, char**)
                         {
                             // The first loaded definition whose ids match; unused on a Vial board.
                             std::optional<nazg::KeyboardDefinition> viaDefinition;
+                            std::string                             viaDefinitionPath;
                             for (const ViaDefinitionFile& file : viaFiles)
                                 if (file.definition && file.definition->vendorId == device.vendorId &&
                                     file.definition->productId == device.productId)
                                 {
-                                    viaDefinition = file.definition;
+                                    viaDefinition     = file.definition;
+                                    viaDefinitionPath = file.path;
                                     break;
                                 }
 
-                            char ids[16];
-                            std::snprintf(ids, sizeof(ids), "%04X:%04X", device.vendorId, device.productId);
-
-                            loadTask = LoadBoard(transport, device.path, ids, std::move(viaDefinition), boardState);
+                            loadTask = LoadBoard(transport, device.path, device.vendorId, device.productId,
+                                                 std::move(viaDefinition), std::move(viaDefinitionPath), viaBundle,
+                                                 boardState);
                         }
                         ImGui::EndDisabled();
                         ImGui::PopID();
@@ -675,6 +747,8 @@ int main(int, char**)
 
                 ImGui::Text("%s -- QMK keycodes %s", keyboard.Name().c_str(),
                             nazg::QmkKeycodeVersionName(keyboard.keycodeVersion));
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Definition from %s", boardState.definitionSource.c_str());
 
                 ImGui::SameLine();
                 ImGui::SetNextItemWidth(ImGui::GetFontSize() * 14.0f);

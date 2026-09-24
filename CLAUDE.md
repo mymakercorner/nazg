@@ -86,11 +86,16 @@ The official VIA definitions will ship as one solid `.xz` of a tar (0.4 MB for a
 boards). Its reader is `adapters/via/NazgViaBundle.*`: it inflates the whole bundle, takes
 one board's file by VID:PID and protocol, and keeps nothing -- 41 ms on a fast desktop,
 every file byte-identical against the real 3513-file bundle. XZ decoding is shared with
-Vial's definitions in `adapters/NazgXz.*`. The bundle is not in the repo yet, and nothing
-loads from it yet.
+Vial's definitions in `adapters/NazgXz.*`. `Main.cpp` reads `via_definitions.tar.xz` from
+beside the executable at start and, when no loaded file matches a VIA board, takes its
+definition from it; hovering the board's name says where the definition came from. Verified
+2026-09-24 on Rico's **Phoenix Project No 1** (`0x21C0:0x9901`, in VIA's registry): drawn from
+VIA's converted V3 file, layout options and key edits working. **The bundle is not in the repo
+yet** -- a copy of the one built for the size measurements is placed beside the executables by
+hand -- and it is inflated on the main thread, ~40 ms once per open in Release.
 
 Next: produce the bundle (a tool is acceptable, since this is a regular job -- to be designed)
-and wire it into loading, per
+and have the build install it, per
 [docs/research_material/via-registry.md](docs/research_material/via-registry.md),
 "Decisions to take".
 
