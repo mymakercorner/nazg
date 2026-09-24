@@ -391,6 +391,14 @@ namespace
     constexpr uint16_t c_ViaUsagePage = 0xFF60;
     constexpr uint16_t c_ViaUsage     = 0x61;
 
+    // A keyboard Nazg can talk to, as far as enumeration tells: it exposes VIA's raw HID
+    // interface, one per board. Necessary, not sufficient -- a QMK build with raw HID and
+    // no VIA has it too, and then fails on Open; knowing for sure means asking each board.
+    bool IsViaInterface(const nazg::HidDeviceInfo& device)
+    {
+        return device.usagePage == c_ViaUsagePage && device.usage == c_ViaUsage;
+    }
+
     // Open, load everything, close. A Vial board describes itself. A VIA board takes the
     // definition file the caller found for its VID:PID -- passed by value, so the load does
     // not depend on the list it came from staying put -- or else VIA's own, out of the
@@ -633,7 +641,8 @@ int main(int, char**)
     PendingDialogPaths pendingPaths;   // must outlive any open dialog: main() scope
 
     const ImVec4 clearColor = ImVec4(0.09f, 0.09f, 0.11f, 1.0f);
-    bool showDemoWindow = false;
+    bool showDemoWindow    = false;
+    bool showAllHidDevices = false;   // the device list shows only keyboards unless asked
     bool done = false;
 
     while (!done)
@@ -718,7 +727,15 @@ int main(int, char**)
             if (isBusy)
                 ImGui::TextUnformatted("enumerating...");
             else
-                ImGui::Text("%zu device(s)", deviceListState.devices.size());
+            {
+                const auto keyboards = std::count_if(deviceListState.devices.begin(), deviceListState.devices.end(),
+                                                     IsViaInterface);
+                if (showAllHidDevices)
+                    ImGui::Text("%zu keyboard(s), %zu HID interface(s)", static_cast<size_t>(keyboards),
+                                deviceListState.devices.size());
+                else
+                    ImGui::Text("%zu keyboard(s)", static_cast<size_t>(keyboards));
+            }
 
             if (!deviceListState.error.empty())
                 ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", deviceListState.error.c_str());
@@ -795,6 +812,10 @@ int main(int, char**)
 
             ImGui::Separator();
 
+            ImGui::Checkbox("Show all HID devices", &showAllHidDevices);
+            ImGui::SetItemTooltip("Only keyboards with VIA's raw HID interface are listed otherwise --\n"
+                                  "the ones VIA and Vial boards answer on.");
+
             const ImGuiTableFlags tableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
                                                ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY;
 
@@ -811,10 +832,14 @@ int main(int, char**)
 
                 for (const nazg::HidDeviceInfo& device : deviceListState.devices)
                 {
+                    const bool isKeyboard = IsViaInterface(device);
+                    if (!isKeyboard && !showAllHidDevices)
+                        continue;
+
                     ImGui::TableNextRow();
 
                     ImGui::TableNextColumn();
-                    if (device.usagePage == c_ViaUsagePage && device.usage == c_ViaUsage)
+                    if (isKeyboard)
                     {
                         // Same rule as Refresh: a Task still running must not be replaced.
                         // A write in flight blocks it too -- it updates the board a load
