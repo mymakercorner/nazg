@@ -27,8 +27,6 @@
 #include <string>
 #include <vector>
 
-#include <nlohmann/json.hpp>
-
 namespace
 {
     // CTest's SKIP_RETURN_CODE for this test, set in CMakeLists.txt.
@@ -52,8 +50,7 @@ int main(int argc, char** argv)
 
     const std::vector<uint8_t> tar = nazg::DecompressXz(bundle, 256u * 1024u * 1024u, "the bundle");
 
-    int                      parsed[2]  = { 0, 0 };   // V2, V3
-    int                      manifest[2] = { -1, -1 };
+    int                      parsed[2] = { 0, 0 };   // V2, V3
     std::vector<std::string> failures;
 
     nazg::ForEachTarFile(tar, [&](const std::string& name, const uint8_t* data, size_t size)
@@ -61,12 +58,7 @@ int main(int argc, char** argv)
         const std::vector<uint8_t> bytes(data, data + size);
 
         if (name == "manifest.json")
-        {
-            const nlohmann::json document = nlohmann::json::parse(bytes.begin(), bytes.end(), nullptr, false);
-            manifest[0] = document.value("v2", -1);
-            manifest[1] = document.value("v3", -1);
             return true;
-        }
 
         const bool isV3 = name.rfind("v3/", 0) == 0;
         if (!isV3 && name.rfind("v2/", 0) != 0)
@@ -94,9 +86,12 @@ int main(int argc, char** argv)
     for (const std::string& failure : failures)
         std::printf("  %s\n", failure.c_str());
 
+    const auto manifest = nazg::ReadViaBundleManifest(bundle);
+
     std::printf("  %d V3 and %d V2 definitions\n", parsed[1], parsed[0]);
     Check(failures.empty(), "every definition parses, under the id its name says");
-    Check(parsed[1] == manifest[1] && parsed[0] == manifest[0], "and the manifest counts them all");
+    Check(manifest && parsed[1] == manifest->v3 && parsed[0] == manifest->v2, "and the manifest counts them all");
+    Check(manifest && manifest->commit.size() == 40, "and names the commit they come from");
     Check(parsed[1] > 0, "the bundle is not empty");
 
     return TestResult();

@@ -94,8 +94,20 @@ definition from it; hovering the board's name says where the definition came fro
 bundle of VIA's converted files, then again with the source-form bundle; every definition of it parses in the
 `via_bundle_contents` test. The inflate runs on the main thread, ~40 ms once per open.
 
-Next: open -- the user definition library (via-registry.md, "Storage"), layout options
-editing, or step 5 (custom features).
+**User definitions** -- the ones the user imports, as opposed to the **official** ones in
+VIA's bundle; the UI says so in those words -- live in a library, `library/NazgDefinitionLibrary.*`,
+in Nazg's data folder `SDL_GetPrefPath("mymakercorner", "Nazg")` (`%APPDATA%\mymakercorner\Nazg`
+on Windows), all in one folder: `user_definitions/index.json` plus
+`user_definitions/<id>-r<revision>.json`, each stored byte for byte after it parses; the index is replaced whole by rename, orphans are cleaned on
+open, numbers are never reused, and an unreadable index is left untouched while the app runs
+without it. "Import VIA definition..." copies a file in; a VIA board takes the first user
+definition for its VID:PID, then the official one. Paths older builds kept in `imgui.ini` are
+imported once and dropped. Verified by Rico 2026-09-24. Not yet: per-device choices and their picker, linked
+entries, replacing with a backup, export/import (via-registry.md, "Storage" and "Choosing a
+definition on connect").
+
+Next: open -- the rest of the library above, layout options editing, or step 5 (custom
+features).
 
 # Prior research — read before re-researching anything
 

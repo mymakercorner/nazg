@@ -699,6 +699,20 @@ On connect:
 
 ### Storage
 
+*First step implemented 2026-09-24* — `library/NazgDefinitionLibrary.*`. **Naming, agreed
+with Rico**: *user definitions* are the ones the user imports, *official definitions* VIA's
+bundle — community ones will sit between — and the files on disk say so: in Nazg's data folder
+(`SDL_GetPrefPath()`), one folder, `user_definitions/`, holds everything — `index.json`, with
+`format` and `nextId`, beside the files `<id>-r<revision>.json`, stored byte for byte — so it
+is backed up, moved or zipped whole. Import after parsing,
+removal, lookup by VID:PID (first entry wins until choices exist), orphan clean-up, and an
+unreadable index left untouched. `Main.cpp` imports the paths older builds kept in `imgui.ini`
+once. The index has no `choices` yet — adding them later needs no format change, an absent key
+meaning none. The layout below says `library.json` and `definitions/`; read those as
+`user_definitions/index.json` and `user_definitions/`.
+Still to come from this section: choices, linked entries, revisions with a backup,
+export/import, and `imgui.ini` moving here.
+
 **One layout for both builds**; only where it lives and how it persists differ, and that
 stays in `Main.cpp` with the rest of the platform code. The library code gets a folder path
 and does plain file I/O, knowing neither SDL nor Emscripten.

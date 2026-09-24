@@ -22,6 +22,7 @@
 #include "adapters/via/NazgViaLoader.h"
 #include "adapters/vial/NazgVialLoader.h"
 #include "async/NazgTask.h"
+#include "library/NazgDefinitionLibrary.h"
 #include "transport/NazgDeviceChannel.h"
 #include "transport/NazgHidTransport.h"
 #include "ui/NazgKeyboardView.h"
@@ -84,8 +85,12 @@ namespace
     // which can come when there is more than one setting worth a file.
     struct AppSettings
     {
-        std::string              hostLayout = "us";   // a HostLayout id; see NazgKeycapLegend.h
-        std::vector<std::string> viaDefinitions;      // paths of VIA definition files, in load order
+        std::string hostLayout = "us";   // a HostLayout id; see NazgKeycapLegend.h
+
+        // Paths of VIA definition files that builds before the library remembered here.
+        // Read, imported into the library once, then dropped -- written back only while
+        // there is no library to import them into.
+        std::vector<std::string> legacyViaDefinitions;
     };
 
     void RegisterSettings(AppSettings& settings)
@@ -102,7 +107,7 @@ namespace
 
         handler.ReadInitFn = [](ImGuiContext*, ImGuiSettingsHandler* self)
         {
-            static_cast<AppSettings*>(self->UserData)->viaDefinitions.clear();
+            static_cast<AppSettings*>(self->UserData)->legacyViaDefinitions.clear();
         };
 
         handler.ReadLineFn = [](ImGuiContext*, ImGuiSettingsHandler* self, void*, const char* line)
@@ -115,14 +120,16 @@ namespace
             if (std::strncmp(line, c_HostLayout, sizeof(c_HostLayout) - 1) == 0)
                 loaded.hostLayout = line + sizeof(c_HostLayout) - 1;
             else if (std::strncmp(line, c_ViaDefinition, sizeof(c_ViaDefinition) - 1) == 0)
-                loaded.viaDefinitions.emplace_back(line + sizeof(c_ViaDefinition) - 1);
+                loaded.legacyViaDefinitions.emplace_back(line + sizeof(c_ViaDefinition) - 1);
         };
 
         handler.WriteAllFn = [](ImGuiContext*, ImGuiSettingsHandler* self, ImGuiTextBuffer* out)
         {
             const AppSettings& saved = *static_cast<AppSettings*>(self->UserData);
             out->appendf("[%s][Settings]\nHostLayout=%s\n", self->TypeName, saved.hostLayout.c_str());
-            for (const std::string& path : saved.viaDefinitions)
+            // Only paths not yet imported -- when the library could not be opened -- so
+            // none is lost before it can be.
+            for (const std::string& path : saved.legacyViaDefinitions)
                 out->appendf("ViaDefinition=%s\n", path.c_str());
             out->append("\n");
         };
@@ -180,48 +187,110 @@ namespace
                 io.Fonts->AddFontFromFileTTF(path.c_str(), c_FontSize, &merge);
     }
 
-    // TEMPORARY: VIA definitions come from files the user picks, one list for the session,
-    // remembered in AppSettings. A registry snapshot or fetch can replace or join this.
-    struct ViaDefinitionFile
+    // A UTF-8 path, as SDL hands them over, as a filesystem path on every platform.
+    std::filesystem::path PathFromUtf8(const std::string& path)
     {
-        std::string                             path;
-        std::optional<nazg::KeyboardDefinition> definition;   // empty if the file did not parse
-        std::string                             error;
+        return std::filesystem::path(reinterpret_cast<const char8_t*>(path.c_str()));
+    }
+
+    std::string Utf8FromPath(const std::filesystem::path& path)
+    {
+        const std::u8string text = path.u8string();
+        return std::string(text.begin(), text.end());
+    }
+
+    std::vector<uint8_t> ReadWholeFile(const std::string& path)
+    {
+        std::ifstream stream(PathFromUtf8(path), std::ios::binary);
+        if (!stream)
+            throw std::runtime_error("cannot open the file");
+        return std::vector<uint8_t>(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>());
+    }
+
+    // Now, as the library records it: ISO 8601, UTC.
+    std::string NowUtc()
+    {
+        SDL_Time     now = 0;
+        SDL_DateTime date{};
+        if (!SDL_GetCurrentTime(&now) || !SDL_TimeToDateTime(now, &date, false))
+            return "unknown";
+
+        char text[32];
+        std::snprintf(text, sizeof(text), "%04d-%02d-%02dT%02d:%02d:%02dZ", date.year, date.month, date.day, date.hour,
+                      date.minute, date.second);
+        return text;
+    }
+
+    // User definitions -- the ones the user imported, as opposed to the official ones in
+    // VIA's bundle -- in the per-user data folder SDL picks for Nazg: all of them in
+    // user_definitions\, index.json included, in %APPDATA%\mymakercorner\Nazg on Windows.
+    // See library/NazgDefinitionLibrary.h.
+    // A library that cannot be opened -- a damaged index, which it leaves untouched -- is
+    // reported and the app runs without one.
+    struct Library
+    {
+        std::optional<nazg::DefinitionLibrary> library;
+        std::string                            error;      // why it could not be opened
+        std::vector<std::string>               messages;   // what the last imports did
     };
 
-    ViaDefinitionFile ReadViaDefinition(const std::string& path)
+    Library OpenLibrary()
     {
-        ViaDefinitionFile file;
-        file.path = path;
+        Library result;
+
+        char* prefPath = SDL_GetPrefPath("mymakercorner", "Nazg");
+        if (prefPath == nullptr)
+        {
+            result.error = std::string("no folder for Nazg's data: ") + SDL_GetError();
+            return result;
+        }
+        const std::filesystem::path folder = PathFromUtf8(prefPath);
+        SDL_free(prefPath);
 
         try
         {
-            std::ifstream stream(std::filesystem::path(reinterpret_cast<const char8_t*>(path.c_str())),
-                                 std::ios::binary);
-            if (!stream)
-                throw std::runtime_error("cannot open the file");
-
-            const std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
-            file.definition = nazg::ParseDefinition(bytes);
+            result.library.emplace(folder);
         }
         catch (const std::exception& failure)
         {
-            file.error = failure.what();
+            result.error = failure.what();
         }
-
-        return file;
+        return result;
     }
 
-    // VIA's official definitions, beside the executable: read once at start -- 0.3 MB -- and
-    // inflated only when a board needs one (adapters/via/NazgViaBundle.h). Built by
-    // tools/update_via_bundle.py, copied there by the build, shipped with releases; a
-    // checkout that never ran the tool has none, and VIA boards then need a loaded file.
+    // Copy files into the library. Each outcome is kept for the device list to show.
+    void ImportDefinitions(Library& library, const std::vector<std::string>& paths)
+    {
+        library.messages.clear();
+
+        for (const std::string& path : paths)
+        {
+            const std::string file = Utf8FromPath(PathFromUtf8(path).filename());
+            try
+            {
+                const nazg::LibraryEntry& entry = library.library->Import(ReadWholeFile(path), path, NowUtc());
+                library.messages.push_back("imported " + file + ": " + entry.name);
+            }
+            catch (const std::exception& failure)
+            {
+                library.messages.push_back("not imported " + file + ": " + failure.what());
+            }
+        }
+    }
+
+    // Official definitions, VIA's, beside the executable: read once at start -- 0.3 MB --
+    // and inflated when a board needs one (adapters/via/NazgViaBundle.h), and once more at
+    // start for the manifest's count. Built by tools/update_via_bundle.py, copied there by
+    // the build, shipped with releases; a checkout that never ran the tool has none, and
+    // VIA boards then need a user definition.
     constexpr char c_ViaBundleName[] = "via_definitions.tar.xz";
 
     struct ViaBundle
     {
         std::string          path;
         std::vector<uint8_t> bytes;   // empty when the file is missing or unreadable
+
+        std::optional<nazg::ViaBundleManifest> manifest;   // what it holds, for the device list
     };
 
     ViaBundle ReadViaBundle()
@@ -236,21 +305,21 @@ namespace
         if (stream)
             bundle.bytes.assign(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>());
 
+        // A bundle that does not inflate is as good as none: lookups would fail on it too.
+        if (!bundle.bytes.empty())
+        {
+            try
+            {
+                bundle.manifest = nazg::ReadViaBundleManifest(bundle.bytes);
+            }
+            catch (const std::exception& failure)
+            {
+                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s: %s", bundle.path.c_str(), failure.what());
+                bundle.bytes.clear();
+            }
+        }
+
         return bundle;
-    }
-
-    // Bring the parsed list in line with the saved paths: parse what is new, drop what was
-    // removed. Cheap when nothing changed, so it simply runs every frame -- which also
-    // covers the saved list arriving from imgui.ini during the first frame.
-    void SyncViaDefinitions(const AppSettings& settings, std::vector<ViaDefinitionFile>& files)
-    {
-        std::erase_if(files, [&](const ViaDefinitionFile& file)
-                      { return std::find(settings.viaDefinitions.begin(), settings.viaDefinitions.end(), file.path) ==
-                               settings.viaDefinitions.end(); });
-
-        for (const std::string& path : settings.viaDefinitions)
-            if (std::none_of(files.begin(), files.end(), [&](const ViaDefinitionFile& file) { return file.path == path; }))
-                files.push_back(ReadViaDefinition(path));
     }
 
     // SDL may run a file dialog's callback on another thread, so the chosen paths wait
@@ -302,7 +371,7 @@ namespace
                                uint16_t                                vendorId,
                                uint16_t                                productId,
                                std::optional<nazg::KeyboardDefinition> viaDefinition,
-                               std::string                             viaDefinitionPath,
+                               std::string                             viaDefinitionSource,
                                const ViaBundle&                        bundle,
                                BoardState&                             state)
     {
@@ -324,13 +393,13 @@ namespace
             if (co_await protocol.Detect())
             {
                 state.keyboard = co_await nazg::LoadVialKeyboard(protocol);
-                source         = "the board (Vial)";
+                source         = "from the board (Vial)";
             }
             else
             {
-                source = viaDefinitionPath;
+                source = viaDefinitionSource;
 
-                // A file the user loaded wins over VIA's own, as VIA's side-loading does.
+                // A user definition wins over the official one, as VIA's side-loading does.
                 // The bundle needs the protocol to choose V2 or V3. It is inflated here, on
                 // the main thread: ~40 ms once per open on a fast desktop, while "loading"
                 // is showing anyway.
@@ -340,7 +409,7 @@ namespace
                     if (const auto bytes = nazg::FindViaDefinition(bundle.bytes, vendorId, productId, viaProtocol))
                     {
                         viaDefinition = nazg::ParseDefinition(*bytes);
-                        source        = "VIA's official definitions";
+                        source        = "official, from VIA";
                     }
                 }
 
@@ -348,8 +417,9 @@ namespace
                 {
                     char ids[16];
                     std::snprintf(ids, sizeof(ids), "%04X:%04X", vendorId, productId);
-                    throw std::runtime_error(std::string("not a Vial board, VIA has no definition for ") + ids +
-                                             ", and none is loaded -- use \"Load VIA definition...\"");
+                    throw std::runtime_error(std::string("not a Vial board, and there is neither an official nor a "
+                                                         "user definition for ") +
+                                             ids + " -- use \"Import VIA definition...\"");
                 }
 
                 state.keyboard = co_await nazg::LoadViaKeyboard(protocol, std::move(*viaDefinition));
@@ -522,8 +592,8 @@ int main(int, char**)
     nazg::Task<void> loadTask;
     nazg::Task<void> editTask;
 
-    std::vector<ViaDefinitionFile> viaFiles;
-    PendingDialogPaths             pendingPaths;   // must outlive any open dialog: main() scope
+    Library            library = OpenLibrary();
+    PendingDialogPaths pendingPaths;   // must outlive any open dialog: main() scope
 
     const ImVec4 clearColor = ImVec4(0.09f, 0.09f, 0.11f, 1.0f);
     bool showDemoWindow = false;
@@ -546,22 +616,25 @@ int main(int, char**)
         // for as long as the window stays minimized.
         transport.Pump();
 
-        // Paths picked in the file dialog since last frame, then the parsed list brought in
-        // line with the saved one.
+        // Files picked in the import dialog since last frame go into the library.
         {
-            const std::lock_guard<std::mutex> lock(pendingPaths.mutex);
-            for (std::string& path : pendingPaths.paths)
+            std::vector<std::string> picked;
             {
-                if (std::find(settings.viaDefinitions.begin(), settings.viaDefinitions.end(), path) ==
-                    settings.viaDefinitions.end())
-                {
-                    settings.viaDefinitions.push_back(std::move(path));
-                    ImGui::MarkIniSettingsDirty();
-                }
+                const std::lock_guard<std::mutex> lock(pendingPaths.mutex);
+                picked.swap(pendingPaths.paths);
             }
-            pendingPaths.paths.clear();
+            if (!picked.empty() && library.library)
+                ImportDefinitions(library, picked);
         }
-        SyncViaDefinitions(settings, viaFiles);
+
+        // Paths an earlier build remembered in imgui.ini, which ImGui reads during the first
+        // frame: imported once, then dropped from the settings. Kept if there is no library.
+        if (!settings.legacyViaDefinitions.empty() && library.library)
+        {
+            ImportDefinitions(library, settings.legacyViaDefinitions);
+            settings.legacyViaDefinitions.clear();
+            ImGui::MarkIniSettingsDirty();
+        }
 
         if ((SDL_GetWindowFlags(pWindow) & SDL_WINDOW_MINIMIZED) != 0)
         {
@@ -613,43 +686,74 @@ int main(int, char**)
             if (!deviceListState.error.empty())
                 ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", deviceListState.error.c_str());
 
-            // TEMPORARY definition sourcing: files the user picks, remembered in imgui.ini.
+            // First draft of the definitions' UI, like the rest of this window.
             ImGui::SameLine();
-            if (ImGui::Button("Load VIA definition..."))
+            ImGui::BeginDisabled(!library.library);
+            if (ImGui::Button("Import VIA definition..."))
             {
                 // Static: SDL may read the filters until the dialog closes.
                 static const SDL_DialogFileFilter c_Filters[] = { { "VIA definition", "json" } };
                 SDL_ShowOpenFileDialog(OnViaDefinitionChosen, &pendingPaths, pWindow, c_Filters, 1, nullptr, true);
             }
+            ImGui::EndDisabled();
+            ImGui::SetItemTooltip("Add a user definition: the .json file that describes your keyboard,\n"
+                                  "often named via.json, from its vendor or designer.");
 
             if (viaBundle.bytes.empty())
-                ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.3f, 1.0f), "VIA's official definitions: not found");
+                ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.3f, 1.0f), "Official definitions: not found");
+            else if (viaBundle.manifest)
+                ImGui::Text("Official definitions: %d, from VIA", viaBundle.manifest->v2 + viaBundle.manifest->v3);
             else
-                ImGui::Text("VIA's official definitions: %.1f KB", viaBundle.bytes.size() / 1024.0);
+                ImGui::TextUnformatted("Official definitions: from VIA");
             if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("%s", viaBundle.path.c_str());
-
-            // Removing only edits the saved list; SyncViaDefinitions drops the file next frame,
-            // so viaFiles is never changed while this loop walks it.
-            for (const ViaDefinitionFile& file : viaFiles)
             {
-                ImGui::PushID(file.path.c_str());
-                if (ImGui::SmallButton("Remove"))
-                {
-                    std::erase(settings.viaDefinitions, file.path);
-                    ImGui::MarkIniSettingsDirty();
-                }
-                ImGui::PopID();
-
-                ImGui::SameLine();
-                if (file.definition)
-                    ImGui::Text("%04X:%04X  %s", file.definition->vendorId, file.definition->productId,
-                                file.definition->name.c_str());
+                if (viaBundle.manifest)
+                    ImGui::SetTooltip("%s\nthe-via/keyboards at %s", viaBundle.path.c_str(),
+                                      viaBundle.manifest->commit.c_str());
                 else
-                    ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", file.error.c_str());
+                    ImGui::SetTooltip("%s", viaBundle.path.c_str());
+            }
 
+            if (!library.library)
+            {
+                ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "User definitions are unavailable: %s",
+                                   library.error.c_str());
+            }
+            else
+            {
+                ImGui::Text("User definitions: %zu", library.library->Entries().size());
                 if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip("%s", file.path.c_str());
+                    ImGui::SetTooltip("%s", Utf8FromPath(library.library->Folder()).c_str());
+
+                // Removed after the loop, so the list is never changed while it is walked.
+                std::optional<uint32_t> removal;
+                for (const nazg::LibraryEntry& entry : library.library->Entries())
+                {
+                    ImGui::PushID(static_cast<int>(entry.id));
+                    if (ImGui::SmallButton("Remove"))
+                        removal = entry.id;
+                    ImGui::PopID();
+
+                    ImGui::SameLine();
+                    ImGui::Text("%04X:%04X  %s", entry.vendorId, entry.productId, entry.name.c_str());
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip("imported from %s\non %s", entry.origin.c_str(), entry.added.c_str());
+                }
+
+                if (removal)
+                {
+                    try
+                    {
+                        library.library->Remove(*removal);
+                    }
+                    catch (const std::exception& failure)
+                    {
+                        library.messages = { std::string("not removed: ") + failure.what() };
+                    }
+                }
+
+                for (const std::string& message : library.messages)
+                    ImGui::TextDisabled("%s", message.c_str());
             }
 
             ImGui::Separator();
@@ -685,21 +789,34 @@ int main(int, char**)
                         ImGui::BeginDisabled(isLoadBusy);
                         if (ImGui::SmallButton("Open"))
                         {
-                            // The first loaded definition whose ids match; unused on a Vial board.
+                            // The first of the user's definitions for these ids, read and
+                            // parsed now -- a few KB; unused on a Vial board.
                             std::optional<nazg::KeyboardDefinition> viaDefinition;
-                            std::string                             viaDefinitionPath;
-                            for (const ViaDefinitionFile& file : viaFiles)
-                                if (file.definition && file.definition->vendorId == device.vendorId &&
-                                    file.definition->productId == device.productId)
-                                {
-                                    viaDefinition     = file.definition;
-                                    viaDefinitionPath = file.path;
-                                    break;
-                                }
+                            std::string                             viaDefinitionSource;
+                            std::string                             libraryError;
 
-                            loadTask = LoadBoard(transport, device.path, device.vendorId, device.productId,
-                                                 std::move(viaDefinition), std::move(viaDefinitionPath), viaBundle,
-                                                 boardState);
+                            const nazg::LibraryEntry* entry =
+                                library.library ? library.library->Find(device.vendorId, device.productId) : nullptr;
+                            if (entry != nullptr)
+                            {
+                                try
+                                {
+                                    viaDefinition       = nazg::ParseDefinition(library.library->Read(*entry));
+                                    viaDefinitionSource = "user -- " + entry->name + ", imported from " + entry->origin;
+                                }
+                                catch (const std::exception& failure)
+                                {
+                                    libraryError = std::string("the user definition for this board is unreadable: ") +
+                                                   failure.what();
+                                }
+                            }
+
+                            if (libraryError.empty())
+                                loadTask = LoadBoard(transport, device.path, device.vendorId, device.productId,
+                                                     std::move(viaDefinition), std::move(viaDefinitionSource),
+                                                     viaBundle, boardState);
+                            else
+                                boardState.error = libraryError;
                         }
                         ImGui::EndDisabled();
                         ImGui::PopID();
@@ -749,7 +866,7 @@ int main(int, char**)
                 ImGui::Text("%s -- QMK keycodes %s", keyboard.Name().c_str(),
                             nazg::QmkKeycodeVersionName(keyboard.keycodeVersion));
                 if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip("Definition from %s", boardState.definitionSource.c_str());
+                    ImGui::SetTooltip("Definition: %s", boardState.definitionSource.c_str());
 
                 ImGui::SameLine();
                 ImGui::SetNextItemWidth(ImGui::GetFontSize() * 14.0f);

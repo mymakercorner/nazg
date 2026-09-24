@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <cstring>
 
+#include <nlohmann/json.hpp>
+
 #include "adapters/NazgXz.h"
 #include "adapters/via/NazgViaProtocol.h"   // ProtocolError
 
@@ -164,6 +166,24 @@ namespace nazg
         });
 
         return found;
+    }
+
+    std::optional<ViaBundleManifest> ReadViaBundleManifest(const std::vector<uint8_t>& bundle)
+    {
+        const std::vector<uint8_t> tar  = DecompressXz(bundle, c_MaxBundleSize, "the bundle");
+        const auto                 file = ExtractTarFile(tar, "manifest.json");
+        if (!file)
+            return std::nullopt;
+
+        const nlohmann::json document = nlohmann::json::parse(file->begin(), file->end(), nullptr, false);
+        if (!document.is_object())
+            return std::nullopt;
+
+        ViaBundleManifest manifest;
+        manifest.commit = document.value("commit", std::string());
+        manifest.v2     = document.value("v2", 0);
+        manifest.v3     = document.value("v3", 0);
+        return manifest;
     }
 
     std::optional<std::vector<uint8_t>> FindViaDefinition(const std::vector<uint8_t>& bundle,

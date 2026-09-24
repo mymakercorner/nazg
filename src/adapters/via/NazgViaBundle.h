@@ -45,6 +45,18 @@ namespace nazg
     [[nodiscard]] std::optional<std::vector<uint8_t>> ExtractTarFile(const std::vector<uint8_t>& tar,
                                                                      const std::string&          path);
 
+    // What tools/update_via_bundle.py records in the bundle's manifest.json.
+    struct ViaBundleManifest
+    {
+        std::string commit;   // of github.com/the-via/keyboards
+        int         v2 = 0;   // how many definitions of each version
+        int         v3 = 0;
+    };
+
+    // The bundle's manifest; nullopt when it has none or cannot read it. Inflates the whole
+    // bundle, like a lookup. Throws ProtocolError if the bundle itself is corrupt.
+    [[nodiscard]] std::optional<ViaBundleManifest> ReadViaBundleManifest(const std::vector<uint8_t>& bundle);
+
     // A board's definition out of the bundle's bytes; nullopt when VIA has none for it.
     // Throws ProtocolError if the bundle itself is corrupt.
     [[nodiscard]] std::optional<std::vector<uint8_t>> FindViaDefinition(const std::vector<uint8_t>& bundle,

@@ -109,6 +109,7 @@ namespace
         Check(v2.has_value() && ParseDefinition(*v2).vendorId == 0x4D65, "a protocol 10 board gets the V2 file");
 
         Check(!FindViaDefinition(bundle, 0x1209, 0x4704, 12).has_value(), "a board VIA does not know gets nothing");
+        Check(!nazg::ReadViaBundleManifest(bundle).has_value(), "a bundle without a manifest has none to read");
 
         std::vector<uint8_t> damaged = bundle;
         damaged.resize(damaged.size() / 2);
