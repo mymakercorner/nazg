@@ -811,12 +811,29 @@ HTTP cache handles it. Web-only limits:
   a lookup taking 41 ms on Rico's desktop); then wiring (`SDL_GetBasePath()` in `Main.cpp`,
   bundle used when no remembered file — **done 2026-09-24**, verified on Rico's Phoenix
   Project No 1, which is in VIA's registry; the bundle is still placed beside the executable
-  by hand, and inflated on the main thread, which a background decode could fix later). Still
-  to decide: **how the bundle is produced** —
-  Rico, 2026-09-24: the no-generator rule is about tools used rarely; fetching VIA's
-  definitions, and converting them if wanted, will be done regularly and may well deserve a
-  tool, to be designed; V3 only at first, V2 when a board needs it — the reader handles both;
-  and a board in VIA's registry to verify on, since neither dogfood board is.
+  by hand, and inflated on the main thread, which a background decode could fix later).
+- **Agreed 2026-09-24 — how the bundle is produced.** The no-generator rule is about tools used
+  rarely (Rico); refreshing VIA's definitions is a regular job, so it has one:
+  `tools/update_via_bundle.py`, **Python, standard library only** — `urllib`, `tarfile`,
+  `lzma` (single-block XZ, which minlzma needs), `json` — so it runs as is on a developer's
+  machine or a GitHub Actions runner.
+  - **Source: the GitHub repository, not usevia.app** — a commit to pin, one tarball to
+    download, GPL data rather than a web app's hosting. **No conversion**: the source files go
+    in byte for byte, since Nazg's KLE parser draws every board as VIA's conversion does. The
+    source form is also smaller: **3513 definitions in 284.5 KB**, against 386 KB converted.
+  - **The bundle is not committed; the commit is.** `resources/via-keyboards.commit` pins
+    `the-via/keyboards` (first at `9e3e9f4`, the commit the registry sweep verified). The tool
+    downloads that commit's tarball once — `codeload.github.com`, checked against the commit
+    id `git archive` writes in the tar's pax header, so no GitHub API call and no rate limit —
+    and writes `build_resources/via_definitions.tar.xz`, byte-reproducible: sorted names,
+    fixed metadata, a `manifest.json` naming the commit. `--update` moves the pin to `master`
+    and lists the boards added, removed and changed; `--from-dir` reads a local clone.
+  - **V2 included** (Rico): 1484 V2 definitions beside the 2029 V3 ones.
+  - **Run by hand** once per checkout (Rico's option (a)); the build copies the bundle beside
+    the executable when it exists (`tools/CopyIfPresent.cmake`), releases ship it, and
+    `via_bundle_contents` parses every definition in it — all 3513 pass — skipping when there
+    is none.
+- The board in VIA's registry to verify on is Rico's Phoenix Project No 1 (`0x21C0:0x9901`).
 - **Proposed, backed by measurement**: the bundle as one solid `.xz` of a tar, decoded per
   connect; the data directory from `SDL_GetPrefPath` in `Main.cpp`, handed down as a path.
 - **Proposed**: choices keyed on VID:PID plus the HID strings, device version and serial, in

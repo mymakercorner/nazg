@@ -82,22 +82,20 @@ angle and origin match VIA's for all of them. No rotated board is at hand, so it
 in the app with the Aquanaut and a copy of its `via.json` with the bottom row turned 6°:
 drawing, hover and editing a tilted key all work.
 
-The official VIA definitions will ship as one solid `.xz` of a tar (0.4 MB for all of VIA's
-boards). Its reader is `adapters/via/NazgViaBundle.*`: it inflates the whole bundle, takes
-one board's file by VID:PID and protocol, and keeps nothing -- 41 ms on a fast desktop,
-every file byte-identical against the real 3513-file bundle. XZ decoding is shared with
-Vial's definitions in `adapters/NazgXz.*`. `Main.cpp` reads `via_definitions.tar.xz` from
-beside the executable at start and, when no loaded file matches a VIA board, takes its
+VIA's official definitions ship as one solid `.xz` of a tar -- 0.3 MB for all 3513 V2 and V3
+definitions, the source files of `the-via/keyboards` at a pinned commit -- built by
+`tools/update_via_bundle.py` (see "Build tooling" above). Its reader is
+`adapters/via/NazgViaBundle.*`: it inflates the whole bundle, takes one board's file by
+VID:PID and protocol, and keeps nothing -- ~40 ms on a fast desktop. XZ decoding is shared
+with Vial's definitions in `adapters/NazgXz.*`. `Main.cpp` reads `via_definitions.tar.xz`
+from beside the executable at start and, when no loaded file matches a VIA board, takes its
 definition from it; hovering the board's name says where the definition came from. Verified
-2026-09-24 on Rico's **Phoenix Project No 1** (`0x21C0:0x9901`, in VIA's registry): drawn from
-VIA's converted V3 file, layout options and key edits working. **The bundle is not in the repo
-yet** -- a copy of the one built for the size measurements is placed beside the executables by
-hand -- and it is inflated on the main thread, ~40 ms once per open in Release.
+2026-09-24 on Rico's **Phoenix Project No 1** (`0x21C0:0x9901`, in VIA's registry) with a
+bundle of VIA's converted files, then again with the source-form bundle; every definition of it parses in the
+`via_bundle_contents` test. The inflate runs on the main thread, ~40 ms once per open.
 
-Next: produce the bundle (a tool is acceptable, since this is a regular job -- to be designed)
-and have the build install it, per
-[docs/research_material/via-registry.md](docs/research_material/via-registry.md),
-"Decisions to take".
+Next: open -- the user definition library (via-registry.md, "Storage"), layout options
+editing, or step 5 (custom features).
 
 # Prior research — read before re-researching anything
 
@@ -169,7 +167,17 @@ one-file change. Keep it that way.
 Generate with `GenerateBuildForVS2022.bat`, which writes to `build_VS2022/`.
 **One script and one build directory per toolchain** — to add an IDE or platform, add a
 sibling `GenerateBuildFor<name>` script targeting its own `build_<name>/` directory, so they
-coexist without clobbering each other. `.gitignore` covers `build*/`. Ninja and VS2026 were both evaluated on
+coexist without clobbering each other. `.gitignore` covers `build*/`.
+
+**VIA's official definitions are built, not committed**: run
+`python tools/update_via_bundle.py` once per checkout (Python 3.8+, standard library only;
+it downloads the pinned commit of `the-via/keyboards` once and caches it). It writes
+`build_resources/via_definitions.tar.xz`, shared by every toolchain; the build copies it beside
+the executable, and the `via_bundle_contents` test parses every definition in it -- skipped
+when it is absent. The pin is `resources/via-keyboards.commit`; `--update` moves it to
+`master` and lists what changed, `--from-dir <clone>` works offline. Releases ship the bundle.
+
+Ninja and VS2026 were both evaluated on
 2026-09-21 and **deliberately deferred** — nothing in the project needs the v145 toolset, and
 the current setup is verified working. Revisit later if desired; no known blockers (the
 dependency tree looks CMake 4 clean, and VS CMake folder mode keeps full IDE debugging).
@@ -198,7 +206,9 @@ but it means code cannot be moved between Nazg and the older Leyden Jar tool unc
 2. **Keycode dictionary** — turning `0x002A` into `KC_BSPC` and back. Version-keyed: QMK's
    keycode spec has nine versions and both values and names move between them. The tables
    are plain committed C++ source derived from QMK's keycode JSON — **no generator in the
-   repo**; when QMK adds a version, regenerate them by hand. **Both dogfood boards are
+   repo**; when QMK adds a version, regenerate them by hand. That rule is about tools run
+   rarely: a regular job gets a tool, as the VIA definitions bundle does
+   (`tools/update_via_bundle.py`). **Both dogfood boards are
    post-renumbering** — the Model F reports VIA 9 only because vial-qmk hard-codes it, so a
    Vial board's dictionary comes from its Vial protocol, never its VIA one. The keymap holds
    a structured `Keycode`, not a `uint16_t`; the per-version codec sits below the protocol

@@ -155,6 +155,16 @@ target_include_directories(nazg PRIVATE
 # arrive through nazg_core, which links them PUBLIC.
 target_link_libraries(nazg PRIVATE nazg_core)
 
+# VIA's official definitions, when tools/update_via_bundle.py has built them: copied beside
+# the executable after every build, where Main.cpp looks. Not in the repository -- the
+# pinned commit is (resources/via-keyboards.commit) -- so a build without it still works,
+# and the app says the definitions were not found.
+set(NAZG_VIA_BUNDLE ${CMAKE_CURRENT_SOURCE_DIR}/build_resources/via_definitions.tar.xz)
+add_custom_command(TARGET nazg POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -DSOURCE=${NAZG_VIA_BUNDLE} -DDESTINATION=$<TARGET_FILE_DIR:nazg>
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/tools/CopyIfPresent.cmake
+    VERBATIM)
+
 # --- Tests --------------------------------------------------------------------------
 # CTest, not a test framework: CMake ships it, so there is no submodule and no
 # framework choice locked in. Run with:
@@ -167,7 +177,7 @@ if(NAZG_BUILD_TESTS)
 
     # One executable per area, each linking nazg_core. tests/TestSupport.h holds the
     # pass/fail counter and the MSVC assert plumbing they share -- that is all the
-    # scaffolding there is.
+    # scaffolding there is. Arguments after the source file go to the test's command line.
     function(nazg_add_test testName sourceFile)
         set(targetName nazg_${testName}_test)
 
@@ -176,7 +186,7 @@ if(NAZG_BUILD_TESTS)
         target_link_libraries(${targetName} PRIVATE nazg_core)
         set_property(TARGET ${targetName} PROPERTY FOLDER tests)
 
-        add_test(NAME ${testName} COMMAND ${targetName})
+        add_test(NAME ${testName} COMMAND ${targetName} ${ARGN})
     endfunction()
 
     nazg_add_test(task               tests/TaskTest.cpp)
@@ -192,6 +202,11 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(keycap_legend      tests/KeycapLegendTest.cpp)
     nazg_add_test(via_loader         tests/ViaLoaderTest.cpp)
     nazg_add_test(via_bundle         tests/ViaBundleTest.cpp)
+
+    # The real bundle, every definition through the parser -- skipped when it has not been
+    # built, so a fresh clone passes without Python or a network.
+    nazg_add_test(via_bundle_contents tests/ViaBundleContentsTest.cpp ${NAZG_VIA_BUNDLE})
+    set_tests_properties(via_bundle_contents PROPERTIES SKIP_RETURN_CODE 77)
 endif()
 
 # Make nazg the solution's startup project so F5 runs the app, not ALL_BUILD.

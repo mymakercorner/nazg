@@ -212,9 +212,10 @@ namespace
         return file;
     }
 
-    // VIA's official definitions, beside the executable: read once at start -- 0.4 MB -- and
-    // inflated only when a board needs one (adapters/via/NazgViaBundle.h). TEMPORARY in
-    // where it comes from: the file is only looked for there, nothing installs it yet.
+    // VIA's official definitions, beside the executable: read once at start -- 0.3 MB -- and
+    // inflated only when a board needs one (adapters/via/NazgViaBundle.h). Built by
+    // tools/update_via_bundle.py, copied there by the build, shipped with releases; a
+    // checkout that never ran the tool has none, and VIA boards then need a loaded file.
     constexpr char c_ViaBundleName[] = "via_definitions.tar.xz";
 
     struct ViaBundle

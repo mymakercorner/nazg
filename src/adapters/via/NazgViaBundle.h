@@ -3,10 +3,12 @@
 //
 // VIA's official definitions, bundled with Nazg.
 //
-// The bundle is one solid XZ stream of a tar holding VIA's built output, as usevia.app
-// serves it: v3/<id>.json and v2/<id>.json in the converted form, plus the index files.
-// 0.4 MB for all of VIA's boards. See docs/research_material/via-registry.md, "Official
-// VIA definitions: bundle, refresh on request" and "Decoding it".
+// The bundle is one solid XZ stream of a tar holding v3/<id>.json and v2/<id>.json and a
+// manifest.json. tools/update_via_bundle.py builds it from github.com/the-via/keyboards
+// at the commit pinned in resources/via-keyboards.commit, the files as the repository has
+// them -- the source form; a bundle of VIA's converted files reads the same. 0.3 MB for all
+// of VIA's boards. See docs/research_material/via-registry.md, "Official VIA definitions:
+// bundle, refresh on request" and "Decoding it".
 //
 // Nothing is kept: a lookup inflates the whole bundle -- 35 MB, 37 ms on a fast desktop
 // and a few hundred on a slow laptop -- copies out one file and frees the rest. Once per
@@ -17,7 +19,9 @@
 
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <string>
 #include <vector>
@@ -29,10 +33,15 @@ namespace nazg
     // (devicesThunks.ts).
     [[nodiscard]] std::string ViaDefinitionPath(uint16_t vendorId, uint16_t productId, uint16_t viaProtocol);
 
+    // Walks the regular files of an uncompressed ustar archive in order, handing each
+    // one's path and bytes to `visit` until it returns false. A leading "./" on a name is
+    // dropped. Throws ProtocolError on a malformed archive -- a bad header checksum, a
+    // size that runs past the end.
+    void ForEachTarFile(const std::vector<uint8_t>&                                       tar,
+                        const std::function<bool(const std::string&, const uint8_t*, size_t)>& visit);
+
     // One regular file out of an uncompressed ustar archive, by its path; nullopt when the
-    // archive has none. A leading "./" on the archive's names is ignored. Throws
-    // ProtocolError on a malformed archive -- a bad header checksum, a size that runs
-    // past the end.
+    // archive has none. Throws as ForEachTarFile() does.
     [[nodiscard]] std::optional<std::vector<uint8_t>> ExtractTarFile(const std::vector<uint8_t>& tar,
                                                                      const std::string&          path);
 

@@ -104,10 +104,9 @@ namespace nazg
         return std::string(viaProtocol >= 11 ? "v3/" : "v2/") + std::to_string(id) + ".json";
     }
 
-    std::optional<std::vector<uint8_t>> ExtractTarFile(const std::vector<uint8_t>& tar, const std::string& path)
+    void ForEachTarFile(const std::vector<uint8_t>&                                        tar,
+                        const std::function<bool(const std::string&, const uint8_t*, size_t)>& visit)
     {
-        const std::string wanted = WithoutDotSlash(path);
-
         size_t offset = 0;
         while (offset + c_Block <= tar.size())
         {
@@ -115,7 +114,7 @@ namespace nazg
 
             // The archive ends with zero blocks.
             if (IsZeroBlock(header))
-                return std::nullopt;
+                return;
 
             if (std::memcmp(header + c_MagicOffset, "ustar", 5) != 0)
                 throw ProtocolError("the bundle is not a ustar archive");
@@ -139,19 +138,32 @@ namespace nazg
                 const std::string name   = ReadField(header, c_NameOffset, c_NameLength);
                 const std::string full   = WithoutDotSlash(prefix.empty() ? name : prefix + "/" + name);
 
-                if (full == wanted)
-                    return std::vector<uint8_t>(tar.begin() + static_cast<std::ptrdiff_t>(dataOffset),
-                                                tar.begin() + static_cast<std::ptrdiff_t>(dataOffset + size));
+                if (!visit(full, tar.data() + dataOffset, static_cast<size_t>(size)))
+                    return;
             }
 
             // The data is padded to whole blocks.
             const uint64_t padded = (size + c_Block - 1) / c_Block * c_Block;
             if (padded > tar.size() - dataOffset)
-                return std::nullopt;   // the last file's padding was cut: nothing follows it
+                return;   // the last file's padding was cut: nothing follows it
             offset = dataOffset + static_cast<size_t>(padded);
         }
+    }
 
-        return std::nullopt;
+    std::optional<std::vector<uint8_t>> ExtractTarFile(const std::vector<uint8_t>& tar, const std::string& path)
+    {
+        const std::string                   wanted = WithoutDotSlash(path);
+        std::optional<std::vector<uint8_t>> found;
+
+        ForEachTarFile(tar, [&](const std::string& name, const uint8_t* data, size_t size)
+        {
+            if (name != wanted)
+                return true;
+            found.emplace(data, data + size);
+            return false;
+        });
+
+        return found;
     }
 
     std::optional<std::vector<uint8_t>> FindViaDefinition(const std::vector<uint8_t>& bundle,
