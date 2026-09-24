@@ -711,7 +711,9 @@ once. The index has no `choices` yet — adding them later needs no format chang
 meaning none. The layout below says `library.json` and `definitions/`; read those as
 `user_definitions/index.json` and `user_definitions/`.
 Still to come from this section: choices, linked entries, revisions with a backup,
-export/import, and `imgui.ini` moving here.
+export/import. `imgui.ini` moved here the same day: in the data folder, not the working
+directory, so every build and every way of starting Nazg shares one set of settings; an
+`imgui.ini` where Nazg starts is copied in the first time.
 
 **One layout for both builds**; only where it lives and how it persists differ, and that
 stays in `Main.cpp` with the rest of the platform code. The library code gets a folder path

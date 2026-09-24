@@ -221,12 +221,45 @@ namespace
         return text;
     }
 
+    // Nazg's data folder, the per-user one SDL picks and creates: %APPDATA%\mymakercorner\Nazg
+    // on Windows. It holds the settings (imgui.ini) and the user definitions, so every build
+    // and every working directory shares them. Nullopt, with SDL's reason, when there is none.
+    std::optional<std::filesystem::path> DataFolder(std::string& error)
+    {
+        char* prefPath = SDL_GetPrefPath("mymakercorner", "Nazg");
+        if (prefPath == nullptr)
+        {
+            error = std::string("no folder for Nazg's data: ") + SDL_GetError();
+            return std::nullopt;
+        }
+
+        const std::filesystem::path folder = PathFromUtf8(prefPath);
+        SDL_free(prefPath);
+        return folder;
+    }
+
+    // Where ImGui keeps its settings -- window layout and Nazg's own, see RegisterSettings().
+    // In the data folder; the first time, an imgui.ini where Nazg was started is copied there,
+    // which is where earlier builds kept it, so nothing is lost. The working directory's
+    // imgui.ini, the default, when there is no data folder.
+    std::string SettingsFile(const std::optional<std::filesystem::path>& dataFolder)
+    {
+        if (!dataFolder)
+            return "imgui.ini";
+
+        const std::filesystem::path settings = *dataFolder / "imgui.ini";
+
+        std::error_code ignored;
+        if (!std::filesystem::exists(settings, ignored) && std::filesystem::exists("imgui.ini", ignored))
+            std::filesystem::copy_file("imgui.ini", settings, ignored);
+
+        return Utf8FromPath(settings);
+    }
+
     // User definitions -- the ones the user imported, as opposed to the official ones in
-    // VIA's bundle -- in the per-user data folder SDL picks for Nazg: all of them in
-    // user_definitions\, index.json included, in %APPDATA%\mymakercorner\Nazg on Windows.
-    // See library/NazgDefinitionLibrary.h.
-    // A library that cannot be opened -- a damaged index, which it leaves untouched -- is
-    // reported and the app runs without one.
+    // VIA's bundle -- all in user_definitions\ of the data folder, index.json included. See
+    // library/NazgDefinitionLibrary.h. A library that cannot be opened -- a damaged index,
+    // which it leaves untouched -- is reported and the app runs without one.
     struct Library
     {
         std::optional<nazg::DefinitionLibrary> library;
@@ -234,22 +267,18 @@ namespace
         std::vector<std::string>               messages;   // what the last imports did
     };
 
-    Library OpenLibrary()
+    Library OpenLibrary(const std::optional<std::filesystem::path>& dataFolder, const std::string& dataFolderError)
     {
         Library result;
-
-        char* prefPath = SDL_GetPrefPath("mymakercorner", "Nazg");
-        if (prefPath == nullptr)
+        if (!dataFolder)
         {
-            result.error = std::string("no folder for Nazg's data: ") + SDL_GetError();
+            result.error = dataFolderError;
             return result;
         }
-        const std::filesystem::path folder = PathFromUtf8(prefPath);
-        SDL_free(prefPath);
 
         try
         {
-            result.library.emplace(folder);
+            result.library.emplace(*dataFolder);
         }
         catch (const std::exception& failure)
         {
@@ -551,11 +580,19 @@ int main(int, char**)
     const char* pGpuDriver = SDL_GetGPUDeviceDriver(pGpuDevice);
     SDL_Log("GPU backend: %s", pGpuDriver != nullptr ? pGpuDriver : "unknown");
 
+    // Settings and user definitions both live here. The settings path outlives the ImGui
+    // context -- declared before it -- since ImGui only keeps a pointer to it and writes the
+    // file one last time in DestroyContext().
+    std::string                                dataFolderError;
+    const std::optional<std::filesystem::path> dataFolder   = DataFolder(dataFolderError);
+    const std::string                          settingsFile = SettingsFile(dataFolder);
+
     // Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.IniFilename = settingsFile.c_str();
 
     // Before the first NewFrame(), which is when ImGui reads imgui.ini.
     AppSettings settings;
@@ -592,7 +629,7 @@ int main(int, char**)
     nazg::Task<void> loadTask;
     nazg::Task<void> editTask;
 
-    Library            library = OpenLibrary();
+    Library            library = OpenLibrary(dataFolder, dataFolderError);
     PendingDialogPaths pendingPaths;   // must outlive any open dialog: main() scope
 
     const ImVec4 clearColor = ImVec4(0.09f, 0.09f, 0.11f, 1.0f);
