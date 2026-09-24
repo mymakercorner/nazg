@@ -392,7 +392,8 @@ per-device choice should overriding an embedded definition ever be allowed.
 
 ## Proposed design — not decided
 
-*Written 2026-09-24 as a basis for discussion. Nothing here is agreed.*
+*Written 2026-09-24 as a basis for discussion. Only what is marked agreed has been agreed
+with Rico; the rest is proposed.*
 
 The aim is to make adding a definition, especially a user's own, fast. VIA's delay comes
 from **its policy, not its technology** — QMK master, then VIA's userspace, then a human
@@ -425,18 +426,77 @@ given; how, and the index beside it, are under "Storage" below.
 
 ### Sharing: three levels, cheapest first
 
-1. **By file or URL** — "Import from URL" (a GitHub raw link, a gist) and "Export". A
-   designer publishes the file with the firmware; users import it in one click. No
-   gatekeeper, no infrastructure.
-2. **A community repository** (say `mymakercorner/nazg-definitions`): PRs validated
-   automatically by CI running Nazg's own parser, no QMK-merged requirement, merged by rule
-   rather than by a person. Nazg reads it like the VIA snapshot. Workable, but it needs an
-   owner — moderation, bad-faith submissions, VID:PID squatting.
+**Who this is for.** Many commercial boards ship without official VIA support. The registry
+requires QMK master first, and getting a board merged there is long and tedious — rounds of
+review with QMK's maintainers — so vendors skip it: they build firmware from their own QMK
+tree and hand customers a `via.json` to side-load. Some GeonWorks boards with PCBs by
+Gondolindrim are examples. In VIA such a board stays second-class for good: "Load draft
+definition" sits behind a hidden Design tab, and the file lives in one browser's IndexedDB —
+gone with the site data, repeated on every other machine. These boards, and the 488 QMK
+keyboards on `0xFEED` VIA refuses, are what the levels below serve.
+
+1. **By file or URL — agreed with Rico 2026-09-24, first.** Import from a file (dropped on the
+   window too) or from a URL — vendors often publish on GitHub — and "Export". Imported once
+   into the library, matched by VID:PID on every connect. It already beats VIA for these
+   boards. Part of it, not extras:
+   - **An empty state that says what to do**: a board with no definition shows "This board
+     is not in VIA's registry. Your vendor probably provides a `via.json` — import it."
+     Most users do not know side-loading exists.
+   - **URL import**, which waits on HTTPS in C++ like the bundle refresh.
+2. **A community repository** (say `mymakercorner/nazg-definitions`), **no QMK-master
+   requirement**, anything that parses — boards VIA already serves included, since refusing
+   them would take a manual check. Shipped as a second `.xz` bundle beside the official one,
+   read by the same code; choices point at it as `community:...`. **Seeded by Rico first,
+   opened to vendors and designers later** — only once Nazg is visible enough for them to
+   care, which is far from certain. Seeding solves the cold start: an empty repository
+   attracts nobody, and a few dozen boards make Nazg useful to their owners from day one.
+   Files Rico did not write need three things from the start:
+   - **The right to redistribute.** A file already under an open licence — a `via.json` in a
+     vendor's public GPL QMK tree is GPL — goes in with its source recorded. Otherwise ask the
+     vendor ("may I include your `via.json`?"), which costs them far less than submitting
+     and is a first contact for later. Otherwise leave it out: a takedown dispute early on
+     costs more than one missing board.
+   - **A status: verified on hardware, or unverified** — from the vendor's published file,
+     Rico not owning the board. The picker shows it. Where the firmware source is public,
+     cross-check it: matrix size against its `keyboard.json`, layout keys inside the matrix
+     — mostly automatic, in the validator.
+   - **Provenance per file**: source URL, licence, commit or download date, who added it,
+     status. It makes re-checking after a vendor update, **handing a file over** to a vendor
+     who later maintains it, and removing one on request all straightforward.
+
+   First boards: commercial, with a published definition, **absent from VIA's registry**
+   (checked automatically against the `via-keyboards` clone), ideally with public firmware.
+   Few at first — each is Rico's to maintain until its vendor takes it over. Rico's own
+   boards are not candidates; most are not open source.
+
+   Merge rules for when it opens: a **new file** is merged automatically if it parses with
+   Nazg's parser, has a VID:PID and a name, stays under a size limit and is signed off (DCO,
+   as in Nazg — which also records the right to distribute). **A change to an existing file**
+   is merged automatically when it comes from the file's author, reviewed by hand otherwise —
+   the guard against squatting and hostile edits. Several definitions per VID:PID are
+   allowed; vendors' made-up VIDs will collide, and choices handle it. Someone still reverts
+   spam, settles "that is my VID" and keeps CI running — small, permanent work.
+
+   Order of work: the repository and its provenance format can start any time — they are
+   files. Nazg reading them needs a **command-line validator** (the CI, and useful on its own
+   to anyone writing a definition — a headless target reusing `NazgKeyboardDefinition`),
+   then the second bundle. Both after level 1.
 3. **The board carries its definition**, as on Vial — the only route with zero delay and zero
    collisions. For a VIA board that means firmware serving it, which is step 5's
-   device-served descriptors. The long-term answer for boards Rico designs.
+   device-served descriptors. **The commercial boards are its strongest case**: their vendors
+   already build their own firmware, so adding a module costs them far less than QMK master.
+   QMK's community modules may let it ship without forking QMK — to be checked.
 
-Proposed: level 1 now, level 3 as the long-term answer, level 2 only if users ask for it.
+**Trust.** A definition is data, but level 2 means parsing files written by strangers: the
+parser must hold up against hostile input (size limits, deep nesting, fuzzing). Today a
+definition only draws; with step 5's menus it will also describe values written to the board,
+still only when the user operates them.
+
+**Not planned: "Import from VIA".** VIA's desktop app keeps side-loaded definitions in its
+Chromium profile's IndexedDB (see "The native application"), so a one-click migration would
+suit exactly these users — but it means reading LevelDB holding values in V8's own
+serialization format, which Chromium does not keep stable. Re-importing the vendor's
+`via.json` is nearly as easy.
 
 ### Collisions and invalid files
 
@@ -601,7 +661,8 @@ HTTP cache handles it. Web-only limits:
 
 ### Decisions to take
 
-- Whether a community repository (level 2) is wanted at all, and who would run it.
+- **Agreed**: level 1 first. The community repository (level 2) is wanted, run and seeded
+  by Rico, opened to vendors later.
 - **Proposed, backed by measurement**: the bundle as one solid `.xz` of a tar, decoded per
   connect; the data directory from `SDL_GetPrefPath` in `Main.cpp`, handed down as a path.
 - **Proposed**: choices keyed on VID:PID plus the HID strings, device version and serial, in
@@ -611,6 +672,9 @@ HTTP cache handles it. Web-only limits:
 
 - How vial-gui and other third-party clients source VIA definitions, if they do.
 - HTTPS in C++ for the later refresh and import-from-URL: which library, and its cost.
+- QMK community modules: whether a board can serve its definition through one without a
+  QMK fork (level 3), and how mature they are.
+- The community repository's provenance format and validator checks, when it starts.
 - Whether SDL3 makes its pref path persistent in an Emscripten build, or `Main.cpp` must
   mount IDBFS itself.
 - Dynamic names: whether Nazg reads them (a custom-menu value read on connect), and whether
