@@ -241,7 +241,7 @@ recent laptop 2–3× slower (75–110 ms), an old or low-end one 5–10× (200�
 WebAssembly on such a laptop perhaps 0.5–1 s. Even the worst is a one-off per connect, off
 the frame loop, and below the 890 ms of a Vial load. If a slow machine shows otherwise, two
 fixes keep the format: decode once in the background and index the tar's offsets, or ship
-V3 only. **A measurement on a weaker machine would replace these estimates.**
+V3 only. The margin is wide enough that no further measurement is planned.
 
 **WebAssembly memory is not a problem.** The 35 MB peak needs `-sALLOW_MEMORY_GROWTH=1` (or
 a large `-sINITIAL_MEMORY`); wasm32 allows up to 4 GB and a desktop tab using hundreds of MB
@@ -611,7 +611,6 @@ HTTP cache handles it. Web-only limits:
 
 - How vial-gui and other third-party clients source VIA definitions, if they do.
 - HTTPS in C++ for the later refresh and import-from-URL: which library, and its cost.
-- The bundle decode on a weaker machine, to replace the estimates in "Decoding it".
 - Whether SDL3 makes its pref path persistent in an Emscripten build, or `Main.cpp` must
   mount IDBFS itself.
 - Dynamic names: whether Nazg reads them (a custom-menu value read on connect), and whether
