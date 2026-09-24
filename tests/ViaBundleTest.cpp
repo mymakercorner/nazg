@@ -26,7 +26,7 @@
 #include <vector>
 
 using nazg::ExtractTarFile;
-using nazg::FindViaDefinition;
+using nazg::ViaDefinitionBundle;
 using nazg::ParseDefinition;
 using nazg::ProtocolError;
 using nazg::ViaDefinitionPath;
@@ -99,22 +99,24 @@ namespace
     {
         std::printf("the bundle\n");
 
-        const std::vector<uint8_t> bundle = ViaBundleFixture();
+        const std::vector<uint8_t> bytes = ViaBundleFixture();
+        const ViaDefinitionBundle  bundle(bytes);
 
-        const auto v3 = FindViaDefinition(bundle, 0x4D65, 0x1200, 12);
+        const auto v3 = bundle.Find(0x4D65, 0x1200, 12);
         Check(v3.has_value() && *v3 == IsoMacroConverted(), "a V3 board gets its file byte for byte");
         Check(v3.has_value() && ParseDefinition(*v3).name == "ISO Macro", "and it parses");
 
-        const auto v2 = FindViaDefinition(bundle, 0x4D65, 0x1200, 10);
+        const auto v2 = bundle.Find(0x4D65, 0x1200, 10);
         Check(v2.has_value() && ParseDefinition(*v2).vendorId == 0x4D65, "a protocol 10 board gets the V2 file");
 
-        Check(!FindViaDefinition(bundle, 0x1209, 0x4704, 12).has_value(), "a board VIA does not know gets nothing");
-        Check(!nazg::ReadViaBundleManifest(bundle).has_value(), "a bundle without a manifest has none to read");
+        Check(!bundle.Find(0x1209, 0x4704, 12).has_value(), "a board VIA does not know gets nothing");
+        Check(!bundle.Manifest().has_value(), "a bundle without a manifest has none to read");
+        Check(bundle.Find(0x4D65, 0x1200, 12) == v3, "and a lookup can be repeated: the bundle is kept");
 
-        std::vector<uint8_t> damaged = bundle;
+        std::vector<uint8_t> damaged = bytes;
         damaged.resize(damaged.size() / 2);
-        Check(Throws([&] { (void)FindViaDefinition(damaged, 0x4D65, 0x1200, 12); }), "a truncated bundle is rejected");
-        Check(Throws([&] { (void)FindViaDefinition({}, 0x4D65, 0x1200, 12); }), "an empty bundle is rejected");
+        Check(Throws([&] { ViaDefinitionBundle broken(damaged); }), "a truncated bundle is rejected");
+        Check(Throws([&] { ViaDefinitionBundle broken(std::vector<uint8_t>{}); }), "an empty bundle is rejected");
     }
 
     void TestTarReader()

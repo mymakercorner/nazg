@@ -8,8 +8,8 @@
 // without Python or a network. When it is there, a refresh of the pin that brings in a
 // definition Nazg cannot read fails here, not on a user's board.
 //
-// Every file is checked for what a lookup relies on: it parses, and the VID:PID inside it
-// is the one its name says.
+// Every file is checked for what a lookup relies on: it parses, the VID:PID inside it is
+// the one its name says, and ViaDefinitionBundle::Find() returns it for those ids.
 //
 // Registered with CTest:  ctest --test-dir build_VS2022 -C Debug --output-on-failure
 
@@ -48,7 +48,8 @@ int main(int argc, char** argv)
 
     std::printf("the bundle at %s\n", path.string().c_str());
 
-    const std::vector<uint8_t> tar = nazg::DecompressXz(bundle, 256u * 1024u * 1024u, "the bundle");
+    const std::vector<uint8_t>      tar = nazg::DecompressXz(bundle, 256u * 1024u * 1024u, "the bundle");
+    const nazg::ViaDefinitionBundle kept(bundle);
 
     int                      parsed[2] = { 0, 0 };   // V2, V3
     std::vector<std::string> failures;
@@ -71,8 +72,14 @@ int main(int argc, char** argv)
         {
             const nazg::KeyboardDefinition definition = nazg::ParseDefinition(bytes);
             const uint32_t id = (static_cast<uint32_t>(definition.vendorId) << 16) | definition.productId;
+            // What a board with these ids gets from the kept bundle, at a protocol that
+            // picks this file's version.
+            const auto found = kept.Find(definition.vendorId, definition.productId, isV3 ? 12 : 10);
+
             if (name.substr(3) != std::to_string(id) + ".json")
                 failures.push_back(name + ": holds " + std::to_string(id));
+            else if (found != bytes)
+                failures.push_back(name + ": not what a lookup of its ids returns");
             else
                 ++parsed[isV3 ? 1 : 0];
         }
@@ -86,10 +93,10 @@ int main(int argc, char** argv)
     for (const std::string& failure : failures)
         std::printf("  %s\n", failure.c_str());
 
-    const auto manifest = nazg::ReadViaBundleManifest(bundle);
+    const auto& manifest = kept.Manifest();
 
     std::printf("  %d V3 and %d V2 definitions\n", parsed[1], parsed[0]);
-    Check(failures.empty(), "every definition parses, under the id its name says");
+    Check(failures.empty(), "every definition parses, under the id its name says, and a lookup finds it");
     Check(manifest && parsed[1] == manifest->v3 && parsed[0] == manifest->v2, "and the manifest counts them all");
     Check(manifest && manifest->commit.size() == 40, "and names the commit they come from");
     Check(parsed[1] > 0, "the bundle is not empty");

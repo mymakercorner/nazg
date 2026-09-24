@@ -10,9 +10,10 @@
 // of VIA's boards. See docs/research_material/via-registry.md, "Official VIA definitions:
 // bundle, refresh on request" and "Decoding it".
 //
-// Nothing is kept: a lookup inflates the whole bundle -- 35 MB, 37 ms on a fast desktop
-// and a few hundred on a slow laptop -- copies out one file and frees the rest. Once per
-// board connect, off the frame loop, that costs less than keeping it.
+// It is inflated once and kept: 28 MB for all of VIA's boards (2026-09-24), every file
+// indexed by its path, so a board's definition is a lookup rather than an inflate on each
+// open. Reading the manifest at start costs that inflate anyway -- ~40 ms on a fast
+// desktop -- and 28 MB is no burden on a desktop or in a browser tab.
 //
 // What comes back is the definition's bytes, for ParseDefinition(); a bundle that has no
 // file for a board is an ordinary answer, not an error.
@@ -24,6 +25,7 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace nazg
@@ -53,14 +55,30 @@ namespace nazg
         int         v3 = 0;
     };
 
-    // The bundle's manifest; nullopt when it has none or cannot read it. Inflates the whole
-    // bundle, like a lookup. Throws ProtocolError if the bundle itself is corrupt.
-    [[nodiscard]] std::optional<ViaBundleManifest> ReadViaBundleManifest(const std::vector<uint8_t>& bundle);
+    class ViaDefinitionBundle
+    {
+    public:
+        // Inflates the bundle's bytes and indexes every file in it. Throws ProtocolError if
+        // the bundle is corrupt.
+        explicit ViaDefinitionBundle(const std::vector<uint8_t>& bundle);
 
-    // A board's definition out of the bundle's bytes; nullopt when VIA has none for it.
-    // Throws ProtocolError if the bundle itself is corrupt.
-    [[nodiscard]] std::optional<std::vector<uint8_t>> FindViaDefinition(const std::vector<uint8_t>& bundle,
-                                                                        uint16_t                    vendorId,
-                                                                        uint16_t                    productId,
-                                                                        uint16_t                    viaProtocol);
+        // A board's definition; nullopt when VIA has none for it.
+        [[nodiscard]] std::optional<std::vector<uint8_t>> Find(uint16_t vendorId, uint16_t productId,
+                                                               uint16_t viaProtocol) const;
+
+        // What manifest.json says; nullopt for a bundle without one, or with one that
+        // does not read.
+        [[nodiscard]] const std::optional<ViaBundleManifest>& Manifest() const noexcept { return m_Manifest; }
+
+    private:
+        struct Span
+        {
+            size_t offset = 0;
+            size_t size   = 0;
+        };
+
+        std::vector<uint8_t>                  m_Tar;     // the whole bundle, inflated
+        std::unordered_map<std::string, Span> m_Files;   // path -> where it is in m_Tar
+        std::optional<ViaBundleManifest>      m_Manifest;
+    };
 }

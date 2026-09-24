@@ -363,19 +363,23 @@ All three layouts:
   these numbers are too.
 - **One solid `.xz` is the format.** Splitting doubles the size or worse to save tens of
   milliseconds.
-- **Decode on demand, keep nothing.** When a board connects, decode the bundle off the frame
-  loop, take its file(s), free the buffer. **No disk cache** — there is nothing worth
-  caching, and so no invalidation to get wrong.
+- **Decode once at start and keep it** — revised 2026-09-24, Rico. The first version decoded
+  on every board open and kept nothing; but reading the manifest's count at start already
+  paid for one decode, and the result — **28 MB** for the source-form bundle, 25.3 MB of
+  definitions plus tar padding — is no burden on a desktop or in a browser tab. So
+  `ViaDefinitionBundle` decodes once, indexes every file by path, and opening a board is a
+  lookup plus a parse. **No disk cache** — there is nothing worth caching, and so no
+  invalidation to get wrong.
 - **Parse per board, never all at start** — half a second for nothing. A picker's handful of
   candidates costs about 1 ms together, at the largest.
 
 **This is a best case.** Both the core speed and the X3D's large L3 cache, which holds most of
 the 35 MB output the decoder copies matches from, favour it. Estimated, not measured: a
 recent laptop 2–3× slower (75–110 ms), an old or low-end one 5–10× (200–400 ms), and
-WebAssembly on such a laptop perhaps 0.5–1 s. Even the worst is a one-off per connect, off
-the frame loop, and below the 890 ms of a Vial load. If a slow machine shows otherwise, two
-fixes keep the format: decode once in the background and index the tar's offsets, or ship
-V3 only. The margin is wide enough that no further measurement is planned.
+WebAssembly on such a laptop perhaps 0.5–1 s. Decoded once at start, even the worst is a
+one-off per run. If a slow machine shows otherwise, moving that decode to the background
+keeps the format, as would shipping V3 only. The margin is wide enough that no further
+measurement is planned.
 
 **WebAssembly memory is not a problem.** The 35 MB peak needs `-sALLOW_MEMORY_GROWTH=1` (or
 a large `-sINITIAL_MEMORY`); wasm32 allows up to 4 GB and a desktop tab using hundreds of MB
@@ -827,7 +831,8 @@ HTTP cache handles it. Web-only limits:
   a lookup taking 41 ms on Rico's desktop); then wiring (`SDL_GetBasePath()` in `Main.cpp`,
   bundle used when no remembered file — **done 2026-09-24**, verified on Rico's Phoenix
   Project No 1, which is in VIA's registry; the bundle is still placed beside the executable
-  by hand, and inflated on the main thread, which a background decode could fix later).
+  by hand, and inflated on the main thread, which a background decode could fix later; since
+  2026-09-24 it is inflated once at start and kept, see "Decoding it").
 - **Agreed 2026-09-24 — how the bundle is produced.** The no-generator rule is about tools used
   rarely (Rico); refreshing VIA's definitions is a regular job, so it has one:
   `tools/update_via_bundle.py`, **Python, standard library only** — `urllib`, `tarfile`,

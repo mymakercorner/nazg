@@ -85,14 +85,15 @@ drawing, hover and editing a tilted key all work.
 VIA's official definitions ship as one solid `.xz` of a tar -- 0.3 MB for all 3513 V2 and V3
 definitions, the source files of `the-via/keyboards` at a pinned commit -- built by
 `tools/update_via_bundle.py` (see "Build tooling" above). Its reader is
-`adapters/via/NazgViaBundle.*`: it inflates the whole bundle, takes one board's file by
-VID:PID and protocol, and keeps nothing -- ~40 ms on a fast desktop. XZ decoding is shared
-with Vial's definitions in `adapters/NazgXz.*`. `Main.cpp` reads `via_definitions.tar.xz`
-from beside the executable at start and, when no loaded file matches a VIA board, takes its
-definition from it; hovering the board's name says where the definition came from. Verified
-2026-09-24 on Rico's **Phoenix Project No 1** (`0x21C0:0x9901`, in VIA's registry) with a
-bundle of VIA's converted files, then again with the source-form bundle; every definition of it parses in the
-`via_bundle_contents` test. The inflate runs on the main thread, ~40 ms once per open.
+`adapters/via/NazgViaBundle.*`: `ViaDefinitionBundle` inflates it once at start -- ~40 ms on a
+fast desktop, on the main thread -- keeps it (28 MB) and indexes every file, so a board's
+definition by VID:PID and protocol is a lookup. XZ decoding is shared with Vial's definitions
+in `adapters/NazgXz.*`. `Main.cpp` reads `via_definitions.tar.xz` from beside the executable
+and, when no user definition matches a VIA board, takes the official one from it; hovering
+the board's name says where the definition came from. Verified 2026-09-24 on Rico's
+**Phoenix Project No 1** (`0x21C0:0x9901`, in VIA's registry) with a bundle of VIA's converted
+files, then again with the source-form bundle; every definition of it parses, and is found by
+its ids, in the `via_bundle_contents` test.
 
 **User definitions** -- the ones the user imports, as opposed to the **official** ones in
 VIA's bundle; the UI says so in those words -- live in a library, `library/NazgDefinitionLibrary.*`,

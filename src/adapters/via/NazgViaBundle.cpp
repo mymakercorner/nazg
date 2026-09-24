@@ -168,30 +168,38 @@ namespace nazg
         return found;
     }
 
-    std::optional<ViaBundleManifest> ReadViaBundleManifest(const std::vector<uint8_t>& bundle)
+    ViaDefinitionBundle::ViaDefinitionBundle(const std::vector<uint8_t>& bundle)
+        : m_Tar(DecompressXz(bundle, c_MaxBundleSize, "the bundle"))
     {
-        const std::vector<uint8_t> tar  = DecompressXz(bundle, c_MaxBundleSize, "the bundle");
-        const auto                 file = ExtractTarFile(tar, "manifest.json");
-        if (!file)
-            return std::nullopt;
+        ForEachTarFile(m_Tar, [this](const std::string& name, const uint8_t* data, size_t size)
+        {
+            m_Files[name] = { static_cast<size_t>(data - m_Tar.data()), size };
+            return true;
+        });
 
-        const nlohmann::json document = nlohmann::json::parse(file->begin(), file->end(), nullptr, false);
+        const auto manifest = m_Files.find("manifest.json");
+        if (manifest == m_Files.end())
+            return;
+
+        const uint8_t*       text     = m_Tar.data() + manifest->second.offset;
+        const nlohmann::json document = nlohmann::json::parse(text, text + manifest->second.size, nullptr, false);
         if (!document.is_object())
-            return std::nullopt;
+            return;
 
-        ViaBundleManifest manifest;
-        manifest.commit = document.value("commit", std::string());
-        manifest.v2     = document.value("v2", 0);
-        manifest.v3     = document.value("v3", 0);
-        return manifest;
+        m_Manifest.emplace();
+        m_Manifest->commit = document.value("commit", std::string());
+        m_Manifest->v2     = document.value("v2", 0);
+        m_Manifest->v3     = document.value("v3", 0);
     }
 
-    std::optional<std::vector<uint8_t>> FindViaDefinition(const std::vector<uint8_t>& bundle,
-                                                          uint16_t                    vendorId,
-                                                          uint16_t                    productId,
-                                                          uint16_t                    viaProtocol)
+    std::optional<std::vector<uint8_t>> ViaDefinitionBundle::Find(uint16_t vendorId, uint16_t productId,
+                                                                  uint16_t viaProtocol) const
     {
-        const std::vector<uint8_t> tar = DecompressXz(bundle, c_MaxBundleSize, "the bundle");
-        return ExtractTarFile(tar, ViaDefinitionPath(vendorId, productId, viaProtocol));
+        const auto found = m_Files.find(ViaDefinitionPath(vendorId, productId, viaProtocol));
+        if (found == m_Files.end())
+            return std::nullopt;
+
+        const uint8_t* data = m_Tar.data() + found->second.offset;
+        return std::vector<uint8_t>(data, data + found->second.size);
     }
 }

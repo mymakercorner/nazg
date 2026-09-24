@@ -307,19 +307,17 @@ namespace
         }
     }
 
-    // Official definitions, VIA's, beside the executable: read once at start -- 0.3 MB --
-    // and inflated when a board needs one (adapters/via/NazgViaBundle.h), and once more at
-    // start for the manifest's count. Built by tools/update_via_bundle.py, copied there by
-    // the build, shipped with releases; a checkout that never ran the tool has none, and
-    // VIA boards then need a user definition.
+    // Official definitions, VIA's, beside the executable: 0.3 MB read and inflated once at
+    // start -- ~40 ms on a fast desktop -- and kept, 28 MB, so opening a board is a lookup
+    // (adapters/via/NazgViaBundle.h). Built by tools/update_via_bundle.py, copied there by the
+    // build, shipped with releases; a checkout that never ran the tool has none, and VIA
+    // boards then need a user definition.
     constexpr char c_ViaBundleName[] = "via_definitions.tar.xz";
 
     struct ViaBundle
     {
-        std::string          path;
-        std::vector<uint8_t> bytes;   // empty when the file is missing or unreadable
-
-        std::optional<nazg::ViaBundleManifest> manifest;   // what it holds, for the device list
+        std::string                              path;
+        std::optional<nazg::ViaDefinitionBundle> definitions;   // empty when missing or corrupt
     };
 
     ViaBundle ReadViaBundle()
@@ -331,21 +329,19 @@ namespace
 
         std::ifstream stream(std::filesystem::path(reinterpret_cast<const char8_t*>(bundle.path.c_str())),
                              std::ios::binary);
-        if (stream)
-            bundle.bytes.assign(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>());
+        if (!stream)
+            return bundle;
 
-        // A bundle that does not inflate is as good as none: lookups would fail on it too.
-        if (!bundle.bytes.empty())
+        const std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
+
+        // A bundle that does not inflate is as good as none.
+        try
         {
-            try
-            {
-                bundle.manifest = nazg::ReadViaBundleManifest(bundle.bytes);
-            }
-            catch (const std::exception& failure)
-            {
-                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s: %s", bundle.path.c_str(), failure.what());
-                bundle.bytes.clear();
-            }
+            bundle.definitions.emplace(bytes);
+        }
+        catch (const std::exception& failure)
+        {
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s: %s", bundle.path.c_str(), failure.what());
         }
 
         return bundle;
@@ -437,13 +433,12 @@ namespace
                 source = viaDefinitionSource;
 
                 // A user definition wins over the official one, as VIA's side-loading does.
-                // The bundle needs the protocol to choose V2 or V3. It is inflated here, on
-                // the main thread: ~40 ms once per open on a fast desktop, while "loading"
-                // is showing anyway.
-                if (!viaDefinition && !bundle.bytes.empty())
+                // The official one needs the protocol, which chooses V2 or V3; then it is a
+                // lookup in the bundle inflated at start.
+                if (!viaDefinition && bundle.definitions)
                 {
                     const uint16_t viaProtocol = co_await protocol.GetProtocolVersion();
-                    if (const auto bytes = nazg::FindViaDefinition(bundle.bytes, vendorId, productId, viaProtocol))
+                    if (const auto bytes = bundle.definitions->Find(vendorId, productId, viaProtocol))
                     {
                         viaDefinition = nazg::ParseDefinition(*bytes);
                         source        = "official, from VIA";
@@ -753,17 +748,20 @@ int main(int, char**)
             ImGui::SetItemTooltip("Add a user definition: the .json file that describes your keyboard,\n"
                                   "often named via.json, from its vendor or designer.");
 
-            if (viaBundle.bytes.empty())
+            // Null when there is no bundle, or it has no manifest to count from.
+            const nazg::ViaBundleManifest* manifest =
+                viaBundle.definitions && viaBundle.definitions->Manifest() ? &*viaBundle.definitions->Manifest() : nullptr;
+
+            if (!viaBundle.definitions)
                 ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.3f, 1.0f), "Official definitions: not found");
-            else if (viaBundle.manifest)
-                ImGui::Text("Official definitions: %d, from VIA", viaBundle.manifest->v2 + viaBundle.manifest->v3);
+            else if (manifest != nullptr)
+                ImGui::Text("Official definitions: %d, from VIA", manifest->v2 + manifest->v3);
             else
                 ImGui::TextUnformatted("Official definitions: from VIA");
             if (ImGui::IsItemHovered())
             {
-                if (viaBundle.manifest)
-                    ImGui::SetTooltip("%s\nthe-via/keyboards at %s", viaBundle.path.c_str(),
-                                      viaBundle.manifest->commit.c_str());
+                if (manifest != nullptr)
+                    ImGui::SetTooltip("%s\nthe-via/keyboards at %s", viaBundle.path.c_str(), manifest->commit.c_str());
                 else
                     ImGui::SetTooltip("%s", viaBundle.path.c_str());
             }
