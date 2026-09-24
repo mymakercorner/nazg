@@ -3,18 +3,7 @@
 
 #include "NazgVialDefinition.h"
 
-#include <string>
-
-#include "adapters/via/NazgViaProtocol.h"   // ProtocolError
-
-// minlzma is C, and its header declares neither its dependencies nor C linkage, so
-// both are supplied here.
-#include <stdbool.h>
-#include <stdint.h>
-extern "C"
-{
-#include "minlzma.h"
-}
+#include "adapters/NazgXz.h"
 
 namespace nazg
 {
@@ -28,38 +17,7 @@ namespace nazg
 
     std::vector<uint8_t> DecompressDefinition(const std::vector<uint8_t>& compressed)
     {
-        if (compressed.empty())
-            throw ProtocolError("the device returned an empty definition");
-
-        // minlzma decodes in two passes: with a null output buffer and a size of zero
-        // it only reports how much room the result needs.
-        uint32_t decompressedSize = 0;
-        if (!XzDecode(compressed.data(), static_cast<uint32_t>(compressed.size()),
-                      nullptr, &decompressedSize))
-        {
-            throw ProtocolError("the definition is not a valid XZ stream");
-        }
-
-        if (decompressedSize == 0)
-            throw ProtocolError("the definition decompresses to nothing");
-
-        if (decompressedSize > c_MaxDecompressedSize)
-            throw ProtocolError("the definition claims to decompress to " +
-                                std::to_string(decompressedSize) + " bytes; refusing it");
-
-        std::vector<uint8_t> decompressed(decompressedSize);
-        uint32_t             outputSize = decompressedSize;
-
-        if (!XzDecode(compressed.data(), static_cast<uint32_t>(compressed.size()),
-                      decompressed.data(), &outputSize))
-        {
-            throw ProtocolError(XzChecksumError()
-                                    ? "the definition failed its checksum"
-                                    : "the definition could not be decompressed");
-        }
-
-        decompressed.resize(outputSize);
-        return decompressed;
+        return DecompressXz(compressed, c_MaxDecompressedSize, "the definition");
     }
 
     KeyboardDefinition DecodeDefinition(const std::vector<uint8_t>& compressed)

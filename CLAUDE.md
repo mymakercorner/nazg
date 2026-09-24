@@ -82,9 +82,17 @@ angle and origin match VIA's for all of them. No rotated board is at hand, so it
 in the app with the Aquanaut and a copy of its `via.json` with the bottom row turned 6°:
 drawing, hover and editing a tilted key all work.
 
-Next: the official VIA definitions as a bundle -- decided in
+The official VIA definitions will ship as one solid `.xz` of a tar (0.4 MB for all of VIA's
+boards). Its reader is `adapters/via/NazgViaBundle.*`: it inflates the whole bundle, takes
+one board's file by VID:PID and protocol, and keeps nothing -- 41 ms on a fast desktop,
+every file byte-identical against the real 3513-file bundle. XZ decoding is shared with
+Vial's definitions in `adapters/NazgXz.*`. The bundle is not in the repo yet, and nothing
+loads from it yet.
+
+Next: produce the bundle (a tool is acceptable, since this is a regular job -- to be designed)
+and wire it into loading, per
 [docs/research_material/via-registry.md](docs/research_material/via-registry.md),
-"Decisions to take": the bundle reader, then wiring it into loading.
+"Decisions to take".
 
 # Prior research — read before re-researching anything
 

@@ -15,7 +15,8 @@
 // sourcing, and this is Vial's entire answer to it.
 //
 // Verified on hardware: the payload is a single-block XZ stream starting FD 37 7A 58
-// 5A 00, which is exactly what minlzma decodes -- no wrapper, no full LZMA SDK.
+// 5A 00, which is exactly what minlzma decodes -- no wrapper, no full LZMA SDK. The
+// decoding itself is shared with VIA's definitions bundle, in adapters/NazgXz.h.
 
 #pragma once
 

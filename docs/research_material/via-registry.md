@@ -805,11 +805,15 @@ HTTP cache handles it. Web-only limits:
   `via-keyboards` gives the same keys and options from both forms, up to a translation
   (**done 2026-09-24**, see "The converted-form entry"; the two checks run as a scratch
   program until the bundle is in the repo, ISO Macro as a unit test meanwhile); then
-  the bundle (solid `.xz` of a tar, a small ustar reader, lookup by id and protocol); then
-  wiring (`SDL_GetBasePath()` in `Main.cpp`, bundle used when no remembered file). Still to
-  decide: how the bundle is produced with no generator in the repo (download the served files
-  by documented steps, or build with Node); V3 only at first, V2 when a board needs it; and a
-  board in VIA's registry to verify on, since neither dogfood board is.
+  the bundle (solid `.xz` of a tar, a small ustar reader, lookup by id and protocol — **done
+  2026-09-24**: `adapters/via/NazgViaBundle.h`, XZ decoding shared with Vial in
+  `adapters/NazgXz.h`; against the full 3513-file bundle every file comes back byte for byte,
+  a lookup taking 41 ms on Rico's desktop); then wiring (`SDL_GetBasePath()` in `Main.cpp`,
+  bundle used when no remembered file). Still to decide: **how the bundle is produced** —
+  Rico, 2026-09-24: the no-generator rule is about tools used rarely; fetching VIA's
+  definitions, and converting them if wanted, will be done regularly and may well deserve a
+  tool, to be designed; V3 only at first, V2 when a board needs it — the reader handles both;
+  and a board in VIA's registry to verify on, since neither dogfood board is.
 - **Proposed, backed by measurement**: the bundle as one solid `.xz` of a tar, decoded per
   connect; the data directory from `SDL_GetPrefPath` in `Main.cpp`, handed down as a path.
 - **Proposed**: choices keyed on VID:PID plus the HID strings, device version and serial, in
