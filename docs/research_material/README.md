@@ -21,6 +21,7 @@ registry, a browser dependency, or a firmware fork?
 | [client-architecture.md](client-architecture.md) | Design notes for a multi-protocol configurator client |
 | [via-vial-commands.md](via-vial-commands.md) | **Implementation level** — every VIA and VIAL command, payload layouts, and the protocol version history of both *(added 2026-09-22)* |
 | [keycodes.md](keycodes.md) | **Implementation level** — QMK keycode versions, VIA/VIAL dictionary coverage, choosing a dictionary per board, and a protocol-neutral keycode representation *(added 2026-09-23)* |
+| [via-registry.md](via-registry.md) | **Implementation level** — how VIA builds, serves and caches keyboard definitions, web and desktop; what a client of the registry must handle *(added 2026-09-24)* |
 
 Each protocol document carries an **"Extending with custom features"** section; they are
 summarised under [Adding custom features](#adding-custom-features) below.
