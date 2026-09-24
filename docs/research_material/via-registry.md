@@ -89,6 +89,62 @@ The other V3 fields pass through unchanged: `menus` (still possibly by name, lik
 `"qmk_rgblight"` — expanded in the app, not the build), `keycodes`, `customKeycodes`,
 `firmwareVersion`.
 
+### Side by side: ISO Macro
+
+A small board with one layout option shows nearly every difference. The source,
+`via-keyboards/v3/merge/iso_macro.json`:
+
+```json
+{ "name": "ISO Macro", "vendorId": "0x4D65", "productId": "0x1200",
+  "matrix": { "rows": 3, "cols": 3 },
+  "keycodes": ["qmk_backlight_keycodes"], "menus": ["qmk_backlight"],
+  "layouts": { "labels": ["Single Encoder"], "keymap": [
+    [ {"d": true}, "2,1\n\n\n0,1",
+      {"x": 0.5, "c": "#8f8f8f"}, "2,1\n\n\n0,0",
+      {"x": 0.25, "c": "#cccccc"}, "0,0", "0,1", "0,2",
+      {"x": 0.25, "w": 1.25, "h": 2, "w2": 1.5, "h2": 1, "x2": -0.25}, "2,0" ],
+    [ {"c": "#8f8f8f"}, "2,2\n\n\n0,1",
+      {"x": 0.5}, "2,2\n\n\n0,0",
+      {"x": 0.5, "c": "#cccccc"}, "1,0", "1,1", "1,2" ] ] } }
+```
+
+Served as `v3/1298469376.json` — one line, laid out here, `keys` cut after two of seven:
+
+```json
+{ "name": "ISO Macro", "vendorProductId": 1298469376, "firmwareVersion": 0,
+  "menus": ["qmk_backlight"], "keycodes": ["qmk_backlight_keycodes"],
+  "matrix": { "rows": 3, "cols": 3 },
+  "layouts": { "labels": ["Single Encoder"], "width": 5.75, "height": 2,
+    "optionKeys": { "0": {
+      "0": [ {"row": 2, "col": 1, "x": 0, "y": 0, "r": 0, "rx": -1.5, "ry": 0, "d": false, "h": 1, "w": 1, "color": "mod"},
+             {"row": 2, "col": 2, "x": 0, "y": 1, "r": 0, "rx": -1.5, "ry": 0, "d": false, "h": 1, "w": 1, "color": "mod"} ],
+      "1": [ {"row": -1, "col": -1, "x": 0, "y": 0, "r": 0, "rx": -1.5, "ry": 0, "d": true, "h": 1, "w": 1, "color": "alpha"},
+             {"row": 2, "col": 2, "x": 0, "y": 1, "r": 0, "rx": -1.5, "ry": 0, "d": false, "h": 1, "w": 1, "color": "mod"} ] } },
+    "keys": [
+      {"row": 0, "col": 0, "x": 1.25, "y": 0, "r": 0, "rx": -1.5, "ry": 0, "d": false, "h": 1, "w": 1, "color": "alpha"},
+      {"row": 2, "col": 0, "x": 4.5, "y": 0, "r": 0, "rx": -1.5, "ry": 0, "d": false,
+       "h": 2, "w": 1.25, "w2": 1.5, "x2": -0.25, "h2": 1, "color": "alpha"} ] } }
+```
+
+| Source | Converted |
+|---|---|
+| `vendorId`, `productId` as hex strings | one `vendorProductId`, `0x4D65 × 65536 + 0x1200` |
+| KLE rows, each property applying to the keys after it | `keys`, one explicit object per key |
+| Option in the fourth legend slot, `"2,1\n\n\n0,1"` | moved out of `keys` into `optionKeys[group][choice]` |
+| Colour `#cccccc` / `#8f8f8f` | a theme role, `"alpha"` / `"mod"` |
+| `{"d": true}` — a decal, drawn blank, no switch | `"d": true`, `row` and `col` = `-1` |
+| Fields left out | defaults on every key; `firmwareVersion: 0` |
+| Board size, never stated | `width`, `height` computed |
+
+ISO Enter's `w2`/`h2`/`x2` pass through, and so do `menus` and `keycodes`, still by name.
+
+**The conversion also moves keys.** The choices of an option group are stacked on one spot:
+in the source, choice 1 sits at x = 0 and choice 0 at x = 1.5, side by side as KLE draws
+alternatives; converted, both are at `x: 0`. And **the whole board shifts** left by the 1.5
+the column of alternatives no longer takes — key `0,0` goes from x = 2.75 to 1.25 — the same
+value appearing as `"rx": -1.5` on every key. With `r: 0`, `rx` has no effect; for rotated
+boards, what VIA intends is to be checked against their source rather than guessed.
+
 ## Which version a board gets
 
 In the app, `devicesThunks.ts`: **`protocol >= 11 ? 'v3' : 'v2'`**, where `protocol` is the
@@ -177,6 +233,27 @@ board's `via.json` is in it. Reading the converted form is a **second entry**, c
 mapping into the same `DefinitionKey` list, with only the layout options needing real work
 from `optionKeys`. It is the price of reusing VIA's build output, and the benefit it buys is
 that output's validation.
+
+**Nazg already aligns layout options** — at draw time: `ui/NazgKeyboardView.cpp` computes,
+per group, the shift that lines the selected choice up with choice 0, about 30 lines run every
+frame at no measurable cost. So the conversion's heavy lifting is not work Nazg lacks.
+
+**Nazg does not convert on disk.** User and community definitions are stored as given (see
+"Storage"), and the conversion happens where it already does — in memory, at load: both
+entries, source and converted, produce the same `DefinitionKey` list, about 0.1 ms per board.
+Converting at import would remove no code, since the KLE parser stays for Vial and for
+vendors' `via.json`, and it would lose an export identical to the import, parser fixes that
+reach old imports — a bug written to disk is permanent, the original gone — and one source of
+truth.
+
+**The two forms align to different reference points.** VIA stacks the choices on the leftmost
+one and shifts the board — ISO Macro's choice 0 goes from 1.5 to 0 — where Nazg moves the
+selected choice onto choice 0. On converted data Nazg's shift comes out zero, so there is no
+conflict and a converted file draws at VIA's positions; but one board loaded from its two
+forms can differ by a constant offset. The test comparing the two forms, board by board,
+compares positions **up to a translation**. Moving the alignment from the view into the model,
+so both forms arrive aligned and the view only draws, is worth doing only if that test or the
+converted entry makes it simpler.
 
 ## Bundle size
 
@@ -594,7 +671,8 @@ imgui.ini               moved here; ImGui defaults to the working directory
 ```
 
 - **Definitions are stored byte for byte**, in whichever form came in, validated by parsing
-  at import. An export gives back what came in, and a better parser applies to old imports.
+  at import — never converted (see "Why VIA converts"). An export gives back what came in,
+  and a better parser applies to old imports.
 - **Files are named by entry number and revision**, never by board name or VID:PID, and
   **never modified once written**. A Replace writes the new revision, then the index, then
   deletes anything older than the previous revision. A crash leaves at worst an orphan
@@ -663,6 +741,16 @@ HTTP cache handles it. Web-only limits:
 
 - **Agreed**: level 1 first. The community repository (level 2) is wanted, run and seeded
   by Rico, opened to vendors later.
+- **Proposed by Rico — implementation starts with the official definitions**, before any
+  community work: ~2000 boards with no user action, no new storage, and it builds what the
+  rest reuses. Steps: the converted-form entry in the parser (dynamic `name` accepted), with
+  two tests — every V3 file in the bundle parses, and each board with a source in
+  `via-keyboards` gives the same keys and options from both forms, up to a translation; then
+  the bundle (solid `.xz` of a tar, a small ustar reader, lookup by id and protocol); then
+  wiring (`SDL_GetBasePath()` in `Main.cpp`, bundle used when no remembered file). Still to
+  decide: how the bundle is produced with no generator in the repo (download the served files
+  by documented steps, or build with Node); V3 only at first, V2 when a board needs it; and a
+  board in VIA's registry to verify on, since neither dogfood board is.
 - **Proposed, backed by measurement**: the bundle as one solid `.xz` of a tar, decoded per
   connect; the data directory from `SDL_GetPrefPath` in `Main.cpp`, handed down as a path.
 - **Proposed**: choices keyed on VID:PID plus the HID strings, device version and serial, in
