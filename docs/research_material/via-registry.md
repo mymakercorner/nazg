@@ -159,12 +159,109 @@ so: *"the electron wrapper that points to https://usevia.app/"*.
 - `usevia.app` is a web app's hosting, **not a published API**: nothing promises the paths
   stay. The source repo, being GPL data in git, is the stable thing.
 
+## Why VIA converts, and what that means for Nazg
+
+The conversion serves VIA: definitions are **validated once, at build time**, so a broken one
+fails CI instead of reaching a user; clients need **no KLE parser** (KLE's properties apply
+to the keys that follow them, rotation origins carry across rows); **layout options are
+sorted out ahead of time** into `optionKeys` instead of hiding in a key's label slot;
+defaults are filled in; and every consumer sees the same parse. It does not save space —
+explicit fields on every key are, if anything, more verbose than KLE.
+
+For Nazg it replaces nothing: the KLE parser stays, because Vial embeds the source form and a
+board's `via.json` is in it. Reading the converted form is a **second entry**, cheap — a
+mapping into the same `DefinitionKey` list, with only the layout options needing real work
+from `optionKeys`. It is the price of reusing VIA's build output, and the benefit it buys is
+that output's validation.
+
+## Proposed design — not decided
+
+*Written 2026-09-24 as a basis for discussion. Nothing here is agreed.*
+
+The aim is to make adding a definition, especially a user's own, fast. VIA's delay comes
+from **its policy, not its technology** — QMK master, then VIA's userspace, then a human
+review of the definition (over a week, in Rico's experience). A definition only has to reach
+Nazg, not VIA, so none of that applies.
+
+### Official VIA definitions: bundle, refresh on request
+
+- **Ship a snapshot of VIA's built output with each Nazg release** — the converted `v2/` and
+  `v3/` files plus `supported_kbs.json`. About 2000 small files, an estimated ~10 MB raw and
+  1–2 MB compressed (**to be measured**). Works offline and on first launch, already
+  validated, GPL-3.0 compatible.
+- **Later, a user-triggered "Update VIA definitions"** that downloads into the app's data
+  folder beside the bundle, never over it. HTTPS in C++ is a new dependency, so this waits;
+  until then a Nazg release brings new definitions.
+- **No silent background fetch.** Nazg stays a local tool, and the traps above are real.
+
+### User definitions: a local library
+
+Today a definition is a remembered file path in `imgui.ini`, which breaks when the file
+moves. Replace it by **a library folder in the app's data directory**, holding two kinds of
+entry:
+
+- **Imported** — copied into the library. The normal case; survives the original's deletion.
+- **Linked** — Nazg follows a file on disk and reloads it when it changes. For a designer
+  iterating on a `via.json`; roughly what the `imgui.ini` path does today, made explicit.
+
+Both the source and the converted form are accepted, as VIA does. The file is stored as
+given, with a small metadata record beside it: origin, import date, bound devices.
+
+### Sharing: three levels, cheapest first
+
+1. **By file or URL** — "Import from URL" (a GitHub raw link, a gist) and "Export". A
+   designer publishes the file with the firmware; users import it in one click. No
+   gatekeeper, no infrastructure.
+2. **A community repository** (say `mymakercorner/nazg-definitions`): PRs validated
+   automatically by CI running Nazg's own parser, no QMK-merged requirement, merged by rule
+   rather than by a person. Nazg reads it like the VIA snapshot. Workable, but it needs an
+   owner — moderation, bad-faith submissions, VID:PID squatting.
+3. **The board carries its definition**, as on Vial — the only route with zero delay and zero
+   collisions. For a VIA board that means firmware serving it, which is step 5's
+   device-served descriptors. The long-term answer for boards Rico designs.
+
+Proposed: level 1 now, level 3 as the long-term answer, level 2 only if users ask for it.
+
+### Collisions and invalid files
+
+- **An invalid file is rejected at import**, by the same parser that loads boards, with its
+  error shown. Nothing broken enters the library.
+- **Collisions are normal, not an error.** Unlike VIA's registry, allow several definitions
+  per VID:PID — hobby boards reuse VIDs, and one PCB often has several definitions.
+- **Priority: user > community > official**, the order VIA overlays in. With more than one
+  candidate, ask once and **remember the choice per device**. HID's product and
+  manufacturer strings, and a serial number when there is one, tell apart devices sharing a
+  VID:PID, though definitions do not carry them.
+- **Check a definition against the connected board** where the protocol allows — layout keys
+  outside the matrix, say. How much VIA can confirm is to be checked against
+  [via-vial-commands.md](via-vial-commands.md); probably not much.
+- **Bind by hand** — for a definition whose VID:PID is wrong, or boards sharing one.
+
+### Replacing a user definition
+
+- **Re-importing for the same VID:PID and name offers "Replace" or "Keep both"**, Replace by
+  default.
+- **Keep the previous version as one backup**, so a bad edit can be undone. No full history;
+  the designer's own git has it.
+- **Replacing is safe for the keymap** — it lives in the board, positionally; a definition
+  only changes how it is drawn. The catch: **reordered layout-option groups** make the
+  board's saved option value point at a different choice. Warn when the option groups
+  differ.
+- **Linked entries never need replacing** — they follow the file.
+
+### Decisions to take
+
+- Whether a community repository (level 2) is wanted at all, and who would run it.
+- Bundle format: the `dist/` tree as files, or one archive.
+- Where the data directory is, given SDL calls stay in `Main.cpp` (`SDL_GetPrefPath` there,
+  handed down as a path).
+- What "remember the choice per device" keys on, and where it is saved — `imgui.ini` holds
+  UI settings today; a library needs its own file.
+
 ## Open for the next part of the study
 
 - How vial-gui and other third-party clients source VIA definitions, if they do.
-- Bundled snapshot vs on-demand fetch vs both — size (the whole converted V3 set is small
-  next to the 24 MB of sources, to be measured), update cadence, offline use, and what a
-  fetch means for a native app (HTTPS in C++ is a new dependency).
-- Converted form vs source form for Nazg's parser.
+- Measure the converted set, raw and compressed, to confirm the bundle estimate.
+- HTTPS in C++ for the later refresh and import-from-URL: which library, and its cost.
 - V2 definitions: needed only for protocol ≤ 10 boards; what differs from V3 beyond
   `lighting`/`customFeatures`/`customMenus`.
