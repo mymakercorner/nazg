@@ -438,6 +438,59 @@ namespace
             pending.paths.emplace_back(*path);
     }
 
+    // "Export definition...": what the save dialog is for, and where the user chose to write
+    // it. The bytes are taken when Export is clicked -- a user definition's stored file, the
+    // official one out of the bundle, or what a Vial board served -- so nothing has to be looked
+    // up again once a place is chosen. One dialog at a time; another Export waits for it to close.
+    struct PendingExport
+    {
+        std::mutex                 mutex;
+        bool                       isOpen = false;
+        std::vector<uint8_t>       bytes;
+        std::string                name;        // the definition's, for the message
+        std::string                suggested;   // the file name offered; SDL may read it until it closes
+        std::optional<std::string> path;        // chosen, not yet written
+    };
+
+    void SDLCALL OnExportChosen(void* userdata, const char* const* filelist, int)
+    {
+        auto&                             pending = *static_cast<PendingExport*>(userdata);
+        const std::lock_guard<std::mutex> lock(pending.mutex);
+
+        pending.isOpen = false;
+        if (filelist != nullptr && *filelist != nullptr)   // null: an error; empty: cancelled
+            pending.path = *filelist;
+    }
+
+    // A definition written out byte for byte, as its source has it -- so it imports again
+    // anywhere, into Nazg or VIA. The outcome, for the window that asked.
+    std::string WriteExport(const std::vector<uint8_t>& bytes, const std::string& name, const std::string& path)
+    {
+        std::ofstream stream(PathFromUtf8(path), std::ios::binary | std::ios::trunc);
+        stream.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+        stream.close();
+        if (!stream)
+            return "not exported to " + path + ": cannot write the file";
+        return "exported " + name + " to " + path;
+    }
+
+    // A file name from a board's name: "Phoenix Project No 1" -> "Phoenix_Project_No_1.json".
+    // Only what every file system accepts; a name with nothing left gives "definition.json".
+    std::string ExportFileName(const std::string& name)
+    {
+        std::string file;
+        for (const char c : name)
+        {
+            if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_')
+                file.push_back(c);
+            else if (c == ' ' && !file.empty() && file.back() != '_')
+                file.push_back('_');
+        }
+        while (!file.empty() && file.back() == '_')
+            file.pop_back();
+        return (file.empty() ? "definition" : file) + ".json";
+    }
+
     // The board being shown. Same lifetime rule as DeviceListState: owned by main().
     struct BoardState
     {
@@ -456,6 +509,12 @@ namespace
         std::optional<nazg::DefinitionCandidate> official;     // VIA's, kept to rebuild the list
         std::optional<nazg::DefinitionRef>       inUse;        // the one drawing the board
         bool                                     isChoosing = false;   // the picker is showing
+
+        // The definition drawing the board as its source has it, when that is VIA's bundle or
+        // the board itself -- for "Export definition...". Empty for a user definition, whose
+        // stored copy is read from the library when exported.
+        std::vector<uint8_t> exportable;
+        std::string          exportMessage;
 
         nazg::KeySelection       selection;
         nazg::KeycodePickerState picker;
@@ -534,7 +593,9 @@ namespace
             // Vial first: its probe is harmless on a VIA board, which answers 0xFF.
             if (co_await protocol.Detect())
             {
-                state.keyboard         = co_await nazg::LoadVialKeyboard(protocol);
+                std::vector<uint8_t> json;
+                state.keyboard         = co_await nazg::LoadVialKeyboard(protocol, &json);
+                state.exportable       = std::move(json);
                 state.definitionSource = "from the board (Vial)";
                 state.isVia            = false;
                 state.candidates.clear();
@@ -546,10 +607,12 @@ namespace
                 // The official definition needs the protocol, which chooses V2 or V3; then it
                 // is a lookup in the bundle inflated at start.
                 std::optional<nazg::DefinitionCandidate> official;
+                std::optional<std::vector<uint8_t>>      officialBytes;
                 if (bundle.definitions)
                 {
                     const uint16_t viaProtocol = co_await protocol.GetProtocolVersion();
-                    if (const auto bytes = bundle.definitions->Find(identity.vendorId, identity.productId, viaProtocol))
+                    officialBytes = bundle.definitions->Find(identity.vendorId, identity.productId, viaProtocol);
+                    if (const auto& bytes = officialBytes)
                         official = nazg::DefinitionCandidate{
                             nazg::DefinitionRef::Official(
                                 nazg::ViaDefinitionPath(identity.vendorId, identity.productId, viaProtocol)),
@@ -580,6 +643,9 @@ namespace
                     state.keyboard         = co_await nazg::LoadViaKeyboard(protocol, use.definition);
                     state.definitionSource = DescribeInUse(use);
                     state.inUse            = use.ref;
+                    state.exportable.clear();
+                    if (use.ref.kind == nazg::DefinitionRef::Kind::Official && officialBytes)
+                        state.exportable = std::move(*officialBytes);
                 }
             }
 
@@ -587,6 +653,7 @@ namespace
             state.layer     = 0;
             state.selection = {};
             state.editMessage.clear();
+            state.exportMessage.clear();
         }
         catch (const std::exception& failure)
         {
@@ -758,7 +825,8 @@ int main(int, char**)
     nazg::Task<void> editTask;
 
     Library            library = OpenLibrary(dataFolder, dataFolderError);
-    PendingDialogPaths pendingPaths;   // must outlive any open dialog: main() scope
+    PendingDialogPaths pendingPaths;    // must outlive any open dialog: main() scope
+    PendingExport      pendingExport;   // likewise
 
     // Never while loadTask still runs -- see the Refresh button. The user definitions for the
     // board's VID:PID are read here, a few KB each, and the remembered choice looked up
@@ -813,6 +881,25 @@ int main(int, char**)
         SDL_ShowOpenFileDialog(OnViaDefinitionChosen, &pendingPaths, pWindow, c_Filters, 1, nullptr, true);
     };
 
+    // Opens the save dialog for these bytes, unless one is open already.
+    const auto startExport = [&](std::vector<uint8_t> bytes, const std::string& name, std::string suggested)
+    {
+        {
+            const std::lock_guard<std::mutex> lock(pendingExport.mutex);
+            if (pendingExport.isOpen)
+                return;
+            pendingExport.isOpen    = true;
+            pendingExport.bytes     = std::move(bytes);
+            pendingExport.name      = name;
+            pendingExport.suggested = std::move(suggested);
+        }
+
+        // Outside the lock: SDL may call back before returning.
+        static const SDL_DialogFileFilter c_Filters[] = { { "VIA definition", "json" } };
+        const char* suggestedName = pendingExport.suggested.empty() ? nullptr : pendingExport.suggested.c_str();
+        SDL_ShowSaveFileDialog(OnExportChosen, &pendingExport, pWindow, c_Filters, 1, suggestedName);
+    };
+
     const ImVec4 clearColor = ImVec4(0.09f, 0.09f, 0.11f, 1.0f);
     bool showDemoWindow    = false;
     bool showAllHidDevices = false;   // the device list shows only keyboards unless asked
@@ -834,6 +921,24 @@ int main(int, char**)
         // Pump before the minimized early-out below, otherwise transport work stalls
         // for as long as the window stays minimized.
         transport.Pump();
+
+        // A place picked in the export dialog since last frame gets the definition.
+        {
+            std::optional<std::string> path;
+            std::vector<uint8_t>       bytes;
+            std::string                name;
+            {
+                const std::lock_guard<std::mutex> lock(pendingExport.mutex);
+                path.swap(pendingExport.path);
+                if (path)
+                {
+                    bytes.swap(pendingExport.bytes);
+                    name = pendingExport.name;
+                }
+            }
+            if (path)
+                boardState.exportMessage = WriteExport(bytes, name, *path);
+        }
 
         // Files picked in the import dialog since last frame go into the library.
         {
@@ -1256,6 +1361,38 @@ int main(int, char**)
                 // Always shown, so a wrong definition is plain to see -- and cheap to undo:
                 // the keymap lives in the board, the definition only draws it.
                 ImGui::TextDisabled("Definition: %s", boardState.definitionSource.c_str());
+
+                // For investigation and debugging: the definition drawing the board, byte for byte
+                // as Nazg has it -- VIA's bundle, the board itself, or the library's stored copy.
+                // The one export there is, next to the line saying which definition it is.
+                const nazg::LibraryEntry* userEntry =
+                    boardState.inUse && boardState.inUse->kind == nazg::DefinitionRef::Kind::User && library.library
+                        ? library.library->Find(boardState.inUse->userId)
+                        : nullptr;
+
+                if (!boardState.exportable.empty() || userEntry != nullptr)
+                {
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("Export definition..."))
+                    {
+                        try
+                        {
+                            // A user definition offers the name of the file it came from.
+                            if (userEntry != nullptr)
+                                startExport(library.library->Read(*userEntry), userEntry->name,
+                                            FileName(userEntry->origin));
+                            else
+                                startExport(boardState.exportable, keyboard.Name(), ExportFileName(keyboard.Name()));
+                        }
+                        catch (const std::exception& failure)
+                        {
+                            boardState.exportMessage = std::string("not exported: ") + failure.what();
+                        }
+                    }
+                    ImGui::SetItemTooltip("For investigation and debugging: save the definition drawing this board\n"
+                                          "exactly as Nazg has it.");
+                }
+
                 if (boardState.isVia)
                 {
                     const bool isBusy = isLoadRunning() || (editTask.IsValid() && !editTask.IsDone());
@@ -1285,6 +1422,9 @@ int main(int, char**)
                                               "if more than one definition matches it.");
                     }
                 }
+
+                if (!boardState.exportMessage.empty())
+                    ImGui::TextDisabled("%s", boardState.exportMessage.c_str());
 
                 nazg::DrawKeyboardView(keyboard, boardState.layer, hostLayout, boardState.selection);
 

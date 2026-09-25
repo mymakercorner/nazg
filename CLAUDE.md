@@ -120,8 +120,13 @@ the entry's number -- so its choices follow and a board drawn with it reloads --
 version before as one backup, which "Restore previous" swaps back; a change in layout options
 is warned about. Nazg never polls files, and there are no linked entries -- both dropped with
 Rico 2026-09-25 (via-registry.md, "User definitions: a local library"). Verified by
-Rico on the Phoenix 2026-09-25 with edited versions of the forged ortho definition. Not yet: export/import of the whole library (via-registry.md,
-"Storage").
+Rico on the Phoenix 2026-09-25 with edited versions of the forged ortho definition. **The
+backup is under review**: Rico will judge its real value against the complexity it adds before
+keeping it. "Export definition..." on the board writes the definition drawing it back out,
+byte for byte as Nazg has it -- user, official or Vial -- **for investigation and debugging
+only** (Rico), not a user workflow. It is the only export: one in the library list was removed
+as redundant. Deferred:
+export/import of the whole library -- a web-build need (via-registry.md, "Storage").
 
 Next: open -- the rest of the library above, layout options editing, or step 5 (custom
 features).

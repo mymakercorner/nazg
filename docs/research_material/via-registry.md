@@ -734,7 +734,14 @@ hand a definition whose VID:PID does not match.
 *Implemented 2026-09-25* — `DefinitionLibrary::Replace()` and `RestorePrevious()`. The
 warning compares the layout-option labels of the two versions. `added` stays the date the entry
 was first imported; `origin` is where it was last imported from. Name and ids follow the new
-version, so a replacement with other ids stops being a candidate for the old ones.
+version, so a replacement with other ids stops being a candidate for the old ones. A file
+byte for byte the same as the current version makes no revision, so re-importing an unedited
+file never pushes the backup out.
+
+**The backup is under review (Rico, 2026-09-25).** "Restore previous" adds a button and a
+concept a first-time user has to understand, and its real value is not yet shown; Rico will
+use it before deciding whether it stays. Removing it would leave Replace and Re-import as they
+are, minus the one kept revision.
 
 ### Storage
 
@@ -751,8 +758,17 @@ below. A choice naming a kind of definition this Nazg does not know makes the in
 unreadable, like any other damage, rather than being dropped. The layout below says
 `library.json` and `definitions/`; read those as `user_definitions/index.json` and
 `user_definitions/`.
-Revisions with one backup came 2026-09-25 (`previousRevision`, absent when there is none).
-Still to come from this section: export/import. `imgui.ini` moved here the same day: in the data folder, not the working
+Revisions with one backup came 2026-09-25 (`previousRevision`, absent when there is none), and
+"Export definition..." on the board, which writes the definition drawing it back out byte for
+byte -- a user definition's stored copy, the official file, or what a Vial board served. For
+investigation and debugging only, as Rico put it, not a way to start a user definition; an
+Export on each library entry was tried and removed as redundant with it. **Deferred:
+export and import of the whole library.** On native the library is one folder, copied whole
+to move it; the need is the web build's, whose IndexedDB can be evicted. When it comes: a tar
+of `user_definitions/`, incoming entries renumbered from `nextId` with their choices
+rewritten, and still open — which of two choices for one device wins, whether byte-identical
+entries merge, whether backups travel (probably not), and `origin` paths that point at the
+other machine. `imgui.ini` moved here the same day: in the data folder, not the working
 directory, so every build and every way of starting Nazg shares one set of settings; an
 `imgui.ini` where Nazg starts is copied in the first time.
 

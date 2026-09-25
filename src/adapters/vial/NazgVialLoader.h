@@ -25,6 +25,7 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 
 #include "adapters/qmk/NazgQmkKeycodes.h"
 #include "adapters/vial/NazgVialProtocol.h"
@@ -49,5 +50,8 @@ namespace nazg
 
     // Throws HidTransportError if the device goes away, or ProtocolError if it answers
     // something unusable -- including when it turns out not to be a Vial board.
-    [[nodiscard]] Task<Keyboard> LoadVialKeyboard(VialProtocol& protocol);
+    //
+    // `definitionJson`, when given, receives the definition as the board serves it, inflated
+    // -- the JSON document, for exporting. It must outlive the load.
+    [[nodiscard]] Task<Keyboard> LoadVialKeyboard(VialProtocol& protocol, std::vector<uint8_t>* definitionJson = nullptr);
 }

@@ -19,7 +19,7 @@ namespace nazg
         return QmkKeycodeVersion::Legacy;
     }
 
-    Task<Keyboard> LoadVialKeyboard(VialProtocol& protocol)
+    Task<Keyboard> LoadVialKeyboard(VialProtocol& protocol, std::vector<uint8_t>* definitionJson)
     {
         // The payoff of the coroutine layer: a sequence of round trips reading top to
         // bottom, with the frame loop still running between each one.
@@ -30,7 +30,10 @@ namespace nazg
 
         const QmkKeycodeVersion keycodeVersion = QmkKeycodeVersionForVial(identity->protocolVersion);
 
-        KeyboardDefinition definition = DecodeDefinition(co_await protocol.DownloadDefinition());
+        const std::vector<uint8_t> json       = DecompressDefinition(co_await protocol.DownloadDefinition());
+        KeyboardDefinition         definition = ParseDefinition(json);
+        if (definitionJson != nullptr)
+            *definitionJson = json;
 
         const uint8_t layers = co_await protocol.GetLayerCount();
 
