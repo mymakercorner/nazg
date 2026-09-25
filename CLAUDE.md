@@ -112,8 +112,16 @@ Verified by Rico on the Phoenix 2026-09-25, with a forged ortho definition on it
 beside the official one. `imgui.ini` -- window layout and Nazg's
 settings -- is in the data folder too, so every build and working directory shares it; the
 first run copies the working directory's one there. Paths older builds kept in `imgui.ini` are
-imported once and dropped. Verified by Rico 2026-09-24. Not yet: linked entries, replacing
-with a backup, export/import (via-registry.md, "Storage").
+imported once and dropped. Verified by Rico 2026-09-24.
+
+A definition is **replaced**, never watched: "Re-import" on an entry reads its file again, and
+importing a file for the same VID:PID and name asks Replace or Keep both. A replacement keeps
+the entry's number -- so its choices follow and a board drawn with it reloads -- and keeps the
+version before as one backup, which "Restore previous" swaps back; a change in layout options
+is warned about. Nazg never polls files, and there are no linked entries -- both dropped with
+Rico 2026-09-25 (via-registry.md, "User definitions: a local library"). Verified by
+Rico on the Phoenix 2026-09-25 with edited versions of the forged ortho definition. Not yet: export/import of the whole library (via-registry.md,
+"Storage").
 
 Next: open -- the rest of the library above, layout options editing, or step 5 (custom
 features).

@@ -82,10 +82,9 @@ namespace nazg
         DeleteOrphans();
     }
 
-    std::filesystem::path DefinitionLibrary::FileOf(const LibraryEntry& entry) const
+    std::filesystem::path DefinitionLibrary::FileOf(uint32_t id, uint32_t revision) const
     {
-        return m_Folder / c_Definitions /
-               (std::to_string(entry.id) + "-r" + std::to_string(entry.revision) + ".json");
+        return m_Folder / c_Definitions / (std::to_string(id) + "-r" + std::to_string(revision) + ".json");
     }
 
     void DefinitionLibrary::LoadIndex()
@@ -107,6 +106,7 @@ namespace nazg
                 LibraryEntry entry;
                 entry.id        = item.at("id").get<uint32_t>();
                 entry.revision  = item.at("revision").get<uint32_t>();
+                entry.previousRevision = item.value("previousRevision", 0u);   // absent: no backup
                 entry.origin    = item.at("origin").get<std::string>();
                 entry.added     = item.at("added").get<std::string>();
                 entry.name      = item.at("name").get<std::string>();
@@ -159,13 +159,16 @@ namespace nazg
         nlohmann::json definitions = nlohmann::json::array();
         for (const LibraryEntry& entry : m_Entries)
         {
-            definitions.push_back({ { "id", entry.id },
+            nlohmann::json item = { { "id", entry.id },
                                     { "revision", entry.revision },
                                     { "origin", entry.origin },
                                     { "added", entry.added },
                                     { "name", entry.name },
                                     { "vendorId", HexId(entry.vendorId) },
-                                    { "productId", HexId(entry.productId) } });
+                                    { "productId", HexId(entry.productId) } };
+            if (entry.previousRevision != 0)
+                item["previousRevision"] = entry.previousRevision;
+            definitions.push_back(std::move(item));
         }
 
         nlohmann::json choices = nlohmann::json::array();
@@ -216,7 +219,11 @@ namespace nazg
             const std::filesystem::path name  = file.path().filename();
             const bool                  known = name == c_Index ||
                                 std::any_of(m_Entries.begin(), m_Entries.end(), [&](const LibraryEntry& entry)
-                                            { return FileOf(entry).filename() == name; });
+                                            {
+                                                return FileOf(entry).filename() == name ||
+                                                       (entry.previousRevision != 0 &&
+                                                        FileOf(entry.id, entry.previousRevision).filename() == name);
+                                            });
             if (!known && file.is_regular_file(ignored))
                 orphans.push_back(file.path());
         }
@@ -294,6 +301,139 @@ namespace nazg
         // After the index: a file left behind is an orphan, deleted at the next open.
         std::error_code ignored;
         std::filesystem::remove(FileOf(removed), ignored);
+        if (removed.previousRevision != 0)
+            std::filesystem::remove(FileOf(removed.id, removed.previousRevision), ignored);
+    }
+
+    LibraryEntry* DefinitionLibrary::FindMutable(uint32_t id) noexcept
+    {
+        for (LibraryEntry& entry : m_Entries)
+            if (entry.id == id)
+                return &entry;
+        return nullptr;
+    }
+
+    const LibraryEntry* DefinitionLibrary::Find(uint32_t id) const noexcept
+    {
+        return const_cast<DefinitionLibrary*>(this)->FindMutable(id);
+    }
+
+    const LibraryEntry* DefinitionLibrary::FindSameBoard(const KeyboardDefinition& definition) const noexcept
+    {
+        for (const LibraryEntry& entry : m_Entries)
+            if (entry.vendorId == definition.vendorId && entry.productId == definition.productId &&
+                entry.name == definition.name)
+                return &entry;
+        return nullptr;
+    }
+
+    void DefinitionLibrary::SaveEntry(const LibraryEntry& updated)
+    {
+        LibraryEntry&      entry    = *FindMutable(updated.id);
+        const LibraryEntry previous = entry;
+
+        entry = updated;
+        try
+        {
+            SaveIndex();
+        }
+        catch (const LibraryError&)
+        {
+            entry = previous;
+            throw;
+        }
+    }
+
+    const LibraryEntry& DefinitionLibrary::Replace(uint32_t id, const std::vector<uint8_t>& definition,
+                                                   std::string origin)
+    {
+        const LibraryEntry* current = Find(id);
+        if (current == nullptr)
+            throw LibraryError("no user definition " + std::to_string(id));
+
+        const KeyboardDefinition parsed = ParseDefinition(definition);
+        if (parsed.vendorId == 0 && parsed.productId == 0)
+            throw ProtocolError("the definition has no vendorId and productId to match a board by");
+
+        // The same bytes again -- a re-import of a file not edited since -- make no revision:
+        // one would push the real backup out for nothing. Only where it came from is kept.
+        std::vector<uint8_t> stored;
+        try
+        {
+            stored = Read(*current);
+        }
+        catch (const LibraryError&)
+        {
+            // Unreadable: the new version is welcome.
+        }
+
+        if (stored == definition)
+        {
+            if (current->origin != origin)
+            {
+                LibraryEntry moved = *current;
+                moved.origin       = std::move(origin);
+                SaveEntry(moved);
+            }
+            return *Find(id);
+        }
+
+        // Past both revisions: after a restore the backup is the higher one.
+        LibraryEntry updated     = *current;
+        updated.revision         = std::max(current->revision, current->previousRevision) + 1;
+        updated.previousRevision = current->revision;
+        updated.origin           = std::move(origin);
+        updated.name             = parsed.name;
+        updated.vendorId         = parsed.vendorId;
+        updated.productId        = parsed.productId;
+
+        const uint32_t dropped = current->previousRevision;
+
+        // As in Import(): the file, then the index, then the file no longer named. A crash
+        // in between leaves an orphan, deleted at the next open.
+        const std::filesystem::path file = FileOf(updated);
+        WriteFile(file, definition.data(), definition.size());
+
+        try
+        {
+            SaveEntry(updated);
+        }
+        catch (const LibraryError&)
+        {
+            std::error_code ignored;
+            std::filesystem::remove(file, ignored);
+            throw;
+        }
+
+        if (dropped != 0)
+        {
+            std::error_code ignored;
+            std::filesystem::remove(FileOf(id, dropped), ignored);
+        }
+
+        return *Find(id);
+    }
+
+    const LibraryEntry& DefinitionLibrary::RestorePrevious(uint32_t id)
+    {
+        const LibraryEntry* current = Find(id);
+        if (current == nullptr)
+            throw LibraryError("no user definition " + std::to_string(id));
+        if (current->previousRevision == 0)
+            throw LibraryError("user definition " + std::to_string(id) + " has no previous version");
+
+        // Its name and ids may differ from the current revision's; the index copies them.
+        const KeyboardDefinition parsed = ParseDefinition(ReadFile(FileOf(id, current->previousRevision)));
+
+        LibraryEntry updated     = *current;
+        updated.revision         = current->previousRevision;
+        updated.previousRevision = current->revision;
+        updated.name             = parsed.name;
+        updated.vendorId         = parsed.vendorId;
+        updated.productId        = parsed.productId;
+
+        SaveEntry(updated);
+        return *Find(id);
     }
 
     std::vector<uint8_t> DefinitionLibrary::Read(const LibraryEntry& entry) const

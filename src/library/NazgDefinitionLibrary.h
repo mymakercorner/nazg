@@ -5,7 +5,13 @@
 // ones from VIA's bundle -- kept in a folder Nazg owns, not as paths to files that move.
 //
 //     <folder>/user_definitions/index.json    the index -- the only file ever rewritten
-//     <folder>/user_definitions/7-r1.json     entry 7, revision 1, byte for byte as imported
+//     <folder>/user_definitions/7-r2.json     entry 7, revision 2, byte for byte as imported
+//     <folder>/user_definitions/7-r1.json     its one backup, the revision r2 replaced
+//
+// Replacing an entry -- a re-import of its file, or a newer file for the same board --
+// keeps its number, so the choices pointing at it follow, and keeps the revision it
+// replaced as a backup, one deep; restoring swaps the two. No full history: the file's
+// author has that in git. Nazg never watches a file for changes; the user re-imports.
 //
 // <folder> is Nazg's data folder, which will hold other things; everything of the library
 // is in user_definitions/, so it is backed up, moved or zipped as one folder.
@@ -26,7 +32,7 @@
 //
 // This is plain file I/O on a folder the caller chooses -- SDL_GetPrefPath() in Main.cpp,
 // an IDBFS mount in a web build, a temporary folder in the tests. The design, and what is
-// still to come (linked entries, replacing, export): see
+// still to come (export and import of the whole library): see
 // docs/research_material/via-registry.md, "Storage".
 
 #pragma once
@@ -53,11 +59,12 @@ namespace nazg
 
     struct LibraryEntry
     {
-        uint32_t id       = 0;
-        uint32_t revision = 1;
+        uint32_t id               = 0;
+        uint32_t revision         = 1;
+        uint32_t previousRevision = 0;   // the backup; 0 when there is none
 
-        std::string origin;   // where it was imported from: a path today, a URL later
-        std::string added;    // when, as the caller gave it (ISO 8601, UTC)
+        std::string origin;   // where it was last imported from: a path today, a URL later
+        std::string added;    // when the entry was first imported, as the caller gave it (ISO 8601, UTC)
 
         // Copied from the definition, to list and match without reading every file.
         std::string name;
@@ -81,11 +88,32 @@ namespace nazg
         // be written; the library is unchanged either way.
         const LibraryEntry& Import(const std::vector<uint8_t>& definition, std::string origin, std::string added);
 
-        // Forgets an entry, and the choices pointing at it, and deletes its file. An unknown
-        // id does nothing.
+        // Replaces an entry's definition, keeping its number: its current revision becomes
+        // the backup, and the backup before it is deleted. Name and ids are taken from the
+        // new definition -- a board whose ids changed stops being a candidate for the old
+        // ones. A definition byte for byte the same as the current one makes no revision, so
+        // the backup stays; only `origin` is updated. Throws as Import() does, and
+        // LibraryError for an unknown id; the library is unchanged then.
+        const LibraryEntry& Replace(uint32_t id, const std::vector<uint8_t>& definition, std::string origin);
+
+        // Swaps an entry's current revision and its backup, so a restore is undone the same
+        // way. Throws LibraryError if the entry has no backup or it cannot be read,
+        // ProtocolError if it no longer parses.
+        const LibraryEntry& RestorePrevious(uint32_t id);
+
+        // Forgets an entry, and the choices pointing at it, and deletes its files. An
+        // unknown id does nothing.
         void Remove(uint32_t id);
 
-        // The stored bytes of an entry. Throws LibraryError if its file cannot be read.
+        // The entry by number; null when there is none.
+        [[nodiscard]] const LibraryEntry* Find(uint32_t id) const noexcept;
+
+        // The entry a definition would replace: the first with its VID:PID and name. Null
+        // when there is none, and the import is simply a new entry.
+        [[nodiscard]] const LibraryEntry* FindSameBoard(const KeyboardDefinition& definition) const noexcept;
+
+        // The stored bytes of an entry's current revision. Throws LibraryError if its file
+        // cannot be read.
         [[nodiscard]] std::vector<uint8_t> Read(const LibraryEntry& entry) const;
 
         // Every entry for this VID:PID, read and parsed, in import order. Throws
@@ -111,7 +139,13 @@ namespace nazg
         void Forget(const DeviceIdentity& device);
 
     private:
-        std::filesystem::path FileOf(const LibraryEntry& entry) const;
+        std::filesystem::path FileOf(uint32_t id, uint32_t revision) const;
+        std::filesystem::path FileOf(const LibraryEntry& entry) const { return FileOf(entry.id, entry.revision); }
+        LibraryEntry*         FindMutable(uint32_t id) noexcept;
+
+        // Puts `updated` in place of the entry with its number and saves the index; on
+        // failure puts the old one back and throws.
+        void SaveEntry(const LibraryEntry& updated);
         void                  LoadIndex();
         void                  SaveIndex() const;
         void                  DeleteOrphans() const;

@@ -552,12 +552,17 @@ Nazg, not VIA, so none of that applies.
 ### User definitions: a local library
 
 Today a definition is a remembered file path in `imgui.ini`, which breaks when the file
-moves. Replace it by **a library folder in the app's data directory**, holding two kinds of
-entry:
+moves. Replace it by **a library folder in the app's data directory**: every definition is
+**imported** — copied into the library, so it survives the original's deletion.
 
-- **Imported** — copied into the library. The normal case; survives the original's deletion.
-- **Linked** — Nazg follows a file on disk and reloads it when it changes. For a designer
-  iterating on a `via.json`; roughly what the `imgui.ini` path does today, made explicit.
+**Agreed with Rico 2026-09-25: no watching files, and no linked entries.** A second kind of
+entry, *linked* — Nazg following a file on disk and reloading it when it changes, for a
+designer iterating on a `via.json` — was proposed and dropped. Nazg does not poll a definition
+file; the user re-imports it explicitly. Without the reloading, all a linked entry offered was a
+path to read again, which an imported entry already keeps in `origin` — so the designer's loop is
+**"Re-import"** on the entry (see "Replacing a user definition"): save the file, click, look.
+Dropping it also dropped a "missing file" state, keeping the last good version in memory, and a
+native-only split for a web build, which has no paths.
 
 Both the source and the converted form are accepted, as VIA does. The file is stored as
 given; how, and the index beside it, are under "Storage" below.
@@ -711,15 +716,25 @@ hand a definition whose VID:PID does not match.
 
 ### Replacing a user definition
 
-- **Re-importing for the same VID:PID and name offers "Replace" or "Keep both"**, Replace by
-  default.
-- **Keep the previous version as one backup**, so a bad edit can be undone. No full history;
-  the designer's own git has it.
+- **"Re-import" on an entry** reads its `origin` file again and replaces the entry with it.
+  A file that has moved cannot be re-imported; importing it from where it is now, below, does
+  the same.
+- **Importing a file for the same VID:PID and name offers "Replace" or "Keep both"**, Replace
+  by default — the case of a vendor's newer file saved somewhere else.
+- **A replacement keeps the entry's number**, so every choice pointing at it follows, and a
+  board drawn with it loads again with the new version.
+- **Keep the previous version as one backup**, so a bad edit can be undone: **"Restore
+  previous"** swaps the current version and the backup, so a restore is undone the same way.
+  No full history; the designer's own git has it.
 - **Replacing is safe for the keymap** — it lives in the board, positionally; a definition
   only changes how it is drawn. The catch: **reordered layout-option groups** make the
   board's saved option value point at a different choice. Warn when the option groups
   differ.
-- **Linked entries never need replacing** — they follow the file.
+
+*Implemented 2026-09-25* — `DefinitionLibrary::Replace()` and `RestorePrevious()`. The
+warning compares the layout-option labels of the two versions. `added` stays the date the entry
+was first imported; `origin` is where it was last imported from. Name and ids follow the new
+version, so a replacement with other ids stops being a candidate for the old ones.
 
 ### Storage
 
@@ -736,8 +751,8 @@ below. A choice naming a kind of definition this Nazg does not know makes the in
 unreadable, like any other damage, rather than being dropped. The layout below says
 `library.json` and `definitions/`; read those as `user_definitions/index.json` and
 `user_definitions/`.
-Still to come from this section: linked entries, revisions with a backup,
-export/import. `imgui.ini` moved here the same day: in the data folder, not the working
+Revisions with one backup came 2026-09-25 (`previousRevision`, absent when there is none).
+Still to come from this section: export/import. `imgui.ini` moved here the same day: in the data folder, not the working
 directory, so every build and every way of starting Nazg shares one set of settings; an
 `imgui.ini` where Nazg starts is copied in the first time.
 
@@ -776,9 +791,6 @@ imgui.ini               moved here; ImGui defaults to the working directory
   **never modified once written**. A Replace writes the new revision, then the index, then
   deletes anything older than the previous revision. A crash leaves at worst an orphan
   file, deleted at the next start because no entry points to it.
-- **A linked entry has no copy**, only its path. An edit that no longer parses shows the
-  error and keeps the last version that did, in memory only. A file that has gone shows as
-  missing, not dropped.
 - **`library.json` is the only file that changes.** Read whole at start and kept in memory,
   written whole to a temporary file and renamed over the old one, so a crash leaves the old
   index or the new, never a mix. Plain JSON through nlohmann — no database; readable in an
@@ -789,12 +801,9 @@ imgui.ini               moved here; ImGui defaults to the working directory
   "format": 1,
   "nextId": 8,
   "definitions": [
-    { "id": 7, "kind": "imported", "revision": 2, "previousRevision": 1,
+    { "id": 7, "revision": 2, "previousRevision": 1,
       "origin": "C:/Users/Rico/Downloads/d60b.json", "added": "2026-09-24T18:40:00Z",
-      "vendorId": "0xCA04", "productId": "0x1600", "name": "D60B" },
-    { "id": 5, "kind": "linked", "path": "D:/Keyboards/concordia/via.json",
-      "added": "2026-09-20T10:02:00Z",
-      "vendorId": "0x...", "productId": "0x...", "name": "The Concordia" }
+      "vendorId": "0xCA04", "productId": "0x1600", "name": "D60B" }
   ],
   "choices": [
     { "vendorId": "0xCA04", "productId": "0x1600", "manufacturer": "KBDfans",
@@ -812,7 +821,7 @@ imgui.ini               moved here; ImGui defaults to the working directory
   cleared site data — and then the choices pointing at old numbers are gone with it, which is
   one reason entries and choices share a file.
 - **Entries copy the VID:PID and name** from their definition, to list and match without
-  opening every file, and so a linked entry whose file is gone still shows by name.
+  opening every file.
 - **Choices point at a user entry by number, or an official definition by its path in the
   bundle** — keyed by VID:PID, so a newer bundle keeps it valid.
 - **Entries do not record device values.** The choices already do; a `device` block per
@@ -831,9 +840,8 @@ HTTP cache handles it. Web-only limits:
 - **Eviction**: the browser may evict the data under storage pressure unless the app
   obtains `navigator.storage.persist()`, and clearing site data wipes the library. **Export
   of the whole library** matters more on the web than on native.
-- **Linked entries are native-only.** There are no paths; Chromium's File System Access API
-  could keep a handle in IndexedDB but asks permission again each session. Web users
-  re-import.
+- **"Re-import" has no path to read** on the web; users import the file again and answer
+  Replace.
 - Quota is not a limit: hundreds of MB, against a few KB per definition.
 
 ### Decisions to take

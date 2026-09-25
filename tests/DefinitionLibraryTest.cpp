@@ -172,6 +172,82 @@ namespace
         Check(again.Choices().empty(), "and stays forgotten");
     }
 
+    std::vector<uint8_t> OtherBoard()
+    {
+        return IsoMacroBytes(R"({"name":"Other","vendorId":"0x1234","productId":"0x5678",)"
+                             R"("matrix":{"rows":1,"cols":1},"layouts":{"keymap":[["0,0"]]}})");
+    }
+
+    void TestReplace()
+    {
+        std::printf("replacing and restoring\n");
+
+        const fs::path  files = "user_definitions";
+        TemporaryFolder folder;
+        {
+            DefinitionLibrary library(folder.path);
+            (void)library.Import(IsoMacroSource(), "D:/iso_macro.json", "2026-09-25T10:00:00Z");
+            library.Choose(IsoMacroBoard(), nazg::DefinitionRef::User(1));
+
+            Check(library.FindSameBoard(nazg::ParseDefinition(IsoMacroConverted())) == &library.Entries()[0],
+                  "a file with the same VID:PID and name is for the same board");
+            Check(library.FindSameBoard(nazg::ParseDefinition(OtherBoard())) == nullptr, "another is not");
+
+            const LibraryEntry& second = library.Replace(1, IsoMacroConverted(), "D:/new/iso_macro.json");
+            Check(second.id == 1 && second.revision == 2 && second.previousRevision == 1,
+                  "a replacement keeps the number: revision 2, revision 1 kept");
+            Check(second.origin == "D:/new/iso_macro.json" && second.added == "2026-09-25T10:00:00Z",
+                  "it records where it came from, and keeps when the entry was first imported");
+            Check(library.Read(second) == IsoMacroConverted(), "the new version is read");
+            Check(fs::exists(folder.path / files / "1-r1.json") && fs::exists(folder.path / files / "1-r2.json"),
+                  "both files are there");
+            Check(library.FindChoice(IsoMacroBoard())->definition == nazg::DefinitionRef::User(1),
+                  "and the choice still points at the entry");
+
+            (void)library.Replace(1, IsoMacroConverted(), "E:/moved/iso_macro.json");
+            Check(library.Entries()[0].revision == 2 && library.Entries()[0].previousRevision == 1 &&
+                      library.Entries()[0].origin == "E:/moved/iso_macro.json",
+                  "the same bytes again make no revision -- the backup stays -- and only the origin moves");
+
+            (void)library.Replace(1, IsoMacroSource(), "D:/iso_macro.json");
+            Check(library.Entries()[0].revision == 3 && library.Entries()[0].previousRevision == 2 &&
+                      !fs::exists(folder.path / files / "1-r1.json"),
+                  "a third version keeps only the one before it");
+
+            const LibraryEntry& restored = library.RestorePrevious(1);
+            Check(restored.revision == 2 && restored.previousRevision == 3 &&
+                      library.Read(restored) == IsoMacroConverted(),
+                  "restoring swaps the current version and the previous one");
+
+            (void)library.Replace(1, OtherBoard(), "D:/other.json");
+            const LibraryEntry& other = library.Entries()[0];
+            Check(other.revision == 4 && other.previousRevision == 2 && !fs::exists(folder.path / files / "1-r3.json"),
+                  "a version after a restore numbers past both, and drops the one the restore left aside");
+            Check(other.name == "Other" && other.vendorId == 0x1234 && other.productId == 0x5678,
+                  "name and ids follow the new version");
+            Check(library.Candidates(0x4D65, 0x1200).empty(), "which is no longer a candidate for the old ids");
+
+            Check(Throws<ProtocolError>([&] { (void)library.Replace(1, IsoMacroBytes("not json"), "x"); }),
+                  "a version that does not parse is refused");
+            Check(library.Entries()[0].revision == 4 && CountFiles(folder.path / files) == 3,
+                  "and leaves the entry and its files as they were");
+            Check(Throws<LibraryError>([&] { (void)library.Replace(9, IsoMacroSource(), "x"); }),
+                  "replacing an unknown entry is refused");
+        }
+
+        DefinitionLibrary reopened(folder.path);
+        Check(reopened.Entries()[0].previousRevision == 2 && fs::exists(folder.path / files / "1-r2.json"),
+              "the backup comes back with the index, and is not taken for an orphan");
+
+        (void)reopened.Import(IsoMacroSource(), "b", "t");
+        Check(Throws<LibraryError>([&] { (void)reopened.RestorePrevious(2); }),
+              "an entry never replaced has nothing to restore");
+
+        reopened.Remove(1);
+        Check(!fs::exists(folder.path / files / "1-r4.json") && !fs::exists(folder.path / files / "1-r2.json"),
+              "removing an entry deletes its backup too");
+    }
+
     void TestIndexWithoutChoices()
     {
         std::printf("an index from before choices\n");
@@ -281,6 +357,7 @@ int main()
     TestImport();
     TestReopen();
     TestChoices();
+    TestReplace();
     TestIndexWithoutChoices();
     TestRejects();
     TestNumbersNeverReused();

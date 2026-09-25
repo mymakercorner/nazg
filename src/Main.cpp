@@ -261,11 +261,21 @@ namespace
     // VIA's bundle -- all in user_definitions\ of the data folder, index.json included. See
     // library/NazgDefinitionLibrary.h. A library that cannot be opened -- a damaged index,
     // which it leaves untouched -- is reported and the app runs without one.
+    // A file picked for import that is for a board the library already has a definition of
+    // -- same VID:PID and name -- waiting for the user to say Replace or Keep both.
+    struct PendingReplacement
+    {
+        std::string          path;
+        std::vector<uint8_t> bytes;
+        uint32_t             entryId = 0;
+    };
+
     struct Library
     {
         std::optional<nazg::DefinitionLibrary> library;
         std::string                            error;      // why it could not be opened
         std::vector<std::string>               messages;   // what the last imports did
+        std::vector<PendingReplacement>        replacements;   // asked about one at a time
     };
 
     Library OpenLibrary(const std::optional<std::filesystem::path>& dataFolder, const std::string& dataFolderError)
@@ -288,23 +298,84 @@ namespace
         return result;
     }
 
-    // Copy files into the library. Each outcome is kept for the device list to show.
-    void ImportDefinitions(Library& library, const std::vector<std::string>& paths)
+    std::string FileName(const std::string& path)
+    {
+        return Utf8FromPath(PathFromUtf8(path).filename());
+    }
+
+    // Copy files into the library. Each outcome is kept for the device list to show. With
+    // `askOnSameBoard`, a file for a board the library already has is set aside for the
+    // user's answer -- Replace or Keep both -- rather than imported.
+    void ImportDefinitions(Library& library, const std::vector<std::string>& paths, bool askOnSameBoard)
     {
         library.messages.clear();
 
         for (const std::string& path : paths)
         {
-            const std::string file = Utf8FromPath(PathFromUtf8(path).filename());
             try
             {
-                const nazg::LibraryEntry& entry = library.library->Import(ReadWholeFile(path), path, NowUtc());
-                library.messages.push_back("imported " + file + ": " + entry.name);
+                std::vector<uint8_t> bytes = ReadWholeFile(path);
+
+                if (askOnSameBoard)
+                    if (const nazg::LibraryEntry* same = library.library->FindSameBoard(nazg::ParseDefinition(bytes)))
+                    {
+                        library.replacements.push_back({ path, std::move(bytes), same->id });
+                        continue;
+                    }
+
+                const nazg::LibraryEntry& entry = library.library->Import(bytes, path, NowUtc());
+                library.messages.push_back("imported " + FileName(path) + ": " + entry.name);
             }
             catch (const std::exception& failure)
             {
-                library.messages.push_back("not imported " + file + ": " + failure.what());
+                library.messages.push_back("not imported " + FileName(path) + ": " + failure.what());
             }
+        }
+    }
+
+    // A new version of an entry, in its place. A changed set of layout options is worth a
+    // warning: the board keeps its layout choice as bits whose meaning the definition gives,
+    // so groups added or reordered make the saved value pick different keys. True when the
+    // entry has a new version -- not when the file was unchanged, or refused.
+    bool ReplaceDefinition(Library& library, uint32_t id, const std::vector<uint8_t>& bytes, const std::string& path)
+    {
+        try
+        {
+            std::optional<std::vector<std::string>> before;
+            uint32_t                                revision = 0;
+            if (const nazg::LibraryEntry* entry = library.library->Find(id))
+            {
+                revision = entry->revision;
+                try
+                {
+                    before = nazg::ParseDefinition(library.library->Read(*entry)).layoutLabels;
+                }
+                catch (const std::exception&)
+                {
+                    // Unreadable or unparseable: nothing to compare with, which is no reason
+                    // to refuse the new version.
+                }
+            }
+
+            const nazg::LibraryEntry& replaced = library.library->Replace(id, bytes, path);
+            if (replaced.revision == revision)
+            {
+                library.messages.push_back(FileName(path) + " is unchanged -- " + replaced.name + " stays as it was");
+                return false;
+            }
+
+            library.messages.push_back("replaced " + replaced.name + " with " + FileName(path) + " -- the version " +
+                                       "before is kept, see \"Restore previous\"");
+
+            if (before && *before != nazg::ParseDefinition(bytes).layoutLabels)
+                library.messages.push_back("its layout options changed: a board's saved layout may now select "
+                                           "different keys -- check it");
+            return true;
+        }
+        catch (const std::exception& failure)
+        {
+            library.messages.push_back("not replaced with " + FileName(path) + ": " + failure.what());
+            return false;
         }
     }
 
@@ -717,15 +788,21 @@ int main(int, char**)
         loadTask = LoadBoard(transport, path, identity, std::move(candidates), std::move(chosen), viaBundle, boardState);
     };
 
-    // After an import or a removal: the picker's list follows, and a board waiting for a
-    // definition loads by itself once exactly one candidate is left -- the connect rule.
-    const auto afterLibraryChange = [&]
+    // After the library changed: the picker's list follows, and a board waiting for a
+    // definition loads by itself once exactly one candidate is left -- the connect rule. A
+    // board drawn by an entry given a new version (`replaced`) is loaded again with it,
+    // keymap included, since the matrix may have changed with it.
+    const auto afterLibraryChange = [&](std::optional<uint32_t> replaced = std::nullopt)
     {
         if (isLoadRunning())
             return;
 
         RefreshCandidates(library, boardState);
-        if (boardState.isChoosing && !boardState.keyboard && nazg::ResolveCandidate(boardState.candidates, std::nullopt))
+
+        if (replaced && boardState.keyboard && boardState.inUse == nazg::DefinitionRef::User(*replaced))
+            startLoad(boardState.path, boardState.identity, boardState.inUse);
+        else if (boardState.isChoosing && !boardState.keyboard &&
+                 nazg::ResolveCandidate(boardState.candidates, std::nullopt))
             startLoad(boardState.path, boardState.identity, std::nullopt);
     };
 
@@ -767,7 +844,7 @@ int main(int, char**)
             }
             if (!picked.empty() && library.library)
             {
-                ImportDefinitions(library, picked);
+                ImportDefinitions(library, picked, true);
                 afterLibraryChange();
             }
         }
@@ -776,7 +853,7 @@ int main(int, char**)
         // frame: imported once, then dropped from the settings. Kept if there is no library.
         if (!settings.legacyViaDefinitions.empty() && library.library)
         {
-            ImportDefinitions(library, settings.legacyViaDefinitions);
+            ImportDefinitions(library, settings.legacyViaDefinitions, false);
             settings.legacyViaDefinitions.clear();
             ImGui::MarkIniSettingsDirty();
         }
@@ -877,32 +954,84 @@ int main(int, char**)
                 if (ImGui::IsItemHovered())
                     ImGui::SetTooltip("%s", Utf8FromPath(library.library->Folder()).c_str());
 
-                // Removed after the loop, so the list is never changed while it is walked.
-                std::optional<uint32_t> removal;
+                // Acted on after the loop, so the list is never changed while it is walked.
+                enum class EntryAction
+                {
+                    None,
+                    Reimport,
+                    Restore,
+                    Remove,
+                };
+                EntryAction action   = EntryAction::None;
+                uint32_t    actionId = 0;
+
                 for (const nazg::LibraryEntry& entry : library.library->Entries())
                 {
                     ImGui::PushID(static_cast<int>(entry.id));
+
+                    if (ImGui::SmallButton("Re-import"))
+                        action = EntryAction::Reimport, actionId = entry.id;
+                    ImGui::SetItemTooltip("Read %s again, after editing it.\nThe version it replaces is kept.",
+                                          entry.origin.c_str());
+
+                    if (entry.previousRevision != 0)
+                    {
+                        ImGui::SameLine();
+                        if (ImGui::SmallButton("Restore previous"))
+                            action = EntryAction::Restore, actionId = entry.id;
+                        ImGui::SetItemTooltip("Go back to the version before the last re-import.\n"
+                                              "The current one becomes the previous, so this can be undone.");
+                    }
+
+                    ImGui::SameLine();
                     if (ImGui::SmallButton("Remove"))
-                        removal = entry.id;
+                        action = EntryAction::Remove, actionId = entry.id;
+
                     ImGui::PopID();
 
                     ImGui::SameLine();
                     ImGui::Text("%04X:%04X  %s", entry.vendorId, entry.productId, entry.name.c_str());
                     if (ImGui::IsItemHovered())
-                        ImGui::SetTooltip("imported from %s\non %s", entry.origin.c_str(), entry.added.c_str());
+                        ImGui::SetTooltip("imported from %s\nfirst imported on %s", entry.origin.c_str(),
+                                          entry.added.c_str());
                 }
 
-                if (removal)
+                if (action != EntryAction::None)
+                    library.messages.clear();
+
+                try
                 {
-                    try
+                    if (action == EntryAction::Reimport)
                     {
-                        library.library->Remove(*removal);
+                        const std::string    origin = library.library->Find(actionId)->origin;
+                        std::vector<uint8_t> bytes;
+                        try
+                        {
+                            bytes = ReadWholeFile(origin);
+                        }
+                        catch (const std::exception&)
+                        {
+                            throw std::runtime_error("cannot read " + origin + " -- if it moved, import it from where "
+                                                     "it is now and answer Replace");
+                        }
+                        if (ReplaceDefinition(library, actionId, bytes, origin))
+                            afterLibraryChange(actionId);
+                    }
+                    else if (action == EntryAction::Restore)
+                    {
+                        const nazg::LibraryEntry& restored = library.library->RestorePrevious(actionId);
+                        library.messages.push_back("restored the previous version of " + restored.name);
+                        afterLibraryChange(actionId);
+                    }
+                    else if (action == EntryAction::Remove)
+                    {
+                        library.library->Remove(actionId);
                         afterLibraryChange();
                     }
-                    catch (const std::exception& failure)
-                    {
-                        library.messages = { std::string("not removed: ") + failure.what() };
-                    }
+                }
+                catch (const std::exception& failure)
+                {
+                    library.messages.push_back(std::string("failed: ") + failure.what());
                 }
 
                 for (const std::string& message : library.messages)
@@ -980,6 +1109,67 @@ int main(int, char**)
             }
 
             ImGui::End();
+        }
+
+        // An imported file for a board the library already has: Replace or Keep both, one
+        // file at a time, the next asked on the next frame.
+        if (library.library && !library.replacements.empty())
+        {
+            constexpr char c_Title[] = "Replace a user definition?";
+            if (!ImGui::IsPopupOpen(c_Title))
+                ImGui::OpenPopup(c_Title);
+
+            if (ImGui::BeginPopupModal(c_Title, nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+            {
+                const PendingReplacement  pending = library.replacements.front();
+                const nazg::LibraryEntry* entry   = library.library->Find(pending.entryId);
+
+                ImGui::Text("%s is for a board you already have a user definition for:", FileName(pending.path).c_str());
+                if (entry != nullptr)
+                    ImGui::BulletText("%04X:%04X  %s, imported from %s", entry->vendorId, entry->productId,
+                                      entry->name.c_str(), entry->origin.c_str());
+
+                ImGui::PushTextWrapPos(ImGui::GetFontSize() * 36.0f);
+                ImGui::TextUnformatted("Replace puts the new file in its place and keeps the old one as its previous "
+                                       "version; boards drawn with it switch to the new file. Keep both adds it as "
+                                       "another definition, and Nazg asks which one draws the board.");
+                ImGui::PopTextWrapPos();
+
+                const bool replace  = ImGui::Button("Replace");
+                ImGui::SetItemDefaultFocus();
+                ImGui::SameLine();
+                const bool keepBoth = ImGui::Button("Keep both");
+                ImGui::SameLine();
+                const bool cancel   = ImGui::Button("Don't import");
+
+                if (replace || keepBoth || cancel)
+                {
+                    library.replacements.erase(library.replacements.begin());
+                    ImGui::CloseCurrentPopup();
+                    library.messages.clear();
+                }
+
+                if (replace)
+                {
+                    if (ReplaceDefinition(library, pending.entryId, pending.bytes, pending.path))
+                        afterLibraryChange(pending.entryId);
+                }
+                else if (keepBoth)
+                {
+                    try
+                    {
+                        const nazg::LibraryEntry& added = library.library->Import(pending.bytes, pending.path, NowUtc());
+                        library.messages.push_back("imported " + FileName(pending.path) + ": " + added.name);
+                        afterLibraryChange();
+                    }
+                    catch (const std::exception& failure)
+                    {
+                        library.messages.push_back("not imported " + FileName(pending.path) + ": " + failure.what());
+                    }
+                }
+
+                ImGui::EndPopup();
+            }
         }
 
         if (boardState.isLoading || boardState.keyboard || boardState.isChoosing || !boardState.error.empty())
