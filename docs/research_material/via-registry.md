@@ -668,6 +668,26 @@ On connect:
 3. otherwise ask, candidates ranked by priority, then by how closely the definition's `name`
    matches the product string (lowercase, alphanumerics only, containment).
 
+**A choice matches in two steps — agreed with Rico 2026-09-25.** First a choice matching
+everything the device reports, release number and serial included; otherwise the most recent
+one matching VID:PID, manufacturer and product alone. The release number is the device's, not
+the definition's — a VIA definition carries only `name`, `vendorId` and `productId` — so it
+only ever tells apart two of the user's own boards. Exact matching alone would ask again after
+a firmware update that bumps `usb.device_version`; the second step keeps the choice. The cost
+lands on someone owning two revisions of one board with the same strings: the second shows up
+with the first one's definition once, and "Change definition…" saves an exact choice for it.
+"Forget choice" forgets every choice of the board, whatever its release, so the next connect
+really asks again.
+
+*Implemented 2026-09-25* — `library/NazgDefinitionChoice.*` (matching, ranking, resolving;
+pure), choices in `user_definitions/index.json`, the picker in `ui/NazgDefinitionPicker.*`
+with each candidate drawn small; verified by Rico on the Phoenix Project No 1 against a forged
+ortho definition on the same VID:PID. A choice is saved only when the user picks — never for a lone
+candidate — and removing a user definition removes the choices pointing at it. With no
+candidate at all the picker is the empty state of level 1 below, and an import that leaves
+exactly one candidate loads the board by itself. Not yet: "press a key to check", binding by
+hand a definition whose VID:PID does not match.
+
 - **Always show which definition is in use** next to the board, with **"Change
   definition…"** — the same picker, current one marked — and **"Forget choice"**, so Nazg
   asks again. Changing overwrites the one choice. The action is there **even with a single
@@ -709,12 +729,14 @@ bundle — community ones will sit between — and the files on disk say so: in 
 (`SDL_GetPrefPath()`), one folder, `user_definitions/`, holds everything — `index.json`, with
 `format` and `nextId`, beside the files `<id>-r<revision>.json`, stored byte for byte — so it
 is backed up, moved or zipped whole. Import after parsing,
-removal, lookup by VID:PID (first entry wins until choices exist), orphan clean-up, and an
+removal, lookup by VID:PID, orphan clean-up, and an
 unreadable index left untouched. `Main.cpp` imports the paths older builds kept in `imgui.ini`
-once. The index has no `choices` yet — adding them later needs no format change, an absent key
-meaning none. The layout below says `library.json` and `definitions/`; read those as
-`user_definitions/index.json` and `user_definitions/`.
-Still to come from this section: choices, linked entries, revisions with a backup,
+once. `choices` came 2026-09-25 with no format change — an absent key means none — laid out as
+below. A choice naming a kind of definition this Nazg does not know makes the index
+unreadable, like any other damage, rather than being dropped. The layout below says
+`library.json` and `definitions/`; read those as `user_definitions/index.json` and
+`user_definitions/`.
+Still to come from this section: linked entries, revisions with a backup,
 export/import. `imgui.ini` moved here the same day: in the data folder, not the working
 directory, so every build and every way of starting Nazg shares one set of settings; an
 `imgui.ini` where Nazg starts is copied in the first time.
@@ -857,8 +879,9 @@ HTTP cache handles it. Web-only limits:
 - The board in VIA's registry to verify on is Rico's Phoenix Project No 1 (`0x21C0:0x9901`).
 - **Proposed, backed by measurement**: the bundle as one solid `.xz` of a tar, decoded per
   connect; the data directory from `SDL_GetPrefPath` in `Main.cpp`, handed down as a path.
-- **Proposed**: choices keyed on VID:PID plus the HID strings, device version and serial, in
-  `library.json` with the entries — layout above.
+- **Done 2026-09-25**: choices keyed on VID:PID plus the HID strings, device version and
+  serial, in the index with the entries, matched in two steps — see "Choosing a definition on
+  connect".
 
 ## Open for the next part of the study
 

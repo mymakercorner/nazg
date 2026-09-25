@@ -28,4 +28,9 @@ namespace nazg
     // Layer tabs and the board itself, into the current ImGui window. `layer` is the
     // selected tab and `selection` the clicked key; both are updated by the user.
     void DrawKeyboardView(const Keyboard& keyboard, int& layer, const HostLayout& layout, KeySelection& selection);
+
+    // A definition drawn small -- blank keys, the first choice of every layout option -- so
+    // candidates tell apart at a glance: ANSI from ISO, ortho from staggered. At most
+    // `width` pixels wide and `height` high, keeping the board's proportions.
+    void DrawDefinitionPreview(const KeyboardDefinition& definition, float width, float height);
 }

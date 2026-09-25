@@ -118,6 +118,29 @@ namespace nazg
                 m_NextId = std::max(m_NextId, entry.id + 1);
                 m_Entries.push_back(std::move(entry));
             }
+
+            // Absent in an index written before choices existed: none.
+            if (const auto choices = index.find("choices"); choices != index.end())
+            {
+                for (const nlohmann::json& item : *choices)
+                {
+                    DefinitionChoice choice;
+                    choice.device.vendorId     = ParseHexId(item.at("vendorId"));
+                    choice.device.productId    = ParseHexId(item.at("productId"));
+                    choice.device.manufacturer = item.at("manufacturer").get<std::string>();
+                    choice.device.product      = item.at("product").get<std::string>();
+                    choice.device.release      = ParseHexId(item.at("release"));
+                    choice.device.serial       = item.at("serial").get<std::string>();
+
+                    const std::string definition = item.at("definition").get<std::string>();
+                    const auto        ref        = ParseDefinitionRef(definition);
+                    if (!ref)
+                        throw std::invalid_argument("unknown definition " + definition);
+                    choice.definition = *ref;
+
+                    m_Choices.push_back(std::move(choice));
+                }
+            }
         }
         catch (const LibraryError&)
         {
@@ -126,6 +149,7 @@ namespace nazg
         catch (const std::exception& failure)
         {
             m_Entries.clear();
+            m_Choices.clear();
             throw LibraryError("user_definitions/index.json is damaged: " + std::string(failure.what()));
         }
     }
@@ -144,7 +168,22 @@ namespace nazg
                                     { "productId", HexId(entry.productId) } });
         }
 
-        const nlohmann::json index = { { "format", c_Format }, { "nextId", m_NextId }, { "definitions", definitions } };
+        nlohmann::json choices = nlohmann::json::array();
+        for (const DefinitionChoice& choice : m_Choices)
+        {
+            choices.push_back({ { "vendorId", HexId(choice.device.vendorId) },
+                                { "productId", HexId(choice.device.productId) },
+                                { "manufacturer", choice.device.manufacturer },
+                                { "product", choice.device.product },
+                                { "release", HexId(choice.device.release) },
+                                { "serial", choice.device.serial },
+                                { "definition", FormatDefinitionRef(choice.definition) } });
+        }
+
+        const nlohmann::json index = { { "format", c_Format },
+                                       { "nextId", m_NextId },
+                                       { "definitions", definitions },
+                                       { "choices", choices } };
 
         std::string text;
         try
@@ -232,9 +271,14 @@ namespace nazg
         if (found == m_Entries.end())
             return;
 
-        const LibraryEntry   removed  = *found;
-        const std::ptrdiff_t position = found - m_Entries.begin();
+        const LibraryEntry                  removed  = *found;
+        const std::ptrdiff_t                position = found - m_Entries.begin();
+        const std::vector<DefinitionChoice> choices  = m_Choices;
+
         m_Entries.erase(found);
+        m_Choices.erase(std::remove_if(m_Choices.begin(), m_Choices.end(), [id](const DefinitionChoice& choice)
+                                       { return choice.definition == DefinitionRef::User(id); }),
+                        m_Choices.end());
 
         try
         {
@@ -243,6 +287,7 @@ namespace nazg
         catch (const LibraryError&)
         {
             m_Entries.insert(m_Entries.begin() + position, removed);
+            m_Choices = choices;
             throw;
         }
 
@@ -256,11 +301,50 @@ namespace nazg
         return ReadFile(FileOf(entry));
     }
 
-    const LibraryEntry* DefinitionLibrary::Find(uint16_t vendorId, uint16_t productId) const noexcept
+    std::vector<DefinitionCandidate> DefinitionLibrary::Candidates(uint16_t vendorId, uint16_t productId) const
     {
+        std::vector<DefinitionCandidate> candidates;
         for (const LibraryEntry& entry : m_Entries)
             if (entry.vendorId == vendorId && entry.productId == productId)
-                return &entry;
-        return nullptr;
+                candidates.push_back({ DefinitionRef::User(entry.id), ParseDefinition(Read(entry)), entry.origin });
+        return candidates;
+    }
+
+    void DefinitionLibrary::SaveChoices(std::vector<DefinitionChoice> choices)
+    {
+        std::swap(m_Choices, choices);
+        try
+        {
+            SaveIndex();
+        }
+        catch (const LibraryError&)
+        {
+            std::swap(m_Choices, choices);
+            throw;
+        }
+    }
+
+    void DefinitionLibrary::Choose(const DeviceIdentity& device, DefinitionRef definition)
+    {
+        // The device's earlier choice goes, and the new one is appended: the list stays
+        // in the order choices were made, which FindChoice()'s second step relies on.
+        std::vector<DefinitionChoice> choices = m_Choices;
+        choices.erase(std::remove_if(choices.begin(), choices.end(),
+                                     [&](const DefinitionChoice& choice) { return choice.device == device; }),
+                      choices.end());
+        choices.push_back({ device, std::move(definition) });
+
+        SaveChoices(std::move(choices));
+    }
+
+    void DefinitionLibrary::Forget(const DeviceIdentity& device)
+    {
+        std::vector<DefinitionChoice> choices = m_Choices;
+        choices.erase(std::remove_if(choices.begin(), choices.end(),
+                                     [&](const DefinitionChoice& choice) { return IsSameBoard(choice.device, device); }),
+                      choices.end());
+
+        if (choices.size() != m_Choices.size())
+            SaveChoices(std::move(choices));
     }
 }

@@ -20,9 +20,13 @@
 // Entry numbers only grow -- `nextId` in the index -- so a number is never given to
 // another definition, even after a removal.
 //
+// The index also keeps the choices -- which definition draws which device, see
+// NazgDefinitionChoice.h -- beside the entries they point at, so the two never part: an
+// entry removed takes its choices with it.
+//
 // This is plain file I/O on a folder the caller chooses -- SDL_GetPrefPath() in Main.cpp,
 // an IDBFS mount in a web build, a temporary folder in the tests. The design, and what is
-// still to come (per-device choices, linked entries, replacing, export): see
+// still to come (linked entries, replacing, export): see
 // docs/research_material/via-registry.md, "Storage".
 
 #pragma once
@@ -35,6 +39,7 @@
 #include <vector>
 
 #include "adapters/via/NazgKeyboardDefinition.h"
+#include "library/NazgDefinitionChoice.h"
 
 namespace nazg
 {
@@ -76,14 +81,34 @@ namespace nazg
         // be written; the library is unchanged either way.
         const LibraryEntry& Import(const std::vector<uint8_t>& definition, std::string origin, std::string added);
 
-        // Forgets an entry and deletes its file. An unknown id does nothing.
+        // Forgets an entry, and the choices pointing at it, and deletes its file. An unknown
+        // id does nothing.
         void Remove(uint32_t id);
 
         // The stored bytes of an entry. Throws LibraryError if its file cannot be read.
         [[nodiscard]] std::vector<uint8_t> Read(const LibraryEntry& entry) const;
 
-        // The first entry for this VID:PID, in import order; null when there is none.
-        [[nodiscard]] const LibraryEntry* Find(uint16_t vendorId, uint16_t productId) const noexcept;
+        // Every entry for this VID:PID, read and parsed, in import order. Throws
+        // LibraryError if a file cannot be read, ProtocolError if one no longer parses.
+        [[nodiscard]] std::vector<DefinitionCandidate> Candidates(uint16_t vendorId, uint16_t productId) const;
+
+        // Oldest first. See NazgDefinitionChoice.h.
+        const std::vector<DefinitionChoice>& Choices() const noexcept { return m_Choices; }
+
+        // The choice for a device, exact or by its VID:PID and strings; null when none.
+        [[nodiscard]] const DefinitionChoice* FindChoice(const DeviceIdentity& device) const noexcept
+        {
+            return nazg::FindChoice(m_Choices, device);
+        }
+
+        // Remembers the definition for exactly this device, replacing its earlier choice
+        // if it had one. Throws LibraryError if it cannot be saved; nothing changes then.
+        void Choose(const DeviceIdentity& device, DefinitionRef definition);
+
+        // Forgets every choice FindChoice() could return for this device -- its board's,
+        // whatever their release number and serial -- so the next connect asks again.
+        // Throws as Choose() does.
+        void Forget(const DeviceIdentity& device);
 
     private:
         std::filesystem::path FileOf(const LibraryEntry& entry) const;
@@ -91,8 +116,12 @@ namespace nazg
         void                  SaveIndex() const;
         void                  DeleteOrphans() const;
 
-        std::filesystem::path     m_Folder;
-        std::vector<LibraryEntry> m_Entries;
-        uint32_t                  m_NextId = 1;
+        // Replaces the choices and saves; on failure puts the old ones back and throws.
+        void SaveChoices(std::vector<DefinitionChoice> choices);
+
+        std::filesystem::path         m_Folder;
+        std::vector<LibraryEntry>     m_Entries;
+        std::vector<DefinitionChoice> m_Choices;
+        uint32_t                      m_NextId = 1;
     };
 }

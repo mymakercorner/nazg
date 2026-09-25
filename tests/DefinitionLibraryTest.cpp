@@ -95,8 +95,11 @@ namespace
         Check(library.Read(entry) == IsoMacroSource(), "stored byte for byte as imported");
         Check(fs::exists(folder.path / "user_definitions" / "index.json"), "and the index is written");
 
-        Check(library.Find(0x4D65, 0x1200) == &library.Entries().front(), "it is found by VID:PID");
-        Check(library.Find(0x4D65, 0x1201) == nullptr, "and nothing else is");
+        const auto candidates = library.Candidates(0x4D65, 0x1200);
+        Check(candidates.size() == 1 && candidates[0].ref == nazg::DefinitionRef::User(1) &&
+                  candidates[0].definition.name == "ISO Macro" && candidates[0].origin == "D:/boards/iso_macro.json",
+              "it is a candidate for its VID:PID, parsed");
+        Check(library.Candidates(0x4D65, 0x1201).empty(), "and for nothing else");
     }
 
     void TestReopen()
@@ -115,8 +118,77 @@ namespace
         Check(reopened.Entries()[1].id == 2 && reopened.Entries()[1].origin == "second" &&
                   reopened.Entries()[1].added == "2026-09-24T20:01:00Z",
               "with every field");
-        Check(reopened.Find(0x4D65, 0x1200)->origin == "first", "the first import wins a shared VID:PID, for now");
+        const auto candidates = reopened.Candidates(0x4D65, 0x1200);
+        Check(candidates.size() == 2 && candidates[0].origin == "first" && candidates[1].origin == "second",
+              "both are candidates for their shared VID:PID, in import order");
         Check(reopened.Read(reopened.Entries()[1]) == IsoMacroConverted(), "and the files are still there");
+    }
+
+    nazg::DeviceIdentity IsoMacroBoard(uint16_t release = 0x0001)
+    {
+        return { 0x4D65, 0x1200, "Rico", "ISO Macro", release, "" };
+    }
+
+    void TestChoices()
+    {
+        std::printf("choices\n");
+
+        TemporaryFolder folder;
+        {
+            DefinitionLibrary library(folder.path);
+            (void)library.Import(IsoMacroSource(), "a", "t");
+            (void)library.Import(IsoMacroConverted(), "b", "t");
+
+            Check(library.FindChoice(IsoMacroBoard()) == nullptr, "a new library has no choice");
+
+            library.Choose(IsoMacroBoard(), nazg::DefinitionRef::User(1));
+            library.Choose(IsoMacroBoard(), nazg::DefinitionRef::User(2));
+            Check(library.Choices().size() == 1 && library.FindChoice(IsoMacroBoard())->definition ==
+                                                        nazg::DefinitionRef::User(2),
+                  "choosing again for the same device replaces its choice");
+
+            library.Choose(IsoMacroBoard(0x0002), nazg::DefinitionRef::Official("v3/1298469376"));
+            Check(library.Choices().size() == 2, "another release of the board gets a choice of its own");
+        }
+
+        DefinitionLibrary reopened(folder.path);
+        Check(reopened.Choices().size() == 2, "choices come back with the index");
+
+        const nazg::DefinitionChoice* found = reopened.FindChoice(IsoMacroBoard(0x0002));
+        Check(found != nullptr && found->device == IsoMacroBoard(0x0002) &&
+                  found->definition == nazg::DefinitionRef::Official("v3/1298469376"),
+              "with every field");
+
+        reopened.Remove(2);
+        Check(reopened.Choices().size() == 1 && reopened.FindChoice(IsoMacroBoard(0x0001))->definition ==
+                                                    nazg::DefinitionRef::Official("v3/1298469376"),
+              "removing an entry forgets the choices pointing at it; the release's near match remains");
+
+        reopened.Choose(IsoMacroBoard(0x0003), nazg::DefinitionRef::User(1));
+        reopened.Forget(IsoMacroBoard(0x0009));
+        Check(reopened.Choices().empty(), "forgetting clears every choice of the board, whatever its release");
+
+        DefinitionLibrary again(folder.path);
+        Check(again.Choices().empty(), "and stays forgotten");
+    }
+
+    void TestIndexWithoutChoices()
+    {
+        std::printf("an index from before choices\n");
+
+        TemporaryFolder folder;
+        fs::create_directories(folder.path / "user_definitions");
+        std::ofstream(folder.path / "user_definitions" / "index.json", std::ios::binary)
+            << R"({"format":1,"nextId":1,"definitions":[]})";
+
+        DefinitionLibrary library(folder.path);
+        Check(library.Choices().empty(), "opens, with no choices");
+
+        std::ofstream(folder.path / "user_definitions" / "index.json", std::ios::binary)
+            << R"({"format":1,"nextId":1,"definitions":[],"choices":[{"vendorId":"0x4D65","productId":"0x1200",)"
+               R"("manufacturer":"","product":"","release":"0x0001","serial":"","definition":"community:3"}]})";
+        Check(Throws<LibraryError>([&] { DefinitionLibrary damaged(folder.path); }),
+              "a choice pointing at a kind of definition this Nazg does not know is refused, not dropped");
     }
 
     void TestRejects()
@@ -208,6 +280,8 @@ int main()
 
     TestImport();
     TestReopen();
+    TestChoices();
+    TestIndexWithoutChoices();
     TestRejects();
     TestNumbersNeverReused();
     TestOrphans();

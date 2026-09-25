@@ -95,6 +95,8 @@ set(NAZG_CORE_SOURCES
   src/adapters/vial/NazgVialDefinition.cpp
   src/adapters/vial/NazgVialLoader.h
   src/adapters/vial/NazgVialLoader.cpp
+  src/library/NazgDefinitionChoice.h
+  src/library/NazgDefinitionChoice.cpp
   src/library/NazgDefinitionLibrary.h
   src/library/NazgDefinitionLibrary.cpp
   src/model/NazgKeyboard.h
@@ -131,6 +133,8 @@ set(NAZG_SOURCES
   src/ui/NazgKeyboardView.cpp
   src/ui/NazgKeycodePicker.h
   src/ui/NazgKeycodePicker.cpp
+  src/ui/NazgDefinitionPicker.h
+  src/ui/NazgDefinitionPicker.cpp
 )
 
 add_executable(nazg
@@ -205,6 +209,7 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(via_loader         tests/ViaLoaderTest.cpp)
     nazg_add_test(via_bundle         tests/ViaBundleTest.cpp)
     nazg_add_test(definition_library tests/DefinitionLibraryTest.cpp)
+    nazg_add_test(definition_choice  tests/DefinitionChoiceTest.cpp)
 
     # The real bundle, every definition through the parser -- skipped when it has not been
     # built, so a fresh clone passes without Python or a network.

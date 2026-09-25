@@ -101,13 +101,19 @@ in Nazg's data folder `SDL_GetPrefPath("mymakercorner", "Nazg")` (`%APPDATA%\mym
 on Windows), all in one folder: `user_definitions/index.json` plus
 `user_definitions/<id>-r<revision>.json`, each stored byte for byte after it parses; the index is replaced whole by rename, orphans are cleaned on
 open, numbers are never reused, and an unreadable index is left untouched while the app runs
-without it. "Import VIA definition..." copies a file in; a VIA board takes the first user
-definition for its VID:PID, then the official one. `imgui.ini` -- window layout and Nazg's
+without it. "Import VIA definition..." copies a file in. A VIA board's **candidates** are the user
+definitions for its VID:PID and the official one; with more than one, Nazg asks once and
+remembers the answer per device -- a **choice**, kept in the same index, keyed on VID:PID, HID
+strings, release number and serial, matched exactly first and then by VID:PID and strings alone
+(`library/NazgDefinitionChoice.*`; via-registry.md, "Choosing a definition on connect"). The
+picker (`ui/NazgDefinitionPicker.*`, a first draft) draws each candidate small; the board
+always says which definition draws it, with "Change definition..." and "Forget choice".
+Verified by Rico on the Phoenix 2026-09-25, with a forged ortho definition on its VID:PID
+beside the official one. `imgui.ini` -- window layout and Nazg's
 settings -- is in the data folder too, so every build and working directory shares it; the
 first run copies the working directory's one there. Paths older builds kept in `imgui.ini` are
-imported once and dropped. Verified by Rico 2026-09-24. Not yet: per-device choices and their picker, linked
-entries, replacing with a backup, export/import (via-registry.md, "Storage" and "Choosing a
-definition on connect").
+imported once and dropped. Verified by Rico 2026-09-24. Not yet: linked entries, replacing
+with a backup, export/import (via-registry.md, "Storage").
 
 Next: open -- the rest of the library above, layout options editing, or step 5 (custom
 features).

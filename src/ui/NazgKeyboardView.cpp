@@ -223,4 +223,65 @@ namespace nazg
         // Claim the space drawn into, so the window scrolls and sizes around the board.
         ImGui::Dummy(ImVec2(width * unit, (board.maxY - board.minY) * unit));
     }
+
+    void DrawDefinitionPreview(const KeyboardDefinition& definition, float width, float height)
+    {
+        // Choice 0 of every group a key names, whether or not the labels describe it.
+        int groups = 0;
+        for (const DefinitionKey& key : definition.keys)
+            groups = std::max(groups, key.layoutIndex + 1);
+
+        const std::vector<DefinitionKey> placed =
+            PlaceKeys(definition, std::vector<uint8_t>(static_cast<size_t>(groups), 0));
+
+        Bounds board;
+        for (const DefinitionKey& key : placed)
+            AddKey(board, key);
+
+        if (board.IsEmpty() || width <= 0.0f || height <= 0.0f)
+        {
+            ImGui::TextDisabled("(no keys)");
+            return;
+        }
+
+        const float unit = std::min(width / (board.maxX - board.minX), height / (board.maxY - board.minY));
+
+        ImVec2 origin = ImGui::GetCursorScreenPos();
+        origin.x -= board.minX * unit;
+        origin.y -= board.minY * unit;
+
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        const float gap      = std::max(1.0f, unit * 0.06f);
+        const float rounding = unit * 0.12f;
+        const ImU32 fill     = IM_COL32(58, 60, 72, 255);
+
+        for (const DefinitionKey& key : placed)
+        {
+            if (key.decal)
+                continue;
+
+            // Rotated as the board view does it: drawn straight, then its vertices turned.
+            const Rotation rotation(key, ImVec2(origin.x + key.rotationX * unit, origin.y + key.rotationY * unit));
+            const int      firstVertex = drawList->VtxBuffer.Size;
+
+            const ImVec2 p0(origin.x + key.x * unit + gap, origin.y + key.y * unit + gap);
+            drawList->AddRectFilled(p0, ImVec2(p0.x + key.width * unit - 2 * gap, p0.y + key.height * unit - 2 * gap),
+                                    fill, rounding);
+
+            if (key.HasSecondRectangle())
+            {
+                const ImVec2 q0(origin.x + (key.x + key.secondX) * unit + gap,
+                                origin.y + (key.y + key.secondY) * unit + gap);
+                drawList->AddRectFilled(
+                    q0, ImVec2(q0.x + key.secondWidth * unit - 2 * gap, q0.y + key.secondHeight * unit - 2 * gap), fill,
+                    rounding);
+            }
+
+            if (key.rotation != 0.0f)
+                for (int vertex = firstVertex; vertex < drawList->VtxBuffer.Size; ++vertex)
+                    drawList->VtxBuffer[vertex].pos = rotation.Apply(drawList->VtxBuffer[vertex].pos);
+        }
+
+        ImGui::Dummy(ImVec2((board.maxX - board.minX) * unit, (board.maxY - board.minY) * unit));
+    }
 }

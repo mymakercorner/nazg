@@ -25,6 +25,7 @@
 #include "library/NazgDefinitionLibrary.h"
 #include "transport/NazgDeviceChannel.h"
 #include "transport/NazgHidTransport.h"
+#include "ui/NazgDefinitionPicker.h"
 #include "ui/NazgKeyboardView.h"
 #include "ui/NazgKeycodePicker.h"
 
@@ -376,6 +377,15 @@ namespace
         bool                          isLoading = false;
         int                           layer     = 0;
 
+        // A VIA board's definition is chosen among candidates; a Vial board carries its own.
+        // Set for the board shown, or the one the picker is asking about.
+        bool                                     isVia = false;
+        nazg::DeviceIdentity                     identity;
+        std::vector<nazg::DefinitionCandidate>   candidates;   // ranked, as the picker shows them
+        std::optional<nazg::DefinitionCandidate> official;     // VIA's, kept to rebuild the list
+        std::optional<nazg::DefinitionRef>       inUse;        // the one drawing the board
+        bool                                     isChoosing = false;   // the picker is showing
+
         nazg::KeySelection       selection;
         nazg::KeycodePickerState picker;
         std::string              editMessage;
@@ -395,20 +405,50 @@ namespace
         return device.usagePage == c_ViaUsagePage && device.usage == c_ViaUsage;
     }
 
-    // Open, load everything, close. A Vial board describes itself. A VIA board takes the
-    // definition file the caller found for its VID:PID -- passed by value, so the load does
-    // not depend on the list it came from staying put -- or else VIA's own, out of the
-    // bundle, which main() owns and so outlives this coroutine.
-    nazg::Task<void> LoadBoard(nazg::HidTransport&                     transport,
-                               std::string                             path,
-                               uint16_t                                vendorId,
-                               uint16_t                                productId,
-                               std::optional<nazg::KeyboardDefinition> viaDefinition,
-                               std::string                             viaDefinitionSource,
-                               const ViaBundle&                        bundle,
-                               BoardState&                             state)
+    std::string DescribeInUse(const nazg::DefinitionCandidate& candidate)
     {
-        state.isLoading = true;
+        return (candidate.definition.name.empty() ? "(unnamed)" : candidate.definition.name) + " -- " +
+               nazg::DescribeDefinitionSource(candidate);
+    }
+
+    // The shown VIA board's candidates again, after the library changed: an import appears
+    // in the picker at once, a removal leaves it.
+    void RefreshCandidates(const Library& library, BoardState& state)
+    {
+        if (!state.isVia || !library.library)
+            return;
+
+        try
+        {
+            state.candidates = library.library->Candidates(state.identity.vendorId, state.identity.productId);
+        }
+        catch (const std::exception& failure)
+        {
+            state.error = std::string("a user definition for this board is unreadable: ") + failure.what();
+            return;
+        }
+
+        if (state.official)
+            state.candidates.push_back(*state.official);
+        nazg::RankCandidates(state.candidates, state.identity.product);
+    }
+
+    // Open, load everything, close. A Vial board describes itself. A VIA board is drawn by
+    // one of its candidates: the user definitions the caller read for its VID:PID -- passed
+    // by value, so the load does not depend on the library staying put -- and VIA's own, out
+    // of the bundle, which main() owns and so outlives this coroutine. `chosen` is the
+    // remembered choice, if any; when it does not settle which candidate, the load stops
+    // there and the picker asks.
+    nazg::Task<void> LoadBoard(nazg::HidTransport&                    transport,
+                               std::string                            path,
+                               nazg::DeviceIdentity                   identity,
+                               std::vector<nazg::DefinitionCandidate> candidates,
+                               std::optional<nazg::DefinitionRef>     chosen,
+                               const ViaBundle&                       bundle,
+                               BoardState&                            state)
+    {
+        state.isLoading  = true;
+        state.isChoosing = false;
         state.error.clear();
 
         nazg::DeviceId device = nazg::c_InvalidDevice;
@@ -420,45 +460,59 @@ namespace
             nazg::HidDeviceChannel channel(transport, device);
             nazg::VialProtocol     protocol(channel);
 
-            std::string source;
-
             // Vial first: its probe is harmless on a VIA board, which answers 0xFF.
             if (co_await protocol.Detect())
             {
-                state.keyboard = co_await nazg::LoadVialKeyboard(protocol);
-                source         = "from the board (Vial)";
+                state.keyboard         = co_await nazg::LoadVialKeyboard(protocol);
+                state.definitionSource = "from the board (Vial)";
+                state.isVia            = false;
+                state.candidates.clear();
+                state.official.reset();
+                state.inUse.reset();
             }
             else
             {
-                source = viaDefinitionSource;
-
-                // A user definition wins over the official one, as VIA's side-loading does.
-                // The official one needs the protocol, which chooses V2 or V3; then it is a
-                // lookup in the bundle inflated at start.
-                if (!viaDefinition && bundle.definitions)
+                // The official definition needs the protocol, which chooses V2 or V3; then it
+                // is a lookup in the bundle inflated at start.
+                std::optional<nazg::DefinitionCandidate> official;
+                if (bundle.definitions)
                 {
                     const uint16_t viaProtocol = co_await protocol.GetProtocolVersion();
-                    if (const auto bytes = bundle.definitions->Find(vendorId, productId, viaProtocol))
-                    {
-                        viaDefinition = nazg::ParseDefinition(*bytes);
-                        source        = "official, from VIA";
-                    }
+                    if (const auto bytes = bundle.definitions->Find(identity.vendorId, identity.productId, viaProtocol))
+                        official = nazg::DefinitionCandidate{
+                            nazg::DefinitionRef::Official(
+                                nazg::ViaDefinitionPath(identity.vendorId, identity.productId, viaProtocol)),
+                            nazg::ParseDefinition(*bytes), {} };
                 }
 
-                if (!viaDefinition)
+                if (official)
+                    candidates.push_back(*official);
+                nazg::RankCandidates(candidates, identity.product);
+
+                const std::optional<size_t> resolved = nazg::ResolveCandidate(candidates, chosen);
+
+                state.isVia      = true;
+                state.identity   = identity;
+                state.official   = std::move(official);
+                state.candidates = candidates;
+
+                if (!resolved)
                 {
-                    char ids[16];
-                    std::snprintf(ids, sizeof(ids), "%04X:%04X", vendorId, productId);
-                    throw std::runtime_error(std::string("not a Vial board, and there is neither an official nor a "
-                                                         "user definition for ") +
-                                             ids + " -- use \"Import VIA definition...\"");
+                    // Nothing to draw with until the user picks: the picker takes the window.
+                    state.keyboard.reset();
+                    state.inUse.reset();
+                    state.isChoosing = true;
                 }
-
-                state.keyboard = co_await nazg::LoadViaKeyboard(protocol, std::move(*viaDefinition));
+                else
+                {
+                    const nazg::DefinitionCandidate& use = candidates[*resolved];
+                    state.keyboard         = co_await nazg::LoadViaKeyboard(protocol, use.definition);
+                    state.definitionSource = DescribeInUse(use);
+                    state.inUse            = use.ref;
+                }
             }
 
-            state.definitionSource = source;
-            state.path             = path;
+            state.path      = path;
             state.layer     = 0;
             state.selection = {};
             state.editMessage.clear();
@@ -635,6 +689,53 @@ int main(int, char**)
     Library            library = OpenLibrary(dataFolder, dataFolderError);
     PendingDialogPaths pendingPaths;   // must outlive any open dialog: main() scope
 
+    // Never while loadTask still runs -- see the Refresh button. The user definitions for the
+    // board's VID:PID are read here, a few KB each, and the remembered choice looked up
+    // unless the caller has just made one.
+    const auto isLoadRunning = [&] { return loadTask.IsValid() && !loadTask.IsDone(); };
+
+    const auto startLoad = [&](const std::string& path, const nazg::DeviceIdentity& identity,
+                               std::optional<nazg::DefinitionRef> chosen)
+    {
+        std::vector<nazg::DefinitionCandidate> candidates;
+        try
+        {
+            if (library.library)
+            {
+                candidates = library.library->Candidates(identity.vendorId, identity.productId);
+                if (!chosen)
+                    if (const nazg::DefinitionChoice* choice = library.library->FindChoice(identity))
+                        chosen = choice->definition;
+            }
+        }
+        catch (const std::exception& failure)
+        {
+            boardState.error = std::string("a user definition for this board is unreadable: ") + failure.what();
+            return;
+        }
+
+        loadTask = LoadBoard(transport, path, identity, std::move(candidates), std::move(chosen), viaBundle, boardState);
+    };
+
+    // After an import or a removal: the picker's list follows, and a board waiting for a
+    // definition loads by itself once exactly one candidate is left -- the connect rule.
+    const auto afterLibraryChange = [&]
+    {
+        if (isLoadRunning())
+            return;
+
+        RefreshCandidates(library, boardState);
+        if (boardState.isChoosing && !boardState.keyboard && nazg::ResolveCandidate(boardState.candidates, std::nullopt))
+            startLoad(boardState.path, boardState.identity, std::nullopt);
+    };
+
+    const auto showImportDialog = [&]
+    {
+        // Static: SDL may read the filters until the dialog closes.
+        static const SDL_DialogFileFilter c_Filters[] = { { "VIA definition", "json" } };
+        SDL_ShowOpenFileDialog(OnViaDefinitionChosen, &pendingPaths, pWindow, c_Filters, 1, nullptr, true);
+    };
+
     const ImVec4 clearColor = ImVec4(0.09f, 0.09f, 0.11f, 1.0f);
     bool showDemoWindow    = false;
     bool showAllHidDevices = false;   // the device list shows only keyboards unless asked
@@ -665,7 +766,10 @@ int main(int, char**)
                 picked.swap(pendingPaths.paths);
             }
             if (!picked.empty() && library.library)
+            {
                 ImportDefinitions(library, picked);
+                afterLibraryChange();
+            }
         }
 
         // Paths an earlier build remembered in imgui.ini, which ImGui reads during the first
@@ -739,11 +843,7 @@ int main(int, char**)
             ImGui::SameLine();
             ImGui::BeginDisabled(!library.library);
             if (ImGui::Button("Import VIA definition..."))
-            {
-                // Static: SDL may read the filters until the dialog closes.
-                static const SDL_DialogFileFilter c_Filters[] = { { "VIA definition", "json" } };
-                SDL_ShowOpenFileDialog(OnViaDefinitionChosen, &pendingPaths, pWindow, c_Filters, 1, nullptr, true);
-            }
+                showImportDialog();
             ImGui::EndDisabled();
             ImGui::SetItemTooltip("Add a user definition: the .json file that describes your keyboard,\n"
                                   "often named via.json, from its vendor or designer.");
@@ -797,6 +897,7 @@ int main(int, char**)
                     try
                     {
                         library.library->Remove(*removal);
+                        afterLibraryChange();
                     }
                     catch (const std::exception& failure)
                     {
@@ -842,41 +943,16 @@ int main(int, char**)
                         // Same rule as Refresh: a Task still running must not be replaced.
                         // A write in flight blocks it too -- it updates the board a load
                         // would swap out from under it.
-                        const bool isLoadBusy = (loadTask.IsValid() && !loadTask.IsDone()) ||
-                                                (editTask.IsValid() && !editTask.IsDone());
+                        const bool isLoadBusy = isLoadRunning() || (editTask.IsValid() && !editTask.IsDone());
 
                         ImGui::PushID(device.path.c_str());
                         ImGui::BeginDisabled(isLoadBusy);
                         if (ImGui::SmallButton("Open"))
                         {
-                            // The first of the user's definitions for these ids, read and
-                            // parsed now -- a few KB; unused on a Vial board.
-                            std::optional<nazg::KeyboardDefinition> viaDefinition;
-                            std::string                             viaDefinitionSource;
-                            std::string                             libraryError;
-
-                            const nazg::LibraryEntry* entry =
-                                library.library ? library.library->Find(device.vendorId, device.productId) : nullptr;
-                            if (entry != nullptr)
-                            {
-                                try
-                                {
-                                    viaDefinition       = nazg::ParseDefinition(library.library->Read(*entry));
-                                    viaDefinitionSource = "user -- " + entry->name + ", imported from " + entry->origin;
-                                }
-                                catch (const std::exception& failure)
-                                {
-                                    libraryError = std::string("the user definition for this board is unreadable: ") +
-                                                   failure.what();
-                                }
-                            }
-
-                            if (libraryError.empty())
-                                loadTask = LoadBoard(transport, device.path, device.vendorId, device.productId,
-                                                     std::move(viaDefinition), std::move(viaDefinitionSource),
-                                                     viaBundle, boardState);
-                            else
-                                boardState.error = libraryError;
+                            const nazg::DeviceIdentity identity{ device.vendorId, device.productId,
+                                                                 device.manufacturer, device.product,
+                                                                 device.releaseNumber, device.serialNumber };
+                            startLoad(device.path, identity, std::nullopt);
                         }
                         ImGui::EndDisabled();
                         ImGui::PopID();
@@ -906,7 +982,7 @@ int main(int, char**)
             ImGui::End();
         }
 
-        if (boardState.isLoading || boardState.keyboard || !boardState.error.empty())
+        if (boardState.isLoading || boardState.keyboard || boardState.isChoosing || !boardState.error.empty())
         {
             ImGui::Begin("Keyboard");
 
@@ -915,7 +991,50 @@ int main(int, char**)
             else if (!boardState.error.empty())
                 ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", boardState.error.c_str());
 
-            if (boardState.keyboard && !boardState.isLoading)
+            if (boardState.isChoosing && !boardState.isLoading)
+            {
+                ImGui::Text("%s -- which definition?",
+                            boardState.identity.product.empty() ? "(unnamed)" : boardState.identity.product.c_str());
+
+                const bool isEditBusy = editTask.IsValid() && !editTask.IsDone();
+
+                ImGui::BeginDisabled(isEditBusy);
+                const nazg::DefinitionPickerAction action =
+                    nazg::DrawDefinitionPicker(boardState.candidates, boardState.inUse, boardState.identity,
+                                               boardState.keyboard.has_value());
+                ImGui::EndDisabled();
+
+                if (action.import && library.library)
+                    showImportDialog();
+
+                if (action.cancel)
+                    boardState.isChoosing = false;
+
+                if (action.picked && !isEditBusy && !isLoadRunning())
+                {
+                    const nazg::DefinitionRef picked = boardState.candidates[*action.picked].ref;
+
+                    // Remembered for this device -- exactly it, release and serial included.
+                    // Without a library the board still loads; the choice just is not kept.
+                    boardState.error.clear();
+                    if (library.library)
+                    {
+                        try
+                        {
+                            library.library->Choose(boardState.identity, picked);
+                        }
+                        catch (const std::exception& failure)
+                        {
+                            boardState.error = std::string("the choice could not be saved: ") + failure.what();
+                        }
+                    }
+
+                    boardState.isChoosing = false;
+                    if (!boardState.keyboard || boardState.inUse != picked)
+                        startLoad(boardState.path, boardState.identity, picked);
+                }
+            }
+            else if (boardState.keyboard && !boardState.isLoading)
             {
                 const nazg::Keyboard& keyboard = *boardState.keyboard;
 
@@ -925,8 +1044,6 @@ int main(int, char**)
 
                 ImGui::Text("%s -- QMK keycodes %s", keyboard.Name().c_str(),
                             nazg::QmkKeycodeVersionName(keyboard.keycodeVersion));
-                if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip("Definition: %s", boardState.definitionSource.c_str());
 
                 ImGui::SameLine();
                 ImGui::SetNextItemWidth(ImGui::GetFontSize() * 14.0f);
@@ -944,6 +1061,39 @@ int main(int, char**)
                             ImGui::SetItemDefaultFocus();
                     }
                     ImGui::EndCombo();
+                }
+
+                // Always shown, so a wrong definition is plain to see -- and cheap to undo:
+                // the keymap lives in the board, the definition only draws it.
+                ImGui::TextDisabled("Definition: %s", boardState.definitionSource.c_str());
+                if (boardState.isVia)
+                {
+                    const bool isBusy = isLoadRunning() || (editTask.IsValid() && !editTask.IsDone());
+
+                    ImGui::SameLine();
+                    ImGui::BeginDisabled(isBusy);
+                    if (ImGui::SmallButton("Change definition..."))
+                        boardState.isChoosing = true;
+                    ImGui::EndDisabled();
+
+                    const bool hasChoice = library.library && library.library->FindChoice(boardState.identity) != nullptr;
+                    if (hasChoice)
+                    {
+                        ImGui::SameLine();
+                        if (ImGui::SmallButton("Forget choice"))
+                        {
+                            try
+                            {
+                                library.library->Forget(boardState.identity);
+                            }
+                            catch (const std::exception& failure)
+                            {
+                                boardState.error = std::string("the choice could not be forgotten: ") + failure.what();
+                            }
+                        }
+                        ImGui::SetItemTooltip("Nazg asks again the next time this board is opened,\n"
+                                              "if more than one definition matches it.");
+                    }
                 }
 
                 nazg::DrawKeyboardView(keyboard, boardState.layer, hostLayout, boardState.selection);
