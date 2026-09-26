@@ -39,6 +39,7 @@
 #include <exception>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iterator>
 #include <memory>
 #include <mutex>
@@ -474,6 +475,18 @@ namespace
         const std::lock_guard<std::mutex> lock(pending.mutex);
         for (const char* const* path = filelist; *path != nullptr; ++path)
             pending.paths.emplace_back(*path);
+    }
+
+    // Windows runs a loop of its own while the window is dragged to a new size, and the frame
+    // loop in main() stops until the mouse is released -- the window would stretch its last
+    // frame meanwhile. SDL keeps sending SDL_EVENT_WINDOW_EXPOSED from inside that loop, about
+    // every 10 ms, with data1 set to 1, on the main thread; an event watch sees it at once and
+    // may draw right there. `userdata` is main()'s frame function.
+    bool SDLCALL DrawDuringLiveResize(void* userdata, SDL_Event* event)
+    {
+        if (event->type == SDL_EVENT_WINDOW_EXPOSED && event->window.data1 == 1)
+            (*static_cast<std::function<void()>*>(userdata))();
+        return true;   // ignored for event watches
     }
 
     // "Export definition...": what the save dialog is for, and where the user chose to write
@@ -926,20 +939,15 @@ int main(int, char**)
     bool showAllHidDevices = false;   // the keyboard list shows only keyboards unless asked
     bool showSettings      = false;   // settings in place of the main area
     bool openLoneBoard     = true;    // until the first list is in
-    bool done = false;
-
-    while (!done)
+    // One frame: finished transport work resumed, dialog results collected, then the UI drawn
+    // and presented. Run by the loop below, and from inside SDL's event pumping while the
+    // window is being resized -- see DrawDuringLiveResize(). Never inside itself.
+    bool                  isDrawing = false;
+    std::function<void()> drawFrame = [&]
     {
-        SDL_Event event;
-        while (SDL_PollEvent(&event))
-        {
-            ImGui_ImplSDL3_ProcessEvent(&event);
-
-            if (event.type == SDL_EVENT_QUIT)
-                done = true;
-            if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED && event.window.windowID == SDL_GetWindowID(pWindow))
-                done = true;
-        }
+        if (isDrawing)
+            return;
+        isDrawing = true;
 
         // Pump before the minimized early-out below, otherwise transport work stalls
         // for as long as the window stays minimized.
@@ -989,7 +997,8 @@ int main(int, char**)
         if ((SDL_GetWindowFlags(pWindow) & SDL_WINDOW_MINIMIZED) != 0)
         {
             SDL_Delay(10);
-            continue;
+            isDrawing = false;
+            return;
         }
 
         ImGui_ImplSDLGPU3_NewFrame();
@@ -1363,7 +1372,29 @@ int main(int, char**)
         }
 
         SDL_SubmitGPUCommandBuffer(pCommandBuffer);
+        isDrawing = false;
+    };
+
+    SDL_AddEventWatch(DrawDuringLiveResize, &drawFrame);
+
+    bool done = false;
+    while (!done)
+    {
+        SDL_Event event;
+        while (SDL_PollEvent(&event))
+        {
+            ImGui_ImplSDL3_ProcessEvent(&event);
+
+            if (event.type == SDL_EVENT_QUIT)
+                done = true;
+            if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED && event.window.windowID == SDL_GetWindowID(pWindow))
+                done = true;
+        }
+
+        drawFrame();
     }
+
+    SDL_RemoveEventWatch(DrawDuringLiveResize, &drawFrame);
 
     // Shut the transport down explicitly, while deviceListState, boardState and the tasks
     // are still alive. Destructors run in reverse declaration order, so leaving this to
