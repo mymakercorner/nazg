@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- Interactive mockup of the matrix view in ../ui-design.md. Open it in a browser. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Matrix view mockup</title>
+<style>
+:root{--bg:#F4F3EF;--card:#FFFFFF;--key:#F4F3EF;--text:#2C2C2A;--text2:#5F5E5A;--muted:#888780;--border:#C9C7BF;--hair:#E2E0D8;
+--abg:#E6F1FB;--atx:#0C447C;--abd:#378ADD;--aline:#185FA5;--pbg:#EEEDFE;--ptx:#3C3489;--pbd:#7F77DD;--pline:#534AB7;
+--sbg:#EAF3DE;--stx:#3B6D11;--sbd:#97C459}
+@media (prefers-color-scheme:dark){:root{--bg:#1F1F1E;--card:#2C2C2A;--key:#383836;--text:#F1EFE8;--text2:#D3D1C7;--muted:#9C9A92;--border:#5F5E5A;--hair:#444441;
+--abg:#0C447C;--atx:#B5D4F4;--abd:#378ADD;--aline:#85B7EB;--pbg:#3C3489;--ptx:#CECBF6;--pbd:#7F77DD;--pline:#AFA9EC;
+--sbg:#27500A;--stx:#C0DD97;--sbd:#639922}}
+body{margin:0;padding:24px 16px;background:var(--bg);color:var(--text);font-family:"Segoe UI",Helvetica,Arial,sans-serif}
+main{max-width:660px;margin:0 auto;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px}
+h1{font-size:17px;font-weight:600;margin:0 0 4px}
+p.intro{font-size:13px;color:var(--text2);margin:0 0 14px;line-height:1.5}
+.bar{display:flex;gap:6px;align-items:center;margin:0 0 10px;font-size:13px;color:var(--text2)}
+.tb{font:inherit;font-size:12px;padding:3px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer}
+.tb.on{background:var(--abg);color:var(--atx);border-color:var(--abd)}
+#wrap{position:relative;margin:0 auto}
+.k{position:absolute;box-sizing:border-box;border:1px solid var(--border);border-radius:5px;background:var(--key);font-size:12px;color:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:opacity .1s;z-index:1}
+.k span{position:relative;z-index:3}
+.dim .k:not(.r):not(.c):not(.seen){opacity:.3}
+.k.r{background:var(--abg);border-color:var(--abd);font-weight:600}
+.k.c{background:var(--pbg);border-color:var(--pbd);font-weight:600}
+.k.r.c{outline:2px solid var(--text);outline-offset:-2px}
+.k.seen{background:var(--sbg);border-color:var(--sbd)}
+.lb{position:absolute;font-size:11px;color:var(--muted);display:flex;align-items:center;justify-content:center;border-radius:4px;cursor:pointer;box-sizing:border-box}
+.lb.r{background:var(--abg);color:var(--atx);font-weight:600}
+.lb.c{background:var(--pbg);color:var(--ptx);font-weight:600}
+.lb.none{text-decoration:line-through;opacity:.6}
+.lb.done{color:var(--stx)}
+svg.ov{position:absolute;left:0;top:0;pointer-events:none;z-index:2}
+#st{font-size:13px;color:var(--text2);min-height:20px;margin:12px 0 4px;border-top:1px solid var(--hair);padding-top:10px}
+.lg{display:flex;gap:14px;font-size:12px;color:var(--text2);margin-top:8px;flex-wrap:wrap}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;vertical-align:-1px;margin-right:4px}
+</style>
+</head>
+<body>
+<main>
+<h1>Matrix view</h1>
+<p class="intro">Hover a key, or a row or column label; click to pin. In Live test, click keys to stand in
+for pressing them. The board is a 60% with an illustrative matrix: row 3 has no key at C1 (the ISO key's
+position) nor at C12.</p>
+<div class="bar"><span>Matrix</span><button class="tb on" id="m1">Wiring</button><button class="tb" id="m2">Live test</button><span style="flex:1"></span><span id="cnt"></span></div>
+<div id="wrap"></div>
+<div id="st"></div>
+<div class="lg"><span><span class="sw" style="background:var(--abg);border:1px solid var(--abd)"></span>row</span><span><span class="sw" style="background:var(--pbg);border:1px solid var(--pbd)"></span>column</span><span><span style="text-decoration:line-through">C1</span> no key at this position in the selected row or column</span><span><span class="sw" style="background:var(--sbg);border:1px solid var(--sbd)"></span>seen in live test</span></div>
+</main>
+<script>
+const U=34,M=30,R=["Esc 1 2 3 4 5 6 7 8 9 0 - = Bksp:2","Tab:1.5 Q W E R T Y U I O P [ ] \\:1.5","Caps:1.75 A S D F G H J K L ; ' Enter:2.25","Shift:2.25 Z X C V B N M , . / Shift:2.75","Ctrl:1.25 Win:1.25 Alt:1.25 Space:6.25 Alt:1.25 Fn:1.25 Menu:1.25 Ctrl:1.25"];
+const COLS=[null,null,[0,1,2,3,4,5,6,7,8,9,10,11,13],[0,2,3,4,5,6,7,8,9,10,11,13],[0,1,2,6,10,11,12,13]];
+const NR=5,NC=14,K=[];R.forEach((r,y)=>{let x=0;r.split(' ').forEach((t,i)=>{let [l,w]=t.split(':');w=parseFloat(w||1);K.push({x,y,w,l,r:y,c:COLS[y]?COLS[y][i]:i});x+=w;});});
+const wrap=document.getElementById('wrap');wrap.style.width=M+15*U+'px';wrap.style.height=M+5*U+'px';
+const svgNS='http://www.w3.org/2000/svg';const ov=document.createElementNS(svgNS,'svg');ov.setAttribute('class','ov');ov.setAttribute('width',M+15*U);ov.setAttribute('height',M+5*U);
+K.forEach((k,i)=>{const d=document.createElement('div');d.className='k';Object.assign(d.style,{left:M+k.x*U+1+'px',top:M+k.y*U+1+'px',width:k.w*U-2+'px',height:U-2+'px'});d.innerHTML='<span></span>';d.firstChild.textContent=k.l;d.dataset.i=i;k.el=d;wrap.appendChild(d);});
+// A ruler label sits at the average position of its keys, nudged apart so none overlap.
+function spread(pos,min){const o=pos.map((p,i)=>({p,i})).sort((a,b)=>a.p-b.p);for(let j=1;j<o.length;j++)if(o[j].p<o[j-1].p+min)o[j].p=o[j-1].p+min;const out=[];o.forEach(e=>out[e.i]=e.p);return out;}
+const cx=k=>(k.x+k.w/2)*U,cy=k=>(k.y+.5)*U;
+const colPos=spread(Array.from({length:NC},(_,c)=>{const ks=K.filter(k=>k.c===c);return ks.reduce((s,k)=>s+cx(k),0)/ks.length;}),U*0.95);
+const rowPos=Array.from({length:NR},(_,r)=>{const ks=K.filter(k=>k.r===r);return ks.reduce((s,k)=>s+cy(k),0)/ks.length;});
+const RL=[],CL=[];
+rowPos.forEach((p,r)=>{const d=document.createElement('div');d.className='lb';Object.assign(d.style,{left:'0px',top:M+p-11+'px',width:M-4+'px',height:'22px'});d.textContent='R'+r;d.dataset.r=r;RL.push(d);wrap.appendChild(d);});
+colPos.forEach((p,c)=>{const d=document.createElement('div');d.className='lb';Object.assign(d.style,{left:M+p-15+'px',top:'2px',width:'30px',height:'22px'});d.textContent='C'+c;d.dataset.c=c;CL.push(d);wrap.appendChild(d);});
+wrap.appendChild(ov);
+let mode='wiring',seen=new Set(),pin=null;const st=document.getElementById('st'),cnt=document.getElementById('cnt');
+function line(ks,color){if(ks.length<2)return;const p=document.createElementNS(svgNS,'polyline');p.setAttribute('points',ks.map(k=>(M+cx(k))+','+(M+cy(k))).join(' '));p.setAttribute('fill','none');p.setAttribute('stroke',color);p.setAttribute('stroke-width','2.5');p.setAttribute('stroke-linejoin','round');p.setAttribute('opacity','0.7');ov.appendChild(p);}
+function show(r,c){ov.innerHTML='';wrap.classList.toggle('dim',r!==null||c!==null);
+K.forEach(k=>{k.el.classList.toggle('r',k.r===r);k.el.classList.toggle('c',k.c===c);});
+RL.forEach((d,i)=>{d.classList.toggle('r',i===r);d.classList.toggle('none',c!==null&&r!==i&&!K.some(k=>k.r===i&&k.c===c));d.classList.toggle('done',mode==='live'&&K.filter(k=>k.r===i).every(k=>seen.has(k.r+','+k.c)));});
+CL.forEach((d,i)=>{d.classList.toggle('c',i===c);d.classList.toggle('none',r!==null&&c!==i&&!K.some(k=>k.c===i&&k.r===r));d.classList.toggle('done',mode==='live'&&K.filter(k=>k.c===i).every(k=>seen.has(k.r+','+k.c)));});
+const cs=getComputedStyle(document.documentElement);
+if(r!==null)line(K.filter(k=>k.r===r).sort((a,b)=>a.c-b.c),cs.getPropertyValue('--aline').trim());
+if(c!==null)line(K.filter(k=>k.c===c).sort((a,b)=>a.r-b.r),cs.getPropertyValue('--pline').trim());
+if(r===null&&c===null){st.textContent=mode==='wiring'?'Hover a key, or a row or column label. Click to pin.':'Click keys to stand in for pressing them; a label turns green when its whole row or column was seen.';return;}
+if(r!==null&&c!==null){const k=K.find(k=>k.r===r&&k.c===c);st.textContent=`${k?k.l:'No key'} at row ${r}, column ${c}. Row ${r} wires ${K.filter(k=>k.r===r).length} keys, column ${c} wires ${K.filter(k=>k.c===c).length}.`+(pin?' Pinned: click again to release.':'');}
+else if(r!==null)st.textContent=`Row ${r}: ${K.filter(k=>k.r===r).length} keys. Columns with no key in it are struck through.`;
+else st.textContent=`Column ${c}: ${K.filter(k=>k.c===c).length} keys. Rows with no key in it are struck through.`;}
+wrap.addEventListener('mouseover',e=>{if(pin)return;const d=e.target.closest('.k,.lb');if(!d)return;if(d.classList.contains('k')){const k=K[d.dataset.i];show(k.r,k.c);}else if(d.dataset.r!==undefined)show(+d.dataset.r,null);else show(null,+d.dataset.c);});
+wrap.addEventListener('mouseleave',()=>{if(!pin)show(null,null);});
+wrap.addEventListener('click',e=>{const d=e.target.closest('.k,.lb');if(!d)return;let rc;if(d.classList.contains('k')){const k=K[d.dataset.i];rc=[k.r,k.c];if(mode==='live'){seen.add(k.r+','+k.c);k.el.classList.add('seen');upd();}}else rc=d.dataset.r!==undefined?[+d.dataset.r,null]:[null,+d.dataset.c];
+if(mode==='wiring'){pin=(pin&&pin[0]===rc[0]&&pin[1]===rc[1])?null:rc;}show(...(pin||rc));});
+function upd(){cnt.textContent=mode==='live'?`${seen.size} of ${K.length} keys seen`:'';}
+function setMode(m){mode=m;pin=null;document.getElementById('m1').classList.toggle('on',m==='wiring');document.getElementById('m2').classList.toggle('on',m==='live');if(m==='wiring'){seen.clear();K.forEach(k=>k.el.classList.remove('seen'));}upd();show(null,null);}
+document.getElementById('m1').onclick=()=>setMode('wiring');document.getElementById('m2').onclick=()=>setMode('live');
+show(null,null);
+</script>
+</body>
+</html>

@@ -58,6 +58,45 @@ Every section, built in or a plugin, supplies four things:
 3. **Its panel.**
 4. **Its match rule** — which boards it appears for.
 
+### How a section describes the board
+
+The board is where the visual styling will change most, so a section says **what** each key
+means and never **how** it looks — colours, fonts and sizes belong to Nazg's board renderer
+and theme, and a restyle touches only those. Checked against three coming changes: the
+Leyden Jar tool's keys, keycap colour themes like VIA's (Olivia, Dolch, Jamon...), and
+sublegends printed on some keycap sets (Hiragana, Hangul).
+
+1. **Legends by position.** A key has slots at KLE's twelve legend positions — top, middle,
+   bottom, each left, centre and right, plus the front — each filled or empty and carrying a
+   role (label, sublegend, value) the renderer styles. Keymap fills top left and middle left
+   (`KeycapLegend`'s two legends today); the Leyden Jar level view fills top, middle and
+   bottom left with the maximum, current and minimum levels and bottom right with the bin;
+   a sublegend set fills one more slot, from a table like the host layouts. `KeycapLegend`
+   grows from two fields to the slots. A sublegend's glyphs also need a font holding them —
+   a font matter in `Main.cpp`, not a structural one.
+2. **Fill by meaning**: the keycap's colour class (alpha, modifier, accent — what VIA's
+   themes colour), a value from 0 to 1 for a heat map, or neutral. Keycap themes need the
+   parser to keep each key's KLE colour, which it drops today. **States** — selected,
+   hovered, highlighted, dimmed, warning, pressed — are drawn as an outline or an overlay,
+   never as the fill, so they read on every theme; a heat map overrides the theme while shown.
+3. **Geometry from the section, when it wants its own.** By default the board's definition;
+   the Leyden Jar's controller matrix is a plain grid instead.
+4. **Lines drawn over the board**, from key to key — the matrix view's wiring.
+5. **Labels around the board's edges** — the matrix view's row and column rulers, the
+   Leyden Jar's `R0…`/`C0…` connectors.
+6. **Hover shared both ways.** The section hears which key or edge label is hovered or
+   clicked, and can highlight keys from its panel — not only "a key was clicked".
+
+**Named colours for panels**: error, warning, success, muted — placeholder values until the
+styling, and the only colours a section may use. `Main.cpp`'s hard-coded `TextColored` calls
+are what this replaces. **No pixels** anywhere in the contract: the layout sizes the regions,
+and a section can at most say it does not use the board.
+
+If a need still appears later — icons on keys, say — changing the contract costs one struct
+and its implementations, two while they are Keymap and the Leyden Jar. It gets expensive once
+other people write plugins, which is why these six points go in from the start, and why the
+styling should settle before plugins open to others.
+
 ### Plugins
 
 The [Leyden Jar Diagnostic Tool](https://github.com/mymakercorner/Leyden_Jar_Diagnostic_Tool)
@@ -171,6 +210,7 @@ The board's name in the header is a menu, as in ZMK Studio and VIA:
 
 - **Switch to** — the other keyboards plugged in, one click each: the usual reason to go back.
 - **Change definition… / Forget choice** — VIA boards only; they leave the board screen.
+- **Show matrix…** — the matrix view, below.
 - **All keyboards** — closes the board and shows the list.
 
 It adds nothing to the first glance — the name is already there — and it is the only way to
@@ -185,6 +225,76 @@ HID interface is listed under them, dimmed, with VID:PID, usage page and interfa
 and cannot be opened. The technical columns exist only in that view. (The ids in the picture
 are illustrative.) **Refresh** stays on the list.
 
+## The matrix view
+
+How the board is wired: which row and which column of the switch matrix each key sits on.
+Mostly for designers and anyone debugging a build, so it is **opened from the board menu**
+("Show matrix…") rather than being a section — a section would bring the column back on every
+keymap-only board, since every board has the data.
+
+### What VIA and Vial do
+
+- **VIA** draws the structure with "Show Matrix", in its Design pane — hidden until enabled in
+  Settings — and in its Debug pane (`components/three-fiber/matrix-lines.tsx`,
+  `components/n-links/matrix-lines.ts` in `the-via/app`). Every row is a pink line and every
+  column a grey one, **all at once, unlabelled**; points are joined in screen order — rows by
+  x, columns by y — not in column or row number order, so a line zigzags wherever the wiring
+  does not follow the key positions; and the keys of **every** layout option are included
+  (only encoders and decals are left out), so alternative keys stack and lines run through
+  them. Its Key Tester also has a live "Test Matrix" mode.
+- **Vial** draws no structure. Its **Matrix tester** tab lights keys on the board as they are
+  pressed, polled every 20 ms, and asks for an unlock first.
+
+### What it needs
+
+- **The structure is definition data only**: each key's row and column (its KLE `"r,c"`
+  legend) and the matrix size. No protocol, every VIA and Vial board, even with no board
+  plugged in — and Nazg already has it.
+- **The live test needs the firmware's consent**, deliberately: `id_switch_matrix_state`
+  (via-vial-commands.md). Mainline VIA answers **all zeroes** unless built with
+  `VIA_INSECURE`, or with `SECURE_ENABLE` and unlocked — QMK calls the alternative a "wannabe
+  keylogger" — and all zeroes cannot be told from "nothing pressed", so the screen must say
+  that if nothing lights, the firmware turns the test off. Vial needs protocol 3 or later
+  and an unlocked board. It is cheap: `28 / ceil(cols/8)` rows per reply, the whole matrix in
+  one request on most boards.
+
+### One view, with rulers
+
+One view, the board, with a **row ruler on the left and a column ruler on top**. (A first
+draft had a second view, the matrix as a grid in the panel; one view proved far more legible.)
+
+No selection:
+
+![The matrix view with nothing selected](ui-design/matrix-view.svg)
+
+A key selected and pinned — V, on row 3 and column 5:
+
+![The matrix view with V selected](ui-design/matrix-view-selected.svg)
+
+**Interactive version:** [ui-design/matrix-view.html](ui-design/matrix-view.html) — open it
+in a browser; GitHub and Markdown previews show only its source.
+
+- **Hover a key**: its row and its column light, on the board and in both rulers, with the
+  wiring drawn through the keys **in column and row number order** — the real order, not the
+  screen's. Everything else dims.
+- **Hover a ruler label**: that whole row or column.
+- **Click** pins the selection, to move the mouse away.
+- **Positions with no key** — what the grid showed and the board alone cannot: with a row
+  selected, the columns with no key in it are **struck through** in the column ruler, and
+  the other way round. In the picture, C1 (the ISO key's position) and C12 on row 3, R4 on
+  column 5.
+- A ruler label sits at the average position of its keys, nudged apart so none overlap. On
+  a regular board they line up with the keys; on a board whose wiring does not follow its
+  layout — split halves numbered 5 to 9, a Model F's matrix — they cannot, the ruler is then
+  an ordered list, and the drawn line shows where the row really runs.
+- **Live test** (the strip: *Wiring | Live test*): keys turn green as they are seen, with a
+  count — a checklist for a freshly soldered board. A ruler label turns green when its whole
+  row or column was seen; one that stays grey points at that trace, and a key lighting
+  unpressed points at ghosting from a missing diode.
+- **The panel**: the status line, the seen count, **definition checks** — two keys on one
+  position within one layout choice, positions outside the matrix size, positions no key uses;
+  worth running quietly on import too — and *Close*, back to the keymap.
+
 ## Open points
 
 - **Plugin delivery** — see "Plugins".
@@ -192,6 +302,8 @@ are illustrative.) **Refresh** stays on the list.
   been checked. Until it is, an unplugged board is noticed by a failed request, and the list
   needs Refresh.
 - **Which sections fold the board away**, and whether folding it confuses more than it helps.
+- **The matrix view's layout options**: which choice it draws — the board's stored one, as
+  the many-candidates preview does — and how keys of the other choices show.
 - **"Export definition…"**, for investigation and debugging only, has no place yet — the
   board menu, under the definition items, is the obvious candidate.
 - The three suggestions Rico accepted with the screens, worth confirming in use: opening a

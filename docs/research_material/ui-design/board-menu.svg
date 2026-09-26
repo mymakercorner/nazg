@@ -8,7 +8,7 @@
 <rect x="380.0" y="46.0" width="288.0" height="20.0" rx="5" fill="#F4F3EF" stroke="#E2E0D8" stroke-width="1" opacity="0.5"/>
 <rect x="160.0" y="72.0" width="360.0" height="120.0" rx="5" fill="#F4F3EF" stroke="#E2E0D8" stroke-width="1" opacity="0.5"/>
 <rect x="12.0" y="200.0" width="656.0" height="70.0" rx="5" fill="#F4F3EF" stroke="#E2E0D8" stroke-width="1" opacity="0.5"/>
-<rect x="12.0" y="38.0" width="280.0" height="196.0" rx="8" fill="#FFFFFF" stroke="#C9C7BF" stroke-width="1"/>
+<rect x="12.0" y="38.0" width="280.0" height="234.0" rx="8" fill="#FFFFFF" stroke="#C9C7BF" stroke-width="1"/>
 <text x="24.0" y="56.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#888780" text-anchor="start" font-weight="400">Switch to</text>
 <text x="24.0" y="80.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#2C2C2A" text-anchor="start" font-weight="400">Model F Labs B104</text>
 <text x="280.0" y="80.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#888780" text-anchor="end" font-weight="400">Vial</text>
@@ -18,6 +18,8 @@
 <text x="24.0" y="144.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#2C2C2A" text-anchor="start" font-weight="400">Change definition...</text>
 <text x="24.0" y="172.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#2C2C2A" text-anchor="start" font-weight="400">Forget choice</text>
 <line x1="16" y1="186" x2="288" y2="186" stroke="#E2E0D8" stroke-width="1"/>
-<rect x="16.0" y="192.0" width="272.0" height="26.0" rx="6" fill="#E6F1FB" stroke="none"/>
-<text x="24.0" y="210.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#0C447C" text-anchor="start" font-weight="400">All keyboards</text>
+<text x="24.0" y="208.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#2C2C2A" text-anchor="start" font-weight="400">Show matrix...</text>
+<line x1="16" y1="222" x2="288" y2="222" stroke="#E2E0D8" stroke-width="1"/>
+<rect x="16.0" y="228.0" width="272.0" height="26.0" rx="6" fill="#E6F1FB" stroke="none"/>
+<text x="24.0" y="246.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#0C447C" text-anchor="start" font-weight="400">All keyboards</text>
 </svg>

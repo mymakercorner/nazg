@@ -446,7 +446,7 @@ def board_menu():
     s.rect(160, 72, 360, 120, C["s1"], C["hair"], rx=5, op=0.5)
     s.rect(12, 200, W - 24, 70, C["s1"], C["hair"], rx=5, op=0.5)
     mx, my, mw = 12, 38, 280
-    s.rect(mx, my, mw, 196, C["white"], C["border"], rx=8)
+    s.rect(mx, my, mw, 234, C["white"], C["border"], rx=8)
     s.text(mx + 12, my + 18, "Switch to", 11, C["muted"])
     y = my + 24
     for n, p in [("Model F Labs B104", "Vial"), ("Phoenix Project No 1", "VIA")]:
@@ -459,10 +459,116 @@ def board_menu():
         s.text(mx + 12, y + 18, n, 13, C["text"])
         y += 28
     s.line(mx + 4, y + 4, mx + mw - 4, y + 4)
+    y += 8
+    s.text(mx + 12, y + 18, "Show matrix...", 13, C["text"])
+    y += 28
+    s.line(mx + 4, y + 4, mx + mw - 4, y + 4)
     y += 10
     s.rect(mx + 4, y, mw - 8, 26, C["abg"], None, rx=6)
     s.text(mx + 12, y + 18, "All keyboards", 13, C["atx"])
     s.save("board-menu.svg")
+
+
+# --- 6. the matrix view -------------------------------------------------------------------
+
+# Matrix column of each key of ROWS, per row; None is "the key's index in its row". Row 2
+# leaves C12 unused, row 3 C1 (the ISO key's position) and C12, row 4 most of them.
+MATRIX_COLS = [None, None, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13], [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13],
+               [0, 1, 2, 6, 10, 11, 12, 13]]
+
+
+def matrix_view(selected, name):
+    u, m = 34, 30
+    ks = []
+    for i, (x, y, w, label) in enumerate(keys()):
+        index = sum(1 for k in ks if k["r"] == y)
+        c = MATRIX_COLS[y][index] if MATRIX_COLS[y] else index
+        ks.append(dict(x=x, y=y, w=w, l=label or "Space", r=y, c=c))
+    rows, cols = 5, 14
+
+    h = 345
+    s = Svg(W, h)
+    frame(s, 0, 0, W, h)
+    header(s, 0, 0, W, "Aquanaut", "VIA")
+    strip(s, 12, 46, ["Wiring", "Live test"], 0, "Matrix")
+    x0, y0 = (W - (m + 15 * u)) / 2, 75
+    sr, sc = selected if selected else (None, None)
+
+    def cx(k):
+        return (k["x"] + k["w"] / 2) * u
+
+    def cy(k):
+        return (k["y"] + 0.5) * u
+
+    # Keys, then the wiring lines, then the legends, so a line never hides a legend.
+    def dimmed(k):
+        return 0.3 if selected and k["r"] != sr and k["c"] != sc else None
+
+    for k in ks:
+        in_r, in_c = k["r"] == sr, k["c"] == sc
+        fill, stroke, sw = C["s1"], C["border"], 1
+        if in_r:
+            fill, stroke = C["abg"], C["abd"]
+        if in_c:
+            fill, stroke = C["pbg"], C["pbd"]
+        if in_r and in_c:
+            stroke, sw = C["text"], 2
+        s.rect(x0 + m + k["x"] * u + 1, y0 + m + k["y"] * u + 1, k["w"] * u - 2, u - 2, fill, stroke, rx=4, sw=sw,
+               op=dimmed(k))
+
+    def polyline(points, color):
+        pts = " ".join(f"{x0 + m + px:.1f},{y0 + m + py:.1f}" for px, py in points)
+        s.e.append(f'<polyline points="{pts}" fill="none" stroke="{color}" stroke-width="2.5" '
+                   f'stroke-linejoin="round" opacity="0.7"/>')
+
+    if selected:
+        polyline([(cx(k), cy(k)) for k in sorted((k for k in ks if k["r"] == sr), key=lambda k: k["c"])], "#185FA5")
+        polyline([(cx(k), cy(k)) for k in sorted((k for k in ks if k["c"] == sc), key=lambda k: k["r"])], "#534AB7")
+
+    for k in ks:
+        s.text(x0 + m + cx(k), y0 + m + cy(k) + 4, k["l"], 12, C["text"], "middle", 600 if selected and
+               (k["r"] == sr or k["c"] == sc) else 400, op=dimmed(k))
+
+    # Rulers: a label at the average position of its keys, nudged apart so none overlap.
+    col_pos = []
+    for c in range(cols):
+        on = [cx(k) for k in ks if k["c"] == c]
+        col_pos.append(sum(on) / len(on))
+    order = sorted(range(cols), key=lambda c: col_pos[c])
+    for a, b in zip(order, order[1:]):
+        col_pos[b] = max(col_pos[b], col_pos[a] + u * 0.95)
+
+    def ruler_label(x, y, w, label, kind, struck):
+        if kind == "r":
+            s.rect(x, y, w, 22, C["abg"], None, rx=4)
+        elif kind == "c":
+            s.rect(x, y, w, 22, C["pbg"], None, rx=4)
+        colour = {"r": C["atx"], "c": C["ptx"]}.get(kind, C["muted"])
+        s.text(x + w / 2, y + 15, label, 11, colour, "middle", 600 if kind else 400, op=0.6 if struck else None)
+        if struck:
+            s.line(x + w / 2 - 9, y + 11, x + w / 2 + 9, y + 11, C["muted"])
+
+    for r in range(rows):
+        on = [cy(k) for k in ks if k["r"] == r]
+        struck = sc is not None and r != sr and not any(k["r"] == r and k["c"] == sc for k in ks)
+        ruler_label(x0, y0 + m + sum(on) / len(on) - 11, m - 4, f"R{r}", "r" if r == sr else "", struck)
+    for c in range(cols):
+        struck = sr is not None and c != sc and not any(k["c"] == c and k["r"] == sr for k in ks)
+        ruler_label(x0 + m + col_pos[c] - 15, y0 + 2, 30, f"C{c}", "c" if c == sc else "", struck)
+
+    py = y0 + m + 5 * u + 8
+    s.line(12, py, W - 12, py)
+    if selected:
+        k = next(k for k in ks if k["r"] == sr and k["c"] == sc)
+        nr = sum(1 for k2 in ks if k2["r"] == sr)
+        nc = sum(1 for k2 in ks if k2["c"] == sc)
+        status = f"{k['l']} at row {sr}, column {sc}. Row {sr} wires {nr} keys, column {sc} wires {nc}. Pinned."
+    else:
+        status = "Hover a key, or a row or column label. Click to pin."
+    s.text(12, py + 24, status, 12, C["text2"])
+    s.text(12, py + 44, "Definition checks: no problem found.", 12, C["muted"])
+    button(s, W - 70, py + 10, "Close")
+    s.save(name)
 
 
 def keyboard_list_all():
@@ -506,7 +612,9 @@ def main():
                  screen_choose_definition, screen_macros_locked, screen_settings, screen_many_candidates,
                  right_vs_wrong, board_menu, keyboard_list_all):
         draw()
-    print(f"wrote 12 pictures to {OUT}")
+    matrix_view(None, "matrix-view.svg")
+    matrix_view((3, 5), "matrix-view-selected.svg")
+    print(f"wrote 14 pictures to {OUT}")
 
 
 if __name__ == "__main__":
