@@ -274,7 +274,7 @@ device table — is marked FIRST DRAFT in its header and is expected to go.
 
 ## Questions this raises for the design
 
-Listed, not answered:
+Listed, not answered here — the answers are in [ui-design.md](ui-design.md):
 
 1. **One screen or several?** ZMK Studio fits on one because it does only the keymap;
    Vial and VIA need tabs or sub-panes once macros and lighting arrive. Nazg's step 5 adds

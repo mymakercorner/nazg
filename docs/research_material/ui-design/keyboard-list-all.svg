@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="360" viewBox="0 0 680 360">
+<rect x="0.0" y="0.0" width="680.0" height="360.0" rx="12" fill="#FFFFFF" stroke="#C9C7BF" stroke-width="1"/>
+<text x="14.0" y="22.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#888780" text-anchor="start" font-weight="400">No board open</text>
+<text x="666.0" y="22.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" fill="#5F5E5A" text-anchor="end" font-weight="400">⚙</text>
+<line x1="0" y1="34" x2="680" y2="34" stroke="#E2E0D8" stroke-width="1"/>
+<text x="12.0" y="60.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#2C2C2A" text-anchor="start" font-weight="600">Keyboards found</text>
+<rect x="590.0" y="44.0" width="79.4" height="22.0" rx="6" fill="#FFFFFF" stroke="#C9C7BF" stroke-width="1"/>
+<text x="629.7" y="59.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#2C2C2A" text-anchor="middle" font-weight="400">↻ Refresh</text>
+<rect x="12.0" y="72.0" width="656.0" height="34.0" rx="8" fill="#FFFFFF" stroke="#E2E0D8" stroke-width="1"/>
+<text x="24.0" y="94.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#2C2C2A" text-anchor="start" font-weight="400">Model F Labs B104</text>
+<rect x="611.6" y="78.0" width="46.4" height="22.0" rx="6" fill="#FFFFFF" stroke="#C9C7BF" stroke-width="1"/>
+<text x="634.8" y="93.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#2C2C2A" text-anchor="middle" font-weight="400">Open</text>
+<rect x="561.4" y="80.0" width="40.2" height="18.0" rx="6" fill="#EEEDFE" stroke="none"/>
+<text x="581.5" y="93.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#3C3489" text-anchor="middle" font-weight="400">Vial</text>
+<rect x="12.0" y="114.0" width="656.0" height="34.0" rx="8" fill="#FFFFFF" stroke="#E2E0D8" stroke-width="1"/>
+<text x="24.0" y="136.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#2C2C2A" text-anchor="start" font-weight="400">Aquanaut</text>
+<rect x="611.6" y="120.0" width="46.4" height="22.0" rx="6" fill="#FFFFFF" stroke="#C9C7BF" stroke-width="1"/>
+<text x="634.8" y="135.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#2C2C2A" text-anchor="middle" font-weight="400">Open</text>
+<rect x="567.5" y="122.0" width="34.2" height="18.0" rx="6" fill="#EEEDFE" stroke="none"/>
+<text x="584.5" y="135.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#3C3489" text-anchor="middle" font-weight="400">VIA</text>
+<rect x="12.0" y="156.0" width="656.0" height="34.0" rx="8" fill="#FFFFFF" stroke="#E2E0D8" stroke-width="1"/>
+<text x="24.0" y="178.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#2C2C2A" text-anchor="start" font-weight="400">Phoenix Project No 1</text>
+<rect x="611.6" y="162.0" width="46.4" height="22.0" rx="6" fill="#FFFFFF" stroke="#C9C7BF" stroke-width="1"/>
+<text x="634.8" y="177.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#2C2C2A" text-anchor="middle" font-weight="400">Open</text>
+<rect x="567.5" y="164.0" width="34.2" height="18.0" rx="6" fill="#EEEDFE" stroke="none"/>
+<text x="584.5" y="177.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#3C3489" text-anchor="middle" font-weight="400">VIA</text>
+<rect x="12.0" y="204.0" width="28.0" height="16.0" rx="8" fill="#378ADD" stroke="none"/>
+<rect x="26.0" y="207.0" width="10.0" height="10.0" rx="5" fill="#FFFFFF" stroke="none"/>
+<text x="48.0" y="217.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#5F5E5A" text-anchor="start" font-weight="400">Show all HID devices</text>
+<text x="668.0" y="217.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#888780" text-anchor="end" font-weight="400">off at every start</text>
+<text x="12.0" y="244.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#888780" text-anchor="start" font-weight="400">Other HID interfaces, not openable</text>
+<rect x="12.0" y="252.0" width="656.0" height="24.0" rx="6" fill="#FFFFFF" stroke="#C9C7BF" stroke-width="1" stroke-dasharray="4 3"/>
+<text x="24.0" y="268.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#5F5E5A" text-anchor="start" font-weight="400">Logitech USB Receiver</text>
+<text x="330.0" y="268.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#5F5E5A" text-anchor="start" font-weight="400">046D:C52B</text>
+<text x="420.0" y="268.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#5F5E5A" text-anchor="start" font-weight="400">usage 0001:0002</text>
+<text x="656.0" y="268.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#5F5E5A" text-anchor="end" font-weight="400">if 1</text>
+<rect x="12.0" y="280.0" width="656.0" height="24.0" rx="6" fill="#FFFFFF" stroke="#C9C7BF" stroke-width="1" stroke-dasharray="4 3"/>
+<text x="24.0" y="296.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#5F5E5A" text-anchor="start" font-weight="400">Model F Labs B104</text>
+<text x="330.0" y="296.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#5F5E5A" text-anchor="start" font-weight="400">1209:4704</text>
+<text x="420.0" y="296.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#5F5E5A" text-anchor="start" font-weight="400">usage 0001:0006</text>
+<text x="656.0" y="296.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#5F5E5A" text-anchor="end" font-weight="400">if 0, keyboard</text>
+<rect x="12.0" y="308.0" width="656.0" height="24.0" rx="6" fill="#FFFFFF" stroke="#C9C7BF" stroke-width="1" stroke-dasharray="4 3"/>
+<text x="24.0" y="324.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#5F5E5A" text-anchor="start" font-weight="400">Aquanaut</text>
+<text x="330.0" y="324.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#5F5E5A" text-anchor="start" font-weight="400">FEED:0001</text>
+<text x="420.0" y="324.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#5F5E5A" text-anchor="start" font-weight="400">usage 000C:0001</text>
+<text x="656.0" y="324.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#5F5E5A" text-anchor="end" font-weight="400">if 2, consumer</text>
+<rect x="12.0" y="336.0" width="656.0" height="24.0" rx="6" fill="#FFFFFF" stroke="#C9C7BF" stroke-width="1" stroke-dasharray="4 3"/>
+<text x="24.0" y="352.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#5F5E5A" text-anchor="start" font-weight="400">USB Audio</text>
+<text x="330.0" y="352.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#5F5E5A" text-anchor="start" font-weight="400">0D8C:0014</text>
+<text x="420.0" y="352.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#5F5E5A" text-anchor="start" font-weight="400">usage 000C:0001</text>
+<text x="656.0" y="352.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#5F5E5A" text-anchor="end" font-weight="400">if 3</text>
+</svg>

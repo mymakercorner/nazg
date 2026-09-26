@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="266" viewBox="0 0 940 266">
+<text x="0.0" y="14.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#2C2C2A" text-anchor="start" font-weight="600">Keymap</text>
+<rect x="0.0" y="22.0" width="300.0" height="240.0" rx="12" fill="#FFFFFF" stroke="#C9C7BF" stroke-width="1"/>
+<rect x="6.0" y="28.0" width="288.0" height="18.0" rx="5" fill="#FFFFFF" stroke="#E2E0D8" stroke-width="1"/>
+<text x="150.0" y="40.9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">Model F Labs B104 | lock | settings</text>
+<rect x="6.0" y="50.0" width="84.0" height="206.0" rx="5" fill="#F4F3EF" stroke="#E2E0D8" stroke-width="1"/>
+<rect x="10.0" y="56.0" width="76.0" height="19.0" rx="4" fill="#E6F1FB" stroke="none"/>
+<text x="16.0" y="69.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#0C447C" text-anchor="start" font-weight="400">Keymap</text>
+<text x="16.0" y="91.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="start" font-weight="400">Layout</text>
+<text x="16.0" y="113.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="start" font-weight="400">Diagnostics</text>
+<rect x="94.0" y="50.0" width="200.0" height="22.0" rx="5" fill="#EEEDFE" stroke="#7F77DD" stroke-width="1"/>
+<text x="194.0" y="64.8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#3C3489" text-anchor="middle" font-weight="400">Layer 0  1  2</text>
+<rect x="94.0" y="76.0" width="200.0" height="110.0" rx="5" fill="#E6F1FB" stroke="#378ADD" stroke-width="1"/>
+<text x="194.0" y="127.8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#0C447C" text-anchor="middle" font-weight="400">Board: legends</text>
+<text x="194.0" y="141.8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#0C447C" text-anchor="middle" font-weight="400">of the layer</text>
+<rect x="94.0" y="190.0" width="200.0" height="66.0" rx="5" fill="#FFFFFF" stroke="#E2E0D8" stroke-width="1"/>
+<text x="194.0" y="226.8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">Keycode picker</text>
+<text x="320.0" y="14.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#2C2C2A" text-anchor="start" font-weight="600">Macros</text>
+<rect x="320.0" y="22.0" width="300.0" height="240.0" rx="12" fill="#FFFFFF" stroke="#C9C7BF" stroke-width="1"/>
+<rect x="326.0" y="28.0" width="288.0" height="18.0" rx="5" fill="#FFFFFF" stroke="#E2E0D8" stroke-width="1"/>
+<text x="470.0" y="40.9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">Model F Labs B104 | lock | settings</text>
+<rect x="326.0" y="50.0" width="84.0" height="206.0" rx="5" fill="#F4F3EF" stroke="#E2E0D8" stroke-width="1"/>
+<text x="336.0" y="69.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="start" font-weight="400">Keymap</text>
+<rect x="330.0" y="78.0" width="76.0" height="19.0" rx="4" fill="#E6F1FB" stroke="none"/>
+<text x="336.0" y="91.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#0C447C" text-anchor="start" font-weight="400">Macros</text>
+<text x="336.0" y="113.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="start" font-weight="400">...</text>
+<rect x="414.0" y="50.0" width="200.0" height="22.0" rx="5" fill="#EEEDFE" stroke="#7F77DD" stroke-width="1"/>
+<text x="514.0" y="64.8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#3C3489" text-anchor="middle" font-weight="400">M0  M1  M2  ...  M15</text>
+<rect x="414.0" y="76.0" width="200.0" height="110.0" rx="5" fill="#FFFFFF" stroke="#C9C7BF" stroke-width="1" stroke-dasharray="4 3"/>
+<text x="514.0" y="127.8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#888780" text-anchor="middle" font-weight="400">Board: keys using</text>
+<text x="514.0" y="141.8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#888780" text-anchor="middle" font-weight="400">this macro, or folded</text>
+<rect x="414.0" y="190.0" width="200.0" height="66.0" rx="5" fill="#FFFFFF" stroke="#E2E0D8" stroke-width="1"/>
+<text x="514.0" y="226.8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">Action list of M2</text>
+<text x="640.0" y="14.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#2C2C2A" text-anchor="start" font-weight="600">Diagnostics (Leyden Jar plugin)</text>
+<rect x="640.0" y="22.0" width="300.0" height="240.0" rx="12" fill="#FFFFFF" stroke="#C9C7BF" stroke-width="1"/>
+<rect x="646.0" y="28.0" width="288.0" height="18.0" rx="5" fill="#FFFFFF" stroke="#E2E0D8" stroke-width="1"/>
+<text x="790.0" y="40.9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">Model F Labs B104 | lock | settings</text>
+<rect x="646.0" y="50.0" width="84.0" height="206.0" rx="5" fill="#F4F3EF" stroke="#E2E0D8" stroke-width="1"/>
+<text x="656.0" y="69.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="start" font-weight="400">Keymap</text>
+<text x="656.0" y="91.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="start" font-weight="400">Layout</text>
+<rect x="650.0" y="100.0" width="76.0" height="19.0" rx="4" fill="#E6F1FB" stroke="none"/>
+<text x="656.0" y="113.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#0C447C" text-anchor="start" font-weight="400">Diagnostics</text>
+<rect x="734.0" y="50.0" width="200.0" height="22.0" rx="5" fill="#EEEDFE" stroke="#7F77DD" stroke-width="1"/>
+<text x="834.0" y="64.8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#3C3489" text-anchor="middle" font-weight="400">Key presses  Levels  Device</text>
+<rect x="734.0" y="76.0" width="200.0" height="110.0" rx="5" fill="#E6F1FB" stroke="#378ADD" stroke-width="1"/>
+<text x="834.0" y="127.8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#0C447C" text-anchor="middle" font-weight="400">Board: live levels</text>
+<text x="834.0" y="141.8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#0C447C" text-anchor="middle" font-weight="400">as a heat map</text>
+<rect x="734.0" y="190.0" width="200.0" height="66.0" rx="5" fill="#FFFFFF" stroke="#E2E0D8" stroke-width="1"/>
+<text x="834.0" y="219.8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">Thresholds, bins,</text>
+<text x="834.0" y="233.8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">Bootloader, Erase EEPROM</text>
+</svg>

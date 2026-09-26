@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="516" viewBox="0 0 680 516">
+<text x="0.0" y="14.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#2C2C2A" text-anchor="start" font-weight="600">Vial: tabs per feature</text>
+<rect x="0.0" y="22.0" width="330.0" height="230.0" rx="12" fill="#FFFFFF" stroke="#C9C7BF" stroke-width="1"/>
+<rect x="8.0" y="30.0" width="314.0" height="20.0" rx="5" fill="#FFFFFF" stroke="#E2E0D8" stroke-width="1"/>
+<text x="165.0" y="43.9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">Device combo, Refresh, menus</text>
+<rect x="8.0" y="54.0" width="314.0" height="20.0" rx="5" fill="#FFFFFF" stroke="#E2E0D8" stroke-width="1"/>
+<text x="165.0" y="67.8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">Keymap | Layout | Macros | Tap Dance | Combos | ...</text>
+<rect x="8.0" y="78.0" width="314.0" height="20.0" rx="5" fill="#FFFFFF" stroke="#E2E0D8" stroke-width="1"/>
+<text x="165.0" y="91.8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">Layers 0 1 2 3   zoom + -</text>
+<rect x="8.0" y="102.0" width="314.0" height="80.0" rx="5" fill="#E6F1FB" stroke="#378ADD" stroke-width="1"/>
+<text x="165.0" y="146.2" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#0C447C" text-anchor="middle" font-weight="400">Board</text>
+<rect x="8.0" y="186.0" width="314.0" height="58.0" rx="5" fill="#FFFFFF" stroke="#E2E0D8" stroke-width="1"/>
+<text x="165.0" y="218.8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">Palette tabs: Basic, ISO, Layers, Quantum...</text>
+<text x="350.0" y="14.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#2C2C2A" text-anchor="start" font-weight="600">VIA: the board stays, the sub-pane changes</text>
+<rect x="350.0" y="22.0" width="330.0" height="230.0" rx="12" fill="#FFFFFF" stroke="#C9C7BF" stroke-width="1"/>
+<rect x="358.0" y="30.0" width="314.0" height="20.0" rx="5" fill="#FFFFFF" stroke="#E2E0D8" stroke-width="1"/>
+<text x="515.0" y="43.9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">Configure, Key tester, Settings... | board badge</text>
+<rect x="358.0" y="54.0" width="70.0" height="190.0" rx="5" fill="#FFFFFF" stroke="#E2E0D8" stroke-width="1"/>
+<text x="393.0" y="131.8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">Keymap</text>
+<text x="393.0" y="145.8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">Layouts</text>
+<text x="393.0" y="159.8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">Macros</text>
+<text x="393.0" y="173.8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">menus</text>
+<rect x="432.0" y="54.0" width="240.0" height="110.0" rx="5" fill="#E6F1FB" stroke="#378ADD" stroke-width="1"/>
+<text x="552.0" y="105.7" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#0C447C" text-anchor="middle" font-weight="400">Board (2D or 3D)</text>
+<text x="552.0" y="120.7" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#0C447C" text-anchor="middle" font-weight="400">Layer 0 1 2 3</text>
+<rect x="432.0" y="168.0" width="240.0" height="76.0" rx="5" fill="#FFFFFF" stroke="#E2E0D8" stroke-width="1"/>
+<text x="552.0" y="202.8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">Sub-pane: picker,</text>
+<text x="552.0" y="216.8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">macro editor, sliders</text>
+<text x="0.0" y="270.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#2C2C2A" text-anchor="start" font-weight="600">ZMK Studio: one screen</text>
+<rect x="0.0" y="278.0" width="330.0" height="230.0" rx="12" fill="#FFFFFF" stroke="#C9C7BF" stroke-width="1"/>
+<rect x="8.0" y="286.0" width="314.0" height="20.0" rx="5" fill="#FFFFFF" stroke="#E2E0D8" stroke-width="1"/>
+<text x="165.0" y="299.9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">Logo | device menu | undo redo save discard</text>
+<rect x="8.0" y="310.0" width="84.0" height="190.0" rx="5" fill="#FFFFFF" stroke="#E2E0D8" stroke-width="1"/>
+<text x="50.0" y="380.9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">Layout menu</text>
+<text x="50.0" y="394.9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400"></text>
+<text x="50.0" y="408.9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">Layers, named</text>
+<text x="50.0" y="422.9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">+ - rename</text>
+<text x="50.0" y="436.9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">drag</text>
+<rect x="96.0" y="310.0" width="226.0" height="110.0" rx="5" fill="#E6F1FB" stroke="#378ADD" stroke-width="1"/>
+<text x="209.0" y="369.2" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#0C447C" text-anchor="middle" font-weight="400">Board, zoom menu</text>
+<rect x="96.0" y="424.0" width="226.0" height="76.0" rx="5" fill="#FFFFFF" stroke="#E2E0D8" stroke-width="1"/>
+<text x="209.0" y="458.9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">Binding: behaviour,</text>
+<text x="209.0" y="472.9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">then typed parameters</text>
+<text x="350.0" y="270.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#2C2C2A" text-anchor="start" font-weight="600">Nazg</text>
+<rect x="350.0" y="278.0" width="330.0" height="230.0" rx="12" fill="#FFFFFF" stroke="#C9C7BF" stroke-width="1"/>
+<rect x="358.0" y="286.0" width="314.0" height="20.0" rx="5" fill="#FAEEDA" stroke="#EF9F27" stroke-width="1"/>
+<text x="515.0" y="299.9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#854F0B" text-anchor="middle" font-weight="400">Board menu (switch, definition) | lock | settings</text>
+<rect x="358.0" y="310.0" width="84.0" height="190.0" rx="5" fill="#FFFFFF" stroke="#E2E0D8" stroke-width="1"/>
+<text x="400.0" y="387.9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">Keymap</text>
+<text x="400.0" y="401.9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">Layout</text>
+<text x="400.0" y="415.9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">Macros</text>
+<text x="400.0" y="429.9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">...</text>
+<rect x="446.0" y="310.0" width="226.0" height="20.0" rx="5" fill="#EEEDFE" stroke="#7F77DD" stroke-width="1"/>
+<text x="559.0" y="323.9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#3C3489" text-anchor="middle" font-weight="400">Strip: layers 0 1 2 3</text>
+<rect x="446.0" y="334.0" width="226.0" height="90.0" rx="5" fill="#E6F1FB" stroke="#378ADD" stroke-width="1"/>
+<text x="559.0" y="383.2" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#0C447C" text-anchor="middle" font-weight="400">Board</text>
+<rect x="446.0" y="428.0" width="226.0" height="72.0" rx="5" fill="#FFFFFF" stroke="#E2E0D8" stroke-width="1"/>
+<text x="559.0" y="460.9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">Panel: keycode picker,</text>
+<text x="559.0" y="474.9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle" font-weight="400">macro editor...</text>
+</svg>

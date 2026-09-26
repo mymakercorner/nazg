@@ -128,10 +128,14 @@ only** (Rico), not a user workflow. It is the only export: one in the library li
 as redundant. Deferred:
 export/import of the whole library -- a web-build need (via-registry.md, "Storage").
 
-Next: **UI design** (chosen by Rico 2026-09-25), replacing the first-draft screens. It starts
-from [docs/research_material/ui-inventory.md](docs/research_material/ui-inventory.md): how
-Vial, VIA and ZMK Studio arrange their screens, what Nazg draws today, and the open
-questions. Still open behind it: the rest of the library, layout options editing, step 5.
+Next: **UI design** (chosen by Rico 2026-09-25), replacing the first-draft screens. The
+workspace is decided in
+[docs/research_material/ui-design.md](docs/research_material/ui-design.md), with wireframes;
+the survey of Vial, VIA and ZMK Studio behind it is
+[docs/research_material/ui-inventory.md](docs/research_material/ui-inventory.md). Its first
+implementation step: the section contract as a C++ interface, Keymap and the Leyden Jar
+diagnostics compiled in. Still open behind it: the rest of the library, layout options
+editing, step 5.
 
 # Prior research — read before re-researching anything
 
