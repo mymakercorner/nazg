@@ -128,8 +128,10 @@ only** (Rico), not a user workflow. It is the only export: one in the library li
 as redundant. Deferred:
 export/import of the whole library -- a web-build need (via-registry.md, "Storage").
 
-Next: open -- the rest of the library above, layout options editing, or step 5 (custom
-features).
+Next: **UI design** (chosen by Rico 2026-09-25), replacing the first-draft screens. It starts
+from [docs/research_material/ui-inventory.md](docs/research_material/ui-inventory.md): how
+Vial, VIA and ZMK Studio arrange their screens, what Nazg draws today, and the open
+questions. Still open behind it: the rest of the library, layout options editing, step 5.
 
 # Prior research — read before re-researching anything
 
