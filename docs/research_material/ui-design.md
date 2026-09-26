@@ -1,7 +1,7 @@
 # UI design — the workspace
 
-*Decided with Rico 2026-09-26, from [ui-inventory.md](ui-inventory.md). Design only — nothing
-here is implemented yet. The pictures are wireframes: they fix what goes where, not the look.
+*Decided with Rico 2026-09-26, from [ui-inventory.md](ui-inventory.md). Mostly design: only
+the section contract has begun in code (see "Plugins", "Next step"). The pictures are wireframes: they fix what goes where, not the look.
 They are drawn by `tools/draw_ui_wireframes.py`; change a picture there and run it again.*
 
 The first-draft screens (three floating ImGui windows) are replaced by **one fixed window**
@@ -116,6 +116,13 @@ A plugin section is matched to a board by one of three rules:
 **Next step, decided:** write the four-point section contract as a C++ interface, with Keymap
 as its first implementation and the Leyden Jar diagnostics as its second, **compiled in**.
 Two very different sections test the contract before any plugin format is chosen.
+
+*Begun 2026-09-26:* `ui/NazgSection.h` holds points 1 to 3, and `ui/NazgBoardDescription.h`
+the six board rules; Keymap implements them. The match rule (point 4) waits for the Leyden
+Jar, the first section that is not on every board. Two things were left out until something
+needs them: folding the board away (an open point below), and edges other than left and top
+for labels. `KeycapLegend` keeps its two fields -- Keymap puts them in the top-left and
+middle-left slots -- and gains a third when sublegends come.
 
 **Open: how third-party plugins are delivered.**
 

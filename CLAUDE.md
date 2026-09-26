@@ -45,8 +45,8 @@ the Model F 2026-09-23: all three layers decode to named keycodes -- including `
 `HF_DWLD`, `HF_DWLU` on layer 2 -- with no unknown values, and every one encodes back.
 
 The board draws: "Open" on a raw-HID row of the device list loads it through the Vial loader,
-and `ui/NazgKeyboardView.*` shows it with layer tabs. **That drawing is a first draft meant to
-be thrown away** -- the look needs real visual design work. What outlives it is
+and the Keymap section shows it (see "Sections" below). **The board's look is a first draft
+meant to be thrown away** -- it needs real visual design work. What outlives it is
 `ui/NazgKeycapLegend.*`: legends are a Keycode seen through a host layout (plain + Shift, one
 global setting saved in `imgui.ini`, US by default, 69 layouts from QMK's keymap extras in
 `ui/NazgHostLayoutTable.cpp` -- decided in keycodes.md, "Host layouts"). Legends are UTF-8
@@ -55,8 +55,19 @@ global setting saved in `imgui.ini`, US by default, 69 layouts from QMK's keymap
 One key can be edited: click it, pick a keycode, and `WriteKeycode()`
 (`adapters/via/NazgViaKeymap.h`) encodes it for the board's version, sets it, reads the cell
 back and returns what the board really stored -- the read-back is what exposes Vial's keycode
-firewall. The picker (`ui/NazgKeycodePicker.*`) is a first draft like the board view: it
+firewall. The picker (`ui/NazgKeycodePicker.*`) is a first draft like the board's look: it
 lists the whole QMK table for the board's version, grouped, plus layer keys.
+
+**Sections** -- ui-design.md's contract, begun 2026-09-26. A board's screen is filled by
+sections (`ui/NazgSection.h`): each gives its strip entries, what the board shows, its panel,
+and later its match rule. A section says what each key *means* -- legends at KLE's twelve
+positions, a fill by meaning, marks for states, lines, edge labels, hover both ways
+(`ui/NazgBoardDescription.h`, pure, in `nazg_core`) -- and `ui/NazgBoardView.*` decides how it
+looks, with every colour in `ui/NazgTheme.*` (the panels' four named colours included).
+`ui/NazgWorkspace.*` lays out the column (hidden with one section), strip, board and panel,
+still inside the floating "Keyboard" window. `ui/NazgKeymapSection.*` is the first
+implementation: layers in the strip, the write-and-read-back in its own coroutine. The
+Leyden Jar diagnostics are the second, still to write, and bring the match rule with them.
 
 VIA boards load too: `adapters/via/NazgViaLoader.*` takes the definition from the caller and
 picks the keycode version from the protocol (13+: asked with `id_keycodes_version`; 12 ->
@@ -134,7 +145,7 @@ workspace is decided in
 the survey of Vial, VIA and ZMK Studio behind it is
 [docs/research_material/ui-inventory.md](docs/research_material/ui-inventory.md). Its first
 implementation step: the section contract as a C++ interface, Keymap and the Leyden Jar
-diagnostics compiled in. Still open behind it: the rest of the library, layout options
+diagnostics compiled in -- Keymap done (see "Sections" above), the Leyden Jar next. Still open behind it: the rest of the library, layout options
 editing, step 5.
 
 # Prior research — read before re-researching anything

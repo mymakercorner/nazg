@@ -3,7 +3,7 @@
 //
 // KeycodePicker - choose a keycode to put on a key.
 //
-// FIRST DRAFT, expected to be replaced, like NazgKeyboardView.h. It lists everything the
+// FIRST DRAFT, expected to be replaced, like NazgBoardView.h. It lists everything the
 // board's keycode version can store -- the whole QMK table, grouped by QMK's own `group`,
 // plus layer keys for the board's layers -- which is the point it proves: no keycode needs
 // typing as hex. How a real picker should look is a design question for later.

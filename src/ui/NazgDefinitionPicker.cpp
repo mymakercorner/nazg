@@ -5,7 +5,7 @@
 
 #include "imgui.h"
 
-#include "ui/NazgKeyboardView.h"
+#include "ui/NazgBoardView.h"
 
 namespace nazg
 {

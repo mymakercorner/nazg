@@ -106,6 +106,8 @@ set(NAZG_CORE_SOURCES
   src/ui/NazgKeycapLegend.h
   src/ui/NazgKeycapLegend.cpp
   src/ui/NazgHostLayoutTable.cpp
+  src/ui/NazgBoardDescription.h
+  src/ui/NazgBoardDescription.cpp
 )
 
 add_library(nazg_core STATIC ${NAZG_CORE_SOURCES})
@@ -129,8 +131,15 @@ target_compile_options(nazg_core PUBLIC $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
 
 set(NAZG_SOURCES
   src/Main.cpp
-  src/ui/NazgKeyboardView.h
-  src/ui/NazgKeyboardView.cpp
+  src/ui/NazgSection.h
+  src/ui/NazgWorkspace.h
+  src/ui/NazgWorkspace.cpp
+  src/ui/NazgBoardView.h
+  src/ui/NazgBoardView.cpp
+  src/ui/NazgTheme.h
+  src/ui/NazgTheme.cpp
+  src/ui/NazgKeymapSection.h
+  src/ui/NazgKeymapSection.cpp
   src/ui/NazgKeycodePicker.h
   src/ui/NazgKeycodePicker.cpp
   src/ui/NazgDefinitionPicker.h
@@ -206,6 +215,7 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(qmk_keycodes       tests/QmkKeycodesTest.cpp)
     nazg_add_test(qmk_keycode_codec  tests/QmkKeycodeCodecTest.cpp)
     nazg_add_test(keycap_legend      tests/KeycapLegendTest.cpp)
+    nazg_add_test(board_description  tests/BoardDescriptionTest.cpp)
     nazg_add_test(via_loader         tests/ViaLoaderTest.cpp)
     nazg_add_test(via_bundle         tests/ViaBundleTest.cpp)
     nazg_add_test(definition_library tests/DefinitionLibraryTest.cpp)
