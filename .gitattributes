@@ -1,0 +1,4 @@
+# Line endings: every text file is stored with LF, whatever the editor or tool wrote; Git tells
+# text from binary by itself. A checkout gets the platform's own endings (CRLF on Windows), so
+# nothing changes for the tools, and a file saved with the other ending shows no diff.
+* text=auto
