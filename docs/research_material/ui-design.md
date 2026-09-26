@@ -118,8 +118,14 @@ as its first implementation and the Leyden Jar diagnostics as its second, **comp
 Two very different sections test the contract before any plugin format is chosen.
 
 *Begun 2026-09-26:* `ui/NazgSection.h` holds points 1 to 3, and `ui/NazgBoardDescription.h`
-the six board rules; Keymap implements them. The match rule (point 4) waits for the Leyden
-Jar, the first section that is not on every board. Two things were left out until something
+the six board rules; Keymap implements them. The match rule (point 4) waits for the first
+section that is not on every board. The Leyden Jar diagnostics, the planned second
+implementation, are deferred far later: they bring many more design questions. Decided for
+them already: the device stays open while a view polls, as VIA's and Vial's matrix testers
+do; and key output is disabled while they show, as the Leyden Jar tool does. The firmware
+keeps that setting in RAM only, so an unplug restores output, but a Nazg bug would not:
+**every path that closes the device or exits must enable key output again.** VIA and Vial have
+no command to do the same. Two things were left out until something
 needs them: folding the board away (an open point below), and edges other than left and top
 for labels. `KeycapLegend` keeps its two fields -- Keymap puts them in the top-left and
 middle-left slots -- and gains a third when sublegends come.

@@ -3,7 +3,7 @@
 //
 // KeymapSection - the keymap as a section: layers in the strip, keycaps on the board, the
 // keycode picker in the panel. The first implementation of the section contract
-// (ui/NazgSection.h); the Leyden Jar diagnostics will be the second.
+// (ui/NazgSection.h).
 //
 // Click a key, it is outlined; click a keycode, it is written -- encoded for the board's
 // keycode version, set, and read back, so the board shows what the firmware really stored

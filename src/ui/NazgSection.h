@@ -11,8 +11,7 @@
 //   2. what the board shows, and what a click on it does (ui/NazgBoardDescription.h);
 //   3. its panel;
 //   4. its match rule -- which boards it appears for. Not in this interface yet: Keymap
-//      appears on every board, so the rule arrives with the Leyden Jar, the first section
-//      that does not -- its protocol probe is what shapes it.
+//      appears on every board, so the rule arrives with the first section that does not.
 //
 // Compiled in for now. How third-party sections will be delivered is open (ui-design.md,
 // "Plugins"); two very different sections test the contract before that is chosen.

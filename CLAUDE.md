@@ -66,8 +66,11 @@ positions, a fill by meaning, marks for states, lines, edge labels, hover both w
 looks, with every colour in `ui/NazgTheme.*` (the panels' four named colours included).
 `ui/NazgWorkspace.*` lays out the column (hidden with one section), strip, board and panel,
 still inside the floating "Keyboard" window. `ui/NazgKeymapSection.*` is the first
-implementation: layers in the strip, the write-and-read-back in its own coroutine. The
-Leyden Jar diagnostics are the second, still to write, and bring the match rule with them.
+implementation: layers in the strip, the write-and-read-back in its own coroutine. The match
+rule comes with the first section not on every board. The Leyden Jar diagnostics, planned as
+the second, are **deferred far later** (Rico, 2026-09-26: they bring many design questions).
+Already decided for them: the device stays open while a view polls, and key output is disabled
+while they show -- RAM only on the firmware, so every close and exit path must enable it again.
 
 VIA boards load too: `adapters/via/NazgViaLoader.*` takes the definition from the caller and
 picks the keycode version from the protocol (13+: asked with `id_keycodes_version`; 12 ->
@@ -145,7 +148,8 @@ workspace is decided in
 the survey of Vial, VIA and ZMK Studio behind it is
 [docs/research_material/ui-inventory.md](docs/research_material/ui-inventory.md). Its first
 implementation step: the section contract as a C++ interface, Keymap and the Leyden Jar
-diagnostics compiled in -- Keymap done (see "Sections" above), the Leyden Jar next. Still open behind it: the rest of the library, layout options
+diagnostics compiled in -- Keymap done (see "Sections" above), the Leyden Jar deferred. Still
+open behind it: the rest of the library, layout options
 editing, step 5.
 
 # Prior research — read before re-researching anything
