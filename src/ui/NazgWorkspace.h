@@ -38,6 +38,9 @@ namespace nazg
         std::string protocol;   // "Vial", "VIA"; empty until it is known
         std::string details;    // on hovering the name: the definition drawing it, and more
 
+        // A Vial board's lock: locked or unlocked, or unset on a board that has none.
+        std::optional<bool> isLocked;
+
         // The board menu.
         std::vector<OtherKeyboard> others;
         bool isVia     = false;   // Change definition... and Forget choice are VIA's

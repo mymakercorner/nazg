@@ -9,6 +9,7 @@
 #include "imgui.h"
 
 #include "ui/NazgBoardView.h"
+#include "ui/NazgTheme.h"
 
 namespace nazg
 {
@@ -118,10 +119,27 @@ namespace nazg
                 ImGui::TextDisabled("%s", view.protocol.c_str());
         }
 
-        // The settings button, on the right.
+        // On the right: the lock state on boards that have one, then the settings button.
         const char* settings = "Settings";
-        const float width    = ImGui::CalcTextSize(settings).x + 2 * ImGui::GetStyle().ItemSpacing.x;
+        const char* lock     = !view.isLocked ? nullptr : *view.isLocked ? "Locked" : "Unlocked";
+        const float spacing  = ImGui::GetStyle().ItemSpacing.x;
+
+        float width = ImGui::CalcTextSize(settings).x + 2 * spacing;
+        if (lock != nullptr)
+            width += ImGui::CalcTextSize(lock).x + spacing;
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + std::max(0.0f, ImGui::GetContentRegionAvail().x - width));
+
+        if (lock != nullptr)
+        {
+            ColouredText(*view.isLocked ? PanelColour::Warning : PanelColour::Muted, "%s", lock);
+            if (*view.isLocked)
+                ImGui::SetItemTooltip("Vial refuses some changes while the board is locked:\n"
+                                      "macros, the matrix tester, and QK_BOOT in the keymap.");
+            else
+                ImGui::SetItemTooltip("Every change is accepted until the board restarts\n"
+                                      "or is locked again.");
+        }
+
         action.settings = ImGui::MenuItem(settings, nullptr, view.isSettingsShown);
 
         ImGui::EndMenuBar();

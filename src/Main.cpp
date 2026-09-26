@@ -558,6 +558,10 @@ namespace
         std::vector<nazg::DefinitionCandidate>   candidates;   // ranked, as the picker shows them
         std::optional<nazg::DefinitionCandidate> official;     // VIA's, kept to rebuild the list
         std::optional<nazg::DefinitionRef>       inUse;        // the one drawing the board
+
+        // A Vial board's lock, as it was when the board loaded -- Nazg cannot unlock yet, so
+        // only another app or a restart changes it meanwhile. Unset on a VIA board.
+        std::optional<nazg::VialUnlockStatus> lock;
         bool                                     isChoosing = false;   // the picker is showing
 
         // The definition drawing the board as its source has it, when that is VIA's bundle or
@@ -634,6 +638,7 @@ namespace
         // sure none is busy. A load that fails leaves no board, and the list says why.
         state.sections.clear();
         state.keyboard.reset();
+        state.lock.reset();
         state.path     = path;
         state.identity = identity;
 
@@ -651,6 +656,7 @@ namespace
             {
                 std::vector<uint8_t> json;
                 state.keyboard         = co_await nazg::LoadVialKeyboard(protocol, &json);
+                state.lock             = co_await protocol.GetUnlockStatus();
                 state.exportable       = std::move(json);
                 state.definitionSource = "from the board (Vial)";
                 state.isVia            = false;
@@ -1061,6 +1067,11 @@ int main(int, char**)
                     header.hasChoice = boardState.isVia && library.library &&
                                        library.library->FindChoice(boardState.identity) != nullptr;
                     header.canExport = !boardState.exportable.empty() || userEntryInUse() != nullptr;
+
+                    // A VIAL_INSECURE build reports itself unlocked and has no combo to unlock
+                    // with: it has no lock, and the header says nothing.
+                    if (boardState.lock && !(boardState.lock->unlocked && boardState.lock->combo.empty()))
+                        header.isLocked = !boardState.lock->unlocked;
                 }
 
                 for (size_t index = 0; index < deviceListState.devices.size(); ++index)
