@@ -295,12 +295,75 @@ in a browser; GitHub and Markdown previews show only its source.
   position within one layout choice, positions outside the matrix size, positions no key uses;
   worth running quietly on import too — and *Close*, back to the keymap.
 
+## The console
+
+The text a QMK firmware prints — `print`, `uprintf`, `dprintf` — shown in Nazg, so debugging
+a firmware needs no second app. Today that app is QMK Toolbox, whose output cannot be selected
+or copied, or PJRC's `hid_listen`.
+
+**Off by default, three ways.** The *Console* button exists only on a board that has a
+console interface; the drawer is **closed at every start**, like "Show all HID devices"; and
+Nazg **does not open the console interface at all** until the drawer is opened — nothing is
+read, nothing is kept, until the user asks.
+
+![The console button in the header, drawer closed: the default](ui-design/console-closed.svg)
+
+![The console drawer open under the keymap](ui-design/console-open.svg)
+
+### What QMK sends
+
+`CONSOLE_ENABLE` adds a **second HID interface** to the board, next to VIA's raw HID one
+(`0xFF60`/`0x61`): usage page **`0xFF31`**, usage **`0x74`** — PJRC's Teensy convention,
+the one QMK Toolbox and `hid_listen` listen on. It goes **one way**, board to host: the text
+in 32-byte input reports, buffered by `sendchar()` and flushed by `console_task()`. There
+are no commands — the board cannot be asked anything through it, and `dprintf` prints only
+while the firmware's `debug_enable` is set, which the firmware sets itself (in code, or with
+the `DB_TOGG` key). Vial is QMK underneath and sends the same. (QMK:
+`tmk_core/protocol/usb_descriptor.c`, `tmk_core/protocol/chibios/usb_main.c`,
+`docs/faq_debug.md`.)
+
+### What it takes
+
+- **Transport**: a second open handle on the same board, and a reader for reports that
+  arrive unasked. Today's transport does request and response only; the architecture
+  already puts "async request/response + unsolicited messages" in the transport, and this is
+  its first use. **No protocol code** — plain text, no VIA or Vial involved.
+- **Pairing the interface with the board**: hidapi lists it as a separate entry. It is
+  attached to the open board by VID:PID, HID strings and serial number. Two identical boards
+  without a serial number are ambiguous; Nazg then asks which.
+- **Boards without VIA**: a board with only `CONSOLE_ENABLE` can be listened to as well — a
+  *Console* button on its row of the keyboard list, among the interfaces "Show all HID
+  devices" reveals.
+- **Surviving a reflash**: the console is for firmware work, so the board goes and comes
+  back often. The log is kept, marked where the board left and returned, and the console is
+  reattached to the same board by itself — which needs hotplug events or, while the drawer is
+  open, re-listing devices about once a second (see "Open points").
+- **Text that can be selected and copied** — what QMK Toolbox lacks. ImGui has no selectable
+  text for free: lines are selected with its multi-select (click, shift-click, Ctrl+A),
+  **Copy** takes the selection, **Save…** writes the log to a file. Also **Pause**, **Clear**,
+  a filter, timestamps, and a cap on the number of lines kept, so a chatty board cannot use
+  up memory.
+- **Privacy**: with the firmware's `debug_keyboard` on, QMK prints every keyboard report it
+  sends to the host (`tmk_core/protocol/host.c`) — the log can hold all that was typed. It lives **in memory only**, is written to disk only by
+  *Save…*, and is gone when Nazg closes.
+
+### Where it sits
+
+**A drawer at the bottom of the window**, like an IDE's terminal: the regions above shrink
+and stay usable. Not a section, and not a view replacing the main area like the matrix view —
+the point is watching the output *while* using the keymap or the matrix live test. It opens
+from the *Console* button in the header.
+
+The same drawer could later show logs from other sources: XAP's log broadcasts, ZMK's USB
+logging — which is a serial port, not HID, so it needs a serial transport, the one a ZMK
+Studio backend needs anyway. Flashing, QMK Toolbox's other job, is not part of this.
+
 ## Open points
 
 - **Plugin delivery** — see "Plugins".
 - **Hotplug**: whether the pinned hidapi 0.15 reports devices arriving and leaving has not
-  been checked. Until it is, an unplugged board is noticed by a failed request, and the list
-  needs Refresh.
+  been checked. Until it is, an unplugged board is noticed by a failed request, the list
+  needs Refresh, and the console reattaches by re-listing devices while its drawer is open.
 - **Which sections fold the board away**, and whether folding it confuses more than it helps.
 - **The matrix view's layout options**: which choice it draws — the board's stored one, as
   the many-candidates preview does — and how keys of the other choices show.

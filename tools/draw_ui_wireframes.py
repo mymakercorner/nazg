@@ -22,6 +22,7 @@ import os
 OUT = ""
 
 FONT = "Segoe UI, Helvetica, Arial, sans-serif"
+MONO = "Consolas, Menlo, monospace"
 C = dict(
     white="#FFFFFF", border="#C9C7BF", hair="#E2E0D8", s1="#F4F3EF", text="#2C2C2A", text2="#5F5E5A",
     muted="#888780", abg="#E6F1FB", atx="#0C447C", abd="#378ADD", wbg="#FAEEDA", wtx="#854F0B",
@@ -39,9 +40,9 @@ class Svg:
         st = f'stroke="{stroke}" stroke-width="{sw}"' if stroke else 'stroke="none"'
         self.e.append(f'<rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" rx="{rx}" fill="{fill}" {st}{a}/>')
 
-    def text(self, x, y, s, size=12, fill=C["text2"], anchor="start", weight=400, op=None):
+    def text(self, x, y, s, size=12, fill=C["text2"], anchor="start", weight=400, op=None, family=FONT):
         a = f' opacity="{op}"' if op is not None else ""
-        self.e.append(f'<text x="{x:.1f}" y="{y:.1f}" font-family="{FONT}" font-size="{size}" fill="{fill}" '
+        self.e.append(f'<text x="{x:.1f}" y="{y:.1f}" font-family="{family}" font-size="{size}" fill="{fill}" '
                       f'text-anchor="{anchor}" font-weight="{weight}"{a}>{html.escape(s)}</text>')
 
     def line(self, x1, y1, x2, y2, stroke=C["hair"], sw=1):
@@ -90,7 +91,7 @@ def board(s, x0, y0, u, sel=None, hot=(), dim=False, blank=False, shuffle=False)
         op = 0.45 if dim and not is_hot else None
         s.rect(x0 + x * u + 1, y0 + y * u + 1, w * u - 2, u - 2, fill, stroke, rx=3, sw=sw, op=op)
         size = 11 if u >= 20 else 9
-        if not blank and labels[i] and u >= 14 and tw(labels[i], size) <= w * u - 4:
+        if not blank and labels[i] and u >= 14 and tw(labels[i], size) * 0.9 <= w * u - 4:
             s.text(x0 + (x + w / 2) * u, y0 + y * u + u / 2 + size * 0.35, labels[i], size, tx, "middle", op=op)
     return 15 * u, 5 * u
 
@@ -571,6 +572,56 @@ def matrix_view(selected, name):
     s.save(name)
 
 
+# --- 7. the console drawer ----------------------------------------------------------------
+
+def console_drawer(is_open, name):
+    h = 432 if is_open else 290
+    s = Svg(W, h)
+    frame(s, 0, 0, W, h)
+    header(s, 0, 0, W, "Model F Labs B104", "Vial", "off")
+    # The Console button: only on a board with a console interface, off until pressed.
+    bw = tw("Console") + 20
+    bx = W - 110 - bw
+    s.rect(bx, 7, bw, 21, C["abg"] if is_open else C["white"], C["abd"] if is_open else C["border"], rx=6)
+    s.text(bx + bw / 2, 22, "Console", 12, C["atx"] if is_open else C["text"], "middle")
+    nav(s, 0.5, 34.5, (243 if is_open else h) - 35, "Keymap", NAV[:5])
+    x, mw = 162, W - 174
+    strip(s, x, 46, ["0", "1", "2"], 0, "Layer")
+    board(s, x + (mw - 330) / 2, 75, 22)
+    block(s, x, 193, mw, 40 if is_open else 80, "Keycode picker")
+    if not is_open:
+        s.save(name)
+        return
+    y = 243
+    s.rect(0.5, y, W - 1, h - y - 0.5, C["s1"], None, rx=0)
+    s.line(0, y, W, y, C["border"])
+    s.text(12, y + 20, "Console", 12, C["text"], weight=600)
+    s.text(70, y + 20, "FF31:0074, interface 2", 12, C["muted"])
+    xx = W - 12
+    for label in reversed(["Pause", "Clear", "Copy", "Save..."]):
+        xx -= tw(label) + 20
+        button(s, xx, y + 6, label)
+        xx -= 6
+    s.rect(xx - 130, y + 6, 124, 22, C["white"], C["border"], rx=6)
+    s.text(xx - 120, y + 21, "Filter", 12, C["muted"])
+    s.line(0, y + 34, W, y + 34)
+    lines = [("14:02:11.204", "leyden_jar: calibration done, 16 bins", ""),
+             ("14:02:11.230", "DAC threshold 0: 142, ref 131", ""),
+             ("14:02:15.871", "KL: kc: 0x0014, col: 3, row: 1, pressed: 1, time: 15871", "sel"),
+             ("14:02:15.944", "KL: kc: 0x0014, col: 3, row: 1, pressed: 0, time: 15944", "sel"),
+             ("14:02:31.002", "board disconnected, waiting for it to come back", "event"),
+             ("14:02:34.518", "board back, console reattached", "event"),
+             ("14:02:34.610", "leyden_jar: calibration done, 16 bins", "")]
+    ly = y + 42
+    for stamp, text, kind in lines:
+        if kind == "sel":
+            s.rect(4, ly, W - 8, 19, C["abg"], None, rx=3)
+        s.text(12, ly + 14, stamp, 12, C["muted"], family=MONO)
+        s.text(118, ly + 14, text, 12, C["muted"] if kind == "event" else C["text"], family=MONO)
+        ly += 20
+    s.save(name)
+
+
 def keyboard_list_all():
     h = 360
     s = Svg(W, h)
@@ -614,7 +665,9 @@ def main():
         draw()
     matrix_view(None, "matrix-view.svg")
     matrix_view((3, 5), "matrix-view-selected.svg")
-    print(f"wrote 14 pictures to {OUT}")
+    console_drawer(False, "console-closed.svg")
+    console_drawer(True, "console-open.svg")
+    print(f"wrote 16 pictures to {OUT}")
 
 
 if __name__ == "__main__":
