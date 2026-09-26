@@ -144,6 +144,8 @@ set(NAZG_SOURCES
   src/ui/NazgKeyboardList.cpp
   src/ui/NazgSettingsScreen.h
   src/ui/NazgSettingsScreen.cpp
+  src/ui/NazgVialUnlock.h
+  src/ui/NazgVialUnlock.cpp
   src/ui/NazgKeycodePicker.h
   src/ui/NazgKeycodePicker.cpp
   src/ui/NazgDefinitionPicker.h

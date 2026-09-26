@@ -181,6 +181,42 @@ namespace
         Check(status.combo[1] == std::make_pair<uint8_t, uint8_t>(5, 6), "second key follows");
     }
 
+    // Start, poll, lock: start and lock answer with their own request echoed, which must
+    // not be taken for a missing feature.
+    void TestUnlockCommands()
+    {
+        std::printf("unlock commands\n");
+
+        FakeDeviceChannel channel;
+        VialProtocol      vial(channel);
+
+        std::vector<uint8_t> startEcho(nazg::c_ViaReportSize, 0x00);
+        startEcho[0] = 0xFE;
+        startEcho[1] = 0x06;
+        channel.ReplyRaw(startEcho);
+
+        std::vector<uint8_t> poll(nazg::c_ViaReportSize, 0x00);
+        poll[0] = 0;    // not unlocked yet
+        poll[1] = 1;    // in progress
+        poll[2] = 37;   // steps left
+        channel.ReplyRaw(poll);
+
+        std::vector<uint8_t> lockEcho(nazg::c_ViaReportSize, 0x00);
+        lockEcho[0] = 0xFE;
+        lockEcho[1] = 0x08;
+        channel.ReplyRaw(lockEcho);
+
+        Check(!Throws([&] { Run(vial.StartUnlock()); }), "an echoed start is its normal answer");
+        const auto progress = Run(vial.PollUnlock());
+        Check(!Throws([&] { Run(vial.Lock()); }), "an echoed lock is its normal answer");
+
+        Check(!progress.unlocked && progress.inProgress && progress.countdown == 37,
+              "a poll reports unlocked, in progress and the steps left");
+        Check(channel.RequestCount() == 3 && channel.RequestAt(0)[1] == 0x06 && channel.RequestAt(1)[1] == 0x07 &&
+                  channel.RequestAt(2)[1] == 0x08,
+              "start is 0x06, poll 0x07, lock 0x08");
+    }
+
     // Vial does not use VIA's 0xFF marker. A sub-command the firmware was built without
     // falls through its switch untouched, so the request comes back byte for byte.
     // Found on real hardware: a board with no encoders "returned" a keycode of 0xFE03,
@@ -279,6 +315,7 @@ int main()
     TestImplausibleDefinitionSizeIsRefused();
     TestEntryCounts();
     TestUnlockStatus();
+    TestUnlockCommands();
     TestUnsupportedSubCommandEchoesTheRequest();
     TestDetectOnEchoingDevice();
     TestEncoderReturnsBothDirections();

@@ -29,6 +29,7 @@
 #include "ui/NazgKeyboardList.h"
 #include "ui/NazgKeymapSection.h"
 #include "ui/NazgSettingsScreen.h"
+#include "ui/NazgVialUnlock.h"
 #include "ui/NazgTheme.h"
 #include "ui/NazgWorkspace.h"
 
@@ -575,10 +576,16 @@ namespace
         std::vector<std::unique_ptr<nazg::Section>> sections;
         size_t                                      activeSection = 0;
 
-        // A section still working refers to the keyboard: nothing reloads it meanwhile.
-        bool IsSectionBusy() const
+        // An unlock under way, while the board screen shows it instead of the sections.
+        // Behind a pointer: it holds a Task that refers to it, so it must never move.
+        std::unique_ptr<nazg::VialUnlock> unlock;
+
+        // A section still working, or an unlock, refers to the keyboard: nothing reloads it
+        // meanwhile.
+        bool IsWorking() const
         {
-            return std::any_of(sections.begin(), sections.end(), [](const auto& section) { return section->IsBusy(); });
+            return unlock != nullptr ||
+                   std::any_of(sections.begin(), sections.end(), [](const auto& section) { return section->IsBusy(); });
         }
     };
 
@@ -614,6 +621,27 @@ namespace
         if (state.official)
             state.candidates.push_back(*state.official);
         nazg::RankCandidates(state.candidates, state.identity.product);
+    }
+
+    // Lock a Vial board again, and read its lock back -- what the header shows.
+    nazg::Task<void> LockBoard(nazg::HidTransport& transport, std::string path, BoardState& state)
+    {
+        nazg::DeviceId device = nazg::c_InvalidDevice;
+        try
+        {
+            device = co_await transport.Open(path);
+
+            nazg::HidDeviceChannel channel(transport, device);
+            nazg::VialProtocol     vial(channel);
+            co_await vial.Lock();
+            state.lock = co_await vial.GetUnlockStatus();
+        }
+        catch (const std::exception& failure)
+        {
+            state.error = std::string("the board could not be locked: ") + failure.what();
+        }
+
+        transport.Close(device);
     }
 
     // Open, load everything, close. A Vial board describes itself. A VIA board is drawn by
@@ -654,9 +682,17 @@ namespace
             // Vial first: its probe is harmless on a VIA board, which answers 0xFF.
             if (co_await protocol.Detect())
             {
+                // Asked first: a board in the middle of an unlock answers nothing but the
+                // unlock's own commands, and echoes the rest -- its keymap would read as garbage.
+                const nazg::VialUnlockStatus lock = co_await protocol.GetUnlockStatus();
+                if (lock.inProgress)
+                    throw std::runtime_error("this board is waiting for an unlock that was started and never "
+                                             "finished, and answers nothing else until then -- unplug it and "
+                                             "plug it back in");
+
                 std::vector<uint8_t> json;
                 state.keyboard         = co_await nazg::LoadVialKeyboard(protocol, &json);
-                state.lock             = co_await protocol.GetUnlockStatus();
+                state.lock             = lock;
                 state.exportable       = std::move(json);
                 state.definitionSource = "from the board (Vial)";
                 state.isVia            = false;
@@ -827,6 +863,7 @@ int main(int, char**)
 
     BoardState       boardState;
     nazg::Task<void> loadTask;
+    nazg::Task<void> lockTask;
 
     Library            library = OpenLibrary(dataFolder, dataFolderError);
     PendingDialogPaths pendingPaths;    // must outlive any open dialog: main() scope
@@ -837,7 +874,10 @@ int main(int, char**)
     // here, a few KB each, and the remembered choice looked up unless the caller has just
     // made one.
     const auto isLoadRunning = [&] { return loadTask.IsValid() && !loadTask.IsDone(); };
-    const auto isBoardBusy   = [&] { return isLoadRunning() || boardState.IsSectionBusy(); };
+    const auto isBoardBusy   = [&]
+    {
+        return isLoadRunning() || (lockTask.IsValid() && !lockTask.IsDone()) || boardState.IsWorking();
+    };
 
     const auto startLoad = [&](const std::string& path, const nazg::DeviceIdentity& identity,
                                std::optional<nazg::DefinitionRef> chosen)
@@ -1120,6 +1160,18 @@ int main(int, char**)
                 }
             }
 
+            // Locked: unlock, on its own screen. Unlocked: lock again at once.
+            if (headerAction.toggleLock && !isBusy && boardState.keyboard && boardState.lock)
+            {
+                showSettings = false;
+                boardState.error.clear();
+                if (!boardState.lock->unlocked)
+                    boardState.unlock = std::make_unique<nazg::VialUnlock>(
+                        transport, boardState.path, *boardState.keyboard, boardState.lock->combo, settings.hostLayout);
+                else
+                    lockTask = LockBoard(transport, boardState.path, boardState);
+            }
+
             if (headerAction.exportDefinition)
                 exportBoardDefinition();
 
@@ -1312,6 +1364,19 @@ int main(int, char**)
                         boardState.isChoosing = false;
                         if (!boardState.keyboard || boardState.inUse != picked)
                             startLoad(boardState.path, boardState.identity, picked);
+                    }
+                }
+                else if (boardState.unlock)
+                {
+                    boardState.unlock->Draw();
+
+                    if (boardState.unlock->IsDone())
+                    {
+                        if (boardState.unlock->IsUnlocked())
+                            boardState.lock->unlocked = true;
+                        else
+                            boardState.error = boardState.unlock->Failure();
+                        boardState.unlock.reset();
                     }
                 }
                 else if (boardState.keyboard && !boardState.isLoading)

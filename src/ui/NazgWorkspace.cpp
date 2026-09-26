@@ -129,15 +129,20 @@ namespace nazg
             width += ImGui::CalcTextSize(lock).x + spacing;
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + std::max(0.0f, ImGui::GetContentRegionAvail().x - width));
 
+        // Clicking it is how the board is unlocked, or locked again.
         if (lock != nullptr)
         {
-            ColouredText(*view.isLocked ? PanelColour::Warning : PanelColour::Muted, "%s", lock);
+            ImGui::PushStyleColor(ImGuiCol_Text, ColourOf(*view.isLocked ? PanelColour::Warning : PanelColour::Muted));
+            action.toggleLock = ImGui::MenuItem(lock, nullptr, false, !view.isBusy);
+            ImGui::PopStyleColor();
+
             if (*view.isLocked)
                 ImGui::SetItemTooltip("Vial refuses some changes while the board is locked:\n"
-                                      "macros, the matrix tester, and QK_BOOT in the keymap.");
+                                      "macros, the matrix tester, and QK_BOOT in the keymap.\n"
+                                      "Click to unlock it.");
             else
-                ImGui::SetItemTooltip("Every change is accepted until the board restarts\n"
-                                      "or is locked again.");
+                ImGui::SetItemTooltip("Every change is accepted until the board restarts.\n"
+                                      "Click to lock it again.");
         }
 
         action.settings = ImGui::MenuItem(settings, nullptr, view.isSettingsShown);

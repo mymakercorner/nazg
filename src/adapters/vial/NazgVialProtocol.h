@@ -97,6 +97,17 @@ namespace nazg
         std::vector<std::pair<uint8_t, uint8_t>> combo;
     };
 
+    // How far an unlock has got, from 0xFE 0x07.
+    struct VialUnlockProgress
+    {
+        bool    unlocked   = false;
+        bool    inProgress = false;
+        uint8_t countdown  = 0;   // steps left, from c_VialUnlockSteps down to 0
+    };
+
+    // Where an unlock's countdown starts (VIAL_UNLOCK_COUNTER_MAX in vial-qmk).
+    inline constexpr uint8_t c_VialUnlockSteps = 50;
+
     class VialProtocol : public ViaProtocol
     {
     public:
@@ -121,6 +132,21 @@ namespace nazg
         // QK_BOOT to 0 in everything it accepts, so a write can "succeed" and store
         // something else.
         [[nodiscard]] Task<VialUnlockStatus> GetUnlockStatus();
+
+        // 0xFE 0x06. The board starts an unlock: it counts down while the combo is held.
+        // Until it succeeds or the board restarts, the board drops every command but the few
+        // an unlock needs -- echoing each back unanswered, so a keymap read returns garbage
+        // and a write seems to succeed. Nothing cancels it.
+        [[nodiscard]] Task<void> StartUnlock();
+
+        // 0xFE 0x07. A poll counts one step down when the combo is held and more than 100 ms
+        // have passed since the last step; any other poll -- a key released, or one too soon
+        // -- starts the countdown over. So polls must come more than 100 ms apart, and an
+        // unlock takes c_VialUnlockSteps of them.
+        [[nodiscard]] Task<VialUnlockProgress> PollUnlock();
+
+        // 0xFE 0x08. Locks the board again; a restart does too.
+        [[nodiscard]] Task<void> Lock();
 
         // 0xFE 0x03. Vial returns BOTH directions in one reply, where VIA needs a call
         // per direction -- and vial-qmk does not implement VIA's 0x14/0x15 at all.

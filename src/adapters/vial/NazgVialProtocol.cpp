@@ -156,6 +156,28 @@ namespace nazg
         co_return status;
     }
 
+    Task<void> VialProtocol::StartUnlock()
+    {
+        co_await SendVial(VialCommand::UnlockStart, {}, false);
+    }
+
+    Task<VialUnlockProgress> VialProtocol::PollUnlock()
+    {
+        std::vector<uint8_t> reply = co_await SendVial(VialCommand::UnlockPoll, {});
+
+        VialUnlockProgress progress;
+        progress.unlocked   = reply[0] != 0;
+        progress.inProgress = reply[1] != 0;
+        progress.countdown  = reply[2];
+
+        co_return progress;
+    }
+
+    Task<void> VialProtocol::Lock()
+    {
+        co_await SendVial(VialCommand::Lock, {}, false);
+    }
+
     Task<VialProtocol::EncoderPair> VialProtocol::GetEncoder(uint8_t layer, uint8_t index)
     {
         std::vector<uint8_t> reply = co_await SendVial(VialCommand::GetEncoder, { layer, index });

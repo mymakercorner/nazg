@@ -82,7 +82,9 @@ devices" off at every start), the open board (sections, or the definition picker
 at start is opened directly. The screens only report clicks; `Main.cpp` acts on them. **No
 board is opened while protocols are being probed**: HID gives every open handle a copy of each
 reply, and the transport drains leftovers only at open. The header shows a Vial board's lock
-state, read once on load; Nazg cannot unlock yet. Not done: noticing an unplugged board -- the
+state, read once on load, and clicking it unlocks (`ui/NazgVialUnlock.*`: the combo outlined on
+the board, a poll every 150 ms) or locks again. **Untested on hardware** -- no secure-mode
+Vial firmware at hand; the Model F is `VIAL_INSECURE` and shows no lock. Not done: noticing an unplugged board -- the
 list needs Refresh (hotplug, deferred: ui-design.md, "Open points").
 
 VIA boards load too: `adapters/via/NazgViaLoader.*` takes the definition from the caller and

@@ -58,6 +58,7 @@ namespace nazg
         bool forgetChoice     = false;
         bool exportDefinition = false;
         bool allKeyboards     = false;
+        bool toggleLock       = false;   // the lock state was clicked: unlock, or lock again
         bool settings         = false;   // the settings button: show or leave them
     };
 

@@ -260,7 +260,16 @@ rather than prevent them:
 
 - **While an unlock is in progress**, every command is dropped except `vial_get_keyboard_id`,
   `vial_get_size`, `vial_get_def`, `vial_get_unlock_status`, `vial_unlock_start` and
-  `vial_unlock_poll`.
+  `vial_unlock_poll`. "Dropped" means **echoed back unchanged** (`via.c` jumps to its final
+  `raw_hid_send`), so a keymap read returns garbage and a write looks successful. Nothing
+  cancels an unlock; only succeeding or a restart ends it. A client must not load a board
+  whose status says an unlock is in progress.
+- **The unlock countdown is paced by the polls.** `vial_unlock_start` sets the countdown to
+  50 (`VIAL_UNLOCK_COUNTER_MAX`). Each `vial_unlock_poll` counts one down only if every combo
+  key is held **and more than 100 ms have passed** since the last step; otherwise it resets
+  the countdown to 50. A poll that comes too soon therefore undoes the progress. Polls have to
+  be more than 100 ms apart; Nazg uses 150 ms, about 7.5 s of holding. (`quantum/vial.c`,
+  vial-qmk, read 2026-09-26.)
 - **While locked**: `id_switch_matrix_state` is refused, `id_dynamic_keymap_macro_set_buffer`
   is refused, and `id_bootloader_jump` is refused.
 - **A keycode firewall** rewrites `QK_BOOT` to `0` in every keycode a locked board accepts —
