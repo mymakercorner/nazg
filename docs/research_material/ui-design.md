@@ -380,8 +380,8 @@ Studio backend needs anyway. Flashing, QMK Toolbox's other job, is not part of t
 - **Which sections fold the board away**, and whether folding it confuses more than it helps.
 - **The matrix view's layout options**: which choice it draws — the board's stored one, as
   the many-candidates preview does — and how keys of the other choices show.
-- **"Export definition…"**, for investigation and debugging only, has no place yet — the
-  board menu, under the definition items, is the obvious candidate.
+- **"Export definition…"**, for investigation and debugging only: put in the board menu,
+  under the definition items, with the workspace frame -- to confirm in use.
 - The three suggestions Rico accepted with the screens, worth confirming in use: opening a
   lone board directly; listing only the sections a board has; Settings replacing the main
   area rather than opening a dialog.

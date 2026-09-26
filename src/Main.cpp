@@ -26,7 +26,9 @@
 #include "transport/NazgDeviceChannel.h"
 #include "transport/NazgHidTransport.h"
 #include "ui/NazgDefinitionPicker.h"
+#include "ui/NazgKeyboardList.h"
 #include "ui/NazgKeymapSection.h"
+#include "ui/NazgSettingsScreen.h"
 #include "ui/NazgTheme.h"
 #include "ui/NazgWorkspace.h"
 
@@ -57,13 +59,21 @@ namespace
     struct DeviceListState
     {
         std::vector<nazg::HidDeviceInfo> devices;
+        std::vector<std::string>         protocols;   // parallel to devices, see DrawKeyboardList()
         std::string                      error;
-        bool                             isLoading = false;
+        bool                             isLoading = false;   // enumerating
+        bool                             isProbing = false;   // asking each keyboard its protocol
     };
 
     // The payoff: an asynchronous sequence written as straight-line code. It suspends
     // at the co_await, the frame loop keeps rendering, and HidTransport::Pump()
     // resumes it on the main thread once the worker has the result.
+    //
+    // The list shows as soon as it is enumerated; each keyboard is then asked which protocol
+    // it speaks, one Vial probe each -- harmless on a VIA board, which answers 0xFF. Nothing
+    // opens a board until they have all answered: a second handle on the same device gets a
+    // copy of every reply meant for the first -- HID delivers input reports to each open
+    // handle -- and the transport discards such leftovers only when it opens a device.
     nazg::Task<void> RefreshDeviceList(nazg::HidTransport& transport, DeviceListState& state)
     {
         state.isLoading = true;
@@ -80,7 +90,33 @@ namespace
             SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "enumeration failed: %s", failure.what());
         }
 
+        state.protocols.assign(state.devices.size(), std::string());
         state.isLoading = false;
+        state.isProbing = true;
+
+        for (size_t index = 0; index < state.devices.size(); ++index)
+        {
+            if (!nazg::IsViaInterface(state.devices[index]))
+                continue;
+
+            nazg::DeviceId device = nazg::c_InvalidDevice;
+            try
+            {
+                device = co_await transport.Open(state.devices[index].path);
+
+                nazg::HidDeviceChannel channel(transport, device);
+                nazg::VialProtocol     protocol(channel);
+                state.protocols[index] = (co_await protocol.Detect()) ? "Vial" : "VIA";
+            }
+            catch (const std::exception&)
+            {
+                // Raw HID without VIA behind it, or a board that went: it does not answer.
+                state.protocols[index] = "no answer";
+            }
+            transport.Close(device);
+        }
+
+        state.isProbing = false;
     }
 
     // Settings that outlive a run. Kept in imgui.ini through ImGui's own settings-handler
@@ -529,16 +565,10 @@ namespace
         }
     };
 
-    // Raw HID interface VIA and Vial answer on; only these rows get an Open button.
-    constexpr uint16_t c_ViaUsagePage = 0xFF60;
-    constexpr uint16_t c_ViaUsage     = 0x61;
-
-    // A keyboard Nazg can talk to, as far as enumeration tells: it exposes VIA's raw HID
-    // interface, one per board. Necessary, not sufficient -- a QMK build with raw HID and
-    // no VIA has it too, and then fails on Open; knowing for sure means asking each board.
-    bool IsViaInterface(const nazg::HidDeviceInfo& device)
+    nazg::DeviceIdentity IdentityOf(const nazg::HidDeviceInfo& device)
     {
-        return device.usagePage == c_ViaUsagePage && device.usage == c_ViaUsage;
+        return { device.vendorId, device.productId, device.manufacturer, device.product, device.releaseNumber,
+                 device.serialNumber };
     }
 
     std::string DescribeInUse(const nazg::DefinitionCandidate& candidate)
@@ -587,8 +617,12 @@ namespace
         state.isChoosing = false;
         state.error.clear();
 
-        // They refer to the keyboard about to be replaced; the caller made sure none is busy.
+        // The board shown until now goes, sections first: they refer to it. The caller made
+        // sure none is busy. A load that fails leaves no board, and the list says why.
         state.sections.clear();
+        state.keyboard.reset();
+        state.path     = path;
+        state.identity = identity;
 
         nazg::DeviceId device = nazg::c_InvalidDevice;
 
@@ -635,7 +669,6 @@ namespace
                 const std::optional<size_t> resolved = nazg::ResolveCandidate(candidates, chosen);
 
                 state.isVia      = true;
-                state.identity   = identity;
                 state.official   = std::move(official);
                 state.candidates = candidates;
 
@@ -658,7 +691,6 @@ namespace
                 }
             }
 
-            state.path          = path;
             state.activeSection = 0;
             state.exportMessage.clear();
         }
@@ -855,9 +887,46 @@ int main(int, char**)
         SDL_ShowSaveFileDialog(OnExportChosen, &pendingExport, pWindow, c_Filters, 1, suggestedName);
     };
 
+    // Same rule as for loadTask: a Task still running must not be replaced -- destroying it
+    // would free a coroutine frame the transport still holds a handle to.
+    const auto startRefresh = [&]
+    {
+        if (!refreshTask.IsValid() || refreshTask.IsDone())
+            refreshTask = RefreshDeviceList(transport, deviceListState);
+    };
+
+    // The library entry drawing the open board, if a user definition does.
+    const auto userEntryInUse = [&]() -> const nazg::LibraryEntry*
+    {
+        if (!boardState.inUse || boardState.inUse->kind != nazg::DefinitionRef::Kind::User || !library.library)
+            return nullptr;
+        return library.library->Find(boardState.inUse->userId);
+    };
+
+    // For investigation and debugging: the definition drawing the board, byte for byte as
+    // Nazg has it -- VIA's bundle, the board itself, or the library's stored copy, which
+    // offers the name of the file it came from.
+    const auto exportBoardDefinition = [&]
+    {
+        try
+        {
+            if (const nazg::LibraryEntry* entry = userEntryInUse())
+                startExport(library.library->Read(*entry), entry->name, FileName(entry->origin));
+            else if (boardState.keyboard && !boardState.exportable.empty())
+                startExport(boardState.exportable, boardState.keyboard->Name(),
+                            ExportFileName(boardState.keyboard->Name()));
+        }
+        catch (const std::exception& failure)
+        {
+            boardState.exportMessage = std::string("not exported: ") + failure.what();
+        }
+    };
+
     const ImVec4 clearColor = ImVec4(0.09f, 0.09f, 0.11f, 1.0f);
     bool showDemoWindow    = false;
-    bool showAllHidDevices = false;   // the device list shows only keyboards unless asked
+    bool showAllHidDevices = false;   // the keyboard list shows only keyboards unless asked
+    bool showSettings      = false;   // settings in place of the main area
+    bool openLoneBoard     = true;    // until the first list is in
     bool done = false;
 
     while (!done)
@@ -928,242 +997,284 @@ int main(int, char**)
         ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();
 
-        // Placeholder UI. Everything here is scaffolding to be replaced by the real
-        // device list and capability-driven views.
+        // With exactly one keyboard plugged in at start, Nazg opens it: most people never see
+        // the list. Only the first time -- afterwards the list is shown because it was asked for.
+        if (openLoneBoard && !deviceListState.isLoading && !deviceListState.isProbing)
         {
-            ImGui::Begin("Nazg");
-            ImGui::TextUnformatted("One keyboard configurator to rule them all.");
-            ImGui::Separator();
-            ImGui::Text("SDL version    : %d.%d.%d", SDL_MAJOR_VERSION, SDL_MINOR_VERSION, SDL_MICRO_VERSION);
-            ImGui::Text("Dear ImGui     : %s", IMGUI_VERSION);
-            ImGui::Text("GPU backend    : %s", pGpuDriver != nullptr ? pGpuDriver : "unknown");
-            ImGui::Text("Display scale  : %.2f", mainScale);
-            ImGui::Text("Frame          : %.3f ms (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-            ImGui::Separator();
-            ImGui::Checkbox("Dear ImGui demo window", &showDemoWindow);
-            ImGui::End();
+            openLoneBoard = false;
+
+            const auto keyboards = std::count_if(deviceListState.devices.begin(), deviceListState.devices.end(),
+                                                 nazg::IsViaInterface);
+            if (keyboards == 1 && !isBoardBusy())
+            {
+                const auto lone = std::find_if(deviceListState.devices.begin(), deviceListState.devices.end(),
+                                               nazg::IsViaInterface);
+                startLoad(lone->path, IdentityOf(*lone), std::nullopt);
+            }
         }
 
+        // One window filling SDL's: the header, then settings, the open board or the keyboard
+        // list under it (ui-design.md, "The regions").
         {
-            ImGui::Begin("HID Devices");
+            const ImGuiViewport* viewport = ImGui::GetMainViewport();
+            ImGui::SetNextWindowPos(viewport->WorkPos);
+            ImGui::SetNextWindowSize(viewport->WorkSize);
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
 
-            const bool isBusy = deviceListState.isLoading;
+            constexpr ImGuiWindowFlags c_Workspace = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+                                                     ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse |
+                                                     ImGuiWindowFlags_NoSavedSettings |
+                                                     ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_MenuBar;
+            ImGui::Begin("##workspace", nullptr, c_Workspace);
+            ImGui::PopStyleVar(2);
 
-            ImGui::BeginDisabled(isBusy);
-            if (ImGui::Button("Refresh"))
+            const bool hasBoard = boardState.isLoading || boardState.keyboard.has_value() || boardState.isChoosing;
+            const bool isBusy   = isBoardBusy();
+
+            // --- The header -------------------------------------------------------------
+
+            nazg::HeaderView    header;
+            std::vector<size_t> others;   // device index of each "Switch to" entry
+            if (hasBoard)
             {
-                // Never replace a Task that still has work outstanding: destroying it
-                // would free a coroutine frame the transport still holds a handle to.
-                if (!refreshTask.IsValid() || refreshTask.IsDone())
-                    refreshTask = RefreshDeviceList(transport, deviceListState);
-            }
-            ImGui::EndDisabled();
+                header.name = boardState.keyboard ? boardState.keyboard->Name() : boardState.identity.product;
+                if (header.name.empty())
+                    header.name = "(unnamed)";
 
-            ImGui::SameLine();
-            if (isBusy)
-                ImGui::TextUnformatted("enumerating...");
-            else
-            {
-                const auto keyboards = std::count_if(deviceListState.devices.begin(), deviceListState.devices.end(),
-                                                     IsViaInterface);
-                if (showAllHidDevices)
-                    ImGui::Text("%zu keyboard(s), %zu HID interface(s)", static_cast<size_t>(keyboards),
-                                deviceListState.devices.size());
-                else
-                    ImGui::Text("%zu keyboard(s)", static_cast<size_t>(keyboards));
-            }
-
-            if (!deviceListState.error.empty())
-                nazg::ColouredText(nazg::PanelColour::Error, "%s", deviceListState.error.c_str());
-
-            // First draft of the definitions' UI, like the rest of this window.
-            ImGui::SameLine();
-            ImGui::BeginDisabled(!library.library);
-            if (ImGui::Button("Import VIA definition..."))
-                showImportDialog();
-            ImGui::EndDisabled();
-            ImGui::SetItemTooltip("Add a user definition: the .json file that describes your keyboard,\n"
-                                  "often named via.json, from its vendor or designer.");
-
-            // Null when there is no bundle, or it has no manifest to count from.
-            const nazg::ViaBundleManifest* manifest =
-                viaBundle.definitions && viaBundle.definitions->Manifest() ? &*viaBundle.definitions->Manifest() : nullptr;
-
-            if (!viaBundle.definitions)
-                nazg::ColouredText(nazg::PanelColour::Warning, "Official definitions: not found");
-            else if (manifest != nullptr)
-                ImGui::Text("Official definitions: %d, from VIA", manifest->v2 + manifest->v3);
-            else
-                ImGui::TextUnformatted("Official definitions: from VIA");
-            if (ImGui::IsItemHovered())
-            {
-                if (manifest != nullptr)
-                    ImGui::SetTooltip("%s\nthe-via/keyboards at %s", viaBundle.path.c_str(), manifest->commit.c_str());
-                else
-                    ImGui::SetTooltip("%s", viaBundle.path.c_str());
-            }
-
-            if (!library.library)
-            {
-                nazg::ColouredText(nazg::PanelColour::Error, "User definitions are unavailable: %s",
-                                   library.error.c_str());
-            }
-            else
-            {
-                ImGui::Text("User definitions: %zu", library.library->Entries().size());
-                if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip("%s", Utf8FromPath(library.library->Folder()).c_str());
-
-                // Acted on after the loop, so the list is never changed while it is walked.
-                enum class EntryAction
+                if (boardState.keyboard)
                 {
-                    None,
-                    Reimport,
-                    Restore,
-                    Remove,
-                };
-                EntryAction action   = EntryAction::None;
-                uint32_t    actionId = 0;
-
-                for (const nazg::LibraryEntry& entry : library.library->Entries())
-                {
-                    ImGui::PushID(static_cast<int>(entry.id));
-
-                    if (ImGui::SmallButton("Re-import"))
-                        action = EntryAction::Reimport, actionId = entry.id;
-                    ImGui::SetItemTooltip("Read %s again, after editing it.\nThe version it replaces is kept.",
-                                          entry.origin.c_str());
-
-                    if (entry.previousRevision != 0)
-                    {
-                        ImGui::SameLine();
-                        if (ImGui::SmallButton("Restore previous"))
-                            action = EntryAction::Restore, actionId = entry.id;
-                        ImGui::SetItemTooltip("Go back to the version before the last re-import.\n"
-                                              "The current one becomes the previous, so this can be undone.");
-                    }
-
-                    ImGui::SameLine();
-                    if (ImGui::SmallButton("Remove"))
-                        action = EntryAction::Remove, actionId = entry.id;
-
-                    ImGui::PopID();
-
-                    ImGui::SameLine();
-                    ImGui::Text("%04X:%04X  %s", entry.vendorId, entry.productId, entry.name.c_str());
-                    if (ImGui::IsItemHovered())
-                        ImGui::SetTooltip("imported from %s\nfirst imported on %s", entry.origin.c_str(),
-                                          entry.added.c_str());
+                    // Always at hand, so a wrong definition is plain to see -- and cheap to undo:
+                    // the keymap lives in the board, the definition only draws it.
+                    header.protocol  = boardState.isVia ? "VIA" : "Vial";
+                    header.details   = "Definition: " + boardState.definitionSource + "\nQMK keycodes " +
+                                     nazg::QmkKeycodeVersionName(boardState.keyboard->keycodeVersion);
+                    header.isVia     = boardState.isVia;
+                    header.hasChoice = boardState.isVia && library.library &&
+                                       library.library->FindChoice(boardState.identity) != nullptr;
+                    header.canExport = !boardState.exportable.empty() || userEntryInUse() != nullptr;
                 }
 
-                if (action != EntryAction::None)
-                    library.messages.clear();
+                for (size_t index = 0; index < deviceListState.devices.size(); ++index)
+                {
+                    const nazg::HidDeviceInfo& device = deviceListState.devices[index];
+                    if (!nazg::IsViaInterface(device) || device.path == boardState.path)
+                        continue;
+                    others.push_back(index);
+                    header.others.push_back({ device.product.empty() ? "(unnamed)" : device.product,
+                                              index < deviceListState.protocols.size()
+                                                  ? deviceListState.protocols[index]
+                                                  : std::string() });
+                }
 
+                header.isBusy = isBusy;
+            }
+            header.isSettingsShown = showSettings;
+
+            const nazg::HeaderAction headerAction = nazg::DrawHeader(header);
+
+            if (headerAction.settings)
+                showSettings = !showSettings;
+
+            if (headerAction.switchTo && !isBusy)
+            {
+                const nazg::HidDeviceInfo& device = deviceListState.devices[others[*headerAction.switchTo]];
+                showSettings = false;
+                startLoad(device.path, IdentityOf(device), std::nullopt);
+            }
+
+            if (headerAction.changeDefinition && !isBusy)
+            {
+                showSettings          = false;
+                boardState.isChoosing = true;
+            }
+
+            if (headerAction.forgetChoice && library.library)
+            {
                 try
                 {
-                    if (action == EntryAction::Reimport)
-                    {
-                        const std::string    origin = library.library->Find(actionId)->origin;
-                        std::vector<uint8_t> bytes;
-                        try
-                        {
-                            bytes = ReadWholeFile(origin);
-                        }
-                        catch (const std::exception&)
-                        {
-                            throw std::runtime_error("cannot read " + origin + " -- if it moved, import it from where "
-                                                     "it is now and answer Replace");
-                        }
-                        if (ReplaceDefinition(library, actionId, bytes, origin))
-                            afterLibraryChange(actionId);
-                    }
-                    else if (action == EntryAction::Restore)
-                    {
-                        const nazg::LibraryEntry& restored = library.library->RestorePrevious(actionId);
-                        library.messages.push_back("restored the previous version of " + restored.name);
-                        afterLibraryChange(actionId);
-                    }
-                    else if (action == EntryAction::Remove)
-                    {
-                        library.library->Remove(actionId);
-                        afterLibraryChange();
-                    }
+                    library.library->Forget(boardState.identity);
                 }
                 catch (const std::exception& failure)
                 {
-                    library.messages.push_back(std::string("failed: ") + failure.what());
+                    boardState.error = std::string("the choice could not be forgotten: ") + failure.what();
                 }
-
-                for (const std::string& message : library.messages)
-                    ImGui::TextDisabled("%s", message.c_str());
             }
 
-            ImGui::Separator();
+            if (headerAction.exportDefinition)
+                exportBoardDefinition();
 
-            ImGui::Checkbox("Show all HID devices", &showAllHidDevices);
-            ImGui::SetItemTooltip("Only keyboards with VIA's raw HID interface are listed otherwise --\n"
-                                  "the ones VIA and Vial boards answer on.");
-
-            const ImGuiTableFlags tableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
-                                               ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY;
-
-            if (ImGui::BeginTable("devices", 6, tableFlags))
+            // Closes the board, and lists what is plugged in now.
+            if (headerAction.allKeyboards && !isBusy)
             {
-                ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
-                ImGui::TableSetupColumn("Product");
-                ImGui::TableSetupColumn("Manufacturer");
-                ImGui::TableSetupColumn("VID:PID");
-                ImGui::TableSetupColumn("Usage");
-                ImGui::TableSetupColumn("Interface");
-                ImGui::TableSetupScrollFreeze(0, 1);
-                ImGui::TableHeadersRow();
+                boardState   = BoardState{};
+                showSettings = false;
+                startRefresh();
+            }
 
-                for (const nazg::HidDeviceInfo& device : deviceListState.devices)
+            // --- Settings -----------------------------------------------------------------
+
+            if (showSettings)
+            {
+                nazg::SettingsView view;
+                view.library         = library.library ? &*library.library : nullptr;
+                view.libraryError    = library.error;
+                view.libraryFolder   = library.library ? Utf8FromPath(library.library->Folder()) : std::string();
+                view.libraryMessages = &library.messages;
+                view.backLabel       = hasBoard ? "Back to the board" : "Back to the keyboards";
+
+                view.official.found = viaBundle.definitions.has_value();
+                view.official.path  = viaBundle.path;
+                if (viaBundle.definitions && viaBundle.definitions->Manifest())
                 {
-                    const bool isKeyboard = IsViaInterface(device);
-                    if (!isKeyboard && !showAllHidDevices)
-                        continue;
-
-                    ImGui::TableNextRow();
-
-                    ImGui::TableNextColumn();
-                    if (isKeyboard)
-                    {
-                        // Same rule as Refresh: a Task still running must not be replaced.
-                        // A write in flight blocks it too -- it updates the board a load
-                        // would swap out from under it.
-                        ImGui::PushID(device.path.c_str());
-                        ImGui::BeginDisabled(isBoardBusy());
-                        if (ImGui::SmallButton("Open"))
-                        {
-                            const nazg::DeviceIdentity identity{ device.vendorId, device.productId,
-                                                                 device.manufacturer, device.product,
-                                                                 device.releaseNumber, device.serialNumber };
-                            startLoad(device.path, identity, std::nullopt);
-                        }
-                        ImGui::EndDisabled();
-                        ImGui::PopID();
-                    }
-
-                    ImGui::TableNextColumn();
-                    ImGui::TextUnformatted(device.product.empty() ? "(unnamed)" : device.product.c_str());
-                    if (ImGui::IsItemHovered() && !device.path.empty())
-                        ImGui::SetTooltip("%s", device.path.c_str());
-
-                    ImGui::TableNextColumn();
-                    ImGui::TextUnformatted(device.manufacturer.c_str());
-
-                    ImGui::TableNextColumn();
-                    ImGui::Text("%04X:%04X", device.vendorId, device.productId);
-
-                    ImGui::TableNextColumn();
-                    ImGui::Text("%04X:%04X", device.usagePage, device.usage);
-
-                    ImGui::TableNextColumn();
-                    ImGui::Text("%d", device.interfaceNumber);
+                    const nazg::ViaBundleManifest& manifest = *viaBundle.definitions->Manifest();
+                    view.official.count  = manifest.v2 + manifest.v3;
+                    view.official.commit = manifest.commit;
                 }
 
-                ImGui::EndTable();
+                char line[128];
+                std::snprintf(line, sizeof(line), "SDL %d.%d.%d, Dear ImGui %s", SDL_MAJOR_VERSION, SDL_MINOR_VERSION,
+                              SDL_MICRO_VERSION, IMGUI_VERSION);
+                view.about.emplace_back(line);
+                std::snprintf(line, sizeof(line), "GPU backend: %s, display scale %.2f",
+                              pGpuDriver != nullptr ? pGpuDriver : "unknown", mainScale);
+                view.about.emplace_back(line);
+                std::snprintf(line, sizeof(line), "Frame: %.3f ms (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+                view.about.emplace_back(line);
+
+                const nazg::SettingsAction action = nazg::DrawSettings(view, settings.hostLayout, showDemoWindow);
+
+                if (action.back)
+                    showSettings = false;
+                if (action.hostLayoutChanged)
+                    ImGui::MarkIniSettingsDirty();
+                if (action.import && library.library)
+                    showImportDialog();
+
+                if (library.library && (action.reimport || action.restore || action.remove))
+                {
+                    library.messages.clear();
+                    try
+                    {
+                        if (action.reimport)
+                        {
+                            const std::string    origin = library.library->Find(*action.reimport)->origin;
+                            std::vector<uint8_t> bytes;
+                            try
+                            {
+                                bytes = ReadWholeFile(origin);
+                            }
+                            catch (const std::exception&)
+                            {
+                                throw std::runtime_error("cannot read " + origin + " -- if it moved, import it from "
+                                                         "where it is now and answer Replace");
+                            }
+                            if (ReplaceDefinition(library, *action.reimport, bytes, origin))
+                                afterLibraryChange(*action.reimport);
+                        }
+                        else if (action.restore)
+                        {
+                            const nazg::LibraryEntry& restored = library.library->RestorePrevious(*action.restore);
+                            library.messages.push_back("restored the previous version of " + restored.name);
+                            afterLibraryChange(*action.restore);
+                        }
+                        else
+                        {
+                            library.library->Remove(*action.remove);
+                            afterLibraryChange();
+                        }
+                    }
+                    catch (const std::exception& failure)
+                    {
+                        library.messages.push_back(std::string("failed: ") + failure.what());
+                    }
+                }
+            }
+
+            // --- The open board -----------------------------------------------------------
+
+            else if (hasBoard)
+            {
+                if (boardState.isLoading)
+                    ImGui::Text("Loading %s...", header.name.c_str());
+                if (!boardState.error.empty())
+                    nazg::ColouredText(nazg::PanelColour::Error, "%s", boardState.error.c_str());
+
+                if (boardState.isChoosing && !boardState.isLoading)
+                {
+                    ImGui::BeginDisabled(isBusy);
+                    const nazg::DefinitionPickerAction action =
+                        nazg::DrawDefinitionPicker(boardState.candidates, boardState.inUse, boardState.identity,
+                                                   boardState.keyboard.has_value());
+                    ImGui::EndDisabled();
+
+                    if (action.import && library.library)
+                        showImportDialog();
+
+                    if (action.cancel)
+                        boardState.isChoosing = false;
+
+                    if (action.picked && !isBusy)
+                    {
+                        const nazg::DefinitionRef picked = boardState.candidates[*action.picked].ref;
+
+                        // Remembered for this device -- exactly it, release and serial included.
+                        // Without a library the board still loads; the choice just is not kept.
+                        boardState.error.clear();
+                        if (library.library)
+                        {
+                            try
+                            {
+                                library.library->Choose(boardState.identity, picked);
+                            }
+                            catch (const std::exception& failure)
+                            {
+                                boardState.error = std::string("the choice could not be saved: ") + failure.what();
+                            }
+                        }
+
+                        boardState.isChoosing = false;
+                        if (!boardState.keyboard || boardState.inUse != picked)
+                            startLoad(boardState.path, boardState.identity, picked);
+                    }
+                }
+                else if (boardState.keyboard && !boardState.isLoading)
+                {
+                    // The sections of a board just loaded. Keymap is on every board, so there is
+                    // no match rule to ask yet -- it comes with the first section that is not.
+                    if (boardState.sections.empty())
+                        boardState.sections.push_back(std::make_unique<nazg::KeymapSection>(
+                            transport, boardState.path, *boardState.keyboard, settings.hostLayout));
+
+                    if (!boardState.exportMessage.empty())
+                        nazg::ColouredText(nazg::PanelColour::Muted, "%s", boardState.exportMessage.c_str());
+
+                    nazg::DrawSections(boardState.sections, boardState.activeSection, *boardState.keyboard);
+                }
+            }
+
+            // --- The keyboard list --------------------------------------------------------
+
+            else
+            {
+                if (!deviceListState.error.empty())
+                    nazg::ColouredText(nazg::PanelColour::Error, "%s", deviceListState.error.c_str());
+                if (!boardState.error.empty())
+                    nazg::ColouredText(nazg::PanelColour::Error, "%s", boardState.error.c_str());
+
+                const nazg::KeyboardListAction action =
+                    nazg::DrawKeyboardList(deviceListState.devices, deviceListState.protocols, showAllHidDevices,
+                                           deviceListState.isLoading, refreshTask.IsDone(),
+                                           !isBusy && refreshTask.IsDone());
+
+                if (action.refresh)
+                    startRefresh();
+
+                if (action.open && !isBusy)
+                {
+                    const nazg::HidDeviceInfo& device = deviceListState.devices[*action.open];
+                    startLoad(device.path, IdentityOf(device), std::nullopt);
+                }
             }
 
             ImGui::End();
@@ -1228,165 +1339,6 @@ int main(int, char**)
 
                 ImGui::EndPopup();
             }
-        }
-
-        if (boardState.isLoading || boardState.keyboard || boardState.isChoosing || !boardState.error.empty())
-        {
-            ImGui::Begin("Keyboard");
-
-            if (boardState.isLoading)
-                ImGui::TextUnformatted("loading...");
-            else if (!boardState.error.empty())
-                nazg::ColouredText(nazg::PanelColour::Error, "%s", boardState.error.c_str());
-
-            if (boardState.isChoosing && !boardState.isLoading)
-            {
-                ImGui::Text("%s -- which definition?",
-                            boardState.identity.product.empty() ? "(unnamed)" : boardState.identity.product.c_str());
-
-                const bool isBusy = isBoardBusy();
-
-                ImGui::BeginDisabled(isBusy);
-                const nazg::DefinitionPickerAction action =
-                    nazg::DrawDefinitionPicker(boardState.candidates, boardState.inUse, boardState.identity,
-                                               boardState.keyboard.has_value());
-                ImGui::EndDisabled();
-
-                if (action.import && library.library)
-                    showImportDialog();
-
-                if (action.cancel)
-                    boardState.isChoosing = false;
-
-                if (action.picked && !isBusy)
-                {
-                    const nazg::DefinitionRef picked = boardState.candidates[*action.picked].ref;
-
-                    // Remembered for this device -- exactly it, release and serial included.
-                    // Without a library the board still loads; the choice just is not kept.
-                    boardState.error.clear();
-                    if (library.library)
-                    {
-                        try
-                        {
-                            library.library->Choose(boardState.identity, picked);
-                        }
-                        catch (const std::exception& failure)
-                        {
-                            boardState.error = std::string("the choice could not be saved: ") + failure.what();
-                        }
-                    }
-
-                    boardState.isChoosing = false;
-                    if (!boardState.keyboard || boardState.inUse != picked)
-                        startLoad(boardState.path, boardState.identity, picked);
-                }
-            }
-            else if (boardState.keyboard && !boardState.isLoading)
-            {
-                // The sections of a board just loaded. Keymap is on every board, so there is no
-                // match rule to ask yet -- it comes with the first section that is not.
-                if (boardState.sections.empty())
-                    boardState.sections.push_back(std::make_unique<nazg::KeymapSection>(
-                        transport, boardState.path, *boardState.keyboard, settings.hostLayout));
-
-                const nazg::Keyboard& keyboard = *boardState.keyboard;
-
-                // A saved id this build does not know falls back to US rather than failing.
-                const nazg::HostLayout* found      = nazg::FindHostLayout(settings.hostLayout);
-                const nazg::HostLayout& hostLayout = found != nullptr ? *found : nazg::UsHostLayout();
-
-                ImGui::Text("%s -- QMK keycodes %s", keyboard.Name().c_str(),
-                            nazg::QmkKeycodeVersionName(keyboard.keycodeVersion));
-
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth(ImGui::GetFontSize() * 14.0f);
-                if (ImGui::BeginCombo("Host layout", std::string(hostLayout.name).c_str()))
-                {
-                    for (const nazg::HostLayout& choice : nazg::HostLayouts())
-                    {
-                        const bool isCurrent = &choice == &hostLayout;
-                        if (ImGui::Selectable(std::string(choice.name).c_str(), isCurrent))
-                        {
-                            settings.hostLayout = choice.id;
-                            ImGui::MarkIniSettingsDirty();
-                        }
-                        if (isCurrent)
-                            ImGui::SetItemDefaultFocus();
-                    }
-                    ImGui::EndCombo();
-                }
-
-                // Always shown, so a wrong definition is plain to see -- and cheap to undo:
-                // the keymap lives in the board, the definition only draws it.
-                ImGui::TextDisabled("Definition: %s", boardState.definitionSource.c_str());
-
-                // For investigation and debugging: the definition drawing the board, byte for byte
-                // as Nazg has it -- VIA's bundle, the board itself, or the library's stored copy.
-                // The one export there is, next to the line saying which definition it is.
-                const nazg::LibraryEntry* userEntry =
-                    boardState.inUse && boardState.inUse->kind == nazg::DefinitionRef::Kind::User && library.library
-                        ? library.library->Find(boardState.inUse->userId)
-                        : nullptr;
-
-                if (!boardState.exportable.empty() || userEntry != nullptr)
-                {
-                    ImGui::SameLine();
-                    if (ImGui::SmallButton("Export definition..."))
-                    {
-                        try
-                        {
-                            // A user definition offers the name of the file it came from.
-                            if (userEntry != nullptr)
-                                startExport(library.library->Read(*userEntry), userEntry->name,
-                                            FileName(userEntry->origin));
-                            else
-                                startExport(boardState.exportable, keyboard.Name(), ExportFileName(keyboard.Name()));
-                        }
-                        catch (const std::exception& failure)
-                        {
-                            boardState.exportMessage = std::string("not exported: ") + failure.what();
-                        }
-                    }
-                    ImGui::SetItemTooltip("For investigation and debugging: save the definition drawing this board\n"
-                                          "exactly as Nazg has it.");
-                }
-
-                if (boardState.isVia)
-                {
-                    ImGui::SameLine();
-                    ImGui::BeginDisabled(isBoardBusy());
-                    if (ImGui::SmallButton("Change definition..."))
-                        boardState.isChoosing = true;
-                    ImGui::EndDisabled();
-
-                    const bool hasChoice = library.library && library.library->FindChoice(boardState.identity) != nullptr;
-                    if (hasChoice)
-                    {
-                        ImGui::SameLine();
-                        if (ImGui::SmallButton("Forget choice"))
-                        {
-                            try
-                            {
-                                library.library->Forget(boardState.identity);
-                            }
-                            catch (const std::exception& failure)
-                            {
-                                boardState.error = std::string("the choice could not be forgotten: ") + failure.what();
-                            }
-                        }
-                        ImGui::SetItemTooltip("Nazg asks again the next time this board is opened,\n"
-                                              "if more than one definition matches it.");
-                    }
-                }
-
-                if (!boardState.exportMessage.empty())
-                    ImGui::TextDisabled("%s", boardState.exportMessage.c_str());
-
-                nazg::DrawSections(boardState.sections, boardState.activeSection, keyboard);
-            }
-
-            ImGui::End();
         }
 
         if (showDemoWindow)

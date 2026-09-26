@@ -62,6 +62,72 @@ namespace nazg
         }
     }
 
+    HeaderAction DrawHeader(const HeaderView& view)
+    {
+        HeaderAction action;
+        if (!ImGui::BeginMenuBar())
+            return action;
+
+        if (view.name.empty())
+        {
+            ImGui::TextDisabled("No board open");
+        }
+        else
+        {
+            // The name is the menu, as in ZMK Studio and VIA: it adds nothing to the first
+            // glance, and it is the way back to the list when Nazg opened a lone board itself.
+            const bool isOpen = ImGui::BeginMenu((view.name + "##board").c_str());
+            if (!isOpen && !view.details.empty())
+                ImGui::SetItemTooltip("%s", view.details.c_str());
+
+            if (isOpen)
+            {
+                if (!view.others.empty())
+                {
+                    ImGui::SeparatorText("Switch to");
+                    for (size_t index = 0; index < view.others.size(); ++index)
+                    {
+                        ImGui::PushID(static_cast<int>(index));
+                        if (ImGui::MenuItem(view.others[index].name.c_str(), view.others[index].protocol.c_str(),
+                                            false, !view.isBusy))
+                            action.switchTo = index;
+                        ImGui::PopID();
+                    }
+                    ImGui::Separator();
+                }
+
+                if (view.isVia)
+                {
+                    action.changeDefinition = ImGui::MenuItem("Change definition...", nullptr, false, !view.isBusy);
+                    action.forgetChoice     = ImGui::MenuItem("Forget choice", nullptr, false, view.hasChoice);
+                    ImGui::SetItemTooltip("Nazg asks again the next time this board is opened,\n"
+                                          "if more than one definition matches it.");
+                }
+
+                action.exportDefinition = ImGui::MenuItem("Export definition...", nullptr, false, view.canExport);
+                ImGui::SetItemTooltip("For investigation and debugging: save the definition drawing this board\n"
+                                      "exactly as Nazg has it.");
+
+                ImGui::Separator();
+                action.allKeyboards = ImGui::MenuItem("All keyboards", nullptr, false, !view.isBusy);
+
+                ImGui::EndMenu();
+            }
+
+            if (!view.protocol.empty())
+                ImGui::TextDisabled("%s", view.protocol.c_str());
+        }
+
+        // The settings button, on the right.
+        const char* settings = "Settings";
+        const float width    = ImGui::CalcTextSize(settings).x + 2 * ImGui::GetStyle().ItemSpacing.x;
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + std::max(0.0f, ImGui::GetContentRegionAvail().x - width));
+        action.settings = ImGui::MenuItem(settings, nullptr, view.isSettingsShown);
+
+        ImGui::EndMenuBar();
+        return action;
+    }
+
     void DrawSections(const std::vector<std::unique_ptr<Section>>& sections, size_t& active, const Keyboard& keyboard)
     {
         if (sections.empty())

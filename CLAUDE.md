@@ -64,13 +64,25 @@ and later its match rule. A section says what each key *means* -- legends at KLE
 positions, a fill by meaning, marks for states, lines, edge labels, hover both ways
 (`ui/NazgBoardDescription.h`, pure, in `nazg_core`) -- and `ui/NazgBoardView.*` decides how it
 looks, with every colour in `ui/NazgTheme.*` (the panels' four named colours included).
-`ui/NazgWorkspace.*` lays out the column (hidden with one section), strip, board and panel,
-still inside the floating "Keyboard" window. `ui/NazgKeymapSection.*` is the first
+`ui/NazgWorkspace.*` lays out the column (hidden with one section), strip, board and panel.
+`ui/NazgKeymapSection.*` is the first
 implementation: layers in the strip, the write-and-read-back in its own coroutine. The match
 rule comes with the first section not on every board. The Leyden Jar diagnostics, planned as
 the second, are **deferred far later** (Rico, 2026-09-26: they bring many design questions).
 Already decided for them: the device stays open while a view polls, and key output is disabled
 while they show -- RAM only on the firmware, so every close and exit path must enable it again.
+
+**The workspace frame** replaced the three floating first-draft windows (2026-09-26): one
+window filling SDL's, its menu bar the header -- the board's name is the board menu (Switch to,
+Change definition... / Forget choice, Export definition..., All keyboards), the protocol, and
+Settings on the right. Under it, one of three screens: the keyboard list
+(`ui/NazgKeyboardList.*`: each keyboard's protocol, probed after enumeration, "Show all HID
+devices" off at every start), the open board (sections, or the definition picker), or settings
+(`ui/NazgSettingsScreen.*`: host layout, official and user definitions, about). A lone keyboard
+at start is opened directly. The screens only report clicks; `Main.cpp` acts on them. **No
+board is opened while protocols are being probed**: HID gives every open handle a copy of each
+reply, and the transport drains leftovers only at open. Not done yet: the Vial lock state in the
+header, and noticing an unplugged board -- the list needs Refresh.
 
 VIA boards load too: `adapters/via/NazgViaLoader.*` takes the definition from the caller and
 picks the keycode version from the protocol (13+: asked with `id_keycodes_version`; 12 ->

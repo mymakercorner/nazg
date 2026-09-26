@@ -140,6 +140,10 @@ set(NAZG_SOURCES
   src/ui/NazgTheme.cpp
   src/ui/NazgKeymapSection.h
   src/ui/NazgKeymapSection.cpp
+  src/ui/NazgKeyboardList.h
+  src/ui/NazgKeyboardList.cpp
+  src/ui/NazgSettingsScreen.h
+  src/ui/NazgSettingsScreen.cpp
   src/ui/NazgKeycodePicker.h
   src/ui/NazgKeycodePicker.cpp
   src/ui/NazgDefinitionPicker.h
