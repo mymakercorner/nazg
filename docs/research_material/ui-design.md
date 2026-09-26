@@ -1,7 +1,8 @@
 # UI design — the workspace
 
 *Decided with Rico 2026-09-26, from [ui-inventory.md](ui-inventory.md). Design only — nothing
-here is implemented yet. The pictures are wireframes: they fix what goes where, not the look.*
+here is implemented yet. The pictures are wireframes: they fix what goes where, not the look.
+They are drawn by `tools/draw_ui_wireframes.py`; change a picture there and run it again.*
 
 The first-draft screens (three floating ImGui windows) are replaced by **one fixed window**
 filling the SDL window, divided into five regions. What each region shows depends on the
