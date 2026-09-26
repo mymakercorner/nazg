@@ -127,7 +127,7 @@ namespace nazg
         }
     }
 
-    SettingsAction DrawSettings(const SettingsView& view, std::string& hostLayoutId, bool& showDemoWindow)
+    SettingsAction DrawSettings(const SettingsView& view, std::string& hostLayoutId)
     {
         SettingsAction action;
 
@@ -143,7 +143,6 @@ namespace nazg
         ImGui::TextUnformatted("Nazg -- one keyboard configurator to rule them all.");
         for (const std::string& line : view.about)
             ColouredText(PanelColour::Muted, "%s", line.c_str());
-        ImGui::Checkbox("Dear ImGui demo window", &showDemoWindow);
 
         return action;
     }

@@ -51,8 +51,6 @@ namespace nazg
         std::optional<uint32_t> remove;
     };
 
-    // `hostLayoutId` is the setting, changed here; `showDemoWindow` the Dear ImGui demo's
-    // switch, for whoever works on the look.
-    [[nodiscard]] SettingsAction DrawSettings(const SettingsView& view, std::string& hostLayoutId,
-                                              bool& showDemoWindow);
+    // `hostLayoutId` is the setting, changed here.
+    [[nodiscard]] SettingsAction DrawSettings(const SettingsView& view, std::string& hostLayoutId);
 }

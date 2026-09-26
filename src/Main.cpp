@@ -923,7 +923,6 @@ int main(int, char**)
     };
 
     const ImVec4 clearColor = ImVec4(0.09f, 0.09f, 0.11f, 1.0f);
-    bool showDemoWindow    = false;
     bool showAllHidDevices = false;   // the keyboard list shows only keyboards unless asked
     bool showSettings      = false;   // settings in place of the main area
     bool openLoneBoard     = true;    // until the first list is in
@@ -1112,6 +1111,63 @@ int main(int, char**)
                 startRefresh();
             }
 
+            // --- A question about an import -----------------------------------------------
+
+            // A file imported for a board the library already has: Replace or Keep both, one
+            // file at a time, the next asked on the next frame. Under the header, whatever the
+            // screen, wrapping to the window's width -- not a window of its own.
+            if (library.library && !library.replacements.empty())
+            {
+                ImGui::BeginChild("replace", ImVec2(0.0f, 0.0f),
+                                  ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY);
+
+                const PendingReplacement  pending = library.replacements.front();
+                const nazg::LibraryEntry* entry   = library.library->Find(pending.entryId);
+
+                ImGui::TextWrapped("%s is for a board you already have a user definition for:",
+                                   FileName(pending.path).c_str());
+                if (entry != nullptr)
+                    ImGui::BulletText("%04X:%04X  %s, imported from %s", entry->vendorId, entry->productId,
+                                      entry->name.c_str(), entry->origin.c_str());
+
+                ImGui::TextWrapped("Replace puts the new file in its place and keeps the old one as its previous "
+                                   "version; boards drawn with it switch to the new file. Keep both adds it as "
+                                   "another definition, and Nazg asks which one draws the board.");
+
+                const bool replace  = ImGui::Button("Replace");
+                ImGui::SameLine();
+                const bool keepBoth = ImGui::Button("Keep both");
+                ImGui::SameLine();
+                const bool cancel   = ImGui::Button("Don't import");
+
+                ImGui::EndChild();
+
+                if (replace || keepBoth || cancel)
+                {
+                    library.replacements.erase(library.replacements.begin());
+                    library.messages.clear();
+                }
+
+                if (replace)
+                {
+                    if (ReplaceDefinition(library, pending.entryId, pending.bytes, pending.path))
+                        afterLibraryChange(pending.entryId);
+                }
+                else if (keepBoth)
+                {
+                    try
+                    {
+                        const nazg::LibraryEntry& added = library.library->Import(pending.bytes, pending.path, NowUtc());
+                        library.messages.push_back("imported " + FileName(pending.path) + ": " + added.name);
+                        afterLibraryChange();
+                    }
+                    catch (const std::exception& failure)
+                    {
+                        library.messages.push_back("not imported " + FileName(pending.path) + ": " + failure.what());
+                    }
+                }
+            }
+
             // --- Settings -----------------------------------------------------------------
 
             if (showSettings)
@@ -1142,7 +1198,7 @@ int main(int, char**)
                 std::snprintf(line, sizeof(line), "Frame: %.3f ms (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
                 view.about.emplace_back(line);
 
-                const nazg::SettingsAction action = nazg::DrawSettings(view, settings.hostLayout, showDemoWindow);
+                const nazg::SettingsAction action = nazg::DrawSettings(view, settings.hostLayout);
 
                 if (action.back)
                     showSettings = false;
@@ -1279,70 +1335,6 @@ int main(int, char**)
 
             ImGui::End();
         }
-
-        // An imported file for a board the library already has: Replace or Keep both, one
-        // file at a time, the next asked on the next frame.
-        if (library.library && !library.replacements.empty())
-        {
-            constexpr char c_Title[] = "Replace a user definition?";
-            if (!ImGui::IsPopupOpen(c_Title))
-                ImGui::OpenPopup(c_Title);
-
-            if (ImGui::BeginPopupModal(c_Title, nullptr, ImGuiWindowFlags_AlwaysAutoResize))
-            {
-                const PendingReplacement  pending = library.replacements.front();
-                const nazg::LibraryEntry* entry   = library.library->Find(pending.entryId);
-
-                ImGui::Text("%s is for a board you already have a user definition for:", FileName(pending.path).c_str());
-                if (entry != nullptr)
-                    ImGui::BulletText("%04X:%04X  %s, imported from %s", entry->vendorId, entry->productId,
-                                      entry->name.c_str(), entry->origin.c_str());
-
-                ImGui::PushTextWrapPos(ImGui::GetFontSize() * 36.0f);
-                ImGui::TextUnformatted("Replace puts the new file in its place and keeps the old one as its previous "
-                                       "version; boards drawn with it switch to the new file. Keep both adds it as "
-                                       "another definition, and Nazg asks which one draws the board.");
-                ImGui::PopTextWrapPos();
-
-                const bool replace  = ImGui::Button("Replace");
-                ImGui::SetItemDefaultFocus();
-                ImGui::SameLine();
-                const bool keepBoth = ImGui::Button("Keep both");
-                ImGui::SameLine();
-                const bool cancel   = ImGui::Button("Don't import");
-
-                if (replace || keepBoth || cancel)
-                {
-                    library.replacements.erase(library.replacements.begin());
-                    ImGui::CloseCurrentPopup();
-                    library.messages.clear();
-                }
-
-                if (replace)
-                {
-                    if (ReplaceDefinition(library, pending.entryId, pending.bytes, pending.path))
-                        afterLibraryChange(pending.entryId);
-                }
-                else if (keepBoth)
-                {
-                    try
-                    {
-                        const nazg::LibraryEntry& added = library.library->Import(pending.bytes, pending.path, NowUtc());
-                        library.messages.push_back("imported " + FileName(pending.path) + ": " + added.name);
-                        afterLibraryChange();
-                    }
-                    catch (const std::exception& failure)
-                    {
-                        library.messages.push_back("not imported " + FileName(pending.path) + ": " + failure.what());
-                    }
-                }
-
-                ImGui::EndPopup();
-            }
-        }
-
-        if (showDemoWindow)
-            ImGui::ShowDemoWindow(&showDemoWindow);
 
         ImGui::Render();
         ImDrawData* pDrawData = ImGui::GetDrawData();
