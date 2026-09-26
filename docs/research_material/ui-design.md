@@ -374,9 +374,27 @@ Studio backend needs anyway. Flashing, QMK Toolbox's other job, is not part of t
 ## Open points
 
 - **Plugin delivery** — see "Plugins".
-- **Hotplug**: whether the pinned hidapi 0.15 reports devices arriving and leaving has not
-  been checked. Until it is, an unplugged board is noticed by a failed request, the list
-  needs Refresh, and the console reattaches by re-listing devices while its drawer is open.
+- **Hotplug** -- checked 2026-09-26:
+  - **hidapi has none, pinned or released.** 0.15.0 has no hotplug API, nor does upstream
+    `master` (2026-08-14). It is being built on branches (`connection-callback`, the
+    `hotplug-*` ones, active into September 2026) as `hid_hotplug_register_callback()` for
+    **0.16.0**, unreleased. Its callbacks arrive on hidapi's own thread.
+  - **SDL3 has a change counter, and Nazg already links SDL.** `SDL_hid_device_change_count()`
+    (since 3.2.0) returns a number that grows when a device may have come or gone -- not which
+    one. It is fed by the OS: `RegisterDeviceNotification` on a message-only window on Windows
+    (any device interface, so several ticks per board), IOKit notifications on macOS, udev or
+    inotify on `/dev` on Linux; with none of them it ticks every 3 s instead. Polling it every
+    frame costs nothing -- on Windows its messages arrive through `SDL_PollEvent()`. The first call
+    runs `SDL_hid_init()` on SDL's own copy of hidapi, compiled in under other names, so it
+    does not clash with Nazg's. An SDL call, so it stays in `Main.cpp`.
+  - **So: poll the counter, re-enumerate on change** -- after a short pause, since one board
+    brings several notifications and its HID interfaces appear one by one. Only paths not
+    seen before are probed for their protocol, so the open board is never probed under a
+    write. A board whose path has gone is closed, and the list says which one went. Not yet
+    tried against a real plug and unplug.
+  - **Deferred** (Rico, 2026-09-26): too soon. It becomes necessary the day the Refresh
+    button is removed, so it is built then. Until then an unplugged board is noticed by a
+    failed request and the list needs Refresh.
 - **Which sections fold the board away**, and whether folding it confuses more than it helps.
 - **The matrix view's layout options**: which choice it draws — the board's stored one, as
   the many-candidates preview does — and how keys of the other choices show.
