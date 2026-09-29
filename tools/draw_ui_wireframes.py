@@ -367,7 +367,7 @@ def screen_macros_locked():
 
 
 def screen_settings():
-    h = 250
+    h = 312
     s = Svg(W, h)
     frame(s, 0, 0, W, h)
     header(s, 0, 0, W, "Model F Labs B104", "Vial", "off")
@@ -383,6 +383,12 @@ def screen_settings():
     button(s, W - 170, 178, "Re-import")
     button(s, W - 82, 178, "Remove")
     button(s, 12, 216, "Import a definition...")
+    # Off by default: designer and debugging tools stay out of an ordinary user's way.
+    s.text(12, 266, "Advanced", 12, C["text"], weight=600)
+    s.rect(12, 277, 14, 14, C["white"], C["border"], rx=3)
+    s.text(34, 289, "Advanced tools", 12, C["text2"])
+    s.text(34 + tw("Advanced tools") + 12, 289,
+           "Adds a board menu submenu: the matrix view, Export definition.", 12, C["muted"])
     s.save("screen-settings.svg")
 
 
@@ -461,12 +467,18 @@ def board_menu():
         y += 28
     s.line(mx + 4, y + 4, mx + mw - 4, y + 4)
     y += 8
-    s.text(mx + 12, y + 18, "Show matrix...", 13, C["text"])
+    # Advanced, only with the setting on: hovered here, its submenu open beside it.
+    s.rect(mx + 4, y + 1, mw - 8, 26, C["abg"], None, rx=6)
+    s.text(mx + 12, y + 18, "Advanced", 13, C["atx"])
+    s.text(mx + mw - 12, y + 18, "▸", 13, C["atx"], "end")
+    sx, sw = mx + mw + 2, 200
+    s.rect(sx, y - 4, sw, 64, C["white"], C["border"], rx=8)
+    for i, n in enumerate(["Show matrix...", "Export definition..."]):
+        s.text(sx + 12, y + 18 + i * 28, n, 13, C["text"])
     y += 28
     s.line(mx + 4, y + 4, mx + mw - 4, y + 4)
     y += 10
-    s.rect(mx + 4, y, mw - 8, 26, C["abg"], None, rx=6)
-    s.text(mx + 12, y + 18, "All keyboards", 13, C["atx"])
+    s.text(mx + 12, y + 18, "All keyboards", 13, C["text"])
     s.save("board-menu.svg")
 
 

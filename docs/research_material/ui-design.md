@@ -186,7 +186,7 @@ you were.
 Settings also holds **Advanced tools**, a switch **off by default** (Rico, 2026-09-29).
 Designer and debugging tools stay out of an ordinary user's way: turned on, the board menu
 gains an *Advanced* submenu (see "Getting back to the keyboard list"). VIA does the same with
-its Design pane, hidden until enabled in its settings. Not in the picture yet.
+its Design pane, hidden until enabled in its settings.
 
 ## Choosing among many definitions
 
@@ -230,7 +230,7 @@ The board's name in the header is a menu, as in ZMK Studio and VIA:
 - **Change definition… / Forget choice** — VIA boards only; they leave the board screen.
 - **Advanced** — only with *Advanced tools* on in Settings: **Show matrix…** (the matrix
   view, below) and **Export definition…** (the definition drawing the board, byte for byte,
-  for investigation and debugging). The picture predates it.
+  for investigation and debugging). The picture shows it open.
 - **All keyboards** — closes the board and shows the list.
 
 It adds nothing to the first glance — the name is already there — and it is the only way to

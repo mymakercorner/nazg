@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="680" height="250" viewBox="0 0 680 250">
-<rect x="0.0" y="0.0" width="680.0" height="250.0" rx="12" fill="#FFFFFF" stroke="#C9C7BF" stroke-width="1"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="312" viewBox="0 0 680 312">
+<rect x="0.0" y="0.0" width="680.0" height="312.0" rx="12" fill="#FFFFFF" stroke="#C9C7BF" stroke-width="1"/>
 <text x="14.0" y="22.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#2C2C2A" text-anchor="start" font-weight="400">Model F Labs B104  ▾</text>
 <text x="161.6" y="22.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#888780" text-anchor="start" font-weight="400">Vial</text>
 <text x="666.0" y="22.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" fill="#5F5E5A" text-anchor="end" font-weight="400">⚙</text>
@@ -21,4 +21,8 @@
 <text x="627.8" y="193.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#2C2C2A" text-anchor="middle" font-weight="400">Remove</text>
 <rect x="12.0" y="216.0" width="165.2" height="22.0" rx="6" fill="#FFFFFF" stroke="#C9C7BF" stroke-width="1"/>
 <text x="94.6" y="231.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#2C2C2A" text-anchor="middle" font-weight="400">Import a definition...</text>
+<text x="12.0" y="266.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#2C2C2A" text-anchor="start" font-weight="600">Advanced</text>
+<rect x="12.0" y="277.0" width="14.0" height="14.0" rx="3" fill="#FFFFFF" stroke="#C9C7BF" stroke-width="1"/>
+<text x="34.0" y="289.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#5F5E5A" text-anchor="start" font-weight="400">Advanced tools</text>
+<text x="138.4" y="289.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#888780" text-anchor="start" font-weight="400">Adds a board menu submenu: the matrix view, Export definition.</text>
 </svg>
