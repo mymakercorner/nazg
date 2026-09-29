@@ -137,7 +137,7 @@ namespace
         BoardDescription   board  = Board();
         const MatrixCounts counts = DescribeMatrix(board, c_Rows, c_Columns, Row(1));
 
-        Check(counts.inRow == 3 && counts.inColumn == 0 && !counts.keyAt, "row 1 wires three keys");
+        Check(counts.inRow == 3 && counts.inColumn == 0 && counts.keysAt.empty(), "row 1 wires three keys");
 
         Check((board.keys[4].marks & Mark::Highlighted) != 0 && (board.keys[6].marks & Mark::Highlighted) != 0,
               "its keys are lit");
@@ -180,7 +180,7 @@ namespace
         const MatrixCounts counts = DescribeMatrix(board, c_Rows, c_Columns, At(1, 3));
 
         Check(counts.inRow == 3 && counts.inColumn == 2, "row 1 wires three keys, column 3 two");
-        Check(counts.keyAt == size_t{ 6 }, "the key where they meet");
+        Check(counts.keysAt == std::vector<size_t>{ 6 }, "the key where they meet");
 
         Check(board.keys[6].marks == (Mark::Highlighted | Mark::HighlightedSecond), "it is lit both ways");
         Check(board.keys[3].marks == Mark::HighlightedSecond, "the rest of the column is lit as the column");
@@ -201,8 +201,52 @@ namespace
         BoardDescription   board  = Board();
         const MatrixCounts counts = DescribeMatrix(board, c_Rows, c_Columns, At(1, 2));
 
-        Check(!counts.keyAt, "no key at row 1, column 2 -- the decal there does not count");
+        Check(counts.keysAt.empty(), "no key at row 1, column 2 -- the decal there does not count");
         Check(counts.inRow == 3 && counts.inColumn == 1, "the row and the column are still counted");
+    }
+
+    // Two switches wired in parallel: a legitimate design, both keys reported and lit.
+    void TestKeysInParallel()
+    {
+        std::printf("keys wired in parallel\n");
+
+        BoardDescription board = Board();
+        board.keys.push_back(Key(6, 1, 1, 3));   // 8: a second key on row 1, column 3, far from key 6
+
+        const MatrixCounts counts = DescribeMatrix(board, c_Rows, c_Columns, At(1, 3));
+
+        Check(counts.keysAt == std::vector<size_t>{ 6, 8 }, "both keys at the position are reported");
+        Check(board.keys[8].marks == (Mark::Highlighted | Mark::HighlightedSecond), "and both are lit both ways");
+        Check(nazg::FindInDefinition(board, c_Rows, c_Columns).IsEmpty(), "and neither is a finding");
+
+        Check(RowLabel(board, 1).keys == std::vector<size_t>{ 4, 5, 6 } &&
+                  ColumnLabel(board, 3).keys == std::vector<size_t>{ 3, 6 },
+              "the rulers sit by the first key of each position: the far one does not pull them away");
+    }
+
+    void TestFindings()
+    {
+        std::printf("what the definition says about its matrix\n");
+
+        Check(nazg::FindInDefinition(Board(), c_Rows, c_Columns).IsEmpty(), "a tidy definition has nothing to say");
+
+        BoardDescription board = Board();
+        board.keys.push_back(Key(4, 1, 3, 0));         // 8: row 3 of a 3-row matrix
+        board.keys.push_back(Key(4, 2, 1, 4));         // 9: column 4 of a 4-column matrix
+        board.keys.push_back(Key(1, 1, 2, 2));         // 10: drawn exactly on key 5, another position
+        board.keys.push_back(Key(3, 0, 0, 3));         // 11: key 3 copied, same position
+        board.keys.push_back(Key(0, 0, 0, 1, true));   // 12: a decal on key 0 is not a key
+
+        const nazg::MatrixFindings findings = nazg::FindInDefinition(board, c_Rows, c_Columns);
+
+        Check(findings.outside == std::vector<size_t>{ 8, 9 }, "a row or a column past the matrix size is outside");
+        Check(findings.stacked == std::vector<std::pair<size_t, size_t>>{ { 3, 11 }, { 5, 10 } },
+              "keys on top of each other are found, whatever their positions");
+
+        // The live test does not wait for keys it can never see.
+        nazg::MatrixLive   live;
+        const MatrixCounts counts = DescribeMatrix(board, c_Rows, c_Columns, {}, &live);
+        Check(counts.keys == 9, "the keys outside the matrix are not counted, the decals neither");
     }
 }
 
@@ -263,6 +307,8 @@ int main()
     TestShortestLinks();
     TestKeyInFocus();
     TestNoKeyAtFocus();
+    TestKeysInParallel();
+    TestFindings();
     TestLiveTest();
 
     return TestResult();

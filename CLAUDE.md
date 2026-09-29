@@ -105,7 +105,15 @@ polls every 20 ms, and keyboard navigation is off meanwhile, since the board und
 into Nazg. A Vial board is asked its lock first. **Untested on hardware** -- only the view was
 seen, on the Concordia, whose stock firmware answers all zeroes: mainline VIA sends the matrix
 only with `VIA_INSECURE = yes` in `rules.mk`, or `SECURE_ENABLE` and unlocked, both off by
-default. Not done: the definition checks (ui-design.md, "The matrix view").
+default.
+
+**What the definition says about its matrix** (2026-09-29; ui-design.md, the section of that
+name): reported in the matrix view's panel, never refused. Keys sharing a position are a fact
+-- switches in parallel, legitimate (Rico) -- so `MatrixCounts::keysAt` lists them all; keys
+drawn exactly on top of each other are a note, keys outside the matrix a warning, both from
+`FindInDefinition()` (pure, tested). A key outside the matrix is left out of the live test's
+count, and the Keymap section no longer selects one: the keymap has no cell for it, and
+selecting it read past the end.
 
 VIA boards load too: `adapters/via/NazgViaLoader.*` takes the definition from the caller and
 picks the keycode version from the protocol (13+: asked with `id_keycodes_version`; 12 ->

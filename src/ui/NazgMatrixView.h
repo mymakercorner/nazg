@@ -109,7 +109,9 @@ namespace nazg
         MatrixFocus                m_Hovered;
         std::optional<MatrixFocus> m_Pinned;
         MatrixCounts               m_Counts;   // of what the board was last described with
-        std::string                m_KeyAt;    // the keycode of m_Counts.keyAt, on layer 0
+        std::string                m_KeyAt;    // the keycode at m_Counts.keysAt, on layer 0
+        std::string                m_Outside;  // FindInDefinition()'s findings, as positions
+        std::string                m_Stacked;
         bool                       m_IsClosed = false;
 
         Live               m_Live = Live::Off;

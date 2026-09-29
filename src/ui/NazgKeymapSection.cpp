@@ -64,6 +64,15 @@ namespace nazg
             return;
 
         const DefinitionKey& key = board.keys[*events.hoveredKey].geometry;
+
+        // A definition can put a key outside its own matrix -- VIA's registry refuses that, an
+        // imported file or a Vial board may not. The keymap has no cell for it: never selected.
+        if (!m_Keyboard.keymap.Contains(m_Layer, key.row, key.column))
+        {
+            ImGui::SetTooltip("row %d, column %d: outside the matrix,\nso it cannot be remapped", key.row, key.column);
+            return;
+        }
+
         ImGui::SetTooltip("%s\nrow %d, column %d", FormatKeycode(m_Keyboard.KeycodeFor(key, m_Layer)).c_str(), key.row,
                           key.column);
 

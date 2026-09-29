@@ -115,15 +115,15 @@ namespace nazg
     // R0.../C0... connectors. Left and top are the only edges anything uses.
     enum class BoardEdge : uint8_t
     {
-        Left,   // one per row: placed by the keys' centres, down the left side
-        Top,    // one per column: placed by the keys' centres, along the top
+        Left,   // one per row, down the left side: level with its leftmost key
+        Top,    // one per column, along the top: centred on its top key
     };
 
     struct EdgeLabel
     {
         BoardEdge           edge = BoardEdge::Left;
         std::string         text;
-        std::vector<size_t> keys;        // it sits at their average position along its edge
+        std::vector<size_t> keys;        // it is centred on the one nearest its edge
         uint8_t             marks = 0;   // Highlighted, HighlightedSecond, Dimmed, Struck, Checked
     };
 

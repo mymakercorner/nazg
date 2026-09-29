@@ -11,6 +11,7 @@
 // The structure is definition data only: no protocol, no board needed. The keys are the ones
 // the board is drawn with, at its layout choice; keys of the other choices are not drawn.
 // The live test adds the board's readings of its switch matrix, fetched by the caller.
+// FindInDefinition() says what is odd in the definition's matrix, for the panel.
 //
 // Pure, as ui/NazgBoardDescription.h is, so it tests with literals. ui/NazgMatrixView.h
 // puts it on screen.
@@ -56,11 +57,14 @@ namespace nazg
     // What the board holds, for the panel to say.
     struct MatrixCounts
     {
-        size_t                inRow    = 0;   // keys wired to the row in focus
-        size_t                inColumn = 0;   // keys wired to the column in focus
-        std::optional<size_t> keyAt;          // the key where both meet, if any: into board.keys
+        size_t inRow    = 0;   // keys wired to the row in focus
+        size_t inColumn = 0;   // keys wired to the column in focus
 
-        size_t keys     = 0;   // every key drawn, decals left out
+        // The keys where both meet: into board.keys. More than one is a legitimate design --
+        // switches wired in parallel, one position closed by either -- not an error.
+        std::vector<size_t> keysAt;
+
+        size_t keys     = 0;   // every key drawn inside the matrix, decals left out
         size_t seenKeys = 0;   // of those, the ones the live test has seen
 
         // Pressed in the last reading where the layout drawn has no key: a key of another
@@ -78,6 +82,25 @@ namespace nazg
     // ruler label is Checked once every key of its row or column has been seen.
     MatrixCounts DescribeMatrix(BoardDescription& board, uint8_t rows, uint8_t columns, const MatrixFocus& focus,
                                 const MatrixLive* live = nullptr);
+
+    // What the definition says about its matrix, among the keys drawn (ui-design.md, "What
+    // the definition says about its matrix"). Nothing is refused: the view only reports it.
+    struct MatrixFindings
+    {
+        // Keys on a position outside the matrix size. The firmware has no such position, so
+        // they can never be read, remapped or tested. VIA's registry refuses them; an
+        // imported file or a Vial board can still bring one.
+        std::vector<size_t> outside;   // into board.keys
+
+        // Keys drawn exactly on top of each other, whatever their positions: the one below
+        // can never be seen or clicked -- almost certainly a copy left in the definition.
+        std::vector<std::pair<size_t, size_t>> stacked;   // into board.keys, first below second
+
+        [[nodiscard]] bool IsEmpty() const noexcept { return outside.empty() && stacked.empty(); }
+    };
+
+    // Decals are left out: they are not switches.
+    [[nodiscard]] MatrixFindings FindInDefinition(const BoardDescription& board, uint8_t rows, uint8_t columns);
 
     // The focus a ruler label stands for, by its index in the labels DescribeMatrix() added.
     [[nodiscard]] MatrixFocus FocusOfLabel(size_t label, uint8_t rows);

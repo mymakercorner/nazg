@@ -4,6 +4,7 @@
 #include "NazgMatrixDescription.h"
 
 #include <algorithm>
+#include <cmath>
 #include <string>
 #include <utility>
 #include <vector>
@@ -28,6 +29,25 @@ namespace nazg
                     keys.push_back(index);
             }
             return keys;
+        }
+
+        // One key per position, the first in the definition. Keys wired in parallel can sit far
+        // apart, and a ruler label is centred on its key nearest the edge: without this, a
+        // parallel key higher up or further left could take its row's or column's label away.
+        std::vector<size_t> OnePerPosition(const BoardDescription& board, const std::vector<size_t>& keys)
+        {
+            std::vector<size_t> kept;
+            for (size_t key : keys)
+            {
+                const DefinitionKey& geometry = board.keys[key].geometry;
+                const bool isRepeat = std::any_of(kept.begin(), kept.end(), [&](size_t other) {
+                    return board.keys[other].geometry.row == geometry.row &&
+                           board.keys[other].geometry.column == geometry.column;
+                });
+                if (!isRepeat)
+                    kept.push_back(key);
+            }
+            return kept;
         }
 
         // The shortest links joining `keys`, centre to centre: a minimum spanning tree, grown
@@ -125,7 +145,7 @@ namespace nazg
             EdgeLabel label;
             label.edge = BoardEdge::Left;
             label.text = "R" + std::to_string(row);
-            label.keys = Wiring(board, true, row);
+            label.keys = OnePerPosition(board, Wiring(board, true, row));
 
             if (focus.row == row)
                 label.marks |= Mark::Highlighted;
@@ -142,7 +162,7 @@ namespace nazg
             EdgeLabel label;
             label.edge = BoardEdge::Top;
             label.text = "C" + std::to_string(column);
-            label.keys = Wiring(board, false, column);
+            label.keys = OnePerPosition(board, Wiring(board, false, column));
 
             if (focus.column == column)
                 label.marks |= Mark::HighlightedSecond;
@@ -162,7 +182,9 @@ namespace nazg
             if (!IsWired(key))
                 continue;
 
-            ++counts.keys;
+            // One outside the matrix can never be seen, so it is not waited for.
+            if (key.geometry.row < rows && key.geometry.column < columns)
+                ++counts.keys;
             if (isSeen(index))
             {
                 key.marks |= Mark::Checked;
@@ -187,8 +209,8 @@ namespace nazg
                 key.marks |= Mark::HighlightedSecond;
                 ++counts.inColumn;
             }
-            if (onRow && onColumn && !counts.keyAt)
-                counts.keyAt = index;
+            if (onRow && onColumn)
+                counts.keysAt.push_back(index);
             if (!onRow && !onColumn)
                 key.marks |= Mark::Dimmed;
         }
@@ -207,6 +229,34 @@ namespace nazg
             AddLinks(board, Wiring(board, false, *focus.column), Mark::HighlightedSecond);
 
         return counts;
+    }
+
+    MatrixFindings FindInDefinition(const BoardDescription& board, uint8_t rows, uint8_t columns)
+    {
+        MatrixFindings findings;
+
+        // Placed keys come from the same numbers moved by the same offset, so "the same
+        // place" needs only a little slack.
+        const auto same = [](float a, float b) { return std::fabs(a - b) < 0.001f; };
+        const auto onTop = [&](const DefinitionKey& a, const DefinitionKey& b) {
+            return same(a.x, b.x) && same(a.y, b.y) && same(a.width, b.width) && same(a.height, b.height) &&
+                   same(a.rotation, b.rotation) && same(a.rotationX, b.rotationX) && same(a.rotationY, b.rotationY);
+        };
+
+        for (size_t index = 0; index < board.keys.size(); ++index)
+        {
+            const BoardKey& key = board.keys[index];
+            if (!IsWired(key))
+                continue;
+
+            if (key.geometry.row >= rows || key.geometry.column >= columns)
+                findings.outside.push_back(index);
+
+            for (size_t later = index + 1; later < board.keys.size(); ++later)
+                if (IsWired(board.keys[later]) && onTop(key.geometry, board.keys[later].geometry))
+                    findings.stacked.emplace_back(index, later);
+        }
+        return findings;
     }
 
     MatrixFocus FocusOfLabel(size_t label, uint8_t rows)

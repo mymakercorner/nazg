@@ -22,6 +22,12 @@ namespace nazg
 
         // The first Vial protocol with the matrix tester (via-vial-commands.md).
         constexpr uint32_t c_VialMatrixTesterProtocol = 3;
+
+        // "R4 C10", as the rulers say it.
+        std::string PositionOf(const DefinitionKey& key)
+        {
+            return "R" + std::to_string(key.row) + " C" + std::to_string(key.column);
+        }
     }
 
     MatrixView::MatrixView(HidTransport& transport, std::string path, bool isVial, const Keyboard& keyboard,
@@ -109,8 +115,22 @@ namespace nazg
         const bool isLive = m_Live == Live::Running && !m_WantsWiring;
         m_Counts = DescribeMatrix(board, m_Keyboard.definition.matrixRows, m_Keyboard.definition.matrixColumns,
                                   IsLiveShown() ? MatrixFocus{} : Focus(), isLive ? &m_Readings : nullptr);
-        m_KeyAt  = m_Counts.keyAt ? FormatKeycode(m_Keyboard.KeycodeFor(board.keys[*m_Counts.keyAt].geometry, 0))
-                                  : std::string();
+        m_KeyAt  = m_Counts.keysAt.empty()
+                       ? std::string()
+                       : FormatKeycode(m_Keyboard.KeycodeFor(board.keys[m_Counts.keysAt.front()].geometry, 0));
+
+        // What the definition says about its matrix, by position, for the panel.
+        const MatrixFindings findings =
+            FindInDefinition(board, m_Keyboard.definition.matrixRows, m_Keyboard.definition.matrixColumns);
+
+        m_Outside.clear();
+        for (size_t key : findings.outside)
+            m_Outside += (m_Outside.empty() ? "" : ", ") + PositionOf(board.keys[key].geometry);
+
+        m_Stacked.clear();
+        for (const auto& [below, above] : findings.stacked)
+            m_Stacked += (m_Stacked.empty() ? "" : "; ") + PositionOf(board.keys[below].geometry) + " under " +
+                         PositionOf(board.keys[above].geometry);
     }
 
     void MatrixView::OnBoardEvents(const BoardDescription& board, const BoardEvents& events)
@@ -144,6 +164,9 @@ namespace nazg
     {
         const MatrixFocus focus = Focus();
 
+        // Some messages are long: wrapped at the panel's edge.
+        ImGui::PushTextWrapPos(0.0f);
+
         if (IsLiveShown())
         {
             DrawLivePanel();
@@ -154,7 +177,11 @@ namespace nazg
         }
         else if (focus.row && focus.column)
         {
-            if (m_Counts.keyAt)
+            // Several keys on one position are switches wired in parallel: a design, not a fault.
+            if (m_Counts.keysAt.size() > 1)
+                ImGui::Text("%zu keys at row %d, column %d: wired in parallel, they act as one switch, %s.",
+                            m_Counts.keysAt.size(), *focus.row, *focus.column, m_KeyAt.c_str());
+            else if (!m_Counts.keysAt.empty())
                 ImGui::Text("%s at row %d, column %d.", m_KeyAt.c_str(), *focus.row, *focus.column);
             else
                 ImGui::Text("No key at row %d, column %d.", *focus.row, *focus.column);
@@ -180,6 +207,18 @@ namespace nazg
         if (!m_Keyboard.layoutSelection.empty())
             ColouredText(PanelColour::Muted, "Drawn with the board's layout options; keys of the other choices are "
                                              "not shown.");
+
+        // What the definition says about its matrix: reported, never refused.
+        if (!m_Outside.empty())
+            ColouredText(PanelColour::Warning, "Outside the %d x %d matrix: %s. The firmware has no such position: "
+                                               "these keys can never be read, remapped or tested.",
+                         m_Keyboard.definition.matrixRows, m_Keyboard.definition.matrixColumns, m_Outside.c_str());
+        if (!m_Stacked.empty())
+            ColouredText(PanelColour::Muted, "Drawn exactly on top of each other: %s. The key below can never be "
+                                             "seen or clicked -- probably a copy left in the definition.",
+                         m_Stacked.c_str());
+
+        ImGui::PopTextWrapPos();
 
         ImGui::Spacing();
         if (ImGui::Button("Close"))
@@ -218,6 +257,10 @@ namespace nazg
         else
             ColouredText(PanelColour::Muted, "A row or column label stays grey until all its keys are seen: one "
                                              "that never turns green points at that trace.");
+
+        if (!m_Outside.empty())
+            ColouredText(PanelColour::Muted, "Not counted: %s, outside the matrix, can never be seen.",
+                         m_Outside.c_str());
 
         if (!m_Counts.pressedWithoutKey.empty())
         {

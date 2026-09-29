@@ -303,9 +303,11 @@ namespace nazg
             }
         }
 
-        // Each label at the average position of its keys along its edge, nudged apart so none
-        // overlaps -- lined up with the keys on a regular board, an ordered list on one whose
-        // wiring does not follow its layout. A label with no keys has no place and is not drawn.
+        // Each label centred on its key nearest the edge -- a column's on its top key, a row's on
+        // its leftmost, where the eye looks for it; the first of equals wins -- and nudged apart
+        // so none overlaps. An average of the keys drifted: a column's keys differ in width, so
+        // on a regular board C3 sat right of Esc, above nothing. A label with no keys has no
+        // place and is not drawn.
         void DrawEdgeLabels(ImDrawList* drawList, const BoardDescription& board, ImVec2 corner, ImVec2 origin,
                             float unit, float leftMargin, bool canHover, BoardEvents& events)
         {
@@ -323,21 +325,27 @@ namespace nazg
                     if (label.edge != edge)
                         continue;
 
-                    float sum   = 0.0f;
-                    int   count = 0;
+                    bool  found = false;
+                    float depth = 0.0f;   // of the nearest key so far: how far in from the edge
+                    float along = 0.0f;   // and where it is along the edge
                     for (size_t key : label.keys)
                         if (key < board.keys.size())
                         {
                             const ImVec2 centre = CentreOnScreen(board, key, origin, unit);
-                            sum += edge == BoardEdge::Left ? centre.y : centre.x;
-                            ++count;
+                            const float  in     = edge == BoardEdge::Left ? centre.x : centre.y;
+                            if (!found || in < depth - 0.5f)   // half a pixel: equals stay equal
+                            {
+                                found = true;
+                                depth = in;
+                                along = edge == BoardEdge::Left ? centre.y : centre.x;
+                            }
                         }
-                    if (count == 0)
+                    if (!found)
                         continue;
 
                     const ImVec2 size = ImGui::CalcTextSize(label.text.c_str());
                     shown.push_back(index);
-                    wanted.push_back(sum / static_cast<float>(count));
+                    wanted.push_back(along);
                     extents.push_back(edge == BoardEdge::Left ? size.y : size.x);
                 }
 

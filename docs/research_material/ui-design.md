@@ -308,8 +308,12 @@ in a browser; GitHub and Markdown previews show only its source.
   selected, the columns with no key in it are **struck through** in the column ruler, and
   the other way round. In the picture, C1 (the ISO key's position) and C12 on row 3, R4 on
   column 5.
-- A ruler label sits at the average position of its keys, nudged apart so none overlap. On
-  a regular board they line up with the keys; on a board whose wiring does not follow its
+- A ruler label is **centred on its key nearest the edge** — a column's on its top key, a
+  row's on its leftmost — nudged apart so none overlap, counting one key per position, the
+  first in the definition, so a key wired in parallel far away does not take the label. (The
+  first build placed it at the average of its keys: a column's keys differ in width, so on the
+  Concordia C3 sat right of Esc, above nothing — Rico, 2026-09-29.) On a regular board they
+  line up with the keys; on a board whose wiring does not follow its
   layout — split halves numbered 5 to 9, a Model F's matrix — they cannot, the ruler is then
   an ordered list, and the drawn line shows where the row really runs.
 - **Live test** (the strip: *Wiring | Live test*): keys turn green as they are seen, with a
