@@ -105,13 +105,19 @@ namespace nazg
                                           "if more than one definition matches it.");
                 }
 
-                action.showMatrix = ImGui::MenuItem("Show matrix...", nullptr, false, view.canShowMatrix);
-                ImGui::SetItemTooltip("How the board is wired: the row and the column of the switch matrix\n"
-                                      "each key sits on.");
+                // Designer and debugging tools, only when asked for in Settings.
+                if (view.hasAdvanced && ImGui::BeginMenu("Advanced"))
+                {
+                    action.showMatrix = ImGui::MenuItem("Show matrix...", nullptr, false, view.canShowMatrix);
+                    ImGui::SetItemTooltip("How the board is wired: the row and the column of the switch matrix\n"
+                                          "each key sits on, and a live test of every switch.");
 
-                action.exportDefinition = ImGui::MenuItem("Export definition...", nullptr, false, view.canExport);
-                ImGui::SetItemTooltip("For investigation and debugging: save the definition drawing this board\n"
-                                      "exactly as Nazg has it.");
+                    action.exportDefinition = ImGui::MenuItem("Export definition...", nullptr, false, view.canExport);
+                    ImGui::SetItemTooltip("For investigation and debugging: save the definition drawing this board\n"
+                                          "exactly as Nazg has it.");
+
+                    ImGui::EndMenu();
+                }
 
                 ImGui::Separator();
                 action.allKeyboards = ImGui::MenuItem("All keyboards", nullptr, false, !view.isBusy);

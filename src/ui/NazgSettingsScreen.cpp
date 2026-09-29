@@ -127,7 +127,7 @@ namespace nazg
         }
     }
 
-    SettingsAction DrawSettings(const SettingsView& view, std::string& hostLayoutId)
+    SettingsAction DrawSettings(const SettingsView& view, std::string& hostLayoutId, bool& advancedTools)
     {
         SettingsAction action;
 
@@ -138,6 +138,11 @@ namespace nazg
         ImGui::SeparatorText("Definitions");
         DrawOfficial(view.official);
         DrawUserDefinitions(view, action);
+
+        ImGui::SeparatorText("Advanced");
+        action.advancedToolsChanged = ImGui::Checkbox("Advanced tools", &advancedTools);
+        ImGui::SetItemTooltip("For keyboard designers and debugging: adds an Advanced submenu to the\n"
+                              "board menu, with the matrix view and Export definition.");
 
         ImGui::SeparatorText("About");
         ImGui::TextUnformatted("Nazg -- one keyboard configurator to rule them all.");

@@ -129,6 +129,10 @@ namespace
     {
         std::string hostLayout = "us";   // a HostLayout id; see NazgKeycapLegend.h
 
+        // The board menu's Advanced submenu: tools for designers and debugging, out of an
+        // ordinary user's way until asked for (ui-design.md, screen 6).
+        bool advancedTools = false;
+
         // Paths of VIA definition files that builds before the library remembered here.
         // Read, imported into the library once, then dropped -- written back only while
         // there is no library to import them into.
@@ -157,10 +161,13 @@ namespace
             AppSettings& loaded = *static_cast<AppSettings*>(self->UserData);
 
             constexpr char c_HostLayout[]    = "HostLayout=";
+            constexpr char c_AdvancedTools[] = "AdvancedTools=";
             constexpr char c_ViaDefinition[] = "ViaDefinition=";
 
             if (std::strncmp(line, c_HostLayout, sizeof(c_HostLayout) - 1) == 0)
                 loaded.hostLayout = line + sizeof(c_HostLayout) - 1;
+            else if (std::strncmp(line, c_AdvancedTools, sizeof(c_AdvancedTools) - 1) == 0)
+                loaded.advancedTools = std::strcmp(line + sizeof(c_AdvancedTools) - 1, "1") == 0;
             else if (std::strncmp(line, c_ViaDefinition, sizeof(c_ViaDefinition) - 1) == 0)
                 loaded.legacyViaDefinitions.emplace_back(line + sizeof(c_ViaDefinition) - 1);
         };
@@ -168,7 +175,8 @@ namespace
         handler.WriteAllFn = [](ImGuiContext*, ImGuiSettingsHandler* self, ImGuiTextBuffer* out)
         {
             const AppSettings& saved = *static_cast<AppSettings*>(self->UserData);
-            out->appendf("[%s][Settings]\nHostLayout=%s\n", self->TypeName, saved.hostLayout.c_str());
+            out->appendf("[%s][Settings]\nHostLayout=%s\nAdvancedTools=%d\n", self->TypeName, saved.hostLayout.c_str(),
+                         saved.advancedTools ? 1 : 0);
             // Only paths not yet imported -- when the library could not be opened -- so
             // none is lost before it can be.
             for (const std::string& path : saved.legacyViaDefinitions)
@@ -1126,6 +1134,7 @@ int main(int, char**)
                     // Not while a section works on the board: the live test would open a second
                     // handle beside its own, and each would read the other's replies.
                     header.canShowMatrix = !boardState.isLoading && !boardState.matrix && !isBusy;
+                    header.hasAdvanced   = settings.advancedTools;
 
                     // A VIAL_INSECURE build reports itself unlocked and has no combo to unlock
                     // with: it has no lock, and the header says nothing.
@@ -1299,11 +1308,12 @@ int main(int, char**)
                 std::snprintf(line, sizeof(line), "Frame: %.3f ms (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
                 view.about.emplace_back(line);
 
-                const nazg::SettingsAction action = nazg::DrawSettings(view, settings.hostLayout);
+                const nazg::SettingsAction action =
+                    nazg::DrawSettings(view, settings.hostLayout, settings.advancedTools);
 
                 if (action.back)
                     showSettings = false;
-                if (action.hostLayoutChanged)
+                if (action.hostLayoutChanged || action.advancedToolsChanged)
                     ImGui::MarkIniSettingsDirty();
                 if (action.import && library.library)
                     showImportDialog();

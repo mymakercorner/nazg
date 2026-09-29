@@ -4,7 +4,7 @@
 // SettingsScreen - what the settings button shows, in place of the main area; the header
 // stays, so the open board is still named (ui-design.md, screen 6). The host layout, the
 // definitions -- official and user, with the library's Re-import, Restore previous, Remove
-// and Import -- and, last, what Nazg runs on.
+// and Import -- the Advanced tools switch and, last, what Nazg runs on.
 //
 // It only draws and reports what was clicked; the library is changed by the caller. ImGui
 // only, no SDL.
@@ -43,14 +43,15 @@ namespace nazg
 
     struct SettingsAction
     {
-        bool                    back              = false;
-        bool                    hostLayoutChanged = false;   // to be saved
-        bool                    import            = false;
+        bool                    back                 = false;
+        bool                    hostLayoutChanged    = false;   // to be saved
+        bool                    advancedToolsChanged = false;   // likewise
+        bool                    import               = false;
         std::optional<uint32_t> reimport;                    // library entry ids
         std::optional<uint32_t> restore;
         std::optional<uint32_t> remove;
     };
 
-    // `hostLayoutId` is the setting, changed here.
-    [[nodiscard]] SettingsAction DrawSettings(const SettingsView& view, std::string& hostLayoutId);
+    // `hostLayoutId` and `advancedTools` are the settings, changed here.
+    [[nodiscard]] SettingsAction DrawSettings(const SettingsView& view, std::string& hostLayoutId, bool& advancedTools);
 }

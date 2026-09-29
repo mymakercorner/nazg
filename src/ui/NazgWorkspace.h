@@ -45,6 +45,7 @@ namespace nazg
         std::vector<OtherKeyboard> others;
         bool isVia         = false;   // Change definition... and Forget choice are VIA's
         bool hasChoice     = false;   // a remembered choice to forget
+        bool hasAdvanced   = false;   // the Advanced submenu, with the setting on
         bool canShowMatrix = false;   // a board loaded, its matrix view not already showing
         bool canExport     = false;
         bool isBusy        = false;   // a load or a write in flight: nothing may replace the board

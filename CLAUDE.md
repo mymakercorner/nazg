@@ -74,11 +74,13 @@ while they show -- RAM only on the firmware, so every close and exit path must e
 
 **The workspace frame** replaced the three floating first-draft windows (2026-09-26): one
 window filling SDL's, its menu bar the header -- the board's name is the board menu (Switch to,
-Change definition... / Forget choice, Export definition..., All keyboards), the protocol, and
-Settings on the right. Under it, one of three screens: the keyboard list
+Change definition... / Forget choice, Advanced, All keyboards), the protocol, and
+Settings on the right. **Advanced** -- Show matrix... and Export definition... -- appears only
+with the *Advanced tools* setting on, off by default and saved in `imgui.ini` (2026-09-29, Rico:
+designer and debugging tools stay out of an ordinary user's way). Under it, one of three screens: the keyboard list
 (`ui/NazgKeyboardList.*`: each keyboard's protocol, probed after enumeration, "Show all HID
 devices" off at every start), the open board (sections, or the definition picker), or settings
-(`ui/NazgSettingsScreen.*`: host layout, official and user definitions, about). A lone keyboard
+(`ui/NazgSettingsScreen.*`: host layout, official and user definitions, advanced tools, about). A lone keyboard
 at start is opened directly. The screens only report clicks; `Main.cpp` acts on them. **No
 board is opened while protocols are being probed**: HID gives every open handle a copy of each
 reply, and the transport drains leftovers only at open. The header shows a Vial board's lock
@@ -87,7 +89,7 @@ the board, a poll every 150 ms) or locks again. **Untested on hardware** -- no s
 Vial firmware at hand; the Model F is `VIAL_INSECURE` and shows no lock. Not done: noticing an unplugged board -- the
 list needs Refresh (hotplug, deferred: ui-design.md, "Open points").
 
-**The matrix view** (2026-09-29), from the board menu's "Show matrix...": the structure only,
+**The matrix view** (2026-09-29), from the board menu's Advanced > "Show matrix...": the structure only,
 from the definition. `ui/NazgMatrixDescription.*` (pure, tested) fills the board through the
 section contract -- rulers, the row and column in focus lit in two colours
 (`Mark::HighlightedSecond` was added for it), their keys joined by the shortest links rather
@@ -169,7 +171,7 @@ is warned about. Nazg never polls files, and there are no linked entries -- both
 Rico 2026-09-25 (via-registry.md, "User definitions: a local library"). Verified by
 Rico on the Phoenix 2026-09-25 with edited versions of the forged ortho definition. **The
 backup is under review**: Rico will judge its real value against the complexity it adds before
-keeping it. "Export definition..." on the board writes the definition drawing it back out,
+keeping it. "Export definition..." (board menu, Advanced) writes the definition drawing it back out,
 byte for byte as Nazg has it -- user, official or Vial -- **for investigation and debugging
 only** (Rico), not a user workflow. It is the only export: one in the library list was removed
 as redundant. Deferred:

@@ -434,7 +434,7 @@ Studio backend needs anyway. Flashing, QMK Toolbox's other job, is not part of t
   build's default, which the panel states. How those keys could show is still open.
 - **"Export definition…"**, for investigation and debugging only: put in the board menu,
   under the definition items, with the workspace frame. Moves to the Advanced submenu with
-  *Advanced tools* (2026-09-29), not built yet.
+  *Advanced tools* (2026-09-29), built the same day.
 - The three suggestions Rico accepted with the screens, worth confirming in use: opening a
   lone board directly; listing only the sections a board has; Settings replacing the main
   area rather than opening a dialog.
