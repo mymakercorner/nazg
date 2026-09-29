@@ -82,6 +82,9 @@ namespace nazg
         // A second highlight, told apart from the first where both show -- the matrix view's
         // column beside its row.
         inline constexpr uint8_t HighlightedSecond = 0x40;
+
+        // Ticked off a checklist -- the live test's keys seen, its rows and columns complete.
+        inline constexpr uint8_t Checked = 0x80;
     }
 
     struct BoardKey
@@ -121,7 +124,7 @@ namespace nazg
         BoardEdge           edge = BoardEdge::Left;
         std::string         text;
         std::vector<size_t> keys;        // it sits at their average position along its edge
-        uint8_t             marks = 0;   // Highlighted, HighlightedSecond, Dimmed, Struck
+        uint8_t             marks = 0;   // Highlighted, HighlightedSecond, Dimmed, Struck, Checked
     };
 
     struct BoardDescription

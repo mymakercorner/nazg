@@ -231,6 +231,8 @@ namespace nazg
             else
             {
                 ImU32 fill = BoardColours::Fill(described.fill, described.heat);
+                if ((described.marks & Mark::Checked) != 0)
+                    fill = Over(fill, BoardColours::c_CheckedTint);
                 if ((described.marks & Mark::Pressed) != 0)
                     fill = Over(fill, BoardColours::c_Pressed);
                 if ((described.marks & Mark::Highlighted) != 0)

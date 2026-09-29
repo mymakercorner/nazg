@@ -92,12 +92,34 @@ namespace nazg
         }
     }
 
-    MatrixCounts DescribeMatrix(BoardDescription& board, uint8_t rows, uint8_t columns, const MatrixFocus& focus)
+    void AddReading(MatrixLive& live, const SwitchMatrixState& reading)
+    {
+        if (live.seen.bytes.size() != reading.bytes.size())
+        {
+            live.seen       = reading;
+            live.seen.bytes.assign(reading.bytes.size(), 0x00);
+        }
+
+        for (size_t index = 0; index < reading.bytes.size(); ++index)
+            live.seen.bytes[index] |= reading.bytes[index];
+        live.pressed = reading;
+    }
+
+    MatrixCounts DescribeMatrix(BoardDescription& board, uint8_t rows, uint8_t columns, const MatrixFocus& focus,
+                                const MatrixLive* live)
     {
         MatrixCounts counts;
 
+        const auto isSeen = [&](size_t key) {
+            return live != nullptr && live->seen.IsPressed(board.keys[key].geometry.row, board.keys[key].geometry.column);
+        };
+        const auto allSeen = [&](const std::vector<size_t>& keys) {
+            return live != nullptr && !keys.empty() && std::all_of(keys.begin(), keys.end(), isSeen);
+        };
+
         // The rulers, rows first. A row or a column no key is on gets no place along its edge
-        // and is not drawn (ui/NazgBoardView.h).
+        // and is not drawn (ui/NazgBoardView.h). In the live test, one whose keys have all
+        // been seen is ticked off.
         for (uint8_t row = 0; row < rows; ++row)
         {
             EdgeLabel label;
@@ -109,6 +131,8 @@ namespace nazg
                 label.marks |= Mark::Highlighted;
             else if (focus.column && !HasKeyAt(board, row, *focus.column))
                 label.marks |= Mark::Struck;
+            if (allSeen(label.keys))
+                label.marks |= Mark::Checked;
 
             board.labels.push_back(std::move(label));
         }
@@ -124,18 +148,30 @@ namespace nazg
                 label.marks |= Mark::HighlightedSecond;
             else if (focus.row && !HasKeyAt(board, *focus.row, column))
                 label.marks |= Mark::Struck;
+            if (allSeen(label.keys))
+                label.marks |= Mark::Checked;
 
             board.labels.push_back(std::move(label));
         }
 
-        if (focus.IsEmpty())
-            return counts;
-
-        // The keys: the row's and the column's lit, the rest dimmed.
+        // The keys: in the live test, seen and pressed; with a focus, the row's and the
+        // column's lit and the rest dimmed.
         for (size_t index = 0; index < board.keys.size(); ++index)
         {
             BoardKey& key = board.keys[index];
             if (!IsWired(key))
+                continue;
+
+            ++counts.keys;
+            if (isSeen(index))
+            {
+                key.marks |= Mark::Checked;
+                ++counts.seenKeys;
+            }
+            if (live != nullptr && live->pressed.IsPressed(key.geometry.row, key.geometry.column))
+                key.marks |= Mark::Pressed;
+
+            if (focus.IsEmpty())
                 continue;
 
             const bool onRow    = focus.row == key.geometry.row;
@@ -156,6 +192,13 @@ namespace nazg
             if (!onRow && !onColumn)
                 key.marks |= Mark::Dimmed;
         }
+
+        // Pressed where the layout drawn has no key: another layout choice's key, or ghosting.
+        if (live != nullptr)
+            for (uint8_t row = 0; row < live->pressed.rows; ++row)
+                for (uint8_t column = 0; column < live->pressed.columns; ++column)
+                    if (live->pressed.IsPressed(row, column) && !HasKeyAt(board, row, column))
+                        counts.pressedWithoutKey.emplace_back(row, column);
 
         // The wiring: which keys share the row, which the column.
         if (focus.row)

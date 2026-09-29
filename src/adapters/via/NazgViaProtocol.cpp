@@ -21,6 +21,26 @@ namespace nazg
         }
     }
 
+    SwitchMatrixFormat SwitchMatrixFormatForVia(uint16_t viaProtocol) noexcept
+    {
+        return viaProtocol >= 12 ? SwitchMatrixFormat::Paged : SwitchMatrixFormat::Whole;
+    }
+
+    bool WholeMatrixFits(uint8_t rows, uint8_t columns) noexcept
+    {
+        return (columns / 8 + 1) * rows <= 28;
+    }
+
+    bool SwitchMatrixState::IsPressed(uint8_t row, uint8_t column) const noexcept
+    {
+        if (row >= rows || column >= columns)
+            return false;
+
+        const size_t rowBytes = (columns + 7u) / 8u;
+        const size_t index    = row * rowBytes + (rowBytes - 1 - column / 8u);
+        return index < bytes.size() && ((bytes[index] >> (column % 8u)) & 1u) != 0;
+    }
+
     std::vector<uint8_t> ViaProtocol::MakeFrame(uint8_t command, std::initializer_list<uint8_t> arguments)
     {
         // Always the full 32 bytes, zero-padded: QMK's raw HID endpoint takes exactly
@@ -82,6 +102,40 @@ namespace nazg
     {
         std::vector<uint8_t> reply = co_await Send(ViaCommand::GetKeyboardValue, { static_cast<uint8_t>(value) });
         co_return ReadBigEndian32(reply, 2);
+    }
+
+    Task<SwitchMatrixState> ViaProtocol::GetSwitchMatrixState(SwitchMatrixFormat format, uint8_t rows,
+                                                              uint8_t columns)
+    {
+        const uint8_t id       = static_cast<uint8_t>(ViaKeyboardValue::SwitchMatrixState);
+        const size_t  rowBytes = (columns + 7u) / 8u;
+
+        SwitchMatrixState state;
+        state.rows    = rows;
+        state.columns = columns;
+        state.bytes.reserve(rows * rowBytes);
+
+        if (format == SwitchMatrixFormat::Whole)
+        {
+            std::vector<uint8_t> reply = co_await Send(ViaCommand::GetKeyboardValue, { id });
+
+            const size_t length = std::min(rows * rowBytes, reply.size() - 2);
+            state.bytes.assign(reply.begin() + 2, reply.begin() + 2 + length);
+            state.bytes.resize(rows * rowBytes, 0x00);
+            co_return state;
+        }
+
+        const uint8_t rowsPerReply = static_cast<uint8_t>(std::max<size_t>(1, c_ViaBufferChunk / rowBytes));
+        for (uint8_t first = 0; first < rows; first = static_cast<uint8_t>(first + rowsPerReply))
+        {
+            std::vector<uint8_t> reply = co_await Send(ViaCommand::GetKeyboardValue, { id, first });
+
+            const size_t count  = std::min<size_t>(rowsPerReply, rows - first);
+            const size_t length = std::min(count * rowBytes, reply.size() - 3);
+            state.bytes.insert(state.bytes.end(), reply.begin() + 3, reply.begin() + 3 + length);
+        }
+        state.bytes.resize(rows * rowBytes, 0x00);
+        co_return state;
     }
 
     Task<uint8_t> ViaProtocol::GetLayerCount()

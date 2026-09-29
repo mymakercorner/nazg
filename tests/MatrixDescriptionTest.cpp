@@ -206,6 +206,54 @@ namespace
     }
 }
 
+namespace
+{
+    // One byte a row: column 0 is bit 0.
+    nazg::SwitchMatrixState Reading(std::vector<uint8_t> rows)
+    {
+        nazg::SwitchMatrixState state;
+        state.rows    = c_Rows;
+        state.columns = c_Columns;
+        state.bytes   = std::move(rows);
+        return state;
+    }
+
+    void TestLiveTest()
+    {
+        std::printf("live test\n");
+
+        nazg::MatrixLive live;
+
+        // Row 1 held down: columns 0, 1 and 3.
+        nazg::AddReading(live, Reading({ 0x00, 0x0B, 0x00 }));
+
+        BoardDescription   board  = Board();
+        const MatrixCounts counts = DescribeMatrix(board, c_Rows, c_Columns, {}, &live);
+
+        Check(counts.keys == 7 && counts.seenKeys == 3, "three of the seven keys seen");
+        Check(board.keys[4].marks == (Mark::Checked | Mark::Pressed), "a key down now is seen and pressed");
+        Check(board.keys[0].marks == 0, "a key not seen is left alone");
+        Check(board.keys[7].marks == 0, "the decal on a position never pressed is left alone");
+        Check((RowLabel(board, 1).marks & Mark::Checked) != 0, "row 1 is complete");
+        Check((ColumnLabel(board, 0).marks & Mark::Checked) == 0, "column 0 is not: its row 0 key is unseen");
+        Check(counts.pressedWithoutKey.empty(), "every position pressed has a key");
+
+        // Released, then row 0 held, and a position with no key: ghosting, or another layout.
+        nazg::AddReading(live, Reading({ 0x0F, 0x00, 0x04 }));
+
+        BoardDescription   after       = Board();
+        const MatrixCounts afterCounts = DescribeMatrix(after, c_Rows, c_Columns, {}, &live);
+
+        Check(afterCounts.seenKeys == 7, "every key seen, over two readings");
+        Check(after.keys[4].marks == Mark::Checked, "released, it stays seen");
+        Check((ColumnLabel(after, 0).marks & Mark::Checked) != 0 && (ColumnLabel(after, 2).marks & Mark::Checked) != 0,
+              "each column complete");
+        Check((RowLabel(after, 2).marks & Mark::Checked) == 0, "a row with no key is never complete");
+        Check(afterCounts.pressedWithoutKey == std::vector<std::pair<uint8_t, uint8_t>>{ { 2, 2 } },
+              "row 2, column 2 is pressed where no key is drawn");
+    }
+}
+
 int main()
 {
     ConfigureCrtReporting();
@@ -215,6 +263,7 @@ int main()
     TestShortestLinks();
     TestKeyInFocus();
     TestNoKeyAtFocus();
+    TestLiveTest();
 
     return TestResult();
 }

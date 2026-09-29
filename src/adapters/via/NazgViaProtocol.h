@@ -92,6 +92,41 @@ namespace nazg
     // A buffer command spends 4 bytes on command id, offset and length, leaving 28.
     inline constexpr uint16_t c_ViaBufferChunk = 28;
 
+    // How a firmware lays out id_switch_matrix_state's reply. Both give every row as
+    // ceil(columns / 8) bytes, most significant first -- column 0 is the last byte's bit 0.
+    enum class SwitchMatrixFormat : uint8_t
+    {
+        // Mainline VIA from protocol 12: the request names a first row, echoed at byte 2,
+        // and the rows follow from byte 3, as many as fit in 28 bytes -- paged by row.
+        Paged,
+
+        // VIA before protocol 12, and every vial-qmk (2026-08): no first row, the rows from
+        // byte 2, and only when the whole matrix fits -- by the firmware's own test,
+        // WholeMatrixFits(). A matrix too big for it reads as all released.
+        Whole,
+    };
+
+    // The matrix state format a VIA board of this protocol answers in -- VIA's own rule
+    // (via-app, use-matrix-test.ts). A Vial board is always Whole, whatever VIA protocol it
+    // reports.
+    [[nodiscard]] SwitchMatrixFormat SwitchMatrixFormatForVia(uint16_t viaProtocol) noexcept;
+
+    // The Whole format's condition, as the firmware writes it: (columns / 8 + 1) * rows <= 28.
+    // Stricter than the bytes need -- 8 columns count as two bytes -- but it is the one that
+    // decides.
+    [[nodiscard]] bool WholeMatrixFits(uint8_t rows, uint8_t columns) noexcept;
+
+    // Which switches are closed, as the board last scanned them.
+    struct SwitchMatrixState
+    {
+        uint8_t              rows    = 0;
+        uint8_t              columns = 0;
+        std::vector<uint8_t> bytes;   // rows x ceil(columns / 8), as they arrive
+
+        // False for a position outside the matrix.
+        [[nodiscard]] bool IsPressed(uint8_t row, uint8_t column) const noexcept;
+    };
+
     class ViaProtocol
     {
     public:
@@ -112,6 +147,12 @@ namespace nazg
         // 0x12. The whole keymap in 28-byte chunks -- the batched read that exists
         // because asking key by key was too chatty. One round trip per chunk.
         [[nodiscard]] Task<std::vector<uint8_t>> GetKeymapBuffer(uint16_t offset, uint16_t length);
+
+        // 0x02 with id_switch_matrix_state: the whole matrix, in one round trip or a few.
+        // Needs the firmware's consent -- VIA_INSECURE, or unlocked -- and without it the
+        // answer is all released, not a refusal: via-vial-commands.md.
+        [[nodiscard]] Task<SwitchMatrixState> GetSwitchMatrixState(SwitchMatrixFormat format, uint8_t rows,
+                                                                   uint8_t columns);
 
         // 0x0C / 0x0D / 0x0E.
         [[nodiscard]] Task<uint8_t>              GetMacroCount();

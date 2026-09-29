@@ -577,7 +577,9 @@ namespace
         std::vector<std::unique_ptr<nazg::Section>> sections;
         size_t                                      activeSection = 0;
 
-        // The matrix view, while it takes the sections' place. It refers to the keyboard too.
+        // The matrix view, while it takes the sections' place. It refers to the keyboard too,
+        // and its live test keeps the board open: anything else that talks to the board stops
+        // the test first.
         std::unique_ptr<nazg::MatrixView> matrix;
 
         // An unlock under way, while the board screen shows it instead of the sections.
@@ -588,7 +590,7 @@ namespace
         // meanwhile.
         bool IsWorking() const
         {
-            return unlock != nullptr ||
+            return unlock != nullptr || (matrix && matrix->IsBusy()) ||
                    std::any_of(sections.begin(), sections.end(), [](const auto& section) { return section->IsBusy(); });
         }
     };
@@ -1052,6 +1054,14 @@ int main(int, char**)
             return;
         }
 
+        // The matrix live test asks for every key of the board to be pressed, and they all type
+        // into Nazg: with keyboard navigation on, an arrow then Space would click whatever has
+        // focus, and Alt would open the menu bar. Off while the test runs.
+        if (boardState.matrix && boardState.matrix->IsLiveTestRunning())
+            io.ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard;
+        else
+            io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
         ImGui_ImplSDLGPU3_NewFrame();
         ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();
@@ -1113,7 +1123,9 @@ int main(int, char**)
                                        library.library->FindChoice(boardState.identity) != nullptr;
                     header.canExport = !boardState.exportable.empty() || userEntryInUse() != nullptr;
 
-                    header.canShowMatrix = !boardState.isLoading && !boardState.matrix;
+                    // Not while a section works on the board: the live test would open a second
+                    // handle beside its own, and each would read the other's replies.
+                    header.canShowMatrix = !boardState.isLoading && !boardState.matrix && !isBusy;
 
                     // A VIAL_INSECURE build reports itself unlocked and has no combo to unlock
                     // with: it has no lock, and the header says nothing.
@@ -1172,6 +1184,8 @@ int main(int, char**)
             {
                 showSettings = false;
                 boardState.error.clear();
+                if (boardState.matrix)
+                    boardState.matrix->StopLiveTest();
                 if (!boardState.lock->unlocked)
                     boardState.unlock = std::make_unique<nazg::VialUnlock>(
                         transport, boardState.path, *boardState.keyboard, boardState.lock->combo, settings.hostLayout);
@@ -1183,7 +1197,8 @@ int main(int, char**)
             {
                 showSettings          = false;
                 boardState.isChoosing = false;
-                boardState.matrix     = std::make_unique<nazg::MatrixView>(*boardState.keyboard, settings.hostLayout);
+                boardState.matrix     = std::make_unique<nazg::MatrixView>(
+                    transport, boardState.path, !boardState.isVia, *boardState.keyboard, settings.hostLayout);
             }
 
             if (headerAction.exportDefinition)
@@ -1407,7 +1422,7 @@ int main(int, char**)
                     if (boardState.matrix)
                     {
                         nazg::DrawView(*boardState.matrix, *boardState.keyboard);
-                        if (boardState.matrix->IsClosed())
+                        if (boardState.matrix->IsClosed() && !boardState.matrix->IsBusy())
                             boardState.matrix.reset();
                     }
                     else

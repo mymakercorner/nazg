@@ -93,8 +93,17 @@ section contract -- rulers, the row and column in focus lit in two colours
 (`Mark::HighlightedSecond` was added for it), their keys joined by the shortest links rather
 than in number order, which zigzagged on the Model F -- and `ui/NazgMatrixView.*` is a
 `Section` shown by `DrawView()` in the sections' place until Close. It draws the board's layout
-choice only. Verified by Rico on the Model F and a VIA board, the Concordia. Not done: the live
-test and the definition checks (ui-design.md, "The matrix view").
+choice only. Verified by Rico on the Model F and a VIA board, the Concordia.
+
+**The live test** (2026-09-29), the matrix view's strip *Wiring | Live test*: a view of its own
+-- no hover, no wiring -- where keys turn green once seen and ruler labels once their whole row
+or column is. `ViaProtocol::GetSwitchMatrixState()` reads both reply layouts (paged: VIA 12+;
+whole: older VIA and every vial-qmk -- via-vial-commands.md); the view keeps the board open,
+polls every 20 ms, and keyboard navigation is off meanwhile, since the board under test types
+into Nazg. A Vial board is asked its lock first. **Untested on hardware** -- only the view was
+seen, on the Concordia, whose stock firmware answers all zeroes: mainline VIA sends the matrix
+only with `VIA_INSECURE = yes` in `rules.mk`, or `SECURE_ENABLE` and unlocked, both off by
+default. Not done: the definition checks (ui-design.md, "The matrix view").
 
 VIA boards load too: `adapters/via/NazgViaLoader.*` takes the definition from the caller and
 picks the keycode version from the protocol (13+: asked with `id_keycodes_version`; 12 ->

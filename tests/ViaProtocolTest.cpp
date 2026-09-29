@@ -126,6 +126,75 @@ namespace
         Check(channel.RequestAt(0)[1] == 0x04, "the value id is the first argument");
     }
 
+    // The Concordia's matrix, 6 x 20: three bytes a row, most significant first, nine rows
+    // to a reply -- so one round trip, the first row echoed at byte 2 and the rows after it.
+    void TestSwitchMatrixPaged()
+    {
+        std::printf("switch matrix state, paged\n");
+
+        FakeDeviceChannel channel;
+        ViaProtocol       via(channel);
+
+        std::vector<uint8_t> reply = { 0x02, 0x03, 0x00 };
+        reply.insert(reply.end(), { 0x08, 0x00, 0x01 });   // row 0: columns 19 and 0
+        reply.insert(reply.end(), { 0x00, 0x01, 0x80 });   // row 1: columns 8 and 7
+        channel.Reply(reply);
+
+        const nazg::SwitchMatrixState state = Run(via.GetSwitchMatrixState(nazg::SwitchMatrixFormat::Paged, 6, 20));
+
+        Check(channel.RequestCount() == 1, "six rows of three bytes take one round trip");
+        Check(channel.RequestAt(0)[1] == 0x03 && channel.RequestAt(0)[2] == 0x00,
+              "id_switch_matrix_state, from row 0");
+        Check(state.bytes.size() == 18, "six rows of three bytes");
+        Check(state.IsPressed(0, 0) && state.IsPressed(0, 19), "column 0 is the last byte's bit 0, column 19 the first's bit 3");
+        Check(state.IsPressed(1, 7) && state.IsPressed(1, 8), "columns 7 and 8 sit either side of a byte boundary");
+        Check(!state.IsPressed(0, 1) && !state.IsPressed(5, 0), "the rest is released");
+        Check(!state.IsPressed(6, 0) && !state.IsPressed(0, 20), "outside the matrix is never pressed");
+
+        // 12 x 32: four bytes a row, seven rows to a reply -- two round trips.
+        FakeDeviceChannel paged;
+        ViaProtocol       pagedVia(paged);
+
+        std::vector<uint8_t> first = { 0x02, 0x03, 0x00 };
+        first.resize(3 + 28, 0x00);
+        paged.Reply(first);
+        std::vector<uint8_t> second = { 0x02, 0x03, 0x07 };
+        second.resize(3 + 20, 0x00);
+        second[3 + 4 * 4 + 3] = 0x02;   // row 11 (the fifth of this page): column 1
+        paged.Reply(second);
+
+        const nazg::SwitchMatrixState big = Run(pagedVia.GetSwitchMatrixState(nazg::SwitchMatrixFormat::Paged, 12, 32));
+
+        Check(paged.RequestCount() == 2 && paged.RequestAt(1)[2] == 7, "the second page starts at row 7");
+        Check(big.bytes.size() == 48 && big.IsPressed(11, 1), "the pages are joined in order");
+    }
+
+    // vial-qmk, and VIA before protocol 12: no first row, the rows from byte 2.
+    void TestSwitchMatrixWhole()
+    {
+        std::printf("switch matrix state, whole\n");
+
+        FakeDeviceChannel channel;
+        ViaProtocol       via(channel);
+
+        std::vector<uint8_t> reply = { 0x02, 0x03 };
+        reply.insert(reply.end(), 8 * 3, 0x00);
+        reply[2 + 7 * 3 + 0] = 0x02;   // row 7: column 17, the Model F's last
+        channel.Reply(reply);
+
+        const nazg::SwitchMatrixState state = Run(via.GetSwitchMatrixState(nazg::SwitchMatrixFormat::Whole, 8, 18));
+
+        Check(channel.RequestAt(0)[1] == 0x03 && channel.RequestAt(0)[2] == 0x00, "no first row is sent");
+        Check(state.IsPressed(7, 17), "the rows start at byte 2");
+        Check(!state.IsPressed(7, 16), "and nothing else is pressed");
+
+        Check(nazg::WholeMatrixFits(8, 18), "the Model F's 8 x 18 fits the firmware's test");
+        Check(!nazg::WholeMatrixFits(8, 24), "8 x 24 does not: the firmware counts four bytes a row");
+        Check(nazg::SwitchMatrixFormatForVia(12) == nazg::SwitchMatrixFormat::Paged &&
+                  nazg::SwitchMatrixFormatForVia(11) == nazg::SwitchMatrixFormat::Whole,
+              "VIA pages from protocol 12");
+    }
+
     void TestKeycodeRoundTrip()
     {
         std::printf("keycode get and set\n");
@@ -327,6 +396,8 @@ int main()
     TestMismatchedReplyThrows();
     TestShortReplyThrows();
     TestKeyboardValue();
+    TestSwitchMatrixPaged();
+    TestSwitchMatrixWhole();
     TestKeycodeRoundTrip();
     TestLayerCount();
     TestBufferChunking();

@@ -67,6 +67,8 @@ namespace nazg
                 return c_Highlighted;
             if ((marks & Mark::HighlightedSecond) != 0)
                 return c_HighlightedSecond;
+            if ((marks & Mark::Checked) != 0)
+                return c_Checked;
             if ((marks & (Mark::Dimmed | Mark::Struck)) != 0)
                 return ImGui::GetColorU32(ImGuiCol_TextDisabled);
             return ImGui::GetColorU32(ImGuiCol_Text);

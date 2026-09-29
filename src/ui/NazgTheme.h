@@ -46,6 +46,8 @@ namespace nazg
         inline constexpr ImU32 c_Dimmed                = IM_COL32(12, 12, 16, 190);      // overlay
         inline constexpr ImU32 c_HighlightedTint       = IM_COL32(110, 200, 255, 70);    // overlay
         inline constexpr ImU32 c_HighlightedSecondTint = IM_COL32(190, 150, 255, 70);    // overlay
+        inline constexpr ImU32 c_CheckedTint           = IM_COL32(90, 200, 110, 110);    // overlay
+        inline constexpr ImU32 c_Checked               = IM_COL32(120, 220, 130, 255);   // edge labels
         inline constexpr ImU32 c_Selected              = IM_COL32(240, 180, 60, 255);    // outline
         inline constexpr ImU32 c_Highlighted           = IM_COL32(110, 200, 255, 255);   // outline
         inline constexpr ImU32 c_HighlightedSecond     = IM_COL32(190, 150, 255, 255);   // outline

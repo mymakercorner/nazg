@@ -142,6 +142,21 @@ the build defines `VIA_INSECURE`, or defines `SECURE_ENABLE` and is currently un
 QMK's own comment calls the alternative a "wannabe keylogger". Rows per report are
 `28 / ceil(MATRIX_COLS / 8)`, so a client pages through the matrix by row offset.
 
+**Two reply layouts** (read 2026-09-29 in QMK master and vial-qmk master of 2026-08). Both
+send each row as `ceil(MATRIX_COLS / 8)` bytes, most significant first — column 0 is the
+row's last byte, bit 0.
+
+| Layout | Who | Request | Rows start at |
+|---|---|---|---|
+| Paged | mainline VIA, protocol 12 and later | `02 03 <first row>` | byte 3 (byte 2 echoes the first row) |
+| Whole | VIA before 12, **every vial-qmk** | `02 03` | byte 2 |
+
+The whole layout is filled only when `(MATRIX_COLS / 8 + 1) * MATRIX_ROWS <= 28` (a
+compile-time `#if`); a bigger matrix is answered with the request echoed back, every key
+released. The VIA app picks the layout by `protocol >= 12` (`use-matrix-test.ts`); a Vial
+board reports VIA protocol 9 whatever it is built from, so it always gets the whole layout,
+which is what vial-qmk still sends.
+
 ### Custom channels (`id_custom_*`)
 
 | Channel | Name | Value ids |
@@ -271,7 +286,9 @@ rather than prevent them:
   be more than 100 ms apart; Nazg uses 150 ms, about 7.5 s of holding. (`quantum/vial.c`,
   vial-qmk, read 2026-09-26.)
 - **While locked**: `id_switch_matrix_state` is refused, `id_dynamic_keymap_macro_set_buffer`
-  is refused, and `id_bootloader_jump` is refused.
+  is refused, and `id_bootloader_jump` is refused. Refused means echoed back unchanged, as
+  above: for the matrix state that reads as **every key released**, not as an error, so a
+  client asks `vial_get_unlock_status` first rather than trusting silence.
 - **A keycode firewall** rewrites `QK_BOOT` to `0` in every keycode a locked board accepts —
   encoders, tap dance, combos, key overrides and alt repeat keys all pass through it. A write
   can therefore *succeed* and still not store what was sent; reading back is the only way to

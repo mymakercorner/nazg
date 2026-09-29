@@ -308,7 +308,10 @@ in a browser; GitHub and Markdown previews show only its source.
 - **Live test** (the strip: *Wiring | Live test*): keys turn green as they are seen, with a
   count — a checklist for a freshly soldered board. A ruler label turns green when its whole
   row or column was seen; one that stays grey points at that trace, and a key lighting
-  unpressed points at ghosting from a missing diode.
+  unpressed points at ghosting from a missing diode. **A view of its own** (2026-09-29): no
+  hover, no wiring lines, no dimming -- a first build kept the wiring under the test, and the
+  two could not be told apart. The board under test types into Nazg meanwhile, so keyboard
+  navigation is off while it runs.
 - **The panel**: the status line, the seen count, **definition checks** — two keys on one
   position within one layout choice, positions outside the matrix size, positions no key uses;
   worth running quietly on import too — and *Close*, back to the keymap.
