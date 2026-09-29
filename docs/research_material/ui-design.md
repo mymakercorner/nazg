@@ -442,3 +442,20 @@ Studio backend needs anyway. Flashing, QMK Toolbox's other job, is not part of t
 - The three suggestions Rico accepted with the screens, worth confirming in use: opening a
   lone board directly; listing only the sections a board has; Settings replacing the main
   area rather than opening a dialog.
+- **The interface's language** (Rico, 2026-09-29): a future feature -- the text of Nazg itself
+  in another language, chosen in Settings. Not built, but it shapes the design as a whole, so
+  the screens should not rule it out. What it asks of them, as far as seen today:
+  - **No fixed text widths.** A translation runs longer -- German often by a third -- so a
+    button, a strip entry or a panel line is sized by its text, and long lines wrap (the matrix
+    panel already does).
+  - **Whole sentences, not pieces.** "Seen 3 of 20 keys" built from fragments cannot be
+    translated: word order and plurals differ. A message is one format with its numbers in
+    it, and the numbers can move.
+  - **An ImGui label is also its ID.** Translated, the ID would change with the language; a
+    widget whose label is shown text needs a fixed `##id`.
+  - **The font must cover the script.** The system font loaded in `Main.cpp` is a first draft;
+    ImGui 1.92 loads glyphs as they are needed, but only from fonts it was given.
+  - **Right-to-left scripts are out of reach**: ImGui has no bidirectional text or shaping.
+  - **What is not translated**: keycode names (`KC_ESC`), and legends, which already follow
+    the host layout -- a separate setting from the interface's language. What a board or a
+    definition names -- a keyboard, a layout option, a VIA menu -- comes as its author wrote it.
