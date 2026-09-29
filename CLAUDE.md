@@ -87,6 +87,15 @@ the board, a poll every 150 ms) or locks again. **Untested on hardware** -- no s
 Vial firmware at hand; the Model F is `VIAL_INSECURE` and shows no lock. Not done: noticing an unplugged board -- the
 list needs Refresh (hotplug, deferred: ui-design.md, "Open points").
 
+**The matrix view** (2026-09-29), from the board menu's "Show matrix...": the structure only,
+from the definition. `ui/NazgMatrixDescription.*` (pure, tested) fills the board through the
+section contract -- rulers, the row and column in focus lit in two colours
+(`Mark::HighlightedSecond` was added for it), their keys joined by the shortest links rather
+than in number order, which zigzagged on the Model F -- and `ui/NazgMatrixView.*` is a
+`Section` shown by `DrawView()` in the sections' place until Close. It draws the board's layout
+choice only. Verified by Rico on the Model F and a VIA board, the Concordia. Not done: the live
+test and the definition checks (ui-design.md, "The matrix view").
+
 VIA boards load too: `adapters/via/NazgViaLoader.*` takes the definition from the caller and
 picks the keycode version from the protocol (13+: asked with `id_keycodes_version`; 12 ->
 0.0.8; 11 -> 0.0.1; 10 -> LegacyVia10; <=9 -> Legacy). Sourcing is a

@@ -182,12 +182,20 @@ namespace nazg
             }
         }
 
-        // One key; true when the mouse is on it. A rotated key is drawn unrotated, then the
-        // vertices it just added to the draw list are turned about its origin -- rounded
+        // A key is drawn in two passes, with the lines between them, so a line runs over the
+        // keycaps and under their legends.
+        enum class KeyPass
+        {
+            Keycap,    // the fill and the outlines
+            Legends,
+        };
+
+        // One key's pass; true when the mouse is on it. A rotated key is drawn unrotated, then
+        // the vertices it just added to the draw list are turned about its origin -- rounded
         // corners, outlines and legends alike, with no rotated variant of any drawing call.
         // Hovering turns the mouse the other way and tests the unrotated rectangles.
         bool DrawKey(ImDrawList* drawList, ImVec2 origin, float unit, float legendSize, const BoardKey& described,
-                     bool canHover)
+                     bool canHover, KeyPass pass)
         {
             const DefinitionKey& key      = described.geometry;
             const float          gap      = unit * c_KeyGap;
@@ -216,37 +224,48 @@ namespace nazg
 
             const bool isDimmed = (described.marks & Mark::Dimmed) != 0;
 
-            ImU32 fill = BoardColours::Fill(described.fill, described.heat);
-            if ((described.marks & Mark::Pressed) != 0)
-                fill = Over(fill, BoardColours::c_Pressed);
-            if (hovered)
-                fill = Over(fill, BoardColours::c_Hovered);
-            if (isDimmed)
-                fill = Over(fill, BoardColours::c_Dimmed);
-
-            drawList->AddRectFilled(p0, p1, fill, rounding);
-            if (hasSecond)
-                drawList->AddRectFilled(q0, q1, fill, rounding);
-
-            DrawLegends(drawList, described, p0, p1, unit, legendSize, isDimmed);
-
-            // Outlines nest, the first outermost, so several states read at once.
-            const float thickness = std::max(2.0f, unit * 0.04f);
-            float       inset     = 0.0f;
-            for (const auto& [mark, colour] : { std::pair{ Mark::Selected, BoardColours::c_Selected },
-                                                std::pair{ Mark::Warning, BoardColours::c_Warning },
-                                                std::pair{ Mark::Highlighted, BoardColours::c_Highlighted } })
+            if (pass == KeyPass::Legends)
             {
-                if ((described.marks & mark) == 0)
-                    continue;
+                DrawLegends(drawList, described, p0, p1, unit, legendSize, isDimmed);
+            }
+            else
+            {
+                ImU32 fill = BoardColours::Fill(described.fill, described.heat);
+                if ((described.marks & Mark::Pressed) != 0)
+                    fill = Over(fill, BoardColours::c_Pressed);
+                if ((described.marks & Mark::Highlighted) != 0)
+                    fill = Over(fill, BoardColours::c_HighlightedTint);
+                if ((described.marks & Mark::HighlightedSecond) != 0)
+                    fill = Over(fill, BoardColours::c_HighlightedSecondTint);
+                if (hovered)
+                    fill = Over(fill, BoardColours::c_Hovered);
+                if (isDimmed)
+                    fill = Over(fill, BoardColours::c_Dimmed);
 
-                const float in = inset + thickness / 2;
-                drawList->AddRect(ImVec2(p0.x + in, p0.y + in), ImVec2(p1.x - in, p1.y - in), colour, rounding, 0,
-                                  thickness);
+                drawList->AddRectFilled(p0, p1, fill, rounding);
                 if (hasSecond)
-                    drawList->AddRect(ImVec2(q0.x + in, q0.y + in), ImVec2(q1.x - in, q1.y - in), colour, rounding, 0,
+                    drawList->AddRectFilled(q0, q1, fill, rounding);
+
+                // Outlines nest, the first outermost, so several states read at once.
+                const float thickness = std::max(2.0f, unit * 0.04f);
+                float       inset     = 0.0f;
+                for (const auto& [mark, colour] :
+                     { std::pair{ Mark::Selected, BoardColours::c_Selected },
+                       std::pair{ Mark::Warning, BoardColours::c_Warning },
+                       std::pair{ Mark::Highlighted, BoardColours::c_Highlighted },
+                       std::pair{ Mark::HighlightedSecond, BoardColours::c_HighlightedSecond } })
+                {
+                    if ((described.marks & mark) == 0)
+                        continue;
+
+                    const float in = inset + thickness / 2;
+                    drawList->AddRect(ImVec2(p0.x + in, p0.y + in), ImVec2(p1.x - in, p1.y - in), colour, rounding, 0,
                                       thickness);
-                inset += thickness;
+                    if (hasSecond)
+                        drawList->AddRect(ImVec2(q0.x + in, q0.y + in), ImVec2(q1.x - in, q1.y - in), colour, rounding,
+                                          0, thickness);
+                    inset += thickness;
+                }
             }
 
             if (key.rotation != 0.0f)
@@ -275,8 +294,10 @@ namespace nazg
 
                 if (points.size() >= 2)
                     drawList->AddPolyline(points.data(), static_cast<int>(points.size()), BoardColours::Line(line.marks),
-                                          ImDrawFlags_None, (line.marks & Mark::Highlighted) != 0 ? thickness * 1.5f
-                                                                                                    : thickness);
+                                          ImDrawFlags_None,
+                                          (line.marks & (Mark::Highlighted | Mark::HighlightedSecond)) != 0
+                                              ? thickness * 1.5f
+                                              : thickness);
             }
         }
 
@@ -394,7 +415,7 @@ namespace nazg
             if (key.geometry.decal)
                 continue;
 
-            if (DrawKey(drawList, origin, unit, legendSize, key, canHover))
+            if (DrawKey(drawList, origin, unit, legendSize, key, canHover, KeyPass::Keycap))
                 events.hoveredKey = index;
         }
 
@@ -402,6 +423,10 @@ namespace nazg
             events.clickedKey = events.hoveredKey;
 
         DrawLines(drawList, board, origin, unit);
+
+        for (const BoardKey& key : board.keys)
+            if (!key.geometry.decal)
+                (void)DrawKey(drawList, origin, unit, legendSize, key, canHover, KeyPass::Legends);
         DrawEdgeLabels(drawList, board, corner, origin, unit, leftMargin, canHover, events);
 
         // Claim the space drawn into, so the window scrolls and sizes around the board.

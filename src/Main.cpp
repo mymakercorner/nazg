@@ -28,6 +28,7 @@
 #include "ui/NazgDefinitionPicker.h"
 #include "ui/NazgKeyboardList.h"
 #include "ui/NazgKeymapSection.h"
+#include "ui/NazgMatrixView.h"
 #include "ui/NazgSettingsScreen.h"
 #include "ui/NazgVialUnlock.h"
 #include "ui/NazgTheme.h"
@@ -576,6 +577,9 @@ namespace
         std::vector<std::unique_ptr<nazg::Section>> sections;
         size_t                                      activeSection = 0;
 
+        // The matrix view, while it takes the sections' place. It refers to the keyboard too.
+        std::unique_ptr<nazg::MatrixView> matrix;
+
         // An unlock under way, while the board screen shows it instead of the sections.
         // Behind a pointer: it holds a Task that refers to it, so it must never move.
         std::unique_ptr<nazg::VialUnlock> unlock;
@@ -665,6 +669,7 @@ namespace
         // The board shown until now goes, sections first: they refer to it. The caller made
         // sure none is busy. A load that fails leaves no board, and the list says why.
         state.sections.clear();
+        state.matrix.reset();
         state.keyboard.reset();
         state.lock.reset();
         state.path     = path;
@@ -1108,6 +1113,8 @@ int main(int, char**)
                                        library.library->FindChoice(boardState.identity) != nullptr;
                     header.canExport = !boardState.exportable.empty() || userEntryInUse() != nullptr;
 
+                    header.canShowMatrix = !boardState.isLoading && !boardState.matrix;
+
                     // A VIAL_INSECURE build reports itself unlocked and has no combo to unlock
                     // with: it has no lock, and the header says nothing.
                     if (boardState.lock && !(boardState.lock->unlocked && boardState.lock->combo.empty()))
@@ -1170,6 +1177,13 @@ int main(int, char**)
                         transport, boardState.path, *boardState.keyboard, boardState.lock->combo, settings.hostLayout);
                 else
                     lockTask = LockBoard(transport, boardState.path, boardState);
+            }
+
+            if (headerAction.showMatrix && boardState.keyboard)
+            {
+                showSettings          = false;
+                boardState.isChoosing = false;
+                boardState.matrix     = std::make_unique<nazg::MatrixView>(*boardState.keyboard, settings.hostLayout);
             }
 
             if (headerAction.exportDefinition)
@@ -1390,7 +1404,16 @@ int main(int, char**)
                     if (!boardState.exportMessage.empty())
                         nazg::ColouredText(nazg::PanelColour::Muted, "%s", boardState.exportMessage.c_str());
 
-                    nazg::DrawSections(boardState.sections, boardState.activeSection, *boardState.keyboard);
+                    if (boardState.matrix)
+                    {
+                        nazg::DrawView(*boardState.matrix, *boardState.keyboard);
+                        if (boardState.matrix->IsClosed())
+                            boardState.matrix.reset();
+                    }
+                    else
+                    {
+                        nazg::DrawSections(boardState.sections, boardState.activeSection, *boardState.keyboard);
+                    }
                 }
             }
 

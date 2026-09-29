@@ -41,11 +41,14 @@ namespace nazg
         [[nodiscard]] ImU32 Line(uint8_t marks);
 
         // The states, drawn over the fill.
-        inline constexpr ImU32 c_Hovered     = IM_COL32(255, 255, 255, 34);    // overlay
-        inline constexpr ImU32 c_Pressed     = IM_COL32(60, 110, 255, 170);    // overlay
-        inline constexpr ImU32 c_Dimmed      = IM_COL32(12, 12, 16, 150);      // overlay
-        inline constexpr ImU32 c_Selected    = IM_COL32(240, 180, 60, 255);    // outline
-        inline constexpr ImU32 c_Highlighted = IM_COL32(110, 200, 255, 255);   // outline
-        inline constexpr ImU32 c_Warning     = IM_COL32(255, 120, 60, 255);    // outline
+        inline constexpr ImU32 c_Hovered               = IM_COL32(255, 255, 255, 34);    // overlay
+        inline constexpr ImU32 c_Pressed               = IM_COL32(60, 110, 255, 170);    // overlay
+        inline constexpr ImU32 c_Dimmed                = IM_COL32(12, 12, 16, 190);      // overlay
+        inline constexpr ImU32 c_HighlightedTint       = IM_COL32(110, 200, 255, 70);    // overlay
+        inline constexpr ImU32 c_HighlightedSecondTint = IM_COL32(190, 150, 255, 70);    // overlay
+        inline constexpr ImU32 c_Selected              = IM_COL32(240, 180, 60, 255);    // outline
+        inline constexpr ImU32 c_Highlighted           = IM_COL32(110, 200, 255, 255);   // outline
+        inline constexpr ImU32 c_HighlightedSecond     = IM_COL32(190, 150, 255, 255);   // outline
+        inline constexpr ImU32 c_Warning               = IM_COL32(255, 120, 60, 255);    // outline
     }
 }

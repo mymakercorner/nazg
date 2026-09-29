@@ -108,6 +108,8 @@ set(NAZG_CORE_SOURCES
   src/ui/NazgHostLayoutTable.cpp
   src/ui/NazgBoardDescription.h
   src/ui/NazgBoardDescription.cpp
+  src/ui/NazgMatrixDescription.h
+  src/ui/NazgMatrixDescription.cpp
 )
 
 add_library(nazg_core STATIC ${NAZG_CORE_SOURCES})
@@ -140,6 +142,8 @@ set(NAZG_SOURCES
   src/ui/NazgTheme.cpp
   src/ui/NazgKeymapSection.h
   src/ui/NazgKeymapSection.cpp
+  src/ui/NazgMatrixView.h
+  src/ui/NazgMatrixView.cpp
   src/ui/NazgKeyboardList.h
   src/ui/NazgKeyboardList.cpp
   src/ui/NazgSettingsScreen.h
@@ -222,6 +226,7 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(qmk_keycode_codec  tests/QmkKeycodeCodecTest.cpp)
     nazg_add_test(keycap_legend      tests/KeycapLegendTest.cpp)
     nazg_add_test(board_description  tests/BoardDescriptionTest.cpp)
+    nazg_add_test(matrix_description tests/MatrixDescriptionTest.cpp)
     nazg_add_test(via_loader         tests/ViaLoaderTest.cpp)
     nazg_add_test(via_bundle         tests/ViaBundleTest.cpp)
     nazg_add_test(definition_library tests/DefinitionLibraryTest.cpp)

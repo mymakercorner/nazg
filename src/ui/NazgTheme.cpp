@@ -65,6 +65,8 @@ namespace nazg
         {
             if ((marks & Mark::Highlighted) != 0)
                 return c_Highlighted;
+            if ((marks & Mark::HighlightedSecond) != 0)
+                return c_HighlightedSecond;
             if ((marks & (Mark::Dimmed | Mark::Struck)) != 0)
                 return ImGui::GetColorU32(ImGuiCol_TextDisabled);
             return ImGui::GetColorU32(ImGuiCol_Text);
@@ -72,8 +74,11 @@ namespace nazg
 
         ImU32 Line(uint8_t marks)
         {
+            // Lit lines let the keycaps under them show through.
             if ((marks & Mark::Highlighted) != 0)
-                return IM_COL32(255, 130, 190, 255);
+                return (c_Highlighted & ~IM_COL32_A_MASK) | IM_COL32(0, 0, 0, 190);
+            if ((marks & Mark::HighlightedSecond) != 0)
+                return (c_HighlightedSecond & ~IM_COL32_A_MASK) | IM_COL32(0, 0, 0, 190);
             if ((marks & Mark::Dimmed) != 0)
                 return IM_COL32(230, 120, 170, 50);
             return IM_COL32(230, 120, 170, 170);

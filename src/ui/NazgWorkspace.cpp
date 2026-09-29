@@ -105,6 +105,10 @@ namespace nazg
                                           "if more than one definition matches it.");
                 }
 
+                action.showMatrix = ImGui::MenuItem("Show matrix...", nullptr, false, view.canShowMatrix);
+                ImGui::SetItemTooltip("How the board is wired: the row and the column of the switch matrix\n"
+                                      "each key sits on.");
+
                 action.exportDefinition = ImGui::MenuItem("Export definition...", nullptr, false, view.canExport);
                 ImGui::SetItemTooltip("For investigation and debugging: save the definition drawing this board\n"
                                       "exactly as Nazg has it.");
@@ -164,8 +168,11 @@ namespace nazg
             ImGui::SameLine();
         }
 
-        Section& section = *sections[active];
+        DrawView(*sections[active], keyboard);
+    }
 
+    void DrawView(Section& section, const Keyboard& keyboard)
+    {
         ImGui::BeginGroup();
         ImGui::PushID(&section);
 

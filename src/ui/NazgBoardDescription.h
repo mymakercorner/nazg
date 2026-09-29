@@ -78,6 +78,10 @@ namespace nazg
         inline constexpr uint8_t Warning     = 0x08;
         inline constexpr uint8_t Pressed     = 0x10;
         inline constexpr uint8_t Struck      = 0x20;   // edge labels: a position no key uses
+
+        // A second highlight, told apart from the first where both show -- the matrix view's
+        // column beside its row.
+        inline constexpr uint8_t HighlightedSecond = 0x40;
     }
 
     struct BoardKey
@@ -101,7 +105,7 @@ namespace nazg
     struct BoardLine
     {
         std::vector<size_t> keys;        // indices into BoardDescription::keys
-        uint8_t             marks = 0;   // Highlighted, Dimmed
+        uint8_t             marks = 0;   // Highlighted, HighlightedSecond, Dimmed
     };
 
     // Rule 5: labels around the board's edges -- the matrix view's rulers, the Leyden Jar's
@@ -117,7 +121,7 @@ namespace nazg
         BoardEdge           edge = BoardEdge::Left;
         std::string         text;
         std::vector<size_t> keys;        // it sits at their average position along its edge
-        uint8_t             marks = 0;   // Highlighted, Dimmed, Struck
+        uint8_t             marks = 0;   // Highlighted, HighlightedSecond, Dimmed, Struck
     };
 
     struct BoardDescription

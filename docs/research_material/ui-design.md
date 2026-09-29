@@ -287,9 +287,14 @@ A key selected and pinned — V, on row 3 and column 5:
 **Interactive version:** [ui-design/matrix-view.html](ui-design/matrix-view.html) — open it
 in a browser; GitHub and Markdown previews show only its source.
 
-- **Hover a key**: its row and its column light, on the board and in both rulers, with the
-  wiring drawn through the keys **in column and row number order** — the real order, not the
-  screen's. Everything else dims.
+- **Hover a key**: its row and its column light, on the board and in both rulers — the row
+  in one colour, the column in another — with their keys **joined by the shortest links**
+  (a minimum spanning tree over the key centres). Everything else dims. A row is a *set* of
+  keys: its column numbers say which pin reads each key, not where the trace runs, so no
+  order is drawn. A first build joined keys in number order, and on the Model F B104 — rows
+  numbered out of screen order — a column became a zigzag from F2 down to Left Alt and back
+  up (2026-09-29); VIA's screen order zigzags too, wherever a row is staggered. On a regular
+  board the links are the straight line through the row.
 - **Hover a ruler label**: that whole row or column.
 - **Click** pins the selection, to move the mouse away.
 - **Positions with no key** — what the grid showed and the board alone cannot: with a row
@@ -396,8 +401,9 @@ Studio backend needs anyway. Flashing, QMK Toolbox's other job, is not part of t
     button is removed, so it is built then. Until then an unplugged board is noticed by a
     failed request and the list needs Refresh.
 - **Which sections fold the board away**, and whether folding it confuses more than it helps.
-- **The matrix view's layout options**: which choice it draws — the board's stored one, as
-  the many-candidates preview does — and how keys of the other choices show.
+- **The matrix view's layout options**: it draws the board's stored choice, as the
+  many-candidates preview does, and the keys of the other choices are not shown — the first
+  build's default, which the panel states. How those keys could show is still open.
 - **"Export definition…"**, for investigation and debugging only: put in the board menu,
   under the definition items, with the workspace frame -- to confirm in use.
 - The three suggestions Rico accepted with the screens, worth confirming in use: opening a
