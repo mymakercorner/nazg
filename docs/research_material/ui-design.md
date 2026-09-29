@@ -183,6 +183,11 @@ you were.
 
 ![Settings](ui-design/screen-settings.svg)
 
+Settings also holds **Advanced tools**, a switch **off by default** (Rico, 2026-09-29).
+Designer and debugging tools stay out of an ordinary user's way: turned on, the board menu
+gains an *Advanced* submenu (see "Getting back to the keyboard list"). VIA does the same with
+its Design pane, hidden until enabled in its settings. Not in the picture yet.
+
 ## Choosing among many definitions
 
 VIA's registry allows one official definition per VID:PID, so many candidates are always the
@@ -223,7 +228,9 @@ The board's name in the header is a menu, as in ZMK Studio and VIA:
 
 - **Switch to** — the other keyboards plugged in, one click each: the usual reason to go back.
 - **Change definition… / Forget choice** — VIA boards only; they leave the board screen.
-- **Show matrix…** — the matrix view, below.
+- **Advanced** — only with *Advanced tools* on in Settings: **Show matrix…** (the matrix
+  view, below) and **Export definition…** (the definition drawing the board, byte for byte,
+  for investigation and debugging). The picture predates it.
 - **All keyboards** — closes the board and shows the list.
 
 It adds nothing to the first glance — the name is already there — and it is the only way to
@@ -241,8 +248,8 @@ are illustrative.) **Refresh** stays on the list.
 ## The matrix view
 
 How the board is wired: which row and which column of the switch matrix each key sits on.
-Mostly for designers and anyone debugging a build, so it is **opened from the board menu**
-("Show matrix…") rather than being a section — a section would bring the column back on every
+Mostly for designers and anyone debugging a build, so it is **opened from the board menu's
+Advanced submenu** ("Show matrix…", only with *Advanced tools* on) rather than being a section — a section would bring the column back on every
 keymap-only board, since every board has the data.
 
 ### What VIA and Vial do
@@ -312,9 +319,27 @@ in a browser; GitHub and Markdown previews show only its source.
   hover, no wiring lines, no dimming -- a first build kept the wiring under the test, and the
   two could not be told apart. The board under test types into Nazg meanwhile, so keyboard
   navigation is off while it runs.
-- **The panel**: the status line, the seen count, **definition checks** — two keys on one
-  position within one layout choice, positions outside the matrix size, positions no key uses;
-  worth running quietly on import too — and *Close*, back to the keymap.
+- **The panel**: the status line, the seen count, what the definition says about its matrix
+  (below), and *Close*, back to the keymap.
+
+### What the definition says about its matrix
+
+Nothing here prevents anything: every definition loads and draws as before. The matrix view
+only says what it finds, in its panel, and nothing is checked on import — an ordinary user
+could do nothing about it. Decided with Rico 2026-09-29, after a scan of all 3513 of VIA's
+official definitions (2029 V3, 1484 V2) with Nazg's parser:
+
+| Situation | In the official definitions | Shown as |
+|---|---|---|
+| **Keys at different spots on one position** | 88 definitions (49 V3), 126 pairs | **A fact.** Two switches wired in parallel to one position are a legitimate design, unusual as it is (Rico): pressing either closes the same switch. Hovering one lights both, and the panel says "2 keys at row 5, column 11" rather than naming one. |
+| **Two keys drawn exactly on top of each other** | 10 of those pairs (AEKISO60, TIDBIT…) | **A note.** Invisible on the board, so almost certainly a leftover copy in the definition. |
+| **A key outside the matrix size** | none — VIA's registry rejects it (`validateKeyBounds()`, `the-via/reader`) | **A warning.** The firmware has no such position: that key can never be read, remapped or tested. Only an imported file or a Vial board can bring one. |
+| **Positions no key uses** | 3015 definitions (86%), 12% of all cells | **Nothing.** Normal on most boards; the rulers already strike them through for the row or column in focus. |
+
+QMK checks the same things at build time — keys inside the matrix, no position twice in one
+`LAYOUT` (`lib/python/qmk/info.py`) — but in `keyboard.json`, not in the VIA definition, which
+it never reads. Nothing ties the two files together, so a firmware that builds cleanly can ship
+a definition with a mistyped `"r,c"`.
 
 ## The console
 
@@ -408,7 +433,8 @@ Studio backend needs anyway. Flashing, QMK Toolbox's other job, is not part of t
   many-candidates preview does, and the keys of the other choices are not shown — the first
   build's default, which the panel states. How those keys could show is still open.
 - **"Export definition…"**, for investigation and debugging only: put in the board menu,
-  under the definition items, with the workspace frame -- to confirm in use.
+  under the definition items, with the workspace frame. Moves to the Advanced submenu with
+  *Advanced tools* (2026-09-29), not built yet.
 - The three suggestions Rico accepted with the screens, worth confirming in use: opening a
   lone board directly; listing only the sections a board has; Settings replacing the main
   area rather than opening a dialog.
