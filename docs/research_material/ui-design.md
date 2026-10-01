@@ -137,10 +137,38 @@ middle-left slots -- and gains a third when sublegends come.
 | Compiled in | no risk | only Rico adds one |
 | **Declarative** — a descriptor mapping widgets onto a board's custom commands | safe, every platform, the web build too; the same vocabulary as step 5 | bounded by the widget types defined — though a "value per key" board overlay already covers a level heat map |
 | Code — native libraries | full power | a build per OS; ImGui across a library boundary; third-party code in a process that rewrites keymaps |
-| Code — sandboxed WebAssembly | full power, sandboxed, portable | a new dependency and an API to maintain |
+| Code — sandboxed WebAssembly | full power, sandboxed, portable | a new dependency and an API to maintain; authors still compile, once |
+| Code — an embedded script language (Lua) | full logic, no compilation: a script is a text file; sandboxable; the web build too | an API frozen once others write against it; no debugger; a sandbox protects the computer, not the keyboard |
 
 The survey's conclusion (README, "Declarative description vs arbitrary code") points to the
 declarative route first, code only if it proves too narrow.
+
+*Scripting, discussed 2026-10-01.* If code is needed, a script language is the route for
+third parties: Lua is about 30 C files, MIT, builds under Emscripten and has no ABI to match.
+Native libraries are impractical -- a plain C boundary, a build per OS, ImGui's context and
+exact version shared across it, macOS library validation. A script is code that *emits
+descriptions*, so the declarative-or-code choice mostly dissolves. Settled with it:
+
+- **The panel is a small widget set** Nazg lays out and styles, not ImGui bound to Lua -- the
+  "what, never how" rule above, and translatable text stays possible.
+- **Async through Lua's own coroutines**: a request yields the script and resumes it when its
+  `Task` completes, so script code reads straight like Nazg's.
+- **Sandbox**: no `io`, `os`, `package` or `debug`; source text only, never bytecode; an
+  instruction and memory budget; every call under `lua_pcall`, an error shown in its panel.
+  A script can still send any HID command to its board -- keymap writes, bootloader, EEPROM
+  erase -- so installing one is an act of trust, as importing a definition is.
+- **Installed by the user, never served by the device**: code from a USB device stays
+  disqualifying; device-served features (step 5) stay declarative.
+- **Lifecycle hooks** run on every close and exit path, even after the script failed -- the
+  key-output rule above.
+- **Licence**: GPL-3.0 needs an explicit exception for scripts using the API before the first
+  outside one, if they may be licensed freely.
+
+**Not before Nazg's own features are solid** (Rico). The script API is the section contract
+plus device access, so it binds a contract already proven by compiled-in sections -- the
+Leyden Jar diagnostics come compiled in first, and porting them to a script later would be the
+proof the API suffices. Keeping the contract plain values, as `NazgBoardDescription.h` is,
+keeps that binding cheap.
 
 ## The common screens
 
