@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- Mockup of the board's look -- keycap styles and colour themes -- on the Model F Labs B104.
+     Open it in a browser. It draws only what ImGui's draw list can: filled rounded rectangles,
+     outlines, polylines and text, so every style here can be built in NazgBoardView as shown. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Board look mockup</title>
+<style>
+:root{--window:#0f0f11;--menubar:#24252b;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--ui-accent:#4296fa;--ui-accent-text:#fff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--window);color:var(--text);font-family:"Segoe UI",Helvetica,Arial,sans-serif;font-size:14px}
+.menubar{display:flex;gap:18px;align-items:center;background:var(--menubar);padding:5px 16px;font-size:13px}
+.menubar .right{margin-left:auto;color:var(--muted)}
+.menubar .proto{color:var(--muted)}
+.controls{display:flex;flex-wrap:wrap;gap:10px 22px;padding:12px 16px;border-bottom:1px solid var(--border)}
+.group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.group .name{color:var(--muted);margin-right:4px;font-size:13px}
+button{font:inherit;font-size:13px;padding:3px 10px;border-radius:4px;border:1px solid var(--border);background:var(--control);color:var(--text);cursor:pointer}
+button.on{background:var(--ui-accent);border-color:var(--ui-accent);color:var(--ui-accent-text)}
+.stage{padding:20px 16px 8px;overflow-x:auto}
+canvas{display:block;margin:0 auto;user-select:none}
+.notes{max-width:900px;margin:0 auto;padding:8px 16px 24px;color:var(--muted);font-size:13px;line-height:1.5}
+.notes b{color:var(--text);font-weight:600}
+.notes p{margin:0 0 8px}
+</style>
+</head>
+<body>
+<div class="menubar"><span>Model F Labs B104 &#9662;</span><span class="proto">Vial 6</span><span class="right">Settings</span></div>
+<div class="controls" id="controls"></div>
+<div class="stage" id="stage"><canvas id="board"></canvas></div>
+<div class="notes" id="notes"></div>
+<script>
+// The Model F's real definition -- tests/ModelFDefinition.h, decompressed -- its KLE keymap only.
+const KLE = [[{"x":15.5},"6,5\n\n\n0,1","6,11\n\n\n0,1"],[{"x":2.5,"y":0.25},"0,0",{"x":1.0},"0,1","0,3","0,14","0,16",{"x":0.5},"0,2","0,15","6,15","0,13",{"x":0.5},"0,4","0,12","0,5","0,11",{"x":0.25},"0,10","0,9","0,8"],[{"x":2.5,"y":0.5},"6,0","6,1","5,1","6,3","6,14","6,16","5,16","6,2","5,15","6,13","5,4","6,4","6,12",{"w":2.0},"6,11\n\n\n0,0",{"x":0.25},"0,6\n\n\n5,0","0,7\n\n\n5,0","6,7\n\n\n5,0",{"x":0.25},"6,10","5,10","6,9","6,8",{"x":2.75},"0,6\n\n\n5,1","0,7\n\n\n5,1","6,7\n\n\n5,1"],[{"x":2.5,"w":1.5},"5,0","4,1","4,3","5,3","5,14","4,16","4,2","5,2","4,15","5,13","4,4","5,12","5,5",{"x":0.25,"w":1.25,"h":2.0,"w2":1.5,"h2":1.0,"x2":-0.25},"4,11\n\n\n3,0",{"x":0.25},"5,6\n\n\n5,0","6,6\n\n\n5,0","5,7\n\n\n5,0",{"x":0.25},"4,10","4,9","5,9",{"h":2.0},"5,8",{"x":1.0,"w":1.5},"5,11\n\n\n3,1",{"x":0.25},"5,6\n\n\n5,1","6,6\n\n\n5,1","5,7\n\n\n5,1"],[{"x":2.5,"w":1.75},"4,0","3,1","3,3","4,14","3,14","3,16","3,2","3,15","4,13","3,13","3,4","4,12","4,5\n\n\n3,0",{"x":4.75},"3,10","3,9","4,8",{"x":1.25,"w":2.25},"4,5\n\n\n3,1",{"x":0.25},"3,11\n\n\n5,1","4,6\n\n\n5,1","4,7\n\n\n5,1"],[{"w":2.25},"2,1\n\n\n1,1",{"x":0.25,"w":1.25},"2,0\n\n\n1,0","2,1\n\n\n1,0","2,3","2,14","1,14","1,16","2,16","2,2","1,15","1,13","2,4","2,12",{"w":2.75},"2,5\n\n\n2,0",{"x":1.25},"3,6\n\n\n5,0",{"x":1.25},"2,10","2,9","2,8",{"h":2.0},"3,8",{"x":2.75},"2,6\n\n\n5,1","3,6\n\n\n5,1","3,7\n\n\n5,1"],[{"x":2.5,"w":1.25},"1,0",{"w":1.25},"1,1",{"w":1.25},"1,3",{"w":6.25},"1,2",{"w":1.25},"1,4",{"w":1.25},"1,12",{"w":1.25},"1,5",{"w":1.25},"1,11",{"x":0.25},"1,6\n\n\n5,0","2,7\n\n\n5,0","1,7\n\n\n5,0",{"x":0.25,"w":2.0},"1,10\n\n\n4,0","1,8",{"x":3.75},"1,6\n\n\n5,1","2,7\n\n\n5,1","1,7\n\n\n5,1"],[{"x":14.75,"y":0.25,"w":1.75},"3,12\n\n\n2,1","2,11\n\n\n2,1",{"x":3.5},"1,10\n\n\n4,1","1,9\n\n\n4,1"]];
+const MATRIX = { rows: 8, cols: 18 };
+
+// A plausible layer 0 -- not read off the board -- as Nazg prints it today on the US host
+// layout: [main legend, Shift legend above it, colour class]. a alpha, m modifier, x accent.
+// Per KLE row, for the keys of choice 0 of every layout option.
+const F = n => ['F' + n, '', 'm'];
+const A = (p, s = '') => [p, s, 'a'];
+const M = p => [p, '', 'm'];
+const LEGENDS = {
+  1: [['Esc', '', 'x'], F(1), F(2), F(3), F(4), F(5), F(6), F(7), F(8), F(9), F(10), F(11), F(12), M('Print Screen'), M('Scroll Lock'), M('Pause')],
+  2: [A('`', '~'), A('1', '!'), A('2', '@'), A('3', '#'), A('4', '$'), A('5', '%'), A('6', '^'), A('7', '&'), A('8', '*'), A('9', '('), A('0', ')'), A('-', '_'), A('=', '+'), M('Backspace'), M('Insert'), M('Home'), M('Page Up'), M('Num Lock'), M('/'), M('*'), M('-')],
+  3: [M('Tab'), A('Q'), A('W'), A('E'), A('R'), A('T'), A('Y'), A('U'), A('I'), A('O'), A('P'), A('[', '{'), A(']', '}'), ['Enter', '', 'x'], M('Delete'), M('End'), M('Page Down'), A('7'), A('8'), A('9'), M('+')],
+  4: [M('Caps Lock'), A('A'), A('S'), A('D'), A('F'), A('G'), A('H'), A('J'), A('K'), A('L'), A(';', ':'), A("'", '"'), A('\\', '|'), A('4'), A('5'), A('6')],
+  5: [M('Left Shift'), A('\\', '|'), A('Z'), A('X'), A('C'), A('V'), A('B'), A('N'), A('M'), A(',', '<'), A('.', '>'), A('/', '?'), M('Right Shift'), M('Up'), A('1'), A('2'), A('3'), ['Enter', '', 'x']],
+  6: [M('Left Control'), M('Left GUI'), M('Left Alt'), A('Spacebar'), M('Right Alt'), M('Right GUI'), M('App'), M('Right Control'), M('Left'), M('Down'), M('Right'), A('0'), A('.')],
+};
+
+// KLE, as Nazg's parser reads it; keys of a layout option's other choices are left out.
+function parseKeys() {
+  const keys = [];
+  let y = 0;
+  KLE.forEach((row, rowIndex) => {
+    let x = 0, w = 1, h = 1, x2 = 0, y2 = 0, w2 = 0, h2 = 0, n = 0;
+    for (const item of row) {
+      if (typeof item === 'object') {
+        if ('x' in item) x += item.x;
+        if ('y' in item) y += item.y;
+        if ('w' in item) w = item.w;
+        if ('h' in item) h = item.h;
+        if ('x2' in item) x2 = item.x2;
+        if ('y2' in item) y2 = item.y2;
+        if ('w2' in item) w2 = item.w2;
+        if ('h2' in item) h2 = item.h2;
+        continue;
+      }
+      const parts = item.split('\n');
+      const option = parts[3];
+      if (!option || option.split(',')[1] === '0') {
+        const [row_, col] = parts[0].split(',').map(Number);
+        const legend = LEGENDS[rowIndex][n++];
+        const rects = [{ x, y, w, h }];
+        if (w2 || h2 || x2 || y2) rects.push({ x: x + x2, y: y + y2, w: w2 || w, h: h2 || h });
+        keys.push({ rects, row: row_, col, primary: legend[0], secondary: legend[1], cls: legend[2] });
+      }
+      x += w;
+      w = 1; h = 1; x2 = 0; y2 = 0; w2 = 0; h2 = 0;
+    }
+    if (LEGENDS[rowIndex] && n !== LEGENDS[rowIndex].length) console.warn('row', rowIndex, n, 'keys');
+    y += 1;
+  });
+  return keys;
+}
+const KEYS = parseKeys();
+const keyNamed = legend => KEYS.findIndex(k => k.primary === legend);
+
+// Every colour a theme names. The board's are tokens, so a theme is one table.
+const THEMES = {
+  Light: {
+    window: '#f3f3f5', menubar: '#e3e4e9', text: '#1d1e22', muted: '#6b6e78', control: '#ffffff', border: '#c8cad2',
+    uiAccent: '#3b82f6', uiAccentText: '#ffffff', plate: '#e5e6ea', plateBorder: '#b4b7c2',
+    // The lips darker than the plate, so a filled plate does not swallow them.
+    alpha: { top: '#ffffff', side: '#c6c9d1' }, mod: { top: '#e4e5ea', side: '#b3b7c1' }, accent: { top: '#f2a54e', side: '#c98130' },
+    outline: '#b4b7c2', legend: '#24262b', legendAccent: '#2b1a05',
+    selected: '#e8590c', highlighted: '#1c7ed6', highlightedTint: 'rgba(28,126,214,0.22)', second: '#7048e8',
+    secondTint: 'rgba(112,72,232,0.20)', checked: '#2f9e44', checkedTint: 'rgba(47,158,68,0.32)', warning: '#e03131',
+    pressed: 'rgba(28,100,242,0.50)', hovered: 'rgba(0,0,0,0.08)', dimmed: 'rgba(243,243,245,0.72)',
+  },
+  Dark: {
+    window: '#0f0f11', menubar: '#24252b', text: '#ececf1', muted: '#80838f', control: '#20232b', border: '#3a3d48',
+    uiAccent: '#4296fa', uiAccentText: '#ffffff', plate: '#1c1d23', plateBorder: '#4b4e5c',
+    alpha: { top: '#3a3c48', side: '#2a2b34' }, mod: { top: '#2c2e38', side: '#1f2028' }, accent: { top: '#60482c', side: '#45331f' },
+    outline: '#4b4e5c', legend: '#ebebf0', legendAccent: '#f3e3cf',
+    selected: '#f0b43c', highlighted: '#6ec8ff', highlightedTint: 'rgba(110,200,255,0.27)', second: '#be96ff',
+    secondTint: 'rgba(190,150,255,0.27)', checked: '#78dc82', checkedTint: 'rgba(90,200,110,0.43)', warning: '#ff783c',
+    pressed: 'rgba(60,110,255,0.67)', hovered: 'rgba(255,255,255,0.13)', dimmed: 'rgba(12,12,16,0.75)',
+  },
+  Dracula: {
+    window: '#282a36', menubar: '#21222c', text: '#f8f8f2', muted: '#6272a4', control: '#343746', border: '#44475a',
+    uiAccent: '#bd93f9', uiAccentText: '#282a36', plate: '#21222c', plateBorder: '#6272a4',
+    alpha: { top: '#44475a', side: '#343746' }, mod: { top: '#373949', side: '#2a2c38' }, accent: { top: '#bd93f9', side: '#9471d0' },
+    outline: '#6272a4', legend: '#f8f8f2', legendAccent: '#282a36',
+    selected: '#ffb86c', highlighted: '#8be9fd', highlightedTint: 'rgba(139,233,253,0.25)', second: '#ff79c6',
+    secondTint: 'rgba(255,121,198,0.25)', checked: '#50fa7b', checkedTint: 'rgba(80,250,123,0.33)', warning: '#ff5555',
+    pressed: 'rgba(241,250,140,0.45)', hovered: 'rgba(255,255,255,0.10)', dimmed: 'rgba(40,42,54,0.75)',
+  },
+};
+
+// Proportions, in key units. Outlined and Bottom lip are kept (2026-10-01); Flat, today's
+// NazgBoardView, and Two-tone stay here for comparison only.
+const STYLES = {
+  'Outlined':     { gap: 0.06, rounding: 0.12, pad: 0.10, outline: true },
+  // The face keeps the flat key's size; the lip is the same shape `lip` lower, drawn behind
+  // it in the key's own bottom gap -- no more than `gap`, so it never reaches the key below.
+  // Every lip is drawn before any face, so an L-shaped key shows its lip only where its
+  // contour has a bottom.
+  'Bottom lip':   { gap: 0.06, rounding: 0.12, pad: 0.10, lip: 0.06 },
+  'Flat (today)': { gap: 0.06, rounding: 0.12, pad: 0.10 },
+  'Two-tone':     { gap: 0.03, rounding: 0.10, pad: 0.06, face: { side: 0.11, top: 0.05, bottom: 0.16, rounding: 0.07 } },
+};
+
+// Each scene sets the states its screen sets in Nazg.
+const SCENES = {
+  'Keymap': {
+    hover: true,
+    notes: '<b>Keymap.</b> Click a key to select it: the key waiting for a keycode is outlined. Hover shows where the mouse is.',
+  },
+  'Matrix view': {
+    hover: true, rulers: true,
+    notes: '<b>Matrix view</b> (Advanced). Hover a key: its matrix row is highlighted, its column gets the second highlight, ' +
+           'both wired from key to key, and every other key is dimmed. On the rulers, a row or column with no key at the ' +
+           'crossing is struck through.',
+  },
+  'Live test': {
+    hover: false, rulers: true,
+    notes: '<b>Live test</b> (Advanced). Hold the mouse on a key to press it, as the board would report. Keys seen at least ' +
+           'once are checked; a ruler label is checked once its whole row or column has been seen. No hover: the board ' +
+           'under test types into Nazg. Matrix row 0 and the letters N, A, Z, G start as seen.',
+  },
+  'Vial unlock': {
+    hover: false,
+    notes: '<b>Vial unlock.</b> The keys of the unlock combo -- Esc and Enter here, as an example; the firmware names ' +
+           'them -- are highlighted and everything else dimmed, to see at once which keys to hold.',
+  },
+};
+
+const state = {
+  theme: 'Dark', style: 'Outlined', plate: 'Filled', classes: 'Off', scene: 'Keymap',
+  selected: keyNamed('Q'), focus: keyNamed('Q'), hovered: -1, pressed: keyNamed('G'),
+  seen: new Set(KEYS.map((k, i) => (k.row === 0 || ['N', 'A', 'Z', 'G'].includes(k.primary)) ? i : -1).filter(i => i >= 0)),
+};
+const COMBO = [keyNamed('Esc'), KEYS.findIndex(k => k.primary === 'Enter' && k.rects.length === 2)];
+
+const CONTROLS = [
+  ['theme', 'Theme', Object.keys(THEMES)],
+  ['style', 'Keycap', Object.keys(STYLES)],
+  ['plate', 'Plate', ['Off', 'Filled', 'Border']],
+  ['classes', 'Colour classes', ['Off', 'On']],
+  ['scene', 'Scene', Object.keys(SCENES)],
+];
+
+function buildControls() {
+  const root = document.getElementById('controls');
+  root.innerHTML = '';
+  for (const [key, name, values] of CONTROLS) {
+    const group = document.createElement('div');
+    group.className = 'group';
+    group.innerHTML = `<span class="name">${name}</span>`;
+    for (const value of values) {
+      const b = document.createElement('button');
+      b.textContent = value;
+      if (state[key] === value) b.className = 'on';
+      b.onclick = () => { state[key] = value; buildControls(); draw(); };
+      group.appendChild(b);
+    }
+    root.appendChild(group);
+  }
+}
+
+// Colours as [r, g, b, a], and one painted over another as NazgBoardView's Over() does.
+function rgba(c) {
+  if (c[0] === '#') return [1, 3, 5].map(i => parseInt(c.substr(i, 2), 16)).concat(1);
+  return c.match(/[\d.]+/g).map(Number);
+}
+function over(base, overlay) {
+  const u = rgba(base), o = rgba(overlay), a = o[3];
+  return `rgb(${[0, 1, 2].map(i => Math.round(u[i] + (o[i] - u[i]) * a)).join(',')})`;
+}
+function withAlpha(colour, alpha) {
+  const c = rgba(colour);
+  return `rgba(${c[0]},${c[1]},${c[2]},${alpha})`;
+}
+
+const hasKeyAt = (row, col) => KEYS.some(k => k.row === row && k.col === col);
+const allSeen = keys => keys.length > 0 && keys.every(i => state.seen.has(i));
+
+// The marks each scene gives a key, as its section in Nazg does.
+function marksOf(index) {
+  const key = KEYS[index], m = new Set();
+  switch (state.scene) {
+    case 'Keymap':
+      if (index === state.selected) m.add('selected');
+      break;
+    case 'Matrix view': {
+      const focus = KEYS[state.focus];
+      const onRow = key.row === focus.row, onCol = key.col === focus.col;
+      if (onRow) m.add('highlighted');
+      if (onCol) m.add('second');
+      if (!onRow && !onCol) m.add('dimmed');
+      break;
+    }
+    case 'Live test':
+      if (state.seen.has(index)) m.add('checked');
+      if (index === state.pressed) m.add('pressed');
+      break;
+    case 'Vial unlock':
+      m.add(COMBO.includes(index) ? 'highlighted' : 'dimmed');
+      break;
+  }
+  if (index === state.hovered && SCENES[state.scene].hover) m.add('hovered');
+  return m;
+}
+
+function fillFor(colour, marks, T) {
+  let c = colour;
+  if (marks.has('checked')) c = over(c, T.checkedTint);
+  if (marks.has('pressed')) c = over(c, T.pressed);
+  if (marks.has('highlighted')) c = over(c, T.highlightedTint);
+  if (marks.has('second')) c = over(c, T.secondTint);
+  if (marks.has('hovered')) c = over(c, T.hovered);
+  if (marks.has('dimmed')) c = over(c, T.dimmed);
+  return c;
+}
+
+// The wiring through some keys: each to its nearest not yet joined, from the first along the
+// edge -- close to the matrix view's shortest links, which do not zigzag in number order.
+function chain(points, horizontal) {
+  if (points.length < 2) return points;
+  const left = points.slice().sort((a, b) => horizontal ? a.x - b.x : a.y - b.y);
+  const path = [left.shift()];
+  while (left.length) {
+    const at = path[path.length - 1];
+    let best = 0;
+    left.forEach((p, i) => { if (Math.hypot(p.x - at.x, p.y - at.y) < Math.hypot(left[best].x - at.x, left[best].y - at.y)) best = i; });
+    path.push(left.splice(best, 1)[0]);
+  }
+  return path;
+}
+
+// Where labels wanted at `wanted` go, `extents` long: pushed on just enough that none
+// overlaps the one before it -- SpreadApart() in NazgBoardDescription.
+function spreadApart(wanted, extents, gap) {
+  const order = wanted.map((_, i) => i).sort((a, b) => wanted[a] - wanted[b]);
+  const placed = [];
+  let end = -Infinity;
+  for (const i of order) {
+    const centre = Math.max(wanted[i], end + gap + extents[i] / 2);
+    placed[i] = centre;
+    end = centre + extents[i] / 2;
+  }
+  return placed;
+}
+
+let layout = null;   // where the last frame drew the keys, for hovering
+const LABEL_FONT = '13px "Segoe UI", Helvetica, Arial, sans-serif';
+
+function draw() {
+  const T = THEMES[state.theme], S = STYLES[state.style], scene = SCENES[state.scene];
+  const root = document.documentElement.style;
+  for (const [name, value] of [['window', T.window], ['menubar', T.menubar], ['text', T.text], ['muted', T.muted],
+                               ['control', T.control], ['border', T.border], ['ui-accent', T.uiAccent], ['ui-accent-text', T.uiAccentText]])
+    root.setProperty('--' + name, value);
+
+  const canvas = document.getElementById('board');
+  const ctx = canvas.getContext('2d');
+
+  let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+  for (const k of KEYS) for (const r of k.rects) {
+    minX = Math.min(minX, r.x); minY = Math.min(minY, r.y);
+    maxX = Math.max(maxX, r.x + r.w); maxY = Math.max(maxY, r.y + r.h);
+  }
+  const width = maxX - minX, height = maxY - minY;
+
+  // Room for the rulers, at the UI font, as DrawBoard() makes it.
+  const labelGap = 4;
+  ctx.font = LABEL_FONT;
+  const leftMargin = scene.rulers ? ctx.measureText('R7').width + 2 * labelGap : 0;
+  const topMargin = scene.rulers ? 16 + labelGap : 0;
+
+  const plateUnits = state.plate !== 'Off' ? 0.35 : 0;
+  const avail = document.getElementById('stage').clientWidth - 32 - leftMargin;
+  const unit = Math.max(28, Math.min(64, avail / (width + 2 * plateUnits)));
+  const pad = plateUnits * unit;
+
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = leftMargin + width * unit + 2 * pad, cssH = topMargin + height * unit + 2 * pad;
+  canvas.style.width = cssW + 'px'; canvas.style.height = cssH + 'px';
+  canvas.width = Math.round(cssW * dpr); canvas.height = Math.round(cssH * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cssW, cssH);
+
+  const ox = leftMargin + pad - minX * unit, oy = topMargin + pad - minY * unit;
+  const R = r => ({ x0: ox + r.x * unit, y0: oy + r.y * unit, x1: ox + (r.x + r.w) * unit, y1: oy + (r.y + r.h) * unit });
+  const fillRect = (a, colour, rounding) => {
+    ctx.fillStyle = colour; ctx.beginPath();
+    ctx.roundRect(a.x0, a.y0, a.x1 - a.x0, a.y1 - a.y0, rounding); ctx.fill();
+  };
+  const inset = (a, l, t, r, b) => ({ x0: a.x0 + l, y0: a.y0 + t, x1: a.x1 - r, y1: a.y1 - b });
+
+  // The plate: filled behind the keys, or only its edge -- a boundary that leaves the keys on
+  // the window's background, so the lip keeps its contrast.
+  if (state.plate === 'Filled') fillRect({ x0: leftMargin, y0: topMargin, x1: cssW, y1: cssH }, T.plate, 0.25 * unit);
+  if (state.plate === 'Border') {
+    ctx.strokeStyle = T.plateBorder; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(leftMargin + 0.75, topMargin + 0.75, cssW - leftMargin - 1.5, cssH - topMargin - 1.5, 0.25 * unit); ctx.stroke();
+  }
+
+  const gap = S.gap * unit, rounding = S.rounding * unit, thickness = Math.max(2, unit * 0.04);
+  layout = { keys: [] };
+
+  // The legend size, as LegendSize(): two rows on a 1u face, never above the UI font.
+  const faceHeight = S.face ? unit * (1 - 2 * S.gap - S.face.top - S.face.bottom) : unit * (1 - 2 * S.gap);
+  const legendSize = Math.min(16, (faceHeight - 2 * S.pad * unit) / 2);
+
+  KEYS.forEach((key, index) => {
+    const marks = marksOf(index);
+    const caps = T[state.classes === 'On' ? { a: 'alpha', m: 'mod', x: 'accent' }[key.cls] : 'alpha'];
+    const outer = key.rects.map(r => inset(R(r), gap, gap, gap, gap));
+    layout.keys.push(outer);
+
+    let faces = outer;
+    if (S.face) {
+      for (const a of outer) fillRect(a, fillFor(caps.side, marks, T), rounding);
+      const f = S.face;
+      faces = outer.map(a => inset(a, f.side * unit, f.top * unit, f.side * unit, f.bottom * unit));
+      for (const a of faces) fillRect(a, fillFor(caps.top, marks, T), f.rounding * unit);
+    } else {
+      if (S.lip)
+        for (const a of outer) fillRect(inset(a, 0, S.lip * unit, 0, -S.lip * unit), fillFor(caps.side, marks, T), rounding);
+      for (const a of outer) fillRect(a, fillFor(caps.top, marks, T), rounding);
+      if (S.outline) {
+        ctx.strokeStyle = marks.has('dimmed') ? over(T.outline, T.dimmed) : T.outline; ctx.lineWidth = 1;
+        for (const a of outer) { ctx.beginPath(); ctx.roundRect(a.x0 + 0.5, a.y0 + 0.5, a.x1 - a.x0 - 1, a.y1 - a.y0 - 1, rounding); ctx.stroke(); }
+      }
+    }
+
+    // Outlines nest, the first outermost, as in DrawKey().
+    let depth = 0;
+    for (const [mark, colour] of [['selected', T.selected], ['warning', T.warning], ['highlighted', T.highlighted], ['second', T.second]]) {
+      if (!marks.has(mark)) continue;
+      const i = depth + thickness / 2;
+      ctx.strokeStyle = colour; ctx.lineWidth = thickness;
+      for (const a of outer) { ctx.beginPath(); ctx.roundRect(a.x0 + i, a.y0 + i, a.x1 - a.x0 - 2 * i, a.y1 - a.y0 - 2 * i, rounding); ctx.stroke(); }
+      depth += thickness;
+    }
+    key.face = faces[0];
+    key.centre = { x: (outer[0].x0 + outer[0].x1) / 2, y: (outer[0].y0 + outer[0].y1) / 2 };
+    key.marks = marks;
+  });
+
+  // The matrix view's wiring, over the keycaps and under the legends.
+  if (state.scene === 'Matrix view') {
+    const focus = KEYS[state.focus];
+    for (const [horizontal, colour] of [[true, T.highlighted], [false, T.second]]) {
+      const keys = KEYS.filter(k => horizontal ? k.row === focus.row : k.col === focus.col);
+      const path = chain(keys.map(k => k.centre), horizontal);
+      if (path.length < 2) continue;
+      ctx.strokeStyle = withAlpha(colour, 0.75);
+      ctx.lineWidth = Math.max(2, unit * 0.05) * 1.5; ctx.lineJoin = 'round';
+      ctx.beginPath(); path.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.stroke();
+    }
+  }
+
+  // Legends as DrawLegends(): the Shift legend top left, the main one middle left; too wide,
+  // it shrinks to 60% and is then clipped to the face.
+  ctx.textBaseline = 'top';
+  for (const key of KEYS) {
+    const a = key.face, p = S.pad * unit, innerWidth = a.x1 - a.x0 - 2 * p;
+    let colour = state.classes === 'On' && key.cls === 'x' ? T.legendAccent : T.legend;
+    if (key.marks.has('dimmed')) colour = over(colour, T.dimmed);
+    const top = a.y0 + p;
+    let middle = (a.y0 + a.y1 - legendSize) / 2;
+    if (key.secondary) middle = Math.max(middle, top + legendSize);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(a.x0, a.y0, a.x1 - a.x0, a.y1 - a.y0); ctx.clip();
+    ctx.fillStyle = colour;
+    for (const [text, y] of [[key.secondary, top], [key.primary, middle]]) {
+      if (!text) continue;
+      let size = legendSize;
+      ctx.font = `${size}px "Segoe UI", Helvetica, Arial, sans-serif`;
+      const extent = ctx.measureText(text).width;
+      if (extent > innerWidth) {
+        size = Math.max(legendSize * 0.6, legendSize * innerWidth / extent);
+        ctx.font = `${size}px "Segoe UI", Helvetica, Arial, sans-serif`;
+      }
+      ctx.fillText(text, a.x0 + p, y + (legendSize - size) / 2);
+    }
+    ctx.restore();
+  }
+
+  if (scene.rulers) drawRulers(ctx, T, leftMargin, topMargin, labelGap);
+
+  const notes = [scene.notes];
+  if (state.style === 'Outlined' || state.scene !== 'Keymap')
+    notes.push('The outlines on the ISO Enter are still drawn per rectangle; Nazg will draw them along the key\'s contour.');
+  notes.push('<b>Model F Labs B104</b>, from its real definition, at choice 0 of every layout option. The keymap is a ' +
+             'plausible layer 0, not read off the board; legends are what Nazg prints today on the US host layout. Only ' +
+             'ImGui draw-list shapes are used. <b>Colour classes</b> need the parser to keep KLE colours, which it drops today.');
+  document.getElementById('notes').innerHTML = notes.map(n => `<p>${n}</p>`).join('');
+}
+
+// The rulers, as DescribeMatrix() and DrawEdgeLabels() make them: R0... down the left, each
+// level with its row's leftmost key; C0... along the top, each over its column's top key.
+function drawRulers(ctx, T, leftMargin, topMargin, labelGap) {
+  const live = state.scene === 'Live test';
+  const focus = live ? null : KEYS[state.focus];
+  ctx.font = LABEL_FONT;
+  ctx.textBaseline = 'middle';
+
+  for (const left of [true, false]) {
+    const count = left ? MATRIX.rows : MATRIX.cols;
+    const shown = [], wanted = [], extents = [];
+    for (let n = 0; n < count; ++n) {
+      const keys = KEYS.map((k, i) => ((left ? k.row : k.col) === n) ? i : -1).filter(i => i >= 0);
+      if (!keys.length) continue;   // no key on it: no place along the edge
+      const nearest = keys.reduce((best, i) => (left ? KEYS[i].centre.x < KEYS[best].centre.x - 0.5
+                                                     : KEYS[i].centre.y < KEYS[best].centre.y - 0.5) ? i : best);
+      const text = (left ? 'R' : 'C') + n;
+      let marks = new Set();
+      if (focus) {
+        if (left ? focus.row === n : focus.col === n) marks.add(left ? 'highlighted' : 'second');
+        else if (left ? !hasKeyAt(n, focus.col) : !hasKeyAt(focus.row, n)) marks.add('struck');
+      }
+      if (live && allSeen(keys)) marks.add('checked');
+      shown.push({ text, marks });
+      wanted.push(left ? KEYS[nearest].centre.y : KEYS[nearest].centre.x);
+      extents.push(left ? 16 : ctx.measureText(text).width);
+    }
+    const placed = spreadApart(wanted, extents, labelGap);
+    shown.forEach(({ text, marks }, i) => {
+      const colour = marks.has('highlighted') ? T.highlighted : marks.has('second') ? T.second
+                   : marks.has('checked') ? T.checked : marks.has('struck') ? T.muted : T.text;
+      const w = ctx.measureText(text).width;
+      const x = left ? leftMargin - labelGap - w : placed[i] - w / 2;
+      const y = left ? placed[i] : topMargin / 2;
+      ctx.fillStyle = colour;
+      ctx.fillText(text, x, y);
+      if (marks.has('struck')) {
+        ctx.strokeStyle = colour; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(x - 1, y); ctx.lineTo(x + w + 1, y); ctx.stroke();
+      }
+    });
+  }
+}
+
+const canvas = document.getElementById('board');
+function hit(event) {
+  if (!layout) return -1;
+  const box = canvas.getBoundingClientRect(), x = event.clientX - box.left, y = event.clientY - box.top;
+  return layout.keys.findIndex(rects => rects.some(a => x >= a.x0 && x < a.x1 && y >= a.y0 && y < a.y1));
+}
+canvas.addEventListener('mousemove', e => {
+  const h = hit(e);
+  if (h === state.hovered) return;
+  state.hovered = h;
+  if (h >= 0 && state.scene === 'Matrix view') state.focus = h;   // the focus stays where the mouse left it
+  draw();
+});
+canvas.addEventListener('mouseleave', () => { state.hovered = -1; if (state.scene === 'Live test') state.pressed = -1; draw(); });
+canvas.addEventListener('mousedown', e => {
+  const h = hit(e);
+  if (h < 0) return;
+  if (state.scene === 'Keymap') state.selected = h;
+  if (state.scene === 'Live test') { state.pressed = h; state.seen.add(h); }
+  draw();
+});
+canvas.addEventListener('mouseup', () => { if (state.scene === 'Live test') { state.pressed = -1; draw(); } });
+window.addEventListener('resize', draw);
+
+buildControls();
+draw();
+</script>
+</body>
+</html>

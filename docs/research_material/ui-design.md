@@ -170,6 +170,51 @@ Leyden Jar diagnostics come compiled in first, and porting them to a script late
 proof the API suffices. Keeping the contract plain values, as `NazgBoardDescription.h` is,
 keeps that binding cheap.
 
+## The board's look
+
+*Decided with Rico 2026-10-01*, from a mockup on the Model F B104:
+[ui-design/board-look.html](ui-design/board-look.html) — open it in a browser. It draws only
+what ImGui's draw list can (rounded fills, outlines, polylines, text: no shadows, no
+gradients), so whatever it shows can be built in `NazgBoardView` as shown. Its *Scene* choice
+shows each screen's states as Nazg sets them: Keymap, Matrix view, Live test, Vial unlock.
+
+- **Colour themes.** A theme is one table of named colours, the board's and the window's:
+  keycap colours per class, legends, the plate, every state. **Light, Dark and Dracula** to
+  start, with room for more; chosen in Settings.
+- **Each theme chooses its own state colours**, and **no state colour may resemble one of the
+  theme's keycap colours** -- the mockup's Light theme put an orange selection outline beside
+  orange accent keycaps.
+- **Keycap style, a setting of its own**, independent of the theme: **Outlined** -- a thin
+  border around the fill, legible on dark and light alike -- or **Bottom lip** -- a darker strip
+  under the key, as if the board were seen slightly from above, the most legible on light
+  themes. The default is not decided yet.
+  - The lip is the key's shape drawn `lip` lower, behind it, **in the key's own bottom gap**
+    (0.06 unit, no more than the gap), so the face keeps the flat key's full size and its
+    legend room, and never reaches the key below. Every lip is drawn before any face, so an
+    L-shaped key shows its lip only where its contour has a bottom. Raising the face by half
+    the lip, to even the gaps between rows with those between columns, only moves the board:
+    rejected.
+  - **Flat** -- today's look -- is dropped: fine on dark themes, too little contrast on light.
+    **Two-tone** -- KLE's skirt and inset top face -- is dropped: noisy on light themes, and
+    its face loses about 30% of the width legends need.
+- **A plate, always filled**: a rounded shape behind the whole board, 0.35 unit wider on every
+  side, giving it a boundary. Not a setting. It must not swallow the lip, so a **theme rule**:
+  face, plate and lip keep a fixed order of lightness, the lip clearly apart from the plate --
+  on Light, face lightest, plate between, lip darkest (the mockup's first Light plate was the
+  lip's grey and muted it). A plate drawn as a border only kept the lip too, but the filled one,
+  coloured by that rule, looked better: the border is dropped, unless a theme some day cannot
+  meet the rule.
+- **Outlines follow the key's contour.** An L-shaped key gets one L-shaped outline: the two
+  KLE rectangles traced together (at most 3×3 cells, walked around the edge), outer corners
+  rounded, the inner corner rounded the other way (`PathArcTo`, then a closed `PathStroke`).
+  Nested state outlines step inward along the whole contour. The same helper serves state
+  outlines, the Outlined border and the lip. **A bug today**: `DrawKey()` strokes the two
+  rectangles one after the other, so a selected ISO Enter shows both crossing inside it.
+
+Still to settle: legends -- a bundled font, sizes, and labels too long for 1u keys ("Left
+Control", "Page Down"), the weakest point of every style; keycap colour classes, which need
+the parser to keep KLE colours.
+
 ## The common screens
 
 **1. No board open.** The keyboards found, each with its protocol and *Open*. No section
@@ -461,6 +506,10 @@ Studio backend needs anyway. Flashing, QMK Toolbox's other job, is not part of t
     button is removed, so it is built then. Until then an unplugged board is noticed by a
     failed request and the list needs Refresh.
 - **Which sections fold the board away**, and whether folding it confuses more than it helps.
+- **Row labels on a board whose rows share a line** (Rico, 2026-10-01, from the mockup): on
+  the Model F, R3 and R4 both have their leftmost key on the Caps Lock row, so spreading them
+  apart puts R4 between two rows and nudges R2 off its own. To revisit when the board's look
+  is built -- one idea: rows sharing a line sit side by side on it, "R3 R4".
 - **The matrix view's layout options**: it draws the board's stored choice, as the
   many-candidates preview does, and the keys of the other choices are not shown — the first
   build's default, which the panel states. How those keys could show is still open.
