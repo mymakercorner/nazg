@@ -211,9 +211,63 @@ shows each screen's states as Nazg sets them: Keymap, Matrix view, Live test, Vi
   outlines, the Outlined border and the lip. **A bug today**: `DrawKey()` strokes the two
   rectangles one after the other, so a selected ISO Enter shows both crossing inside it.
 
-Still to settle: legends -- a bundled font, sizes, and labels too long for 1u keys ("Left
-Control", "Page Down"), the weakest point of every style; keycap colour classes, which need
-the parser to keep KLE colours.
+Still to settle: legends (below); keycap colour classes, which need the parser to keep KLE
+colours; the default keycap style.
+
+### Legends -- the plan, not yet decided
+
+*Laid out 2026-10-01, to resume in a later session.* Legends are the weakest point of every
+keycap style. Four questions, from what the key says to how it is drawn:
+
+**1. What text goes on the key.** Today a key prints QMK's label: "Left Control", "Print
+Screen", "Page Down". keycodes.md already foresaw a table of short labels. VIA has one
+(`shortName`: Bksp, PgDn, LCtl, arrows as ← ↑ → ↓), used on any key 1.5u wide or less. Three
+tools rather than one:
+- **Short forms**, in Nazg's own table -- VIA's belongs to VIA, and the project rule is to
+  rewrite rather than copy.
+- **Two lines**, as printed keycaps do: "Page / Down", "Num / Lock", "Print / Screen" -- the
+  full words often fit that way.
+- **Symbols** where they read better: arrows at least.
+
+The renderer chooses, not a fixed width threshold: the full label on one line, then on two
+lines, then the short form, then shrunk. That keeps the contract's rule -- the section says
+*what* the key means, the renderer how it fits -- and means a `Legend` gains a short form
+beside its text. Tap-hold and layer keys need the same care: "MT LCTL" over "Esc" could become
+"Ctrl" over "Esc".
+
+**2. Where legends sit.** Today all left-aligned: the Shift character top left, the main legend
+middle left. Alternatives: centred, or letters centred and larger with the other keys smaller,
+as on many keycap sets. A matter of taste: for the mockup.
+
+**3. How big.** Capped at the UI font size today (16 px). ImGui 1.92 rasterises text sharply at
+any size, so legends could grow with the key on a large window. The ratio: for the mockup.
+
+**4. Which font.** Measured 2026-10-01: the 69 host layouts can put **277 distinct non-ASCII
+characters** on a key --
+- extended Latin, Greek, Cyrillic, ten Hebrew letters, about twenty Arabic letters (the Farsi
+  layout), currencies (€ ₺ ₽ ₢), maths (≠ ≤ ≥ √ ∞ ∑), typographic punctuation, ⌨;
+- **no Chinese, Japanese or Korean at all** -- the Japanese and Korean layouts' legends are
+  Latin-script words -- so the Yu Gothic and Malgun fallbacks loaded today are not needed for
+  legends; they would matter only for sublegends later;
+- two problem cases: the Mac layouts use Apple's logo (U+F8FF), which only Apple's fonts
+  contain, so it needs a substitute; and six dead-key accents are combining characters with
+  nothing to sit on, so they need a base or a standalone form.
+
+Arabic and Hebrew are right to left, but one letter on a key needs no shaping, so ImGui draws
+them. Candidates: **one font covering everything** (DejaVu Sans), or **a family merged in
+ImGui** (Noto Sans plus its Hebrew, Arabic and symbol fonts -- ImGui fills missing characters
+from merged fonts). Both are free to bundle with a GPL program; the look decides, and the
+mockup can load them.
+
+**Left over from keycodes.md: the AltGr legend.** Every position already has its AltGr
+character in the table (UK € on 4, French @ on à); ISO keycaps print it bottom right. Should
+Nazg print it too?
+
+**Proposed next step**: extend the mockup with a *Legends* row -- text (today / short forms /
+two lines + short), placement (left / centred), size (fixed / growing with the key), font
+(system / two or three candidates), AltGr legend (off / on), and a host layout switch (US, UK,
+French, German, Greek, Russian) -- to see it all on the Model F and pick, as with the keycaps.
+Or settle some questions first.
 
 ## The common screens
 
