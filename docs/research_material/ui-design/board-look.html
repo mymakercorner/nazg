@@ -112,12 +112,15 @@ const NAMED = {
 };
 NAMED.NUM.place = 'middle left';
 // Spherical sets have their own words, not the cylindrical ones in capitals: capitals are wider,
-// so SA abbreviates sooner and differently -- PRINT, SCRLK, PGUP. [name, short form].
+// so SA abbreviates sooner and differently -- PRINT, SCRLK, PGUP, from SA's kits. NUM LOCK, not
+// SA's NMLK: other spherical profiles, URSA for one, print it whole, and Rico prefers it.
+// [name, short form]. Its numpad operators are / and *, where GMK prints ÷ and ×; − alike.
 const SPHERICAL_WORDS = {
   ESC: ['ESC'], PSCR: ['PRINT', 'PRT'], SCRL: ['SCRLK', 'SCR'], PAUS: ['PAUSE'], BSPC: ['BACKSPACE', 'BKSP'],
   INS: ['INS'], HOME: ['HOME'], PGUP: ['PGUP'], NUM: ['NUM LOCK', 'NUM'], TAB: ['TAB'], ENT: ['ENTER'], DEL: ['DEL'],
   END: ['END'], PGDN: ['PGDN'], CAPS: ['CAPS LOCK', 'CAPS'], LSFT: ['SHIFT'], RSFT: ['SHIFT'], LCTL: ['CTRL'],
   RCTL: ['CTRL'], LALT: ['ALT'], RALT: ['ALT GR'], LGUI: ['WIN'], RGUI: ['WIN'], APP: ['MENU'], PENT: ['ENTER'],
+  PSLS: ['/'], PAST: ['*'],
 };
 for (let n = 1; n <= 12; ++n) NAMED['F' + n] = { qmk: 'F' + n, name: 'F' + n, kind: 'fn', cls: 'm' };
 for (let n = 0; n <= 9; ++n) NAMED['P' + n] = { qmk: String(n), name: String(n), kind: 'num', cls: 'a' };
@@ -619,7 +622,7 @@ function legendLines(ctx, key, unit, W, H) {
   const n = key.named;
   switch (n.kind) {
     case 'space': return [];
-    case 'num':   return [{ t: n.name, s: A, w: 500 }];
+    case 'num':   return [{ t: (spherical && SPHERICAL_WORDS[key.code] || [n.name])[0], s: A, w: 500 }];
     case 'arrow': return [{ t: n.icon, s: A, arrow: n.arrow }];
     case 'fn':    return [{ t: n.name, s: M }];
   }

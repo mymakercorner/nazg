@@ -368,6 +368,19 @@ an Esc cap would -- the board shows what a key does.
   the legend set: a placement, and a sublegend with its corner. Where spherical sets put the
   numpad's second legends, if anywhere, is still to see.
 
+**Spherical text rules**, from Signature Plastics' SA kits (2026-10-03,
+[SA-P Flex](https://spkeyboards.com/products/sa-p-flex-keycaps): base, modifier, TKL and numpad
+kits):
+- **Everything centred**, both ways: letters, stacked pairs, modifiers, F-keys, arrows, the
+  numpad. No placement exceptions, so no `place` is read on this preset.
+- **Capitals, in SA's own words**, not the cylindrical ones uppercased: ESC, TAB, CAPS LOCK,
+  SHIFT, CTRL, ALT, MENU, BACKSPACE, ENTER, PRINT, SCRLK, PAUSE, INS, HOME, PGUP, DEL, END,
+  PGDN; WIN and ALT GR as decided above. **NUM LOCK**, wrapped on two lines, rather than SA's
+  NMLK: other spherical profiles, URSA for one, print it whole, and Rico prefers it.
+- **The numpad has no second legends** -- the digits alone, centred -- and its operators are
+  **/ and *** with a true minus **−**, where GMK prints ÷ and ×. So the operators are family
+  data too.
+
 **Modifier text is 3/5 of the letter size** by default (Rico, 2026-10-03), near GMK's
 proportions: at that size nothing on the Model F needs a short form or a cut, in either family.
 Its cost: with modifier text held at 9 px or more, the Model F needs about 1170 px of width
