@@ -582,32 +582,35 @@ for (const preset of PRESETS) LEGEND_NOTES[preset] = LEGEND_NOTES[preset].replac
 // -- never shrunk. `fits` measures at the given size against the room on the key.
 const WORD_LINE = 1.0;   // line height of a wrapped name, tighter than a letter pair's 1.12
 
-function textChain(name, short, s, W, H, fits) {
+function textChain(name, short, s, W, H, fits, w = 400) {
   // One name on one line, or on two split where the longer line is shortest.
   const place = text => {
-    if (fits(text, s)) return [{ t: text, s, lh: WORD_LINE }];
+    if (fits(text, s, w)) return [{ t: text, s, w, lh: WORD_LINE }];
     const words = text.split(' ');
     if (words.length < 2 || H < 2 * s * WORD_LINE) return null;
     let best = null, bestWidth = Infinity;
     for (let i = 1; i < words.length; ++i) {
       const a = words.slice(0, i).join(' '), b = words.slice(i).join(' ');
-      if (!fits(a, s) || !fits(b, s)) continue;
-      const widest = Math.max(fits.width(a, s), fits.width(b, s));
+      if (!fits(a, s, w) || !fits(b, s, w)) continue;
+      const widest = Math.max(fits.width(a, s, w), fits.width(b, s, w));
       if (widest < bestWidth) { best = [a, b]; bestWidth = widest; }
     }
-    return best && best.map(t => ({ t, s, lh: WORD_LINE }));
+    return best && best.map(t => ({ t, s, w, lh: WORD_LINE }));
   };
   const lines = place(name) || place(short);
   if (lines) return lines;
   let t = short;
-  while (t.length > 1 && !fits(t + '…', s)) t = t.slice(0, -1);
-  return [{ t: t + '…', s, lh: WORD_LINE, cut: true }];
+  while (t.length > 1 && !fits(t + '…', s, w)) t = t.slice(0, -1);
+  return [{ t: t + '…', s, w, lh: WORD_LINE, cut: true }];
 }
 
 // The lines a key's legend is made of, for the preset and modifier style chosen.
 function legendLines(ctx, key, unit, W, H) {
   const spherical = state.preset === 'Spherical';
   const A = SIZES[state.size] * unit, M = modifierShare() * A;
+  // Modifier text lighter than the letters on cylindrical sets, as GMK prints it; the same
+  // weight on spherical ones, as SA's single stroke (Rico, 2026-10-03).
+  const modifierWeight = spherical ? 500 : 400;
   const width = (t, s, w = 400) => { ctx.font = fontSpec(s, w); return ctx.measureText(t).width; };
   const fits = Object.assign((t, s, w = 400) => width(t, s, w) <= W, { width });
 
@@ -619,7 +622,7 @@ function legendLines(ctx, key, unit, W, H) {
     case 'space': return [];
     case 'num':   return [{ t: (spherical && SPHERICAL_WORDS[key.code] || [n.name])[0], s: A, w: 500 }];
     case 'arrow': return [{ t: n.icon, s: A, arrow: n.arrow }];
-    case 'fn':    return [{ t: n.name, s: M }];
+    case 'fn':    return [{ t: n.name, s: M, w: modifierWeight }];
   }
 
   const words = spherical && SPHERICAL_WORDS[key.code];
@@ -632,7 +635,7 @@ function legendLines(ctx, key, unit, W, H) {
     name = spherical ? `${side[0]} ${short}` : `${side} ${name}`;
     short = spherical ? name : `${side[0]} ${short}`;
   }
-  return textChain(name, short, M, W, H, fits);
+  return textChain(name, short, M, W, H, fits, modifierWeight);
 
 }
 

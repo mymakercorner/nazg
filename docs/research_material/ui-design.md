@@ -73,7 +73,9 @@ sublegends printed on some keycap sets (Hiragana, Hangul).
    bottom left with the maximum, current and minimum levels and bottom right with the bin;
    a sublegend set fills one more slot, from a table like the host layouts. `KeycapLegend`
    grows from two fields to the slots. A sublegend's glyphs also need a font holding them —
-   a font matter in `Main.cpp`, not a structural one.
+   a font matter in `Main.cpp`, not a structural one. *Decorative sublegends were dropped
+   2026-10-03 (see "Legends", "Second legends: functional only"): the sublegend role and set
+   go with them.*
 2. **Fill by meaning**: the keycap's colour class (alpha, modifier, accent — what VIA's
    themes colour), a value from 0 to 1 for a heat map, or neutral. Keycap themes need the
    parser to keep each key's KLE colour, which it drops today. **States** — selected,
@@ -128,7 +130,8 @@ keeps that setting in RAM only, so an unplug restores output, but a Nazg bug wou
 no command to do the same. Two things were left out until something
 needs them: folding the board away (an open point below), and edges other than left and top
 for labels. `KeycapLegend` keeps its two fields -- Keymap puts them in the top-left and
-middle-left slots -- and gains a third when sublegends come.
+middle-left slots. (It was to gain a third for sublegends; decorative sublegends were dropped
+2026-10-03, and placement by the legend set changes this anyway -- see "Legends".)
 
 **Open: how third-party plugins are delivered.**
 
@@ -248,7 +251,7 @@ characters** on a key --
   layout), currencies (€ ₺ ₽ ₢), maths (≠ ≤ ≥ √ ∞ ∑), typographic punctuation, ⌨;
 - **no Chinese, Japanese or Korean at all** -- the Japanese and Korean layouts' legends are
   Latin-script words -- so the Yu Gothic and Malgun fallbacks loaded today are not needed for
-  legends; they would matter only for sublegends later;
+  legends; they would have mattered only for decorative sublegends, since dropped;
 - two problem cases: the Mac layouts use Apple's logo (U+F8FF), which only Apple's fonts
   contain, so it needs a substitute; and six dead-key accents are combining characters with
   nothing to sit on, so they need a base or a standalone form.
@@ -377,6 +380,8 @@ kits):
   SHIFT, CTRL, ALT, MENU, BACKSPACE, ENTER, PRINT, SCRLK, PAUSE, INS, HOME, PGUP, DEL, END,
   PGDN; WIN and ALT GR as decided above. **NUM LOCK**, wrapped on two lines, rather than SA's
   NMLK: other spherical profiles, URSA for one, print it whole, and Rico prefers it.
+- **Modifier text at the letters' weight**, as SA's single stroke -- lighter modifiers looked
+  thin there (Rico). Cylindrical keeps them lighter than the letters, as GMK prints them.
 - **The numpad has no second legends** -- the digits alone, centred -- and its operators are
   **/ and *** with a true minus **−**, where GMK prints ÷ and ×. So the operators are family
   data too.
@@ -393,6 +398,20 @@ words on every preset; the arrows alone are icons, as on text sets too, and are 
 - One more setting, against first-glance simplicity.
 
 This supersedes "Icons, text, or both" and point 3 of "What follows for Nazg" above.
+
+**Second legends: functional only** (Rico, 2026-10-03). A second legend Nazg prints says
+something the key *does*: the numpad's Num-Lock-off functions, and the AltGr character if it is
+printed (still open). **Decorative sublegends -- Arabic, Hiragana, Hangul on caps bought for
+their looks -- are dropped**: a US host types nothing of them, so on a configurator's screen
+they would be noise beside the legends that matter. With them go:
+- the contract's `LegendRole::Sublegend` and the planned sublegend set: the slots carry label
+  and value only;
+- any CJK font for the legends -- the host layouts need none -- so the Yu Gothic and Malgun
+  fallbacks in `Main.cpp` can go when the fonts are done. A translated interface may need such
+  fonts for its own text: added then, nothing structural (see "The interface's language").
+
+Kana typists, who do use kana legends, are not covered -- but QMK's Japanese host layout holds
+no kana either; to revisit only if one asks.
 
 **Modifier text is 3/5 of the letter size** by default (Rico, 2026-10-03), near GMK's
 proportions: at that size nothing on the Model F needs a short form or a cut, in either family.
@@ -756,7 +775,11 @@ Studio backend needs anyway. Flashing, QMK Toolbox's other job, is not part of t
   - **An ImGui label is also its ID.** Translated, the ID would change with the language; a
     widget whose label is shown text needs a fixed `##id`.
   - **The font must cover the script.** The system font loaded in `Main.cpp` is a first draft;
-    ImGui 1.92 loads glyphs as they are needed, but only from fonts it was given.
+    ImGui 1.92 loads glyphs as they are needed, but only from fonts it was given. A Chinese,
+    Japanese or Korean interface needs CJK fonts for its own text -- the legends need none
+    (2026-10-03) -- added with that translation: a font-loading change in `Main.cpp`, nothing
+    structural. How they are delivered -- bundled, fetched on first use, or the system's --
+    weighs their size and is decided then.
   - **Right-to-left scripts are out of reach**: ImGui has no bidirectional text or shaping.
   - **What is not translated**: keycode names (`KC_ESC`), and legends, which already follow
     the host layout -- a separate setting from the interface's language. What a board or a
