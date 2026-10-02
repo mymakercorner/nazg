@@ -667,6 +667,22 @@ function drawArrow(ctx, cx, cy, size, direction, weight = 0.085) {
   ctx.restore();
 }
 
+// Glyphs whose font position looks wrong on a keycap, placed by their ink against a capital's
+// instead -- data, as VIA's app keeps a table of offsets. In ImGui the ink comes from the
+// glyph's bounds, ImFontGlyph's Y0 and Y1.
+//   centre  ink centred on the capital height: "-" sits at mid x-height and "_" below the
+//           baseline, so "_ over -" sat low beside "! over 1"; "`" sat high
+//   low     ink resting on the baseline, level with the bottom of "!": "~" (Rico, 2026-10-03)
+const GLYPH_PLACES = { '-': 'centre', '_': 'centre', '`': 'centre', '~': 'low' };
+function opticalShift(ctx, text) {
+  const place = GLYPH_PLACES[text];
+  if (!place) return 0;
+  const glyph = ctx.measureText(text), capital = ctx.measureText('H');   // with textBaseline 'top'
+  if (place === 'low') return capital.actualBoundingBoxDescent - glyph.actualBoundingBoxDescent;
+  const centre = m => (m.actualBoundingBoxDescent - m.actualBoundingBoxAscent) / 2;
+  return centre(capital) - centre(glyph);
+}
+
 // Cylindrical sets everything from the top left; spherical centres it, as arrows are on both.
 function drawLegends(ctx, key, unit, colour) {
   const a = key.face, p = 0.10 * unit;
@@ -697,7 +713,7 @@ function drawLegends(ctx, key, unit, colour) {
     if (l.arrow)
       drawArrow(ctx, centred ? (box.x0 + box.x1) / 2 : box.x0 + l.s / 2, y + l.s * lh / 2, l.s, l.arrow);
     else
-      ctx.fillText(l.t, centred ? (box.x0 + box.x1 - w) / 2 : box.x0, y + l.s * (lh - 1) / 2);
+      ctx.fillText(l.t, centred ? (box.x0 + box.x1 - w) / 2 : box.x0, y + l.s * (lh - 1) / 2 + opticalShift(ctx, l.t));
     y += l.s * lh;
   }
 

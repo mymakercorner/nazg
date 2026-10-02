@@ -392,6 +392,15 @@ before the board scrolls.
   side, so it names its side. The mockup's *Keymap* switch shows it: Caps ↔ Ctrl, and both
   Ctrls swapped.
 
+**Some glyphs are placed by their ink** (Rico, 2026-10-03), against a capital's, not where
+the font puts them -- from the glyph's bounds (`ImFontGlyph`'s Y0 and Y1), in a short table,
+data as VIA's app keeps a table of offsets for the same reason:
+- **centred** on the capital height: "-" (at mid x-height in a font) and "_" (below the
+  baseline), which made the "_ over -" key look low beside "! over 1"; and "`", which sat high;
+- **low**, resting on the baseline level with the bottom of "!": "~".
+
+Others may join it as more legends are looked at.
+
 **Arrows are drawn, not taken from a font** (2026-10-02). From fonts their weights did not
 match: Arimo, Inter and Montserrat have ↑ and ↓ but not ← and →, which then come from another
 face, and no font draws arrows at a legend's weight. A shaft and a filled head -- `AddLine` and
