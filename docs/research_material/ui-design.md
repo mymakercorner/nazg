@@ -269,6 +269,117 @@ two lines + short), placement (left / centred), size (fixed / growing with the k
 French, German, Greek, Russian) -- to see it all on the Model F and pick, as with the keycaps.
 Or settle some questions first.
 
+#### Rico's answers, 2026-10-02
+
+- **A character is never scaled to make it fit its key.** `DrawLegends()` shrinking a legend
+  to 60% goes. The chain becomes: the full label on one line, two lines, the short form or an
+  icon -- never smaller -- so short forms are designed to fit a 1u key; past that, a cut with
+  "…".
+- **Short names for legends that do not fit**: agreed; the names themselves decided later.
+- **Icons, text, or both**: keycap sets print modifiers as icons, as text, or as icon and text,
+  and people prefer each; all three to be tried.
+- **Placement follows the keycap family**: top left on cylindrical keycaps, centred on
+  spherical ones.
+- **Mimicking physical keycaps**: an option worth studying, though printed legends are not
+  always legible -- "Ctrl" on both left and right Control, for one. A possible answer, not
+  agreed yet: labels that know their position -- "Ctrl" where the key's side matches where it
+  sits on the board, "R Ctrl" only where it does not -- with hover always giving the full name.
+- **Legends follow the keycap size** when the window is resized, both ways -- no 16 px cap.
+  Proposed with it: a smallest legible size, below which the board stops shrinking and
+  scrolls.
+- Options found too many after the experiments get filtered out, to stay manageable.
+
+#### What real keycap sets do
+
+Looked at 2026-10-02, from the makers' own pictures:
+
+- **GMK, Cherry legends** ([GMK CYL Classic Beige](https://www.gmk.net/shop/en/gmk-cyl-classic-beige-keycaps/fptk5035.0)):
+  cylindrical, **everything top left** -- a letter alone in the corner, a number key's Shift
+  character above its plain one, both left-aligned. Modifiers are **small mixed-case words**,
+  left-aligned: "Control", "Alt", "Fn", "Caps Lock" -- whole words, wrapped onto two lines on a
+  short key ("Caps / Lock" on 1.25u), never shrunk. **Icon and text** on some: ⇧ Shift,
+  ↵ Enter, ⇤⇥ over "Tab". Arrows are icons only; the page keys abbreviated, "Pg Up", "Pg Dn".
+  The GUI key says **"Code"** -- an old Cherry name, no OS logo -- and the right-hand keys print
+  exactly as the left. A Helvetica-like grotesque; GMK does not name it, and Cherry's legend
+  font is not to be had.
+- **GMK Neue legends** ([maxvoltar, at GMK](https://www.gmk.net/en/products/keycaps-keyboards-accessories/maxvoltar)):
+  GMK's modern legends, open to every designer, ship their modifiers in **three sets: icon,
+  icon + text, and text** -- Rico's three scenarios, as a maker's own offer. Text in **Proxima
+  Nova Soft**, a commercial typeface; icons drawn from scratch at the text's stroke weight, so
+  the two look alike. Letters and number pairs centred, modifiers left-aligned.
+- **Signature Plastics SA** ([SA-P Flex](https://spkeyboards.com/products/sa-p-flex-keycaps)):
+  spherical, **everything centred**, letters and stacked number pairs alike. Its font is
+  **Gorton Modified**, an engraving face from IBM's era
+  ([SP's answer](https://pimpmykeyboard.zendesk.com/hc/en-us/articles/204416325-What-Font-is-used-on-Signature-Plastics-standard-keycaps)).
+  Text modifiers are **capitals, abbreviated**: ESC, TAB, CAPS LOCK, CTRL, ALT, PRINT, SCRLK,
+  PGUP, PGDN, INS, DEL; the GUI key is **"SUPER"**, OS-neutral; left and right alike. Its icon
+  kit uses the **ISO 9995-7** keyboard symbols -- ↖ Home, ↘ End, ⇞ ⇟ the page keys, ⌦ Delete, a
+  pause sign, a printer for Print Screen -- most of which Unicode has, in Miscellaneous
+  Technical: ⎋ ⌫ ⌦ ⇥ ⇪ ⏎ ⎙ ⎀.
+- **Keyreative KAT Operator** ([its page](https://keyreative.store/products/kat-operator-thickened-double-shot-pbt-keycaps)):
+  spherical, centred letters in a bold geometric face, **every modifier an icon** (⇥, ⇪, ⇧,
+  ⌃, ⌥). And **second legends in another colour**: the function layer printed on the same
+  caps -- F13 to F20 under F1 to F8, symbols beside the Q row's letters -- and the Mac ⌘ beside
+  the GUI icon. Nazg's counterpart would be another layer's keycode as a coloured sublegend;
+  the legend slots already have room for it.
+
+What follows for Nazg:
+
+1. **Two families, two coherent styles**: *cylindrical* -- top left, mixed-case words, icon and
+   text on some keys -- and *spherical* -- centred, capitals, short words or icons. Placement,
+   case and wording go together on real sets, so rather than independent switches, **legend
+   presets named after the family**, each with text / icons / text + icons for the modifiers.
+2. **A font chosen for its look, Noto behind it for coverage.** None of the real faces can be
+   bundled; free look-alikes exist -- a Helvetica-like grotesque for Cherry (Arimo, Inter), a
+   soft rounded face for Neue (Nunito), a geometric one for KAT (Montserrat) -- but none covers
+   Hebrew, Arabic or the maths symbols, so Noto fonts merge behind the legend font and ImGui
+   fills the gaps. This replaces "DejaVu Sans or Noto" above.
+3. **Icons from ISO 9995-7**, the standard real sets use, most of it in Unicode: from a symbol
+   font (Noto Sans Symbols, DejaVu), or drawn with ImGui shapes at the legend's stroke weight,
+   as Neue drew its own.
+4. **Real sets never shrink a legend to fit**: they wrap or abbreviate it -- Rico's rule.
+
+Next: the mockup's *Legends* row -- preset (cylindrical / spherical), modifiers (text / icons /
+text + icons), font (look-alikes from Google Fonts), size following the key down to the
+smallest legible size. Host layouts and font coverage in a second pass.
+
+#### Special cases are data: placement classes
+
+On cylindrical sets (Rico, 2026-10-02, from his GMK Dolch R5) a 1u modifier is centred both
+ways (GMK's Delete, End, Pg Dn); a wider one sits at the left, centred vertically; so does the
+function row, Esc and the F-keys -- so Esc, a 1u modifier, breaks its class's rule. Such cases go in the **legend set**, a table like the host layouts: per keycode,
+its name, short form, icon and a **placement class** -- letter, character pair, function row,
+modifier, arrow, numpad, blank -- plus an explicit placement where a key breaks its class's
+rule, as Esc does. Each preset has a few rules per class, applied by the renderer, so the rules
+that depend on a key's width live in one place and nothing in the drawing code names a key.
+Placement follows the keycode, not the position: Esc mapped where Caps Lock sits still prints as
+an Esc cap would -- the board shows what a key does.
+
+**The numpad** is the largest group of such cases on cylindrical sets (Rico, from GMK):
+- Num Lock, /, * and − at the left, centred vertically; the tall + and Enter centred both ways.
+  The divide key prints the mathematical **÷**, not a slash.
+- The digits and . top left, each with a **second legend** for what it does with Num Lock off:
+  text at the bottom left -- Ins on 0, Del on ., End on 1, Pg Dn on 3, Home on 7, Pg Up on 9 --
+  and arrows at the bottom right -- ↓ on 2, ← on 4, → on 6, ↑ on 8, at letter size and heavier
+  than the text. 5 has none.
+- The arrow keys keep the top left too, like letters -- the arrow class's cylindrical rule.
+- The keycode does both, so printing both still shows what the key does. Each is one entry in
+  the legend set: a placement, and a sublegend with its corner. Where spherical sets put the
+  numpad's second legends, if anywhere, is still to see.
+
+**Arrows are drawn, not taken from a font** (2026-10-02). From fonts their weights did not
+match: Arimo, Inter and Montserrat have ↑ and ↓ but not ← and →, which then come from another
+face, and no font draws arrows at a legend's weight. A shaft and a filled head -- `AddLine` and
+`AddTriangleFilled` -- with the stroke a share of the legend size, so all arrows match each other
+and the text, whatever the font. The same will likely hold for every icon: the case for drawing
+them, as GMK Neue drew its own.
+
+**A change to the section contract when this is built**: today a section chooses the legend
+*slots* (Keymap fills top left and middle left), so the slot is the placement. With presets the
+placement depends on a global setting no section should know, so a key carries its legend with
+its class and the renderer places it by the preset. The twelve explicit slots stay for sections
+whose positions mean something themselves, as the Leyden Jar's level view.
+
 ## The common screens
 
 **1. No board open.** The keyboards found, each with its protocol and *Open*. No section

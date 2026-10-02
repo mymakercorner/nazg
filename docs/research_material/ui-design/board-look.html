@@ -1,14 +1,18 @@
 <!DOCTYPE html>
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
-<!-- Mockup of the board's look -- keycap styles and colour themes -- on the Model F Labs B104.
-     Open it in a browser. It draws only what ImGui's draw list can: filled rounded rectangles,
-     outlines, polylines and text, so every style here can be built in NazgBoardView as shown. -->
+<!-- Mockup of the board's look -- keycap styles, colour themes and legends -- on the Model F
+     Labs B104. Open it in a browser. It draws only what ImGui's draw list can: filled rounded
+     rectangles, outlines, polylines and text, so every style here can be built in NazgBoardView
+     as shown. The legend fonts come from Google Fonts, so it needs a network connection. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Board look mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Arimo:wght@400;500&family=Inter:wght@400;500&family=Montserrat:wght@400;500&family=Noto+Sans+Math&family=Noto+Sans+Symbols+2&family=Nunito:wght@400;600&display=swap">
 <style>
 :root{--window:#0f0f11;--menubar:#24252b;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--ui-accent:#4296fa;--ui-accent-text:#fff}
 *{box-sizing:border-box}
@@ -17,6 +21,7 @@ body{margin:0;background:var(--window);color:var(--text);font-family:"Segoe UI",
 .menubar .right{margin-left:auto;color:var(--muted)}
 .menubar .proto{color:var(--muted)}
 .controls{display:flex;flex-wrap:wrap;gap:10px 22px;padding:12px 16px;border-bottom:1px solid var(--border)}
+.controls .break{flex-basis:100%;height:0}
 .group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
 .group .name{color:var(--muted);margin-right:4px;font-size:13px}
 button{font:inherit;font-size:13px;padding:3px 10px;border-radius:4px;border:1px solid var(--border);background:var(--control);color:var(--text);cursor:pointer}
@@ -38,20 +43,92 @@ canvas{display:block;margin:0 auto;user-select:none}
 const KLE = [[{"x":15.5},"6,5\n\n\n0,1","6,11\n\n\n0,1"],[{"x":2.5,"y":0.25},"0,0",{"x":1.0},"0,1","0,3","0,14","0,16",{"x":0.5},"0,2","0,15","6,15","0,13",{"x":0.5},"0,4","0,12","0,5","0,11",{"x":0.25},"0,10","0,9","0,8"],[{"x":2.5,"y":0.5},"6,0","6,1","5,1","6,3","6,14","6,16","5,16","6,2","5,15","6,13","5,4","6,4","6,12",{"w":2.0},"6,11\n\n\n0,0",{"x":0.25},"0,6\n\n\n5,0","0,7\n\n\n5,0","6,7\n\n\n5,0",{"x":0.25},"6,10","5,10","6,9","6,8",{"x":2.75},"0,6\n\n\n5,1","0,7\n\n\n5,1","6,7\n\n\n5,1"],[{"x":2.5,"w":1.5},"5,0","4,1","4,3","5,3","5,14","4,16","4,2","5,2","4,15","5,13","4,4","5,12","5,5",{"x":0.25,"w":1.25,"h":2.0,"w2":1.5,"h2":1.0,"x2":-0.25},"4,11\n\n\n3,0",{"x":0.25},"5,6\n\n\n5,0","6,6\n\n\n5,0","5,7\n\n\n5,0",{"x":0.25},"4,10","4,9","5,9",{"h":2.0},"5,8",{"x":1.0,"w":1.5},"5,11\n\n\n3,1",{"x":0.25},"5,6\n\n\n5,1","6,6\n\n\n5,1","5,7\n\n\n5,1"],[{"x":2.5,"w":1.75},"4,0","3,1","3,3","4,14","3,14","3,16","3,2","3,15","4,13","3,13","3,4","4,12","4,5\n\n\n3,0",{"x":4.75},"3,10","3,9","4,8",{"x":1.25,"w":2.25},"4,5\n\n\n3,1",{"x":0.25},"3,11\n\n\n5,1","4,6\n\n\n5,1","4,7\n\n\n5,1"],[{"w":2.25},"2,1\n\n\n1,1",{"x":0.25,"w":1.25},"2,0\n\n\n1,0","2,1\n\n\n1,0","2,3","2,14","1,14","1,16","2,16","2,2","1,15","1,13","2,4","2,12",{"w":2.75},"2,5\n\n\n2,0",{"x":1.25},"3,6\n\n\n5,0",{"x":1.25},"2,10","2,9","2,8",{"h":2.0},"3,8",{"x":2.75},"2,6\n\n\n5,1","3,6\n\n\n5,1","3,7\n\n\n5,1"],[{"x":2.5,"w":1.25},"1,0",{"w":1.25},"1,1",{"w":1.25},"1,3",{"w":6.25},"1,2",{"w":1.25},"1,4",{"w":1.25},"1,12",{"w":1.25},"1,5",{"w":1.25},"1,11",{"x":0.25},"1,6\n\n\n5,0","2,7\n\n\n5,0","1,7\n\n\n5,0",{"x":0.25,"w":2.0},"1,10\n\n\n4,0","1,8",{"x":3.75},"1,6\n\n\n5,1","2,7\n\n\n5,1","1,7\n\n\n5,1"],[{"x":14.75,"y":0.25,"w":1.75},"3,12\n\n\n2,1","2,11\n\n\n2,1",{"x":3.5},"1,10\n\n\n4,1","1,9\n\n\n4,1"]];
 const MATRIX = { rows: 8, cols: 18 };
 
-// A plausible layer 0 -- not read off the board -- as Nazg prints it today on the US host
-// layout: [main legend, Shift legend above it, colour class]. a alpha, m modifier, x accent.
-// Per KLE row, for the keys of choice 0 of every layout option.
-const F = n => ['F' + n, '', 'm'];
-const A = (p, s = '') => [p, s, 'a'];
-const M = p => [p, '', 'm'];
-const LEGENDS = {
-  1: [['Esc', '', 'x'], F(1), F(2), F(3), F(4), F(5), F(6), F(7), F(8), F(9), F(10), F(11), F(12), M('Print Screen'), M('Scroll Lock'), M('Pause')],
-  2: [A('`', '~'), A('1', '!'), A('2', '@'), A('3', '#'), A('4', '$'), A('5', '%'), A('6', '^'), A('7', '&'), A('8', '*'), A('9', '('), A('0', ')'), A('-', '_'), A('=', '+'), M('Backspace'), M('Insert'), M('Home'), M('Page Up'), M('Num Lock'), M('/'), M('*'), M('-')],
-  3: [M('Tab'), A('Q'), A('W'), A('E'), A('R'), A('T'), A('Y'), A('U'), A('I'), A('O'), A('P'), A('[', '{'), A(']', '}'), ['Enter', '', 'x'], M('Delete'), M('End'), M('Page Down'), A('7'), A('8'), A('9'), M('+')],
-  4: [M('Caps Lock'), A('A'), A('S'), A('D'), A('F'), A('G'), A('H'), A('J'), A('K'), A('L'), A(';', ':'), A("'", '"'), A('\\', '|'), A('4'), A('5'), A('6')],
-  5: [M('Left Shift'), A('\\', '|'), A('Z'), A('X'), A('C'), A('V'), A('B'), A('N'), A('M'), A(',', '<'), A('.', '>'), A('/', '?'), M('Right Shift'), M('Up'), A('1'), A('2'), A('3'), ['Enter', '', 'x']],
-  6: [M('Left Control'), M('Left GUI'), M('Left Alt'), A('Spacebar'), M('Right Alt'), M('Right GUI'), M('App'), M('Right Control'), M('Left'), M('Down'), M('Right'), A('0'), A('.')],
+// A plausible layer 0 -- not read off the board -- per KLE row, for the keys of choice 0 of
+// every layout option, on the US host layout: a letter, a character pair [plain, Shift], or a
+// named keycode, which each legend preset prints its own way.
+const L = letter => ({ letter });
+const P = (plain, shifted) => ({ plain, shifted });
+const N = code => ({ code });
+const ROWS = {
+  1: [N('ESC'), ...[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(n => N('F' + n)), N('PSCR'), N('SCRL'), N('PAUS')],
+  2: [P('`', '~'), P('1', '!'), P('2', '@'), P('3', '#'), P('4', '$'), P('5', '%'), P('6', '^'), P('7', '&'), P('8', '*'), P('9', '('), P('0', ')'), P('-', '_'), P('=', '+'),
+      N('BSPC'), N('INS'), N('HOME'), N('PGUP'), N('NUM'), N('PSLS'), N('PAST'), N('PMNS')],
+  3: [N('TAB'), ...'QWERTYUIOP'.split('').map(L), P('[', '{'), P(']', '}'), N('ENT'), N('DEL'), N('END'), N('PGDN'), N('P7'), N('P8'), N('P9'), N('PPLS')],
+  4: [N('CAPS'), ...'ASDFGHJKL'.split('').map(L), P(';', ':'), P("'", '"'), P('\\', '|'), N('P4'), N('P5'), N('P6')],
+  5: [N('LSFT'), P('\\', '|'), ...'ZXCVBNM'.split('').map(L), P(',', '<'), P('.', '>'), P('/', '?'), N('RSFT'), N('UP'), N('P1'), N('P2'), N('P3'), N('PENT')],
+  6: [N('LCTL'), N('LGUI'), N('LALT'), N('SPC'), N('RALT'), N('RGUI'), N('APP'), N('RCTL'), N('LEFT'), N('DOWN'), N('RGHT'), N('P0'), N('PDOT')],
 };
+
+// The named keycodes: QMK's label (what Nazg prints today), the printed name and its short form
+// on cylindrical sets -- mixed case, GMK's wording, short forms keeping a space so they can wrap
+// -- the ISO 9995-7 icon where there is one, the kind, and the colour class (a alpha,
+// m modifier, x accent). All the wording is provisional.
+//   fn     F-keys: text only, small
+//   mod    modifiers and other named keys: text, icon, or both
+//   arrow  an icon on every preset, as on real sets
+//   num    a numpad digit or sign, drawn as a letter is
+//   space  blank, as on real sets
+// A key that breaks its kind's rules says so with `place` -- data, not a special case in the
+// drawing code: on cylindrical sets Esc sits at the left, centred vertically, with the F-keys,
+// where other 1u modifiers are centred both ways.
+const NAMED = {
+  ESC:  { qmk: 'Esc',           name: 'Esc',          icon: '\u238B', kind: 'mod', cls: 'x', place: 'middle left' },
+  PSCR: { qmk: 'Print Screen',  name: 'Print Screen', short: 'Prt Sc', icon: '\u2399', kind: 'mod', cls: 'm' },
+  SCRL: { qmk: 'Scroll Lock',   name: 'Scroll Lock',  short: 'Scr Lk', icon: '\u21F3', kind: 'mod', cls: 'm' },
+  PAUS: { qmk: 'Pause',         name: 'Pause',        icon: '\u2389', kind: 'mod', cls: 'm' },
+  BSPC: { qmk: 'Backspace',     name: 'Backspace',    short: 'Bksp',  icon: '\u232B', kind: 'mod', cls: 'm' },
+  INS:  { qmk: 'Insert',        name: 'Insert',       short: 'Ins',   icon: '\u2380', kind: 'mod', cls: 'm' },
+  HOME: { qmk: 'Home',          name: 'Home',         icon: '\u21F1', kind: 'mod', cls: 'm' },
+  PGUP: { qmk: 'Page Up',       name: 'Page Up',      short: 'Pg Up',  icon: '\u21DE', kind: 'mod', cls: 'm' },
+  NUM:  { qmk: 'Num Lock',      name: 'Num Lock',     short: 'Num Lk', icon: '\u21ED', kind: 'mod', cls: 'm' },
+  TAB:  { qmk: 'Tab',           name: 'Tab',          icon: '\u21E5', kind: 'mod', cls: 'm' },
+  ENT:  { qmk: 'Enter',         name: 'Enter',        icon: '\u23CE', kind: 'mod', cls: 'x' },
+  DEL:  { qmk: 'Delete',        name: 'Delete',       short: 'Del',   icon: '\u2326', kind: 'mod', cls: 'm' },
+  END:  { qmk: 'End',           name: 'End',          icon: '\u21F2', kind: 'mod', cls: 'm' },
+  PGDN: { qmk: 'Page Down',     name: 'Page Down',    short: 'Pg Dn',  icon: '\u21DF', kind: 'mod', cls: 'm' },
+  CAPS: { qmk: 'Caps Lock',     name: 'Caps Lock',    short: 'Caps',  icon: '\u21EA', kind: 'mod', cls: 'm' },
+  LSFT: { qmk: 'Left Shift',    name: 'Shift',        icon: '\u21E7', kind: 'mod', cls: 'm' },
+  RSFT: { qmk: 'Right Shift',   name: 'Shift',        icon: '\u21E7', kind: 'mod', cls: 'm' },
+  LCTL: { qmk: 'Left Control',  name: 'Control',      short: 'Ctrl',  icon: '\u2303', kind: 'mod', cls: 'm' },
+  RCTL: { qmk: 'Right Control', name: 'Control',      short: 'Ctrl',  icon: '\u2303', kind: 'mod', cls: 'm' },
+  LALT: { qmk: 'Left Alt',      name: 'Alt',          icon: '\u2325', kind: 'mod', cls: 'm' },
+  RALT: { qmk: 'Right Alt',     name: 'Alt',          icon: '\u2325', kind: 'mod', cls: 'm' },
+  LGUI: { qmk: 'Left GUI',      name: 'Super',        icon: '\u25C7', kind: 'mod', cls: 'm' },
+  RGUI: { qmk: 'Right GUI',     name: 'Super',        icon: '\u25C7', kind: 'mod', cls: 'm' },
+  APP:  { qmk: 'App',           name: 'Menu',         icon: '\u2630', kind: 'mod', cls: 'm' },
+  SPC:  { qmk: 'Spacebar',      name: '',             kind: 'space', cls: 'a' },
+  UP:   { qmk: 'Up',            name: 'Up',           icon: '\u2191', kind: 'arrow', cls: 'm', arrow: 'up' },
+  DOWN: { qmk: 'Down',          name: 'Down',         icon: '\u2193', kind: 'arrow', cls: 'm', arrow: 'down' },
+  LEFT: { qmk: 'Left',          name: 'Left',         icon: '\u2190', kind: 'arrow', cls: 'm', arrow: 'left' },
+  RGHT: { qmk: 'Right',         name: 'Right',        icon: '\u2192', kind: 'arrow', cls: 'm', arrow: 'right' },
+  PSLS: { qmk: '/', name: '÷', kind: 'num', cls: 'm', place: 'middle left' },   // ÷, as GMK prints it
+  PAST: { qmk: '*', name: '*', kind: 'num', cls: 'm', place: 'middle left' },
+  PMNS: { qmk: '-', name: '-', kind: 'num', cls: 'm', place: 'middle left' },
+  PPLS: { qmk: '+', name: '+', kind: 'num', cls: 'm', place: 'centre' },
+  PDOT: { qmk: '.', name: '.', kind: 'num', cls: 'a' },
+  PENT: { qmk: 'Enter', name: 'Enter', icon: '\u23CE', kind: 'mod', cls: 'x', place: 'centre' },
+};
+NAMED.NUM.place = 'middle left';
+// Spherical sets have their own words, not the cylindrical ones in capitals: capitals are wider,
+// so SA abbreviates sooner and differently -- PRINT, SCRLK, PGUP. [name, short form].
+const SPHERICAL_WORDS = {
+  ESC: ['ESC'], PSCR: ['PRINT', 'PRT'], SCRL: ['SCRLK', 'SCR'], PAUS: ['PAUSE'], BSPC: ['BACKSPACE', 'BKSP'],
+  INS: ['INS'], HOME: ['HOME'], PGUP: ['PGUP'], NUM: ['NUM LOCK', 'NUM'], TAB: ['TAB'], ENT: ['ENTER'], DEL: ['DEL'],
+  END: ['END'], PGDN: ['PGDN'], CAPS: ['CAPS LOCK', 'CAPS'], LSFT: ['SHIFT'], RSFT: ['SHIFT'], LCTL: ['CTRL'],
+  RCTL: ['CTRL'], LALT: ['ALT'], RALT: ['ALT'], LGUI: ['SUPER'], RGUI: ['SUPER'], APP: ['MENU'], PENT: ['ENTER'],
+};
+for (let n = 1; n <= 12; ++n) NAMED['F' + n] = { qmk: 'F' + n, name: 'F' + n, kind: 'fn', cls: 'm' };
+for (let n = 0; n <= 9; ++n) NAMED['P' + n] = { qmk: String(n), name: String(n), kind: 'num', cls: 'a' };
+
+// The numpad's second legends, as GMK prints them: what a key does with Num Lock off -- its
+// keycode does both, so both are what the key does. Text bottom left, arrows bottom right.
+const NUMPAD_SUBLEGENDS = {
+  P0: { t: 'Ins', at: 'bottom left' }, PDOT: { t: 'Del', at: 'bottom left' }, P1: { t: 'End', at: 'bottom left' },
+  P2: { t: '↓', arrow: 'down', at: 'bottom right' }, P3: { t: 'Pg Dn', at: 'bottom left' }, P4: { t: '←', arrow: 'left', at: 'bottom right' },
+  P6: { t: '→', arrow: 'right', at: 'bottom right' }, P7: { t: 'Home', at: 'bottom left' }, P8: { t: '↑', arrow: 'up', at: 'bottom right' },
+  P9: { t: 'Pg Up', at: 'bottom left' },
+};
+for (const [code, sublegend] of Object.entries(NUMPAD_SUBLEGENDS)) NAMED[code].sublegend = sublegend;
 
 // KLE, as Nazg's parser reads it; keys of a layout option's other choices are left out.
 function parseKeys() {
@@ -75,15 +152,19 @@ function parseKeys() {
       const option = parts[3];
       if (!option || option.split(',')[1] === '0') {
         const [row_, col] = parts[0].split(',').map(Number);
-        const legend = LEGENDS[rowIndex][n++];
+        const entry = ROWS[rowIndex][n++];
         const rects = [{ x, y, w, h }];
         if (w2 || h2 || x2 || y2) rects.push({ x: x + x2, y: y + y2, w: w2 || w, h: h2 || h });
-        keys.push({ rects, row: row_, col, primary: legend[0], secondary: legend[1], cls: legend[2] });
+        // primary and secondary: today's legends, QMK's labels.
+        const named = entry.code ? NAMED[entry.code] : null;
+        keys.push({ rects, row: row_, col, ...entry, named,
+                    primary: named ? named.qmk : entry.letter || entry.plain, secondary: entry.shifted || '',
+                    cls: named ? named.cls : 'a' });
       }
       x += w;
       w = 1; h = 1; x2 = 0; y2 = 0; w2 = 0; h2 = 0;
     }
-    if (LEGENDS[rowIndex] && n !== LEGENDS[rowIndex].length) console.warn('row', rowIndex, n, 'keys');
+    if (ROWS[rowIndex] && n !== ROWS[rowIndex].length) console.warn('row', rowIndex, n, 'keys');
     y += 1;
   });
   return keys;
@@ -161,7 +242,27 @@ const SCENES = {
   },
 };
 
+// Legends. A preset is a keycap family -- placement, case and wording go together on real sets:
+// Cylindrical (GMK's Cherry legends) top left, mixed case; Spherical (SA, KAT) centred,
+// capitals. Today is what NazgBoardView draws now, shrinking included, for comparison.
+const PRESETS = ['Today', 'Cylindrical', 'Spherical'];
+// Text + icons, set aside 2026-10-02 as too busy for now: its code stays in legendLines().
+const MODIFIERS = ['Text', 'Icons'];
+// Free look-alikes: Arimo and Inter for Cherry's grotesque, Nunito for Neue's soft face,
+// Montserrat for KAT's geometric one.
+const FONTS = { 'System (today)': '"Segoe UI"', 'Arimo': '"Arimo"', 'Inter': '"Inter"', 'Nunito': '"Nunito"', 'Montserrat': '"Montserrat"' };
+// The letter size as a share of the key unit, and modifier text as a share of the letters' --
+// GMK's are about half their height and lighter.
+const SIZES = { 'Small': 0.26, 'Medium': 0.30, 'Large': 0.34 };
+const MODIFIER_SIZES = { '1/2': 0.5, '3/5': 0.6, '3/4': 0.75 };
+const SMALLEST_LEGEND = 9;   // px, the modifier text: below it the board stops shrinking and scrolls
+const modifierShare = () => MODIFIER_SIZES[state.modifierSize];
+// Behind the legend font, for icons and whatever it lacks -- Noto in Nazg, merged in ImGui.
+const FALLBACKS = '"Noto Sans Symbols 2", "Noto Sans Math", "Segoe UI Symbol", sans-serif';
+const fontSpec = (size, weight = 400) => `${weight} ${size}px ${FONTS[state.font]}, ${FALLBACKS}`;
+
 const state = {
+  preset: 'Cylindrical', modifiers: 'Text', font: 'Arimo', size: 'Medium', modifierSize: '3/5',
   theme: 'Dark', style: 'Outlined', plate: 'Filled', classes: 'Off', scene: 'Keymap',
   selected: keyNamed('Q'), focus: keyNamed('Q'), hovered: -1, pressed: keyNamed('G'),
   seen: new Set(KEYS.map((k, i) => (k.row === 0 || ['N', 'A', 'Z', 'G'].includes(k.primary)) ? i : -1).filter(i => i >= 0)),
@@ -174,12 +275,22 @@ const CONTROLS = [
   ['plate', 'Plate', ['Off', 'Filled', 'Border']],
   ['classes', 'Colour classes', ['Off', 'On']],
   ['scene', 'Scene', Object.keys(SCENES)],
-];
+  'break',
+  ['preset', 'Legends', PRESETS],
+  ['modifiers', 'Modifiers', MODIFIERS],
+  ['font', 'Font', Object.keys(FONTS)],
+  ['size', 'Size', Object.keys(SIZES)],
+  ['modifierSize', 'Modifier size', Object.keys(MODIFIER_SIZES)],];
 
 function buildControls() {
   const root = document.getElementById('controls');
   root.innerHTML = '';
-  for (const [key, name, values] of CONTROLS) {
+  for (const control of CONTROLS) {
+    if (control === 'break') {
+      root.appendChild(Object.assign(document.createElement('div'), { className: 'break' }));
+      continue;
+    }
+    const [key, name, values] = control;
     const group = document.createElement('div');
     group.className = 'group';
     group.innerHTML = `<span class="name">${name}</span>`;
@@ -306,7 +417,11 @@ function draw() {
 
   const plateUnits = state.plate !== 'Off' ? 0.35 : 0;
   const avail = document.getElementById('stage').clientWidth - 32 - leftMargin;
-  const unit = Math.max(28, Math.min(64, avail / (width + 2 * plateUnits)));
+  // Legends follow the key unit both ways; the board stops shrinking where modifier text would
+  // fall below the smallest legible size, and scrolls instead. Today keeps its 28-64 px range.
+  const today = state.preset === 'Today';
+  const smallestUnit = today ? 28 : SMALLEST_LEGEND / (SIZES[state.size] * modifierShare());
+  const unit = Math.max(smallestUnit, Math.min(today ? 64 : 96, avail / (width + 2 * plateUnits)));
   const pad = plateUnits * unit;
 
   const dpr = window.devicePixelRatio || 1;
@@ -388,42 +503,197 @@ function draw() {
     }
   }
 
-  // Legends as DrawLegends(): the Shift legend top left, the main one middle left; too wide,
-  // it shrinks to 60% and is then clipped to the face.
   ctx.textBaseline = 'top';
   for (const key of KEYS) {
-    const a = key.face, p = S.pad * unit, innerWidth = a.x1 - a.x0 - 2 * p;
     let colour = state.classes === 'On' && key.cls === 'x' ? T.legendAccent : T.legend;
     if (key.marks.has('dimmed')) colour = over(colour, T.dimmed);
-    const top = a.y0 + p;
-    let middle = (a.y0 + a.y1 - legendSize) / 2;
-    if (key.secondary) middle = Math.max(middle, top + legendSize);
-    ctx.save();
-    ctx.beginPath(); ctx.rect(a.x0, a.y0, a.x1 - a.x0, a.y1 - a.y0); ctx.clip();
-    ctx.fillStyle = colour;
-    for (const [text, y] of [[key.secondary, top], [key.primary, middle]]) {
-      if (!text) continue;
-      let size = legendSize;
-      ctx.font = `${size}px "Segoe UI", Helvetica, Arial, sans-serif`;
-      const extent = ctx.measureText(text).width;
-      if (extent > innerWidth) {
-        size = Math.max(legendSize * 0.6, legendSize * innerWidth / extent);
-        ctx.font = `${size}px "Segoe UI", Helvetica, Arial, sans-serif`;
-      }
-      ctx.fillText(text, a.x0 + p, y + (legendSize - size) / 2);
-    }
-    ctx.restore();
+    if (today) drawTodayLegends(ctx, key, S, unit, legendSize, colour);
+    else drawLegends(ctx, key, unit, colour);
   }
 
   if (scene.rulers) drawRulers(ctx, T, leftMargin, topMargin, labelGap);
 
-  const notes = [scene.notes];
+  const notes = [scene.notes, LEGEND_NOTES[state.preset]];
   if (state.style === 'Outlined' || state.scene !== 'Keymap')
     notes.push('The outlines on the ISO Enter are still drawn per rectangle; Nazg will draw them along the key\'s contour.');
   notes.push('<b>Model F Labs B104</b>, from its real definition, at choice 0 of every layout option. The keymap is a ' +
-             'plausible layer 0, not read off the board; legends are what Nazg prints today on the US host layout. Only ' +
-             'ImGui draw-list shapes are used. <b>Colour classes</b> need the parser to keep KLE colours, which it drops today.');
+             'plausible layer 0 on the US host layout, not read off the board. Only ImGui draw-list shapes are used. ' +
+             '<b>Colour classes</b> need the parser to keep KLE colours, which it drops today.');
   document.getElementById('notes').innerHTML = notes.map(n => `<p>${n}</p>`).join('');
+}
+
+const LEGEND_NOTES = {
+  'Today': '<b>Legends: today.</b> What NazgBoardView draws now: QMK\'s labels, the Shift legend top left and the main ' +
+           'one middle left, shrunk down to 60% when too wide, then clipped. Capped at the UI font size.',
+  'Cylindrical': '<b>Legends: cylindrical</b>, as GMK\'s Cherry legends: top left, mixed case; the function row ' +
+                 '(Esc, F-keys) and modifiers wider than 1u at the left, centred vertically; a 1u modifier centred ' +
+                 'both ways -- as on Rico\'s GMK Dolch R5. ' + '%RULES%',
+  'Spherical': '<b>Legends: spherical</b>, as SA and KAT: centred, capitals. ' + '%RULES%',
+};
+const RULES = 'No legend is ever shrunk to fit: a name goes on one line, else on two, else its short form on one ' +
+              'line or two, else it is cut with "…". Cylindrical wording follows GMK, spherical its own table, as ' +
+              'SA\'s; all of it provisional. Modifier text is a share of the letter size. With icons, a key with no ' +
+              'icon keeps its text; with text + ' +
+              'icons, the whole name sits beside the icon or below it, else the short form does, else the icon stands ' +
+              'alone. Arrows are ' +
+              'icons, drawn rather than taken from a font, and the space bar is blank on every preset, as on real sets. ' +
+              'Legends follow the key size; narrow ' +
+              'the window and the board stops shrinking once modifier text reaches ' + SMALLEST_LEGEND + ' px, then scrolls.';
+for (const preset of PRESETS) LEGEND_NOTES[preset] = LEGEND_NOTES[preset].replace('%RULES%', RULES);
+
+// What one named key says, as lines of {t, s, w}: on one line, two lines, the short form, or cut
+// -- never shrunk. `fits` measures at the given size against the room on the key.
+const WORD_LINE = 1.0;   // line height of a wrapped name, tighter than a letter pair's 1.12
+
+function textChain(name, short, s, W, H, fits) {
+  // One name on one line, or on two split where the longer line is shortest.
+  const place = text => {
+    if (fits(text, s)) return [{ t: text, s, lh: WORD_LINE }];
+    const words = text.split(' ');
+    if (words.length < 2 || H < 2 * s * WORD_LINE) return null;
+    let best = null, bestWidth = Infinity;
+    for (let i = 1; i < words.length; ++i) {
+      const a = words.slice(0, i).join(' '), b = words.slice(i).join(' ');
+      if (!fits(a, s) || !fits(b, s)) continue;
+      const widest = Math.max(fits.width(a, s), fits.width(b, s));
+      if (widest < bestWidth) { best = [a, b]; bestWidth = widest; }
+    }
+    return best && best.map(t => ({ t, s, lh: WORD_LINE }));
+  };
+  const lines = place(name) || place(short);
+  if (lines) return lines;
+  let t = short;
+  while (t.length > 1 && !fits(t + '…', s)) t = t.slice(0, -1);
+  return [{ t: t + '…', s, lh: WORD_LINE, cut: true }];
+}
+
+// The lines a key's legend is made of, for the preset and modifier style chosen.
+function legendLines(ctx, key, unit, W, H) {
+  const spherical = state.preset === 'Spherical';
+  const A = SIZES[state.size] * unit, M = modifierShare() * A;
+  const width = (t, s, w = 400) => { ctx.font = fontSpec(s, w); return ctx.measureText(t).width; };
+  const fits = Object.assign((t, s, w = 400) => width(t, s, w) <= W, { width });
+
+  if (key.letter) return [{ t: key.letter, s: A, w: 500 }];
+  if (key.plain) return [{ t: key.shifted, s: A, w: 500 }, { t: key.plain, s: A, w: 500 }];
+
+  const n = key.named;
+  switch (n.kind) {
+    case 'space': return [];
+    case 'num':   return [{ t: n.name, s: A, w: 500 }];
+    case 'arrow': return [{ t: n.icon, s: A, arrow: n.arrow }];
+    case 'fn':    return [{ t: n.name, s: M }];
+  }
+
+  const words = spherical && SPHERICAL_WORDS[key.code];
+  const name = words ? words[0] : n.name, short = words ? words[1] || words[0] : n.short || n.name;
+  if (state.modifiers === 'Text' || !n.icon) return textChain(name, short, M, W, H, fits);
+  if (state.modifiers === 'Icons') return [{ t: n.icon, s: A }];
+
+  // Text + icons: whole words first, side by side then with the icon above; the short form
+  // likewise; else the icon alone.
+  const roomBelow = H >= A * 1.12 + M * 1.12;
+  for (const t of [name, short]) {
+    if (fits(`${n.icon} ${t}`, M)) return [{ t: `${n.icon} ${t}`, s: M }];
+    if (roomBelow && fits(t, M)) return [{ t: n.icon, s: A }, { t, s: M }];
+  }
+  return [{ t: n.icon, s: A }];
+}
+
+// An arrow drawn, not taken from a font: fonts lack some arrows -- Arimo, Inter and Montserrat
+// have up and down but not left and right, which then come from another face -- and none draws
+// them at a legend's weight. A shaft and a filled head, the stroke a share of the legend size,
+// so every arrow matches the others and the text: AddLine and AddTriangleFilled in ImGui.
+// Centred on (cx, cy), `size` across.
+function drawArrow(ctx, cx, cy, size, direction, weight = 0.085) {
+  const length = size * 0.9, stroke = Math.max(1, size * weight), head = size * 0.36, half = size * 0.2;
+  const angle = { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 }[direction];
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(angle);
+  ctx.strokeStyle = ctx.fillStyle;
+  ctx.lineWidth = stroke;
+  ctx.lineCap = 'butt';
+  ctx.beginPath(); ctx.moveTo(-length / 2, 0); ctx.lineTo(length / 2 - head * 0.8, 0); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(length / 2, 0); ctx.lineTo(length / 2 - head, -half); ctx.lineTo(length / 2 - head, half);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+// Cylindrical sets everything from the top left; spherical centres it, as arrows are on both.
+function drawLegends(ctx, key, unit, colour) {
+  const a = key.face, p = 0.10 * unit;
+  const box = { x0: a.x0 + p, y0: a.y0 + p, x1: a.x1 - p, y1: a.y1 - p };
+  const lines = legendLines(ctx, key, unit, box.x1 - box.x0, box.y1 - box.y0);
+  // On cylindrical sets, as on Rico's GMK Dolch R5: a 1u modifier centred both ways, as GMK's
+  // Delete, End and Pg Dn; wider modifiers and the function row -- F-keys, and Esc by its
+  // `place` -- at the left, centred vertically. Letters, pairs and numpad digits keep the top
+  // left. A key's `place` overrides its kind's rule: the numpad's top row at the left, centred
+  // vertically; its tall + and Enter centred.
+  const spherical = state.preset === 'Spherical';
+  const kind = key.named && key.named.kind;
+  const oneUnit = key.rects.length === 1 && key.rects[0].w <= 1 && key.rects[0].h <= 1;
+  const place = key.named && key.named.place;
+  // Arrow keys keep the top left on cylindrical sets too, as on Rico's Dolch R5.
+  const centred = spherical || place === 'centre' || (kind === 'mod' && oneUnit && !place);
+  const middle = !centred && (kind === 'fn' || kind === 'mod' || place === 'middle left');
+  const total = lines.reduce((h, l) => h + l.s * (l.lh || 1.12), 0);
+
+  ctx.save();
+  ctx.beginPath(); ctx.rect(a.x0, a.y0, a.x1 - a.x0, a.y1 - a.y0); ctx.clip();
+  ctx.fillStyle = colour;
+  let y = centred || middle ? (box.y0 + box.y1 - total) / 2 : box.y0;
+  for (const l of lines) {
+    ctx.font = fontSpec(l.s, l.w || 400);
+    const w = ctx.measureText(l.t).width;
+    const lh = l.lh || 1.12;
+    if (l.arrow)
+      drawArrow(ctx, centred ? (box.x0 + box.x1) / 2 : box.x0 + l.s / 2, y + l.s * lh / 2, l.s, l.arrow);
+    else
+      ctx.fillText(l.t, centred ? (box.x0 + box.x1 - w) / 2 : box.x0, y + l.s * (lh - 1) / 2);
+    y += l.s * lh;
+  }
+
+  // A second legend in a bottom corner -- cylindrical only for now: where SA puts the numpad's,
+  // if anywhere, is still to see. Text at modifier size; an arrow at letter size and heavier,
+  // as GMK prints the numpad's.
+  const sublegend = key.named && key.named.sublegend;
+  if (sublegend && !spherical) {
+    const s = modifierShare() * SIZES[state.size] * unit;
+    if (sublegend.arrow) {
+      const a = SIZES[state.size] * unit;
+      drawArrow(ctx, box.x1 - a / 2, box.y1 - a / 2, a, sublegend.arrow, 0.11);
+    } else {
+      ctx.font = fontSpec(s);
+      const w = ctx.measureText(sublegend.t).width;
+      ctx.fillText(sublegend.t, sublegend.at === 'bottom right' ? box.x1 - w : box.x0, box.y1 - s);
+    }
+  }
+  ctx.restore();
+}
+
+// Today's legends, as DrawLegends() draws them now: the Shift legend top left, the main one
+// middle left; too wide, it shrinks to 60% and is then clipped to the face.
+function drawTodayLegends(ctx, key, S, unit, legendSize, colour) {
+  const a = key.face, p = S.pad * unit, innerWidth = a.x1 - a.x0 - 2 * p;
+  const top = a.y0 + p;
+  let middle = (a.y0 + a.y1 - legendSize) / 2;
+  if (key.secondary) middle = Math.max(middle, top + legendSize);
+  ctx.save();
+  ctx.beginPath(); ctx.rect(a.x0, a.y0, a.x1 - a.x0, a.y1 - a.y0); ctx.clip();
+  ctx.fillStyle = colour;
+  for (const [text, y] of [[key.secondary, top], [key.primary, middle]]) {
+    if (!text) continue;
+    let size = legendSize;
+    ctx.font = `${size}px "Segoe UI", Helvetica, Arial, sans-serif`;
+    const extent = ctx.measureText(text).width;
+    if (extent > innerWidth) {
+      size = Math.max(legendSize * 0.6, legendSize * innerWidth / extent);
+      ctx.font = `${size}px "Segoe UI", Helvetica, Arial, sans-serif`;
+    }
+    ctx.fillText(text, a.x0 + p, y + (legendSize - size) / 2);
+  }
+  ctx.restore();
 }
 
 // The rulers, as DescribeMatrix() and DrawEdgeLabels() make them: R0... down the left, each
@@ -496,6 +766,14 @@ window.addEventListener('resize', draw);
 
 buildControls();
 draw();
+
+// The canvas draws with whatever is loaded, so ask for every face -- and the fallbacks' icon
+// glyphs -- and draw again once they arrive.
+const ICON_TEXT = Object.values(NAMED).map(n => n.icon || '').join('');
+Promise.allSettled([
+  ...['Arimo', 'Inter', 'Nunito', 'Montserrat'].flatMap(f => [400, 500].map(w => document.fonts.load(`${w} 16px "${f}"`, 'AaQq1!'))),
+  ...['Noto Sans Symbols 2', 'Noto Sans Math'].map(f => document.fonts.load(`16px "${f}"`, ICON_TEXT)),
+]).then(draw);
 </script>
 </body>
 </html>
