@@ -61,43 +61,44 @@ const ROWS = {
 
 // The named keycodes: QMK's label (what Nazg prints today), the printed name and its short form
 // on cylindrical sets -- mixed case, GMK's wording, short forms keeping a space so they can wrap
-// -- the ISO 9995-7 icon where there is one, the kind, and the colour class (a alpha,
-// m modifier, x accent). All the wording is provisional.
+// -- the kind, and the colour class (a alpha, m modifier, x accent). All the wording is
+// provisional. No icons: icon modifiers were dropped (Rico, 2026-10-03); arrows alone are icons,
+// as on text sets, and are drawn.
 //   fn     F-keys: text only, small
-//   mod    modifiers and other named keys: text, icon, or both
-//   arrow  an icon on every preset, as on real sets
+//   mod    modifiers and other named keys, in words
+//   arrow  drawn, on every preset, as on real sets
 //   num    a numpad digit or sign, drawn as a letter is
 //   space  blank, as on real sets
 // A key that breaks its kind's rules says so with `place` -- data, not a special case in the
 // drawing code: on cylindrical sets Esc sits at the left, centred vertically, with the F-keys,
 // where other 1u modifiers are centred both ways.
 const NAMED = {
-  ESC:  { qmk: 'Esc',           name: 'Esc',          icon: '\u238B', kind: 'mod', cls: 'x', place: 'middle left' },
-  PSCR: { qmk: 'Print Screen',  name: 'Print Screen', short: 'Prt Sc', icon: '\u2399', kind: 'mod', cls: 'm' },
-  SCRL: { qmk: 'Scroll Lock',   name: 'Scroll Lock',  short: 'Scr Lk', icon: '\u21F3', kind: 'mod', cls: 'm' },
-  PAUS: { qmk: 'Pause',         name: 'Pause',        icon: '\u2389', kind: 'mod', cls: 'm' },
-  BSPC: { qmk: 'Backspace',     name: 'Backspace',    short: 'Bksp',  icon: '\u232B', kind: 'mod', cls: 'm' },
-  INS:  { qmk: 'Insert',        name: 'Insert',       short: 'Ins',   icon: '\u2380', kind: 'mod', cls: 'm' },
-  HOME: { qmk: 'Home',          name: 'Home',         icon: '\u21F1', kind: 'mod', cls: 'm' },
-  PGUP: { qmk: 'Page Up',       name: 'Page Up',      short: 'Pg Up',  icon: '\u21DE', kind: 'mod', cls: 'm' },
-  NUM:  { qmk: 'Num Lock',      name: 'Num Lock',     short: 'Num Lk', icon: '\u21ED', kind: 'mod', cls: 'm' },
-  TAB:  { qmk: 'Tab',           name: 'Tab',          icon: '\u21E5', kind: 'mod', cls: 'm' },
-  ENT:  { qmk: 'Enter',         name: 'Enter',        icon: '\u23CE', kind: 'mod', cls: 'x' },
-  DEL:  { qmk: 'Delete',        name: 'Delete',       short: 'Del',   icon: '\u2326', kind: 'mod', cls: 'm' },
-  END:  { qmk: 'End',           name: 'End',          icon: '\u21F2', kind: 'mod', cls: 'm' },
-  PGDN: { qmk: 'Page Down',     name: 'Page Down',    short: 'Pg Dn',  icon: '\u21DF', kind: 'mod', cls: 'm' },
-  CAPS: { qmk: 'Caps Lock',     name: 'Caps Lock',    short: 'Caps',  icon: '\u21EA', kind: 'mod', cls: 'm' },
-  LSFT: { qmk: 'Left Shift',    name: 'Shift',        icon: '\u21E7', kind: 'mod', cls: 'm' },
-  RSFT: { qmk: 'Right Shift',   name: 'Shift',        icon: '\u21E7', kind: 'mod', cls: 'm' },
-  LCTL: { qmk: 'Left Control',  name: 'Control',      short: 'Ctrl',  icon: '\u2303', kind: 'mod', cls: 'm' },
-  RCTL: { qmk: 'Right Control', name: 'Control',      short: 'Ctrl',  icon: '\u2303', kind: 'mod', cls: 'm' },
-  LALT: { qmk: 'Left Alt',      name: 'Alt',          icon: '\u2325', kind: 'mod', cls: 'm' },
+  ESC:  { qmk: 'Esc',           name: 'Esc',          kind: 'mod', cls: 'x', place: 'middle left' },
+  PSCR: { qmk: 'Print Screen',  name: 'Print Screen', short: 'Prt Sc', kind: 'mod', cls: 'm' },
+  SCRL: { qmk: 'Scroll Lock',   name: 'Scroll Lock',  short: 'Scr Lk', kind: 'mod', cls: 'm' },
+  PAUS: { qmk: 'Pause',         name: 'Pause',        kind: 'mod', cls: 'm' },
+  BSPC: { qmk: 'Backspace',     name: 'Backspace',    short: 'Bksp',  kind: 'mod', cls: 'm' },
+  INS:  { qmk: 'Insert',        name: 'Insert',       short: 'Ins',   kind: 'mod', cls: 'm' },
+  HOME: { qmk: 'Home',          name: 'Home',         kind: 'mod', cls: 'm' },
+  PGUP: { qmk: 'Page Up',       name: 'Page Up',      short: 'Pg Up',  kind: 'mod', cls: 'm' },
+  NUM:  { qmk: 'Num Lock',      name: 'Num Lock',     short: 'Num Lk', kind: 'mod', cls: 'm' },
+  TAB:  { qmk: 'Tab',           name: 'Tab',          kind: 'mod', cls: 'm' },
+  ENT:  { qmk: 'Enter',         name: 'Enter',        kind: 'mod', cls: 'x' },
+  DEL:  { qmk: 'Delete',        name: 'Delete',       short: 'Del',   kind: 'mod', cls: 'm' },
+  END:  { qmk: 'End',           name: 'End',          kind: 'mod', cls: 'm' },
+  PGDN: { qmk: 'Page Down',     name: 'Page Down',    short: 'Pg Dn',  kind: 'mod', cls: 'm' },
+  CAPS: { qmk: 'Caps Lock',     name: 'Caps Lock',    short: 'Caps',  kind: 'mod', cls: 'm' },
+  LSFT: { qmk: 'Left Shift',    name: 'Shift',        kind: 'mod', cls: 'm' },
+  RSFT: { qmk: 'Right Shift',   name: 'Shift',        kind: 'mod', cls: 'm' },
+  LCTL: { qmk: 'Left Control',  name: 'Control',      short: 'Ctrl',  kind: 'mod', cls: 'm' },
+  RCTL: { qmk: 'Right Control', name: 'Control',      short: 'Ctrl',  kind: 'mod', cls: 'm' },
+  LALT: { qmk: 'Left Alt',      name: 'Alt',          kind: 'mod', cls: 'm' },
   // Right Alt prints Alt Gr on every host layout, as keycaps do -- Rico's US ANSI ones too.
-  RALT: { qmk: 'Right Alt',     name: 'Alt Gr',       icon: '\u2325', kind: 'mod', cls: 'm' },
+  RALT: { qmk: 'Right Alt',     name: 'Alt Gr',       kind: 'mod', cls: 'm' },
   // Win, after QMK's own name, KC_LWIN and KC_RWIN.
-  LGUI: { qmk: 'Left GUI',      name: 'Win',          icon: '\u25C7', kind: 'mod', cls: 'm' },
-  RGUI: { qmk: 'Right GUI',     name: 'Win',          icon: '\u25C7', kind: 'mod', cls: 'm' },
-  APP:  { qmk: 'App',           name: 'Menu',         icon: '\u2630', kind: 'mod', cls: 'm' },
+  LGUI: { qmk: 'Left GUI',      name: 'Win',          kind: 'mod', cls: 'm' },
+  RGUI: { qmk: 'Right GUI',     name: 'Win',          kind: 'mod', cls: 'm' },
+  APP:  { qmk: 'App',           name: 'Menu',         kind: 'mod', cls: 'm' },
   SPC:  { qmk: 'Spacebar',      name: '',             kind: 'space', cls: 'a' },
   UP:   { qmk: 'Up',            name: 'Up',           icon: '\u2191', kind: 'arrow', cls: 'm', arrow: 'up' },
   DOWN: { qmk: 'Down',          name: 'Down',         icon: '\u2193', kind: 'arrow', cls: 'm', arrow: 'down' },
@@ -108,7 +109,7 @@ const NAMED = {
   PMNS: { qmk: '-', name: '−', kind: 'num', cls: 'm', place: 'middle left' },   // − the minus sign
   PPLS: { qmk: '+', name: '+', kind: 'num', cls: 'm', place: 'centre' },
   PDOT: { qmk: '.', name: '.', kind: 'num', cls: 'a' },
-  PENT: { qmk: 'Enter', name: 'Enter', icon: '\u23CE', kind: 'mod', cls: 'x', place: 'centre' },
+  PENT: { qmk: 'Enter', name: 'Enter', kind: 'mod', cls: 'x', place: 'centre' },
 };
 NAMED.NUM.place = 'middle left';
 // Spherical sets have their own words, not the cylindrical ones in capitals: capitals are wider,
@@ -286,8 +287,6 @@ const SCENES = {
 // Cylindrical (GMK's Cherry legends) top left, mixed case; Spherical (SA, KAT) centred,
 // capitals. Today is what NazgBoardView draws now, shrinking included, for comparison.
 const PRESETS = ['Today', 'Cylindrical', 'Spherical'];
-// Text + icons, set aside 2026-10-02 as too busy for now: its code stays in legendLines().
-const MODIFIERS = ['Text', 'Icons'];
 // Free look-alikes: Arimo and Inter for Cherry's grotesque, Nunito for Neue's soft face,
 // Montserrat for KAT's geometric one.
 const FONTS = { 'System (today)': '"Segoe UI"', 'Arimo': '"Arimo"', 'Inter': '"Inter"', 'Nunito': '"Nunito"', 'Montserrat': '"Montserrat"' };
@@ -297,12 +296,12 @@ const SIZES = { 'Small': 0.26, 'Medium': 0.30, 'Large': 0.34 };
 const MODIFIER_SIZES = { '1/2': 0.5, '3/5': 0.6, '3/4': 0.75 };
 const SMALLEST_LEGEND = 9;   // px, the modifier text: below it the board stops shrinking and scrolls
 const modifierShare = () => MODIFIER_SIZES[state.modifierSize];
-// Behind the legend font, for icons and whatever it lacks -- Noto in Nazg, merged in ImGui.
+// Behind the legend font, for whatever it lacks -- Noto in Nazg, merged in ImGui.
 const FALLBACKS = '"Noto Sans Symbols 2", "Noto Sans Math", "Segoe UI Symbol", sans-serif';
 const fontSpec = (size, weight = 400) => `${weight} ${size}px ${FONTS[state.font]}, ${FALLBACKS}`;
 
 const state = {
-  preset: 'Cylindrical', modifiers: 'Text', font: 'Arimo', size: 'Medium', modifierSize: '3/5', remap: 'Standard',
+  preset: 'Cylindrical', font: 'Arimo', size: 'Medium', modifierSize: '3/5', remap: 'Standard',
   theme: 'Dark', style: 'Outlined', plate: 'Filled', classes: 'Off', scene: 'Keymap',
   selected: keyNamed('Q'), focus: keyNamed('Q'), hovered: -1, pressed: keyNamed('G'),
   seen: new Set(KEYS.map((k, i) => (k.row === 0 || ['N', 'A', 'Z', 'G'].includes(k.primary)) ? i : -1).filter(i => i >= 0)),
@@ -317,7 +316,6 @@ const CONTROLS = [
   ['scene', 'Scene', Object.keys(SCENES)],
   'break',
   ['preset', 'Legends', PRESETS],
-  ['modifiers', 'Modifiers', MODIFIERS],
   ['font', 'Font', Object.keys(FONTS)],
   ['size', 'Size', Object.keys(SIZES)],
   ['remap', 'Keymap', Object.keys(REMAPS)],
@@ -574,11 +572,8 @@ const LEGEND_NOTES = {
 };
 const RULES = 'No legend is ever shrunk to fit: a name goes on one line, else on two, else its short form on one ' +
               'line or two, else it is cut with "…". Cylindrical wording follows GMK, spherical its own table, as ' +
-              'SA\'s; all of it provisional. Modifier text is a share of the letter size. With icons, a key with no ' +
-              'icon keeps its text; with text + ' +
-              'icons, the whole name sits beside the icon or below it, else the short form does, else the icon stands ' +
-              'alone. Arrows are ' +
-              'icons, drawn rather than taken from a font, and the space bar is blank on every preset, as on real sets. ' +
+              'SA\'s; all of it provisional. Modifier text is a share of the letter size. Arrows are icons, drawn ' +
+              'rather than taken from a font, and the space bar is blank on every preset, as on real sets. ' +
               'Legends follow the key size; narrow ' +
               'the window and the board stops shrinking once modifier text reaches ' + SMALLEST_LEGEND + ' px, then scrolls.';
 for (const preset of PRESETS) LEGEND_NOTES[preset] = LEGEND_NOTES[preset].replace('%RULES%', RULES);
@@ -637,17 +632,8 @@ function legendLines(ctx, key, unit, W, H) {
     name = spherical ? `${side[0]} ${short}` : `${side} ${name}`;
     short = spherical ? name : `${side[0]} ${short}`;
   }
-  if (state.modifiers === 'Text' || !n.icon) return textChain(name, short, M, W, H, fits);
-  if (state.modifiers === 'Icons') return [{ t: n.icon, s: A }];
+  return textChain(name, short, M, W, H, fits);
 
-  // Text + icons: whole words first, side by side then with the icon above; the short form
-  // likewise; else the icon alone.
-  const roomBelow = H >= A * 1.12 + M * 1.12;
-  for (const t of [name, short]) {
-    if (fits(`${n.icon} ${t}`, M)) return [{ t: `${n.icon} ${t}`, s: M }];
-    if (roomBelow && fits(t, M)) return [{ t: n.icon, s: A }, { t, s: M }];
-  }
-  return [{ t: n.icon, s: A }];
 }
 
 // An arrow drawn, not taken from a font: fonts lack some arrows -- Arimo, Inter and Montserrat
@@ -833,13 +819,11 @@ window.addEventListener('resize', draw);
 buildControls();
 draw();
 
-// The canvas draws with whatever is loaded, so ask for every face -- and the fallbacks' icon
-// glyphs -- and draw again once they arrive.
-const ICON_TEXT = Object.values(NAMED).map(n => n.icon || '').join('');
-Promise.allSettled([
-  ...['Arimo', 'Inter', 'Nunito', 'Montserrat'].flatMap(f => [400, 500].map(w => document.fonts.load(`${w} 16px "${f}"`, 'AaQq1!'))),
-  ...['Noto Sans Symbols 2', 'Noto Sans Math'].map(f => document.fonts.load(`16px "${f}"`, ICON_TEXT)),
-]).then(draw);
+// The canvas draws with whatever is loaded, so ask for every face and draw again once they
+// arrive.
+Promise.allSettled(
+  ['Arimo', 'Inter', 'Nunito', 'Montserrat'].flatMap(f => [400, 500].map(w => document.fonts.load(`${w} 16px "${f}"`, 'AaQq1!'))),
+).then(draw);
 </script>
 </body>
 </html>

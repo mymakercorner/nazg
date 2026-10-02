@@ -381,6 +381,19 @@ kits):
   **/ and *** with a true minus **−**, where GMK prints ÷ and ×. So the operators are family
   data too.
 
+**Icon modifiers: dropped** (Rico, 2026-10-03), and text + icons with them. Modifiers print in
+words on every preset; the arrows alone are icons, as on text sets too, and are drawn. Why:
+- Nazg's board says what each key *does*, and icons read worse for that: ⎀ Insert, ⇭ Num Lock,
+  ⇳ Scroll Lock, ⎉ Pause are known to few, ⌃ and ⌥ are Mac habits -- on a physical board one
+  knows one's keys, on a configurator's screen one reads them.
+- Only about 25 keycodes have a standard icon. Layers, macros, tap dance, media, lighting and
+  QMK's feature keys have none, so on a customised keymap most special keys would stay text.
+- Font icons do not match one another (the arrows showed it), so an icon mode meant drawing an
+  icon set -- design work for a mode that reads worse.
+- One more setting, against first-glance simplicity.
+
+This supersedes "Icons, text, or both" and point 3 of "What follows for Nazg" above.
+
 **Modifier text is 3/5 of the letter size** by default (Rico, 2026-10-03), near GMK's
 proportions: at that size nothing on the Model F needs a short form or a cut, in either family.
 Its cost: with modifier text held at 9 px or more, the Model F needs about 1170 px of width
