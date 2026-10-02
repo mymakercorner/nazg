@@ -12,7 +12,7 @@
 <title>Board look mockup</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Arimo:wght@400;500&family=Inter:wght@400;500&family=Montserrat:wght@400;500&family=Noto+Sans+Math&family=Noto+Sans+Symbols+2&family=Nunito:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Arimo:wght@400;500&family=Inter:wght@400;500&family=Montserrat:wght@400;500&family=Noto+Sans:wght@400;500&family=Noto+Sans+Math&family=Noto+Sans+Symbols+2&family=Nunito:wght@400;600&display=swap">
 <style>
 :root{--window:#0f0f11;--menubar:#24252b;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--ui-accent:#4296fa;--ui-accent-text:#fff}
 *{box-sizing:border-box}
@@ -46,16 +46,20 @@ const MATRIX = { rows: 8, cols: 18 };
 // A plausible layer 0 -- not read off the board -- per KLE row, for the keys of choice 0 of
 // every layout option, on the US host layout: a letter, a character pair [plain, Shift], or a
 // named keycode, which each legend preset prints its own way.
-const L = letter => ({ letter });
-const P = (plain, shifted) => ({ plain, shifted });
+// Character keys carry their position's basic keycode, which the host layout turns into what
+// the key types: KC_2 is "2 under @" on US, "é under 2" on French AZERTY.
+const KC_OF = { '`': 'KC_GRV', '-': 'KC_MINS', '=': 'KC_EQL', '[': 'KC_LBRC', ']': 'KC_RBRC', ';': 'KC_SCLN',
+                "'": 'KC_QUOT', ',': 'KC_COMM', '.': 'KC_DOT', '/': 'KC_SLSH' };
+const L = letter => ({ letter, kc: 'KC_' + letter });
+const P = (plain, shifted, kc) => ({ plain, shifted, kc: kc || KC_OF[plain] || 'KC_' + plain });
 const N = code => ({ code });
 const ROWS = {
   1: [N('ESC'), ...[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(n => N('F' + n)), N('PSCR'), N('SCRL'), N('PAUS')],
   2: [P('`', '~'), P('1', '!'), P('2', '@'), P('3', '#'), P('4', '$'), P('5', '%'), P('6', '^'), P('7', '&'), P('8', '*'), P('9', '('), P('0', ')'), P('-', '_'), P('=', '+'),
       N('BSPC'), N('INS'), N('HOME'), N('PGUP'), N('NUM'), N('PSLS'), N('PAST'), N('PMNS')],
   3: [N('TAB'), ...'QWERTYUIOP'.split('').map(L), P('[', '{'), P(']', '}'), N('ENT'), N('DEL'), N('END'), N('PGDN'), N('P7'), N('P8'), N('P9'), N('PPLS')],
-  4: [N('CAPS'), ...'ASDFGHJKL'.split('').map(L), P(';', ':'), P("'", '"'), P('\\', '|'), N('P4'), N('P5'), N('P6')],
-  5: [N('LSFT'), P('\\', '|'), ...'ZXCVBNM'.split('').map(L), P(',', '<'), P('.', '>'), P('/', '?'), N('RSFT'), N('UP'), N('P1'), N('P2'), N('P3'), N('PENT')],
+  4: [N('CAPS'), ...'ASDFGHJKL'.split('').map(L), P(';', ':'), P("'", '"'), P('\\', '|', 'KC_NUHS'), N('P4'), N('P5'), N('P6')],
+  5: [N('LSFT'), P('\\', '|', 'KC_NUBS'), ...'ZXCVBNM'.split('').map(L), P(',', '<'), P('.', '>'), P('/', '?'), N('RSFT'), N('UP'), N('P1'), N('P2'), N('P3'), N('PENT')],
   6: [N('LCTL'), N('LGUI'), N('LALT'), N('SPC'), N('RALT'), N('RGUI'), N('APP'), N('RCTL'), N('LEFT'), N('DOWN'), N('RGHT'), N('P0'), N('PDOT')],
 };
 
@@ -186,6 +190,25 @@ const REMAPS = {
   'Caps ↔ Ctrl': { CAPS: 'LCTL', LCTL: 'CAPS' },
   'Ctrls swapped': { LCTL: 'RCTL', RCTL: 'LCTL' },
 };
+// Six host layouts, taken from src/ui/NazgHostLayoutTable.cpp: per basic keycode, [plain, Shift,
+// AltGr]. A position a layout does not list keeps the keycode's own legend -- US lists only its
+// symbols, so its letters come from the keycodes.
+const HOSTS = {"US":{"KC_0":["0",")",""],"KC_1":["1","!",""],"KC_2":["2","@",""],"KC_3":["3","#",""],"KC_4":["4","$",""],"KC_5":["5","%",""],"KC_6":["6","^",""],"KC_7":["7","&",""],"KC_8":["8","*",""],"KC_9":["9","(",""],"KC_BSLS":["\\","|",""],"KC_COMM":[",","<",""],"KC_DOT":[".",">",""],"KC_EQL":["=","+",""],"KC_GRV":["`","~",""],"KC_LBRC":["[","{",""],"KC_MINS":["-","_",""],"KC_NUBS":["\\","|",""],"KC_NUHS":["\\","|",""],"KC_QUOT":["'","\"",""],"KC_RBRC":["]","}",""],"KC_SCLN":[";",":",""],"KC_SLSH":["/","?",""]},"UK":{"KC_0":["0",")",""],"KC_1":["1","!",""],"KC_2":["2","\"",""],"KC_3":["3","£",""],"KC_4":["4","$","€"],"KC_5":["5","%",""],"KC_6":["6","^",""],"KC_7":["7","&",""],"KC_8":["8","*",""],"KC_9":["9","(",""],"KC_A":["A","","Á"],"KC_B":["B","",""],"KC_BSLS":["#","~",""],"KC_C":["C","",""],"KC_COMM":[",","<",""],"KC_D":["D","",""],"KC_DOT":[".",">",""],"KC_E":["E","","É"],"KC_EQL":["=","+",""],"KC_F":["F","",""],"KC_G":["G","",""],"KC_GRV":["`","¬","¦"],"KC_H":["H","",""],"KC_I":["I","","Í"],"KC_J":["J","",""],"KC_K":["K","",""],"KC_L":["L","",""],"KC_LBRC":["[","{",""],"KC_M":["M","",""],"KC_MINS":["-","_",""],"KC_N":["N","",""],"KC_NUBS":["\\","|",""],"KC_NUHS":["#","~",""],"KC_O":["O","","Ó"],"KC_P":["P","",""],"KC_Q":["Q","",""],"KC_QUOT":["'","@",""],"KC_R":["R","",""],"KC_RBRC":["]","}",""],"KC_S":["S","",""],"KC_SCLN":[";",":",""],"KC_SLSH":["/","?",""],"KC_T":["T","",""],"KC_U":["U","","Ú"],"KC_V":["V","",""],"KC_W":["W","",""],"KC_X":["X","",""],"KC_Y":["Y","",""],"KC_Z":["Z","",""]},"French":{"KC_0":["à","0","@"],"KC_1":["&","1",""],"KC_2":["é","2","~"],"KC_3":["\"","3","#"],"KC_4":["'","4","{"],"KC_5":["(","5","["],"KC_6":["-","6","|"],"KC_7":["è","7","`"],"KC_8":["_","8","\\"],"KC_9":["ç","9",""],"KC_A":["Q","",""],"KC_B":["B","",""],"KC_BSLS":["*","µ",""],"KC_C":["C","",""],"KC_COMM":[";",".",""],"KC_D":["D","",""],"KC_DOT":[":","/",""],"KC_E":["E","","€"],"KC_EQL":["=","+","}"],"KC_F":["F","",""],"KC_G":["G","",""],"KC_GRV":["²","",""],"KC_H":["H","",""],"KC_I":["I","",""],"KC_J":["J","",""],"KC_K":["K","",""],"KC_L":["L","",""],"KC_LBRC":["^","¨",""],"KC_M":[",","?",""],"KC_MINS":[")","°","]"],"KC_N":["N","",""],"KC_NUBS":["<",">",""],"KC_NUHS":["*","µ",""],"KC_O":["O","",""],"KC_P":["P","",""],"KC_Q":["A","",""],"KC_QUOT":["ù","%",""],"KC_R":["R","",""],"KC_RBRC":["$","£","¤"],"KC_S":["S","",""],"KC_SCLN":["M","",""],"KC_SLSH":["!","§",""],"KC_T":["T","",""],"KC_U":["U","",""],"KC_V":["V","",""],"KC_W":["Z","",""],"KC_X":["X","",""],"KC_Y":["Y","",""],"KC_Z":["W","",""]},"German":{"KC_0":["0","=","}"],"KC_1":["1","!",""],"KC_2":["2","\"","²"],"KC_3":["3","§","³"],"KC_4":["4","$",""],"KC_5":["5","%",""],"KC_6":["6","&",""],"KC_7":["7","/","{"],"KC_8":["8","(","["],"KC_9":["9",")","]"],"KC_A":["A","",""],"KC_B":["B","",""],"KC_BSLS":["#","'",""],"KC_C":["C","",""],"KC_COMM":[",",";",""],"KC_D":["D","",""],"KC_DOT":[".",":",""],"KC_E":["E","","€"],"KC_EQL":["´","`",""],"KC_F":["F","",""],"KC_G":["G","",""],"KC_GRV":["^","°",""],"KC_H":["H","",""],"KC_I":["I","",""],"KC_J":["J","",""],"KC_K":["K","",""],"KC_L":["L","",""],"KC_LBRC":["Ü","",""],"KC_M":["M","","µ"],"KC_MINS":["ß","?","\\"],"KC_N":["N","",""],"KC_NUBS":["<",">","|"],"KC_NUHS":["#","'",""],"KC_O":["O","",""],"KC_P":["P","",""],"KC_Q":["Q","","@"],"KC_QUOT":["Ä","",""],"KC_R":["R","",""],"KC_RBRC":["+","*","~"],"KC_S":["S","",""],"KC_SCLN":["Ö","",""],"KC_SLSH":["-","_",""],"KC_T":["T","",""],"KC_U":["U","",""],"KC_V":["V","",""],"KC_W":["W","",""],"KC_X":["X","",""],"KC_Y":["Z","",""],"KC_Z":["Y","",""]},"Greek":{"KC_0":["0",")","°"],"KC_1":["1","!",""],"KC_2":["2","@","²"],"KC_3":["3","#","³"],"KC_4":["4","$","£"],"KC_5":["5","%","§"],"KC_6":["6","^","¶"],"KC_7":["7","&",""],"KC_8":["8","*","¤"],"KC_9":["9","(","¦"],"KC_A":["Α","",""],"KC_B":["Β","",""],"KC_BSLS":["\\","|","¬"],"KC_C":["Ψ","","©"],"KC_COMM":[",","<",""],"KC_D":["Δ","",""],"KC_DOT":[".",">",""],"KC_E":["Ε","","€"],"KC_EQL":["=","+","½"],"KC_F":["Φ","",""],"KC_G":["Γ","",""],"KC_GRV":["`","~",""],"KC_H":["Η","",""],"KC_I":["Ι","",""],"KC_J":["Ξ","",""],"KC_K":["Κ","",""],"KC_L":["Λ","",""],"KC_LBRC":["[","{","«"],"KC_M":["Μ","",""],"KC_MINS":["-","_","±"],"KC_N":["Ν","",""],"KC_NUBS":["\\","|",""],"KC_NUHS":["\\","|","¬"],"KC_O":["Ο","",""],"KC_P":["Π","",""],"KC_Q":[";",":",""],"KC_QUOT":["'","\"",""],"KC_R":["Ρ","","®"],"KC_RBRC":["]","}","»"],"KC_S":["Σ","",""],"KC_SCLN":["΄","¨",""],"KC_SLSH":["/","?",""],"KC_T":["Τ","",""],"KC_U":["Θ","",""],"KC_V":["Ω","",""],"KC_W":["ς","΅",""],"KC_X":["Χ","",""],"KC_Y":["Υ","","¥"],"KC_Z":["Ζ","",""]},"Russian":{"KC_0":["0",")",""],"KC_1":["1","!",""],"KC_2":["2","\"",""],"KC_3":["3","№",""],"KC_4":["4",";",""],"KC_5":["5","%",""],"KC_6":["6",":",""],"KC_7":["7","?",""],"KC_8":["8","*","₽"],"KC_9":["9","(",""],"KC_A":["Ф","",""],"KC_B":["И","",""],"KC_BSLS":["\\","/",""],"KC_C":["С","",""],"KC_COMM":["Б","",""],"KC_D":["В","",""],"KC_DOT":["Ю","",""],"KC_E":["У","",""],"KC_EQL":["=","+",""],"KC_F":["А","",""],"KC_G":["П","",""],"KC_GRV":["Ё","",""],"KC_H":["Р","",""],"KC_I":["Ш","",""],"KC_J":["О","",""],"KC_K":["Л","",""],"KC_L":["Д","",""],"KC_LBRC":["Х","",""],"KC_M":["Ь","",""],"KC_MINS":["-","_",""],"KC_N":["Т","",""],"KC_NUBS":["\\","/",""],"KC_NUHS":["\\","/",""],"KC_O":["Щ","",""],"KC_P":["З","",""],"KC_Q":["Й","",""],"KC_QUOT":["Э","",""],"KC_R":["К","",""],"KC_RBRC":["Ъ","",""],"KC_S":["Ы","",""],"KC_SCLN":["Ж","",""],"KC_SLSH":[".",",",""],"KC_T":["Е","",""],"KC_U":["Г","",""],"KC_V":["М","",""],"KC_W":["Ц","",""],"KC_X":["Ч","",""],"KC_Y":["Н","",""],"KC_Z":["Я","",""]}};
+
+// What a character key types on the host layout chosen: { plain, shifted, altgr }. KC_NUHS and
+// KC_NUBS a layout does not describe take KC_BSLS's legend, as keycodes.md decided.
+function applyHost() {
+  const host = HOSTS[state.host];
+  for (const key of KEYS) {
+    if (!key.kc) continue;
+    const entry = host[key.kc] || ((key.kc === 'KC_NUHS' || key.kc === 'KC_NUBS') && host.KC_BSLS);
+    key.chars = entry ? { plain: entry[0], shifted: entry[1], altgr: entry[2] }
+                      : { plain: key.letter || key.plain, shifted: key.letter ? '' : key.shifted, altgr: '' };
+    key.primary = key.chars.plain;
+    key.secondary = key.chars.shifted;
+  }
+}
+
 function applyRemap() {
   for (const key of KEYS) {
     if (!key.home) continue;
@@ -288,7 +311,8 @@ const SCENES = {
 // capitals. Today is what NazgBoardView draws now, shrinking included, for comparison.
 const PRESETS = ['Today', 'Cylindrical', 'Spherical'];
 // Free look-alikes: Arimo and Inter for Cherry's grotesque, Nunito for Neue's soft face,
-// Montserrat for KAT's geometric one.
+// Montserrat for KAT's geometric one. Arimo was chosen (Rico, 2026-10-03), so it is the
+// default; the others stay to compare.
 const FONTS = { 'System (today)': '"Segoe UI"', 'Arimo': '"Arimo"', 'Inter': '"Inter"', 'Nunito': '"Nunito"', 'Montserrat': '"Montserrat"' };
 // The letter size as a share of the key unit, and modifier text as a share of the letters' --
 // GMK's are about half their height and lighter.
@@ -297,11 +321,11 @@ const MODIFIER_SIZES = { '1/2': 0.5, '3/5': 0.6, '3/4': 0.75 };
 const SMALLEST_LEGEND = 9;   // px, the modifier text: below it the board stops shrinking and scrolls
 const modifierShare = () => MODIFIER_SIZES[state.modifierSize];
 // Behind the legend font, for whatever it lacks -- Noto in Nazg, merged in ImGui.
-const FALLBACKS = '"Noto Sans Symbols 2", "Noto Sans Math", "Segoe UI Symbol", sans-serif';
+const FALLBACKS = '"Noto Sans", "Noto Sans Math", "Noto Sans Symbols 2", "Segoe UI Symbol", sans-serif';
 const fontSpec = (size, weight = 400) => `${weight} ${size}px ${FONTS[state.font]}, ${FALLBACKS}`;
 
 const state = {
-  preset: 'Cylindrical', font: 'Arimo', size: 'Medium', modifierSize: '3/5', remap: 'Standard',
+  preset: 'Cylindrical', font: 'Arimo', size: 'Medium', modifierSize: '3/5', remap: 'Standard', host: 'US',
   theme: 'Dark', style: 'Outlined', plate: 'Filled', classes: 'Off', scene: 'Keymap',
   selected: keyNamed('Q'), focus: keyNamed('Q'), hovered: -1, pressed: keyNamed('G'),
   seen: new Set(KEYS.map((k, i) => (k.row === 0 || ['N', 'A', 'Z', 'G'].includes(k.primary)) ? i : -1).filter(i => i >= 0)),
@@ -319,6 +343,7 @@ const CONTROLS = [
   ['font', 'Font', Object.keys(FONTS)],
   ['size', 'Size', Object.keys(SIZES)],
   ['remap', 'Keymap', Object.keys(REMAPS)],
+  ['host', 'Host layout', Object.keys(HOSTS)],
   ['modifierSize', 'Modifier size', Object.keys(MODIFIER_SIZES)],];
 
 function buildControls() {
@@ -432,6 +457,7 @@ let layout = null;   // where the last frame drew the keys, for hovering
 const LABEL_FONT = '13px "Segoe UI", Helvetica, Arial, sans-serif';
 
 function draw() {
+  applyHost();
   applyRemap();
   const T = THEMES[state.theme], S = STYLES[state.style], scene = SCENES[state.scene];
   const root = document.documentElement.style;
@@ -614,8 +640,11 @@ function legendLines(ctx, key, unit, W, H) {
   const width = (t, s, w = 400) => { ctx.font = fontSpec(s, w); return ctx.measureText(t).width; };
   const fits = Object.assign((t, s, w = 400) => width(t, s, w) <= W, { width });
 
-  if (key.letter) return [{ t: key.letter, s: A, w: 500 }];
-  if (key.plain) return [{ t: key.shifted, s: A, w: 500 }, { t: key.plain, s: A, w: 500 }];
+  // A character key is one legend or a pair by what the host layout gives it -- on Greek the
+  // Q position types ; and : -- with the Shift character on top.
+  if (key.chars) return key.chars.shifted
+    ? [{ t: key.chars.shifted, s: A, w: 500 }, { t: key.chars.plain, s: A, w: 500 }]
+    : [{ t: key.chars.plain, s: A, w: 500 }];
 
   const n = key.named;
   switch (n.kind) {
@@ -712,6 +741,17 @@ function drawLegends(ctx, key, unit, colour) {
   // A second legend in a bottom corner -- cylindrical only for now: where SA puts the numpad's,
   // if anywhere, is still to see. Text at modifier size; an arrow at letter size and heavier,
   // as GMK prints the numpad's.
+  // The AltGr character bottom right, as ISO keycaps print it -- French and German caps do --
+  // always, where the host layout has one: functional, so nothing to switch off (Rico,
+  // 2026-10-03). Plain US has no AltGr level, so a US board is unchanged.
+  // Letter weight, a little smaller than the letters.
+  if (key.chars && key.chars.altgr) {
+    const s = 0.8 * SIZES[state.size] * unit;
+    ctx.font = fontSpec(s, 400);
+    const w = ctx.measureText(key.chars.altgr).width;
+    ctx.fillText(key.chars.altgr, box.x1 - w, box.y1 - s * 1.06 + opticalShift(ctx, key.chars.altgr));
+  }
+
   const sublegend = key.named && key.named.sublegend;
   if (sublegend && !spherical) {
     const s = modifierShare() * SIZES[state.size] * unit;
@@ -825,7 +865,7 @@ draw();
 // The canvas draws with whatever is loaded, so ask for every face and draw again once they
 // arrive.
 Promise.allSettled(
-  ['Arimo', 'Inter', 'Nunito', 'Montserrat'].flatMap(f => [400, 500].map(w => document.fonts.load(`${w} 16px "${f}"`, 'AaQq1!'))),
+  ['Arimo', 'Inter', 'Nunito', 'Montserrat', 'Noto Sans'].flatMap(f => [400, 500].map(w => document.fonts.load(`${w} 16px "${f}"`, 'AaQq1!ΣαЖжé€'))),
 ).then(draw);
 </script>
 </body>

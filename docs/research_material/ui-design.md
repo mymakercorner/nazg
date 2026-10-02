@@ -413,6 +413,29 @@ they would be noise beside the legends that matter. With them go:
 Kana typists, who do use kana legends, are not covered -- but QMK's Japanese host layout holds
 no kana either; to revisit only if one asks.
 
+**Host layouts in the mockup** (2026-10-03): its *Host layout* switch -- US, UK, French
+(AZERTY), German, Greek, Russian -- takes every character key's legends from Nazg's own table,
+`NazgHostLayoutTable.cpp`, so French prints "1 over &", "2 over é", A and Z where US has Q and
+W, as AZERTY caps do (Rico). A position is one legend or a pair by what the layout gives it --
+on Greek the Q position is "; :". Nothing changes in the placement rules. Two findings:
+- **The AltGr character is printed, always** (Rico, 2026-10-03): bottom right, as ISO caps print
+  it -- French ~ # { [ | ` \ @, the € on E, UK's € on 4 -- wherever the host layout has one. It
+  says what the key types, so it is a functional second legend, with nothing to switch off; plain
+  US has no AltGr level, so a US board is unchanged. This settles the question keycodes.md left
+  to the visual design. (Rico's note: an AZERTY extension kit brings new number-row and letter
+  caps but no new right Alt -- which is also why base kits print "Alt Gr" for everyone.)
+- **Font coverage**: Arimo, Inter and Noto Sans hold Greek, Cyrillic and the accented Latin
+  themselves; **Montserrat and Nunito have no Greek**, so a Greek board would mix in Noto's
+  letters. A point against them in the font choice.
+
+**The legend font is Arimo** (Rico, 2026-10-03), of the look-alikes tried: a Helvetica-like
+grotesque like GMK's Cherry legends, free to bundle (Apache 2.0, compatible with GPL-3.0). Of the
+host layouts' 277 non-ASCII characters it holds Latin, Greek, Cyrillic, Hebrew and every currency
+itself -- checked on its Google Fonts version. Merged behind it, for the rest: **Noto Sans
+Arabic** (the Farsi layout), **Noto Sans Math** (∂ ∆ ∏ ∑ √ ∞ ∫ ≈ ≠ ≤ ≥) and a symbols face (⌨ ◊
+‡ ‰, the ﬁ ﬂ ligatures). Whether the interface's own text uses Arimo too belongs to the
+styling of the rest of the window.
+
 **Modifier text is 3/5 of the letter size** by default (Rico, 2026-10-03), near GMK's
 proportions: at that size nothing on the Model F needs a short form or a cut, in either family.
 Its cost: with modifier text held at 9 px or more, the Model F needs about 1170 px of width
