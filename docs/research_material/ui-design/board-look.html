@@ -92,9 +92,11 @@ const NAMED = {
   LCTL: { qmk: 'Left Control',  name: 'Control',      short: 'Ctrl',  icon: '\u2303', kind: 'mod', cls: 'm' },
   RCTL: { qmk: 'Right Control', name: 'Control',      short: 'Ctrl',  icon: '\u2303', kind: 'mod', cls: 'm' },
   LALT: { qmk: 'Left Alt',      name: 'Alt',          icon: '\u2325', kind: 'mod', cls: 'm' },
-  RALT: { qmk: 'Right Alt',     name: 'Alt',          icon: '\u2325', kind: 'mod', cls: 'm' },
-  LGUI: { qmk: 'Left GUI',      name: 'Super',        icon: '\u25C7', kind: 'mod', cls: 'm' },
-  RGUI: { qmk: 'Right GUI',     name: 'Super',        icon: '\u25C7', kind: 'mod', cls: 'm' },
+  // Right Alt prints Alt Gr on every host layout, as keycaps do -- Rico's US ANSI ones too.
+  RALT: { qmk: 'Right Alt',     name: 'Alt Gr',       icon: '\u2325', kind: 'mod', cls: 'm' },
+  // Win, after QMK's own name, KC_LWIN and KC_RWIN.
+  LGUI: { qmk: 'Left GUI',      name: 'Win',          icon: '\u25C7', kind: 'mod', cls: 'm' },
+  RGUI: { qmk: 'Right GUI',     name: 'Win',          icon: '\u25C7', kind: 'mod', cls: 'm' },
   APP:  { qmk: 'App',           name: 'Menu',         icon: '\u2630', kind: 'mod', cls: 'm' },
   SPC:  { qmk: 'Spacebar',      name: '',             kind: 'space', cls: 'a' },
   UP:   { qmk: 'Up',            name: 'Up',           icon: '\u2191', kind: 'arrow', cls: 'm', arrow: 'up' },
@@ -102,8 +104,8 @@ const NAMED = {
   LEFT: { qmk: 'Left',          name: 'Left',         icon: '\u2190', kind: 'arrow', cls: 'm', arrow: 'left' },
   RGHT: { qmk: 'Right',         name: 'Right',        icon: '\u2192', kind: 'arrow', cls: 'm', arrow: 'right' },
   PSLS: { qmk: '/', name: '÷', kind: 'num', cls: 'm', place: 'middle left' },   // ÷, as GMK prints it
-  PAST: { qmk: '*', name: '*', kind: 'num', cls: 'm', place: 'middle left' },
-  PMNS: { qmk: '-', name: '-', kind: 'num', cls: 'm', place: 'middle left' },
+  PAST: { qmk: '*', name: '×', kind: 'num', cls: 'm', place: 'middle left' },   // ×
+  PMNS: { qmk: '-', name: '−', kind: 'num', cls: 'm', place: 'middle left' },   // − the minus sign
   PPLS: { qmk: '+', name: '+', kind: 'num', cls: 'm', place: 'centre' },
   PDOT: { qmk: '.', name: '.', kind: 'num', cls: 'a' },
   PENT: { qmk: 'Enter', name: 'Enter', icon: '\u23CE', kind: 'mod', cls: 'x', place: 'centre' },
@@ -115,7 +117,7 @@ const SPHERICAL_WORDS = {
   ESC: ['ESC'], PSCR: ['PRINT', 'PRT'], SCRL: ['SCRLK', 'SCR'], PAUS: ['PAUSE'], BSPC: ['BACKSPACE', 'BKSP'],
   INS: ['INS'], HOME: ['HOME'], PGUP: ['PGUP'], NUM: ['NUM LOCK', 'NUM'], TAB: ['TAB'], ENT: ['ENTER'], DEL: ['DEL'],
   END: ['END'], PGDN: ['PGDN'], CAPS: ['CAPS LOCK', 'CAPS'], LSFT: ['SHIFT'], RSFT: ['SHIFT'], LCTL: ['CTRL'],
-  RCTL: ['CTRL'], LALT: ['ALT'], RALT: ['ALT'], LGUI: ['SUPER'], RGUI: ['SUPER'], APP: ['MENU'], PENT: ['ENTER'],
+  RCTL: ['CTRL'], LALT: ['ALT'], RALT: ['ALT GR'], LGUI: ['WIN'], RGUI: ['WIN'], APP: ['MENU'], PENT: ['ENTER'],
 };
 for (let n = 1; n <= 12; ++n) NAMED['F' + n] = { qmk: 'F' + n, name: 'F' + n, kind: 'fn', cls: 'm' };
 for (let n = 0; n <= 9; ++n) NAMED['P' + n] = { qmk: String(n), name: String(n), kind: 'num', cls: 'a' };
@@ -171,6 +173,41 @@ function parseKeys() {
 }
 const KEYS = parseKeys();
 const keyNamed = legend => KEYS.findIndex(k => k.primary === legend);
+for (const key of KEYS) key.home = key.code;   // the keycode of the standard keymap
+
+// Keymaps that move modifiers, to see the side rule at work: a key keeps its position, its
+// keycode changes.
+const REMAPS = {
+  'Standard': {},
+  'Caps ↔ Ctrl': { CAPS: 'LCTL', LCTL: 'CAPS' },
+  'Ctrls swapped': { LCTL: 'RCTL', RCTL: 'LCTL' },
+};
+function applyRemap() {
+  for (const key of KEYS) {
+    if (!key.home) continue;
+    key.code = REMAPS[state.remap][key.home] || key.home;
+    key.named = NAMED[key.code];
+    key.primary = key.named.qmk;
+  }
+}
+
+// Which side a key sits on, for the modifiers that have two keycodes. Measured from the space
+// bar's centre -- a full-size board's own centre falls near Backspace, because of the numpad,
+// and would put right Alt on the left -- or from the board's centre where there is no space bar
+// (splits, orthos). A key straddling the line is on neither side.
+// Right Alt is not here: Alt Gr already says which Alt it is.
+const SIDES = { LSFT: 'Left', RSFT: 'Right', LCTL: 'Left', RCTL: 'Right', LALT: 'Left', LGUI: 'Left', RGUI: 'Right' };
+const SIDE_LINE = (() => {
+  const widest = KEYS.reduce((a, b) => b.rects[0].w > a.rects[0].w ? b : a);
+  if (widest.rects[0].w >= 3) return widest.rects[0].x + widest.rects[0].w / 2;
+  const xs = KEYS.flatMap(k => k.rects.flatMap(r => [r.x, r.x + r.w]));
+  return (Math.min(...xs) + Math.max(...xs)) / 2;
+})();
+function sideOf(key) {
+  const r = key.rects[0];
+  if (r.x < SIDE_LINE && r.x + r.w > SIDE_LINE) return 'Centre';
+  return r.x + r.w / 2 < SIDE_LINE ? 'Left' : 'Right';
+}
 
 // Every colour a theme names. The board's are tokens, so a theme is one table.
 const THEMES = {
@@ -262,7 +299,7 @@ const FALLBACKS = '"Noto Sans Symbols 2", "Noto Sans Math", "Segoe UI Symbol", s
 const fontSpec = (size, weight = 400) => `${weight} ${size}px ${FONTS[state.font]}, ${FALLBACKS}`;
 
 const state = {
-  preset: 'Cylindrical', modifiers: 'Text', font: 'Arimo', size: 'Medium', modifierSize: '3/5',
+  preset: 'Cylindrical', modifiers: 'Text', font: 'Arimo', size: 'Medium', modifierSize: '3/5', remap: 'Standard',
   theme: 'Dark', style: 'Outlined', plate: 'Filled', classes: 'Off', scene: 'Keymap',
   selected: keyNamed('Q'), focus: keyNamed('Q'), hovered: -1, pressed: keyNamed('G'),
   seen: new Set(KEYS.map((k, i) => (k.row === 0 || ['N', 'A', 'Z', 'G'].includes(k.primary)) ? i : -1).filter(i => i >= 0)),
@@ -280,6 +317,7 @@ const CONTROLS = [
   ['modifiers', 'Modifiers', MODIFIERS],
   ['font', 'Font', Object.keys(FONTS)],
   ['size', 'Size', Object.keys(SIZES)],
+  ['remap', 'Keymap', Object.keys(REMAPS)],
   ['modifierSize', 'Modifier size', Object.keys(MODIFIER_SIZES)],];
 
 function buildControls() {
@@ -393,6 +431,7 @@ let layout = null;   // where the last frame drew the keys, for hovering
 const LABEL_FONT = '13px "Segoe UI", Helvetica, Arial, sans-serif';
 
 function draw() {
+  applyRemap();
   const T = THEMES[state.theme], S = STYLES[state.style], scene = SCENES[state.scene];
   const root = document.documentElement.style;
   for (const [name, value] of [['window', T.window], ['menubar', T.menubar], ['text', T.text], ['muted', T.muted],
@@ -586,7 +625,15 @@ function legendLines(ctx, key, unit, W, H) {
   }
 
   const words = spherical && SPHERICAL_WORDS[key.code];
-  const name = words ? words[0] : n.name, short = words ? words[1] || words[0] : n.short || n.name;
+  let name = words ? words[0] : n.name, short = words ? words[1] || words[0] : n.short || n.name;
+  // A modifier prints as its physical keycap would -- Ctrl on either side -- and names its side
+  // only where its keycode's side is not where the key sits: Right Ctrl on the left half.
+  // Caps and Ctrl swapped keeps a plain Ctrl, as the caps sold for that swap do.
+  const side = SIDES[key.code];
+  if (side && sideOf(key) !== side) {
+    name = spherical ? `${side[0]} ${short}` : `${side} ${name}`;
+    short = spherical ? name : `${side[0]} ${short}`;
+  }
   if (state.modifiers === 'Text' || !n.icon) return textChain(name, short, M, W, H, fits);
   if (state.modifiers === 'Icons') return [{ t: n.icon, s: A }];
 

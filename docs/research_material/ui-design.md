@@ -357,7 +357,8 @@ an Esc cap would -- the board shows what a key does.
 
 **The numpad** is the largest group of such cases on cylindrical sets (Rico, from GMK):
 - Num Lock, /, * and − at the left, centred vertically; the tall + and Enter centred both ways.
-  The divide key prints the mathematical **÷**, not a slash.
+  The operators print as mathematics, not as the characters they type: **÷** for divide, **×**
+  for multiply, the true minus sign **−** for minus (Rico, 2026-10-02 and 2026-10-03).
 - The digits and . top left, each with a **second legend** for what it does with Num Lock off:
   text at the bottom left -- Ins on 0, Del on ., End on 1, Pg Dn on 3, Home on 7, Pg Up on 9 --
   and arrows at the bottom right -- ↓ on 2, ← on 4, → on 6, ↑ on 8, at letter size and heavier
@@ -366,6 +367,30 @@ an Esc cap would -- the board shows what a key does.
 - The keycode does both, so printing both still shows what the key does. Each is one entry in
   the legend set: a placement, and a sublegend with its corner. Where spherical sets put the
   numpad's second legends, if anywhere, is still to see.
+
+**Modifier text is 3/5 of the letter size** by default (Rico, 2026-10-03), near GMK's
+proportions: at that size nothing on the Model F needs a short form or a cut, in either family.
+Its cost: with modifier text held at 9 px or more, the Model F needs about 1170 px of width
+before the board scrolls.
+
+**Names of the modifiers** (Rico, 2026-10-03):
+- **The GUI key prints "Win"**, after QMK's own name (`KC_LWIN`, `KC_RWIN`) -- "WIN" on
+  spherical sets.
+- **Right Alt prints "Alt Gr"** -- with a space, as on Rico's caps; "ALT GR" on spherical sets
+  -- on every host layout, as keycaps do, his US ANSI ones too; and never names its side: Alt Gr
+  already says which Alt it is.
+- **Left and right, as the physical keycap**: Ctrl, Shift, Alt and Win print plain, the same on
+  both sides, and **name their side only where the keycode's side is not where the key sits** --
+  a Right Ctrl keycode on the left half prints "Right Control" ("R CTRL" on spherical sets).
+  Caps Lock and Left Ctrl swapped keeps a plain "Ctrl" at the Caps Lock position, as the caps
+  sold for that swap do. Not "is it at its usual position": nothing tells Nazg where a board's
+  modifiers usually sit -- the definition gives geometry, not a stock keymap -- while a side is
+  computed for any board.
+- **The side is measured from the space bar's centre**, or from the board's where there is no
+  space bar (splits, orthos). A full-size board's own centre falls near Backspace, because of
+  the numpad, and would put right Alt on the left. A key straddling the line is on neither
+  side, so it names its side. The mockup's *Keymap* switch shows it: Caps ↔ Ctrl, and both
+  Ctrls swapped.
 
 **Arrows are drawn, not taken from a font** (2026-10-02). From fonts their weights did not
 match: Arimo, Inter and Montserrat have ↑ and ↓ but not ← and →, which then come from another
