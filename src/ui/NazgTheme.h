@@ -93,11 +93,10 @@ namespace nazg
     // The board's colours, by meaning, in the current theme.
     namespace BoardColours
     {
-        // A keycap of one class: its face, the lip under it, the legends on it.
+        // A keycap of one class: its face, the legends on it.
         struct Keycap
         {
             ImU32 face;
-            ImU32 lip;
             ImU32 legend;
         };
 
@@ -107,6 +106,7 @@ namespace nazg
         [[nodiscard]] ImU32  Line(uint8_t marks);
 
         [[nodiscard]] ImU32 Plate();
+        [[nodiscard]] ImU32 Lip();       // the Bottom lip's, one for every key
         [[nodiscard]] ImU32 Outline();   // the Outlined keycap's border
 
         // The states. Overlays are painted over the fill; outlines nest around the face.

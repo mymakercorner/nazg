@@ -37,6 +37,7 @@ namespace nazg
         // Fractions of a key unit.
         constexpr float c_KeyGap        = 0.06f;   // between two keys, on each side
         constexpr float c_KeyRounding   = 0.12f;
+        constexpr float c_InnerRounding = 0.02f;   // the inner corner of an L-shaped key: a sixth (Rico)
         constexpr float c_LegendPad     = 0.10f;   // between a keycap's edge and its legends
         constexpr float c_Lip           = 0.06f;   // Bottom lip: in the key's own bottom gap, no more
         constexpr float c_PlateMargin   = 0.35f;   // the plate past the keys, on every side
@@ -194,17 +195,26 @@ namespace nazg
             }
         }
 
-        void FillContour(ImDrawList* drawList, const std::vector<ContourPoint>& contour, float rounding, ImU32 colour)
+        // A key's corner radii in pixels: the outer corners', and the inner corner's of an L.
+        struct Rounding
         {
-            TraceContour(drawList, contour, rounding, rounding);
+            float outer;
+            float inner;
+        };
+
+        void FillContour(ImDrawList* drawList, const std::vector<ContourPoint>& contour, Rounding rounding,
+                         ImU32 colour)
+        {
+            TraceContour(drawList, contour, rounding.outer, rounding.inner);
             drawList->PathFillConcave(colour);
         }
 
         // A line along the contour, `inset` pixels in from the face's edge to its middle.
-        void StrokeContour(ImDrawList* drawList, const std::vector<ContourPoint>& face, float rounding, float inset,
+        void StrokeContour(ImDrawList* drawList, const std::vector<ContourPoint>& face, Rounding rounding, float inset,
                            float thickness, ImU32 colour)
         {
-            TraceContour(drawList, InsetContour(face, inset), std::max(0.0f, rounding - inset), rounding + inset);
+            TraceContour(drawList, InsetContour(face, inset), std::max(0.0f, rounding.outer - inset),
+                         rounding.inner + inset);
             drawList->PathStroke(colour, thickness, ImDrawFlags_Closed);
         }
 
@@ -306,7 +316,7 @@ namespace nazg
         {
             const DefinitionKey& key      = described.geometry;
             const float          gap      = unit * c_KeyGap;
-            const float          rounding = unit * c_KeyRounding;
+            const Rounding       rounding{ unit * c_KeyRounding, unit * c_InnerRounding };
             const float          scale    = ImGui::GetStyle().FontScaleDpi;
 
             const Rotation rotation(key, ImVec2(origin.x + key.rotationX * unit, origin.y + key.rotationY * unit));
@@ -344,7 +354,7 @@ namespace nazg
                 std::vector<ContourPoint> lip = ContourOnScreen(key, origin, unit, gap);
                 for (ContourPoint& point : lip)
                     point.y += unit * c_Lip;
-                FillContour(drawList, lip, rounding, WithStates(colours.lip, described.marks, hovered));
+                FillContour(drawList, lip, rounding, WithStates(BoardColours::Lip(), described.marks, hovered));
             }
             else
             {

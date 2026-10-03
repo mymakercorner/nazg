@@ -247,12 +247,16 @@ shows each screen's states as Nazg sets them: Keymap, Matrix view, Live test, Vi
   meet the rule. **The rule, measured** (2026-10-03, after Rico saw Light's modifier caps merge
   with the plate in Nazg, 0.923 against 0.925): on every theme, the alpha and modifier faces
   lighter than the plate and every lip darker, each **at least 0.04 apart in OKLab lightness**.
-  Light's plate went to `#d3d4d8`, its alpha lip to `#bec1c9`; Dark's and Dracula's lips, lighter
-  than their plates before, went darker. Accent caps stand apart by their hue. To become a test
-  with the category colour solver.
+  Light's plate went to `#d3d4d8`; Dark's and Dracula's lips, lighter than their plates before,
+  went darker. Accent caps stand apart by their hue. To become a test with the category colour
+  solver. **One lip colour per theme**, the alphas', under every key (Rico, 2026-10-03: a darker
+  shade of each cap's own colour was disturbing, on Dark most) -- on Light a little darker,
+  `#acafb7`, so it stays below the slate accent face too; Dark `#12131b`, Dracula `#151725`.
 - **Outlines follow the key's contour.** An L-shaped key gets one L-shaped outline: the two
   KLE rectangles traced together (at most 3×3 cells, walked around the edge), outer corners
-  rounded, the inner corner rounded the other way (`PathArcTo`, then a closed `PathStroke`).
+  rounded, the inner corner rounded the other way (`PathArcTo`, then a closed `PathStroke`) --
+  by 0.02 unit, a sixth of the outer corners' 0.12 (Rico, 2026-10-03: the same radius made the
+  L's corner too wide, and a third still too round).
   Nested state outlines step inward along the whole contour. The same helper serves state
   outlines, the Outlined border and the lip. **A bug today**: `DrawKey()` strokes the two
   rectangles one after the other, so a selected ISO Enter shows both crossing inside it.

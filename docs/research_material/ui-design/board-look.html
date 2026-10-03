@@ -452,7 +452,7 @@ function sideOf(key) {
 const THEMES = {
   Light: {
     window: '#f3f3f5', menubar: '#e3e4e9', text: '#1d1e22', muted: '#6b6e78', control: '#ffffff', border: '#c8cad2',
-    uiAccent: '#3b82f6', uiAccentText: '#ffffff', plate: '#d3d4d8', plateBorder: '#b4b7c2',
+    uiAccent: '#3b82f6', uiAccentText: '#ffffff', plate: '#d3d4d8', lip: '#acafb7', plateBorder: '#b4b7c2',
     // The lips darker than the plate, so a filled plate does not swallow them.
     alpha: { top: '#ffffff', side: '#bec1c9' }, mod: { top: '#e4e5ea', side: '#b3b7c1' }, accent: { top: '#f2a54e', side: '#c98130' },
     outline: '#b4b7c2', legend: '#24262b', legendAccent: '#2b1a05',
@@ -462,7 +462,7 @@ const THEMES = {
   },
   Dark: {
     window: '#0f0f11', menubar: '#24252b', text: '#ececf1', muted: '#80838f', control: '#20232b', border: '#3a3d48',
-    uiAccent: '#4296fa', uiAccentText: '#ffffff', plate: '#1c1d23', plateBorder: '#4b4e5c',
+    uiAccent: '#4296fa', uiAccentText: '#ffffff', plate: '#1c1d23', lip: '#12131b', plateBorder: '#4b4e5c',
     alpha: { top: '#3a3c48', side: '#12131b' }, mod: { top: '#2c2e38', side: '#101118' }, accent: { top: '#60482c', side: '#45331f' },
     outline: '#4b4e5c', legend: '#ebebf0', legendAccent: '#f3e3cf',
     // Light's state hues, lighter (Rico, 2026-10-03): the two standard themes share their colours.
@@ -472,7 +472,7 @@ const THEMES = {
   },
   Dracula: {
     window: '#282a36', menubar: '#21222c', text: '#f8f8f2', muted: '#6272a4', control: '#343746', border: '#44475a',
-    uiAccent: '#bd93f9', uiAccentText: '#282a36', plate: '#21222c', plateBorder: '#6272a4',
+    uiAccent: '#bd93f9', uiAccentText: '#282a36', plate: '#21222c', lip: '#151725', plateBorder: '#6272a4',
     alpha: { top: '#44475a', side: '#151725' }, mod: { top: '#373949', side: '#131520' }, accent: { top: '#bd93f9', side: '#9471d0' },
     outline: '#6272a4', legend: '#f8f8f2', legendAccent: '#282a36',
     // Rico's own theme, free to change (2026-10-03): its states take the shared hues, so its
@@ -830,7 +830,9 @@ function draw() {
       for (const a of faces) fillRect(a, fillFor(caps.top, marks, T), f.rounding * unit);
     } else {
       if (S.lip)
-        for (const a of outer) fillRect(inset(a, 0, S.lip * unit, 0, -S.lip * unit), fillFor(caps.side, marks, T), rounding);
+        // One lip colour for every key, the theme's (Rico, 2026-10-03: a shade of each cap's own
+        // colour was disturbing, on Dark most).
+        for (const a of outer) fillRect(inset(a, 0, S.lip * unit, 0, -S.lip * unit), fillFor(T.lip, marks, T), rounding);
       for (const a of outer) fillRect(a, fillFor(caps.top, marks, T), rounding);
       if (S.outline) {
         ctx.strokeStyle = marks.has('dimmed') ? over(T.outline, T.dimmed) : T.outline; ctx.lineWidth = 1;

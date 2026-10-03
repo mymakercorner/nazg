@@ -26,6 +26,7 @@ namespace nazg
             // The board.
             ImU32                 plate;
             BoardColours::Keycap  alpha, modifier, accentCap;
+            ImU32                 lip;   // Bottom lip: one shadow under every key, whatever its class
             ImU32                 outline;
             ImU32                 highlighted, highlightedTint, second, secondTint, checked, checkedTint, warning;
             ImU32                 pressed, hovered, dimmed;
@@ -35,10 +36,12 @@ namespace nazg
         };
 
         // Every theme keeps the keycap's three tones in one order of lightness: the faces of the
-        // alphas and modifiers lighter than the plate, every lip darker than it, each at least
-        // 0.04 apart in OKLab -- else a cap and the plate merge, or the lip vanishes into the
-        // plate (Rico, 2026-10-03: Light's modifiers had the plate's colour). Accent caps stand
-        // apart by their hue.
+        // alphas and modifiers lighter than the plate, the lip darker than it, each at least 0.04
+        // apart in OKLab -- else a cap and the plate merge, or the lip vanishes into the plate
+        // (Rico, 2026-10-03: Light's modifiers had the plate's colour). Accent caps stand apart by
+        // their hue. The lip is one colour for every key, the alphas' (Rico, 2026-10-03: a shade
+        // of each cap's own colour was disturbing, on Dark most) -- on Light a little darker, to
+        // stay below the slate accent face too.
         //
         // The values are the mockup's, ui-design/board-look.html. Light and Dark share their
         // state hues, Dark's lighter; Dracula, Rico's own, takes the shared ones too. The
@@ -49,9 +52,10 @@ namespace nazg
             Hex(0xffffff),
 
             Hex(0xd3d4d8),
-            { Hex(0xffffff), Hex(0xbec1c9), Hex(0x24262b) },
-            { Hex(0xe4e5ea), Hex(0xb3b7c1), Hex(0x24262b) },
-            { Hex(0xafbfd5), Hex(0x8a9aae), Hex(0x18222f) },
+            { Hex(0xffffff), Hex(0x24262b) },
+            { Hex(0xe4e5ea), Hex(0x24262b) },
+            { Hex(0xafbfd5), Hex(0x18222f) },
+            Hex(0xacafb7),
             Hex(0xb4b7c2),
             Hex(0x1c7ed6), Hex(0x1c7ed6, 0.22f), Hex(0xbf308f), Hex(0xbf308f, 0.20f), Hex(0x2f9e44), Hex(0x2f9e44, 0.32f),
             Hex(0xe03131),
@@ -65,9 +69,10 @@ namespace nazg
             Hex(0xffffff),
 
             Hex(0x1c1d23),
-            { Hex(0x3a3c48), Hex(0x12131b), Hex(0xebebf0) },
-            { Hex(0x2c2e38), Hex(0x101118), Hex(0xebebf0) },
-            { Hex(0x5a6a80), Hex(0x415166), Hex(0xe8eff9) },
+            { Hex(0x3a3c48), Hex(0xebebf0) },
+            { Hex(0x2c2e38), Hex(0xebebf0) },
+            { Hex(0x5a6a80), Hex(0xe8eff9) },
+            Hex(0x12131b),
             Hex(0x4b4e5c),
             Hex(0x71b6ff), Hex(0x71b6ff, 0.27f), Hex(0xf387c7), Hex(0xf387c7, 0.27f), Hex(0x78dc82), Hex(0x5ac86e, 0.43f),
             Hex(0xff8b7f),
@@ -81,9 +86,10 @@ namespace nazg
             Hex(0x282a36),
 
             Hex(0x21222c),
-            { Hex(0x44475a), Hex(0x151725), Hex(0xf8f8f2) },
-            { Hex(0x373949), Hex(0x131520), Hex(0xf8f8f2) },
-            { Hex(0xbd93f9), Hex(0x9471d0), Hex(0x282a36) },
+            { Hex(0x44475a), Hex(0xf8f8f2) },
+            { Hex(0x373949), Hex(0xf8f8f2) },
+            { Hex(0xbd93f9), Hex(0x282a36) },
+            Hex(0x151725),
             Hex(0x6272a4),
             Hex(0x71b6ff), Hex(0x71b6ff, 0.25f), Hex(0xf387c7), Hex(0xf387c7, 0.25f), Hex(0x50fa7b), Hex(0x50fa7b, 0.33f),
             Hex(0xff8b7f),
@@ -300,7 +306,7 @@ namespace nazg
             const float  s    = std::clamp(heat, 0.0f, 1.0f);
             const ImU32  face = ImGui::ColorConvertFloat4ToU32(
                 ImVec4(cold.x + (hot.x - cold.x) * s, cold.y + (hot.y - cold.y) * s, cold.z + (hot.z - cold.z) * s, 1.0f));
-            return { face, t.alpha.lip, s > 0.5f ? Hex(0xffffff) : t.alpha.legend };
+            return { face, s > 0.5f ? Hex(0xffffff) : t.alpha.legend };
         }
 
         ImU32 Legend(LegendRole role, KeyFill fill)
@@ -339,6 +345,7 @@ namespace nazg
         }
 
         ImU32 Plate() { return Current().plate; }
+        ImU32 Lip() { return Current().lip; }
         ImU32 Outline() { return Current().outline; }
         ImU32 Hovered() { return Current().hovered; }
         ImU32 Pressed() { return Current().pressed; }
