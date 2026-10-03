@@ -516,7 +516,7 @@ function accentCaps(T) {
 
 const state = {
   preset: 'Cylindrical', font: 'Arimo', size: 'Medium', modifierSize: '3/5', remap: 'Standard', host: 'US',
-  layer: 'Base', commands: 'D′', cmdHeader: '1/2', cmdCase: 'Mixed', cmdPlace: 'Header top', transMark: 'Bottom right', peekStyle: 'Sublegend', noMark: 'Struck + ✕', selection: 'Neutral', accentCap: 'Slate', darkSlate: 'Lifted',
+  layer: 'Base', commands: 'D′', cmdHeader: '1/2', cmdCase: 'Mixed', cmdPlace: 'Header top', peekStyle: 'Sublegend', noMark: 'Struck + ✕', selection: 'Neutral', accentCap: 'Slate', darkSlate: 'Lifted',
   theme: 'Dark', style: 'Outlined', plate: 'Filled', classes: 'Off', scene: 'Keymap',
   selected: keyNamed('Q'), focus: keyNamed('Q'), hovered: -1, pressed: keyNamed('G'),
   seen: new Set(KEYS.map((k, i) => (k.row === 0 || ['N', 'A', 'Z', 'G'].includes(k.primary)) ? i : -1).filter(i => i >= 0)),
@@ -548,7 +548,6 @@ const CONTROLS = [
   ['cmdCase', 'Command case', ['Family', 'Mixed']],
   // The same placements on both families (Rico, 2026-10-03); Header top is the default.
   ['cmdPlace', 'Command placement', ['Header top', 'Top left', 'Middle left', 'Centred']],
-  ['transMark', 'Transparent ▽', ['Bottom right', 'Top right']],
   // How a peeked layer shows (hover the Layer control's Features button): a coloured second
   // legend bottom right, the base's bottom legends stepping aside, or the strip tried first --
   // found too busy, and colliding with glyphs (Rico, 2026-10-03).
@@ -767,6 +766,22 @@ function draw() {
         ctx.strokeStyle = marks.has('dimmed') ? over(T.outline, T.dimmed) : T.outline; ctx.lineWidth = 1;
         for (const a of outer) { ctx.beginPath(); ctx.roundRect(a.x0 + 0.5, a.y0 + 0.5, a.x1 - a.x0 - 1, a.y1 - a.y0 - 1, rounding); ctx.stroke(); }
       }
+    }
+
+    // A command's band, with the face and under the marks, so a selected or highlighted command
+    // key keeps its whole outline (Rico, 2026-10-03). Faint on a transparent or KC_NO key, dimmed
+    // with the key.
+    const feature = key.hold || key.cmd;
+    if (feature && state.preset !== 'Today') {
+      const f = faces[0], r = S.face ? S.face.rounding * unit : rounding;
+      let band = commandInk(caps.top, feature.cat, 'band') || T.legend;
+      if (marks.has('dimmed')) band = over(band, T.dimmed);
+      ctx.save();
+      ctx.globalAlpha = key.trans || key.none ? 0.28 : 1;
+      ctx.beginPath(); ctx.roundRect(f.x0, f.y0, f.x1 - f.x0, f.y1 - f.y0, r); ctx.clip();
+      ctx.fillStyle = band;
+      ctx.fillRect(f.x0, f.y0, f.x1 - f.x0, Math.max(2, 0.055 * unit));
+      ctx.restore();
     }
 
     // Outlines nest, the first outermost, as in DrawKey().
@@ -1035,10 +1050,6 @@ function drawLegends(ctx, key, unit, colour) {
 
   ctx.save();
   ctx.beginPath(); ctx.roundRect(a.x0, a.y0, a.x1 - a.x0, a.y1 - a.y0, key.faceRounding); ctx.clip();
-  if (feature) {
-    ctx.fillStyle = inkOf('band');
-    ctx.fillRect(a.x0, a.y0, a.x1 - a.x0, bandHeight);
-  }
   // The hold's header: centred, or at the left with the left placements.
   if (holdHead) {
     ctx.font = fontSpec(holdHead.s, 500);
@@ -1095,14 +1106,14 @@ function drawLegends(ctx, key, unit, colour) {
 }
 
 // The ▽ of a transparent key, drawn rather than taken from a font, as the arrows are: a small
-// outlined triangle in a corner -- bottom right by default, top right to compare.
+// outlined triangle in the bottom right corner.
 // Small, in the very corner, half strength (Rico, 2026-10-03): a mark, not a legend -- tucked
 // in the face's corner padding, clear of the legends' box, so it meets no glyph.
 function drawTransparentMark(ctx, key, unit, colour) {
   const a = key.face, p = 0.035 * unit;
   const s = Math.max(5, 0.075 * unit);
   const x1 = a.x1 - p - key.faceRounding * 0.3, x0 = x1 - s;
-  const y0 = state.transMark === 'Top right' ? a.y0 + p + key.faceRounding * 0.3 : a.y1 - p - key.faceRounding * 0.3 - s * 0.87;
+  const y0 = a.y1 - p - key.faceRounding * 0.3 - s * 0.87;   // always bottom right (Rico, 2026-10-03)
   ctx.save();
   ctx.globalAlpha = 0.55;
   ctx.strokeStyle = colour;
@@ -1120,7 +1131,7 @@ function drawNoMark(ctx, key, unit, colour) {
   const a = key.face, p = 0.035 * unit;
   const s = Math.max(5, 0.075 * unit) * 0.85, inset = key.faceRounding * 0.3;
   const x1 = a.x1 - p - inset, x0 = x1 - s;
-  const y0 = state.transMark === 'Top right' ? a.y0 + p + inset : a.y1 - p - inset - s;
+  const y0 = a.y1 - p - inset - s;
   ctx.save();
   ctx.strokeStyle = colour;
   ctx.lineCap = 'round';

@@ -214,8 +214,13 @@ shows each screen's states as Nazg sets them: Keymap, Matrix view, Live test, Vi
   outlines, the Outlined border and the lip. **A bug today**: `DrawKey()` strokes the two
   rectangles one after the other, so a selected ISO Enter shows both crossing inside it.
 
-Still to settle: legends (below); keycap colour classes, which need the parser to keep KLE
-colours; the default keycap style.
+Still to settle: legends (below); the default keycap style.
+
+**Keycap colour classes** (Rico, 2026-10-03). KLE colours say only whether a key is an alpha, a
+modifier or an accent; **Nazg never renders them** -- the theme colours each class. Most Vial
+definitions carry no colours at all (some of Rico's do: VIA's colours kept in a Vial definition,
+which Vial ignores but parses), so a class must also be found without them, from the keys
+themselves: what to place on which key is still to design.
 
 ### Legends -- the plan, not yet decided
 
@@ -253,8 +258,9 @@ characters** on a key --
   Latin-script words -- so the Yu Gothic and Malgun fallbacks loaded today are not needed for
   legends; they would have mattered only for decorative sublegends, since dropped;
 - two problem cases: the Mac layouts use Apple's logo (U+F8FF), which only Apple's fonts
-  contain, so it needs a substitute; and six dead-key accents are combining characters with
-  nothing to sit on, so they need a base or a standalone form.
+  contain -- **not printed** (Rico, 2026-10-03): it is a character Option+Shift+K types on nine
+  Mac layouts, and a legend no bundled font holds is left off; and six dead-key accents are
+  combining characters with nothing to sit on, so they need a base or a standalone form.
 
 Arabic and Hebrew are right to left, but one letter on a key needs no shaping, so ImGui draws
 them. Candidates: **one font covering everything** (DejaVu Sans), or **a family merged in
@@ -370,8 +376,8 @@ an Esc cap would -- the board shows what a key does.
   than the text. 5 has none.
 - The arrow keys keep the top left too, like letters -- the arrow class's cylindrical rule.
 - The keycode does both, so printing both still shows what the key does. Each is one entry in
-  the legend set: a placement, and a sublegend with its corner. Where spherical sets put the
-  numpad's second legends, if anywhere, is still to see.
+  the legend set: a placement, and a sublegend with its corner. Spherical sets print none (see
+  "Spherical text rules").
 
 **Spherical text rules**, from Signature Plastics' SA kits (2026-10-03,
 [SA-P Flex](https://spkeyboards.com/products/sa-p-flex-keycaps): base, modifier, TKL and numpad
@@ -402,8 +408,8 @@ words on every preset; the arrows alone are icons, as on text sets too, and are 
 This supersedes "Icons, text, or both" and point 3 of "What follows for Nazg" above.
 
 **Second legends: functional only** (Rico, 2026-10-03). A second legend Nazg prints says
-something the key *does*: the numpad's Num-Lock-off functions, and the AltGr character if it is
-printed (still open). **Decorative sublegends -- Arabic, Hiragana, Hangul on caps bought for
+something the key *does*: the numpad's Num-Lock-off functions, and the AltGr character, always
+printed (see "Host layouts in the mockup"). **Decorative sublegends -- Arabic, Hiragana, Hangul on caps bought for
 their looks -- are dropped**: a US host types nothing of them, so on a configurator's screen
 they would be noise beside the legends that matter. With them go:
 - the contract's `LegendRole::Sublegend` and the planned sublegend set: the slots carry label
@@ -445,7 +451,7 @@ before the board scrolls.
 
 **Names of the modifiers** (Rico, 2026-10-03):
 - **The GUI key prints "Win"**, after QMK's own name (`KC_LWIN`, `KC_RWIN`) -- "WIN" on
-  spherical sets.
+  spherical sets -- on Windows names; see **Modifier names** below for Mac and Linux.
 - **Right Alt prints "Alt Gr"** -- with a space, as on Rico's caps; "ALT GR" on spherical sets
   -- on every host layout, as keycaps do, his US ANSI ones too; and never names its side: Alt Gr
   already says which Alt it is.
@@ -461,6 +467,25 @@ before the board scrolls.
   the numpad, and would put right Alt on the left. A key straddling the line is on neither
   side, so it names its side. The mockup's *Keymap* switch shows it: Caps ↔ Ctrl, and both
   Ctrls swapped.
+
+**Modifier names follow a setting, defaulting to the computer's OS** (Rico, 2026-10-03). The
+host layout cannot tell a Mac: only 11 of the 69 say Mac, and most Mac users pick US, UK or
+another layout shared with PCs. The computer Nazg runs on can -- a keyboard is configured on the
+computer it is used with. So a setting, *Modifier names: Windows / Mac / Linux*, beside the host
+layout in Settings and saved in `imgui.ini` with it, set **at first launch** from
+`SDL_GetPlatform()` -- read in `Main.cpp`, where SDL stays, and passed down as a value -- and the
+user's choice after that. One place decides, so a Mac host layout does not override it.
+
+| | Windows | Mac | Linux |
+|---|---|---|---|
+| GUI | Win | Cmd | Super |
+| Alt | Alt | Option | Alt |
+| Right Alt | Alt Gr | Option | Alt Gr |
+
+Mac keyboards print "option" on both Alt keys, and on Mac layouts the right one plays AltGr's
+role, so "Alt Gr" would be wrong there. Ctrl stays "Ctrl"; Mac caps print "control", the full
+name, with "Ctrl" its short form. Spherical sets print them in capitals. The side rule above
+applies unchanged.
 
 **Some glyphs are placed by their ink** (Rico, 2026-10-03), against a capital's, not where
 the font puts them -- from the glyph's bounds (`ImFontGlyph`'s Y0 and Y1), in a short table,
@@ -617,13 +642,11 @@ Seen in the mockup, to settle:
 - **Header words at the smallest size**: at the modifier text's size, "Firmware", "Caps Word",
   "Tap tog" and spherical "TOGGLE" were cut on 1u -- the reason for the smaller, mixed-case
   header above. "Caps Word" still uses its short form, "Caps Wd", as "Tap dance" uses "Dance".
-- **The band covers the key's marks** in the mockup: it is drawn with the legends, after the
-  selection and highlight outlines, so it overwrites their top edge (Rico, 2026-10-03). In Nazg
-  the band goes **under** the marks -- drawn with the face, before the outlines, or inset inside
-  them -- so a selected or highlighted command key keeps its whole outline.
-- **The ▽'s corner**: bottom right, as asked. At legend size it landed on the faint AltGr of
-  French 6, 7, 8; made small and moved into the face's corner padding, it no longer meets a
-  glyph. The mockup's switch still puts it top right to compare.
+- **The band goes under the marks** (Rico, 2026-10-03): drawn with the face, before the
+  selection and highlight outlines, so a selected or highlighted command key keeps its whole
+  outline. The mockup first drew it with the legends, over the outlines' top edge; fixed there.
+- **The ▽ is always bottom right** (Rico, 2026-10-03). At legend size it landed on the faint
+  AltGr of French 6, 7, 8; small and in the face's corner padding, it meets no glyph.
 
 **Transparent keys** (Rico, 2026-10-03). `KC_TRNS` makes a layer partial: QMK looks for a key's
 keycode from the highest active layer down, and a transparent key says "keep looking"; `KC_NO`
@@ -646,7 +669,7 @@ transparent, not what it does. Nazg shows both:
   dimmed, dropped: dimmed is already a state (the matrix view, the Vial unlock). A
   transparent key on the default layer falls to nothing: drawn as `KC_NO` with nothing below.
 
-**The other direction: peek** (being tried, 2026-10-03). From a lower layer, what the layers
+**The other direction: peek** (Rico, 2026-10-03: to be implemented). From a lower layer, what the layers
 above put on each key -- what laptop Fn legends, side-printed caps and Biip's Operator set show.
 Hovering a layer in the strip lays that layer's own keys over the board until the mouse leaves,
 as **second legends**: the main legend, or the hold, bottom right at the header's size, in the
