@@ -190,7 +190,7 @@ shows each screen's states as Nazg sets them: Keymap, Matrix view, Live test, Vi
 - **Keycap style, a setting of its own**, independent of the theme: **Outlined** -- a thin
   border around the fill, legible on dark and light alike -- or **Bottom lip** -- a darker strip
   under the key, as if the board were seen slightly from above, the most legible on light
-  themes. The default is not decided yet.
+  themes. **The default is Outlined** (Rico, 2026-10-03); Bottom lip stays a choice in Settings.
   - The lip is the key's shape drawn `lip` lower, behind it, **in the key's own bottom gap**
     (0.06 unit, no more than the gap), so the face keeps the flat key's full size and its
     legend room, and never reaches the key below. Every lip is drawn before any face, so an
@@ -214,7 +214,7 @@ shows each screen's states as Nazg sets them: Keymap, Matrix view, Live test, Vi
   outlines, the Outlined border and the lip. **A bug today**: `DrawKey()` strokes the two
   rectangles one after the other, so a selected ISO Enter shows both crossing inside it.
 
-Still to settle: legends (below); the default keycap style.
+Settled 2026-10-03: legends (below), and the default keycap style, Outlined.
 
 **Keycap colour classes** (Rico, 2026-10-03). KLE colours say only whether a key is an alpha, a
 modifier or an accent; **Nazg never renders them** -- the theme colours each class. Most Vial
@@ -241,9 +241,10 @@ themselves.
 **F-keys are modifiers** (Rico), as the arrows are by default, though some sets print the F-row
 as alphas and many make the arrows accents: a definition's KLE colours override both.
 
-### Legends -- the plan, not yet decided
+### Legends -- the plan
 
-*Laid out 2026-10-01, to resume in a later session.* Legends are the weakest point of every
+*Laid out 2026-10-01 and settled with Rico by 2026-10-03: the four questions below are answered
+in the parts that follow, the short forms in [short-forms.md](short-forms.md).* Legends are the weakest point of every
 keycap style. Four questions, from what the key says to how it is drawn:
 
 **1. What text goes on the key.** Today a key prints QMK's label: "Left Control", "Print
@@ -1163,6 +1164,10 @@ logging — which is a serial port, not HID, so it needs a serial transport, the
 Studio backend needs anyway. Flashing, QMK Toolbox's other job, is not part of this.
 
 ## Open points
+
+**The points about the board's look -- which sections fold the board away, folding the section
+column, row labels on rows that share a line, the matrix view's layout options -- wait until the
+look is built** (Rico, 2026-10-03): they are judged on the real thing, not on a mockup.
 
 - **Plugin delivery** — see "Plugins".
 - **Hotplug** -- checked 2026-09-26:
