@@ -627,11 +627,126 @@ header and the board scrolls a little sooner.
   case -- Boot behind a harmless tap -- is the most visible. One band per key, the hold's. A tap
   dance's double tap and tap + hold stay off the board: hover and the tap dance panel.
 - **Lighting** names no system when the board has one -- the header is "Light". With two, it
-  names them: Glow (underglow), Matrix, LEDs, Backlit. The definition says which a board has:
-  VIA V3 menus (`qmk_backlight`, `qmk_rgblight`, `qmk_rgb_matrix`), Vial's `lighting`. The keycode
-  cannot say it reliably: before keycode version 0.0.4 there were no RM_ keycodes, and as far as
-  recalled -- to check against QMK's source -- the RGB_ keycodes drove RGB Matrix too on boards
-  that had it. To test first, in the words above.
+  names them: Glow (underglow), Matrix, LEDs, Backlit. **The definition says which a board has,
+  never the keycode** -- checked in QMK's source 2026-10-03, below. The mockup's *Lighting*
+  control shows the words on F9-F12 of the feature layer.
+
+**What a lighting keycode drives** (QMK's source and history, 2026-10-03: a 2020 tree, `d029c1c`,
+and Rico's 2026 fork, `1b02212`; vial-qmk, `db24cf2`, as 2026's). Dates are QMK releases.
+`RGB_*` and `UG_*` are **the same values** (`0x7820..0x782A`); only the names and the firmware
+around them changed, in four periods:
+1. **Until 2020-06**: `process_rgb.c` calls `rgblight_*()`. On a board with RGB Matrix and no
+   underglow, `rgb_matrix.h` `#define`s each `rgblight_*` to its `rgb_matrix_*` twin, so `RGB_TOG`
+   toggles the matrix. With both systems, the underglow only; the matrix has no keycodes.
+2. **2020-06 to 2024-11** (#7677): `process_rgb.c` calls **both** systems, each unless the board
+   defines `RGBLIGHT_DISABLE_KEYCODES` or `RGB_MATRIX_DISABLE_KEYCODES` (25 board files did). Four
+   mode keys reach the matrix too -- `RGB_M_P` solid colour, `_B` breathing, `_R` cycle left-right,
+   `_SW` pinwheel; the other `RGB_M_*` the underglow only. Keycode version 0.0.4 renamed `RGB_*`
+   to `UG_*` (2024-05, #23656) and added `RM_*` -- but **`RM_*` did nothing yet**: their handler
+   was written (#23896) and not built until period 3. So firmware reporting 0.0.4 or 0.0.5 has
+   dead `RM_*` keys.
+3. **From 2024-11** ("RGB Keycode Overhaul", #23679, #24490; keycode version 0.0.6 on, for
+   mainline): `process_underglow.c` and `process_rgb_matrix.c` replace `process_rgb.c`. `RM_*`
+   drive the matrix only. `UG_*` drive underglow **and** RGB Matrix, unless the board defines
+   `RGB_MATRIX_DISABLE_SHARED_KEYCODES`, the old two defines gone. The sharing is for backward
+   compatibility, marked "TODO: Remove this" and deprecated in `docs/features/rgblight.md`, still
+   there in 2026. Of the 22 boards in QMK's tree that enable both systems, 14 define it -- added
+   for them by #24490 -- and 8 still share (among them crkbd rev1, Noah LD, Adelais RGB rev3). Any
+   user keymap can change it either way; a client cannot see the define.
+4. **Later, announced**: QMK will drop the `RGB_*` names and the sharing.
+
+Smaller differences in period 3: **`RGB_M_*` mode keys are handled nowhere in QMK's core** -- dead
+keys, "deprecated" in the docs, still in the keycode table; `UG_*` act on **press**, `RM_*` on
+**release** unless `RGB_TRIGGER_ON_KEYDOWN` (period 2: release by default for all); underglow has
+no On and Off, only Toggle; `VK_TOGG` (Velocikey) moved into the underglow handler.
+`BL_*` drives the backlight only, `LM_*` the LED Matrix only, in every period.
+
+**Where the definition says it.** VIA V3: the `keycodes` modules -- `qmk_backlight_keycodes`,
+`qmk_rgblight_keycodes`, `qmk_rgb_matrix_keycodes`, `qmk_backlight_rgblight_keycodes` -- and,
+behind the fallback module `qmk_lighting`, the standard `menus` (`via-app/src/utils/key.ts`,
+`getQMKLightingKeycodes()`). VIA V2: `lighting`. Vial: `lighting` -- `qmk_backlight`,
+`qmk_rgblight`, `qmk_backlight_rgblight`, `vialrgb` (RGB Matrix), or none -- and the VialRGB flag
+in `vial_get_keyboard_id`. **Neither knows LED Matrix**: no VIA module or menu, no Vial value, so
+"LEDs" can only come from an `LM_*` keycode on a board that declares something else.
+
+**How often.** VIA's 2029 V3 definitions: 825 no lighting, 1,165 one system, **291 two or more**
+-- backlight + underglow 243, underglow + RGB Matrix 38, backlight + RGB Matrix 4, all three 6.
+None uses the `qmk_lighting` fallback.
+
+**What VIA and Vial do about it** (via-app `935106a`, 2026-09-17; vial-gui `aef8222`, 2026-05-25):
+- **VIA keys everything on its protocol version.** Up to 12 it offers one set, `RGB_*` with the
+  `RGB_M_*` modes, whatever the board declares beyond "has lighting" -- including on VIA 12
+  firmware built after 2024-11, where the `RGB_M_*` are dead and `RM_*` would work. From 13 it
+  offers `UG_*` and/or `RM_*` from the definition's `keycodes` modules (menus behind
+  `qmk_lighting`, both sets when nothing is known), drops `RGB_M_*` from its dictionary, and
+  its designer tab warns about a `qmk_lighting` definition without standard menus. Legends name
+  the keycode family -- "RGB Toggle", "UG Toggle", "RM Toggle" -- not what lights up.
+- **vial-gui does not sort it out.** One *Backlight* tab holds `BL_*`, `RGB_*` with every mode and
+  `RM_*`, on every board, whatever its `lighting` says: on Vial 6 firmware from before vial-qmk's
+  2025-02 merge, `RM_*` are offered and do nothing. On Vial 5 the `RM_*` entries carry fake values
+  (`0x9990..`, a TODO in `keycodes_v5.py` says so). Legends "RGB Toggle", "RGBM Togg".
+- **Vial has a better signal than either uses.** Since vial-qmk `15a3bb1` (2025-06-28, after its
+  2025-02 merge of the overhaul) the last byte of `get_number_of_entries` carries feature bits --
+  bit 0 Caps Word, bit 1 Layer Lock -- and both features default to on. A Vial 6 board with
+  either bit set is new firmware. Bits clear: built before 2025-06, or both disabled.
+
+**The rule, proposed**: the header names what the key lights on this board -- **Light** when that
+is every system the board declares (so always with one), the system's word when it is one of
+several. Backlight + underglow, the common pair, is then exact in every version: Backlit, Glow.
+`RGB_*` / `UG_*` on a board with backlight + RGB Matrix drives the matrix, in every period: Matrix. A
+definition that declares nothing: Light on every lighting key. On *old* and *unknown* firmware
+(below) the one set drives every system, so it says Light. **Open, for Rico**: underglow + RGB
+Matrix on *new* firmware, 44 definitions -- `UG_*` drive both unless the firmware opts out, and in
+QMK's own tree 14 of 22 such boards opt out. *Light* says what a sharing build does; *Glow* says
+what the keycode is named for, what most of QMK's both-system boards do and what QMK is moving to.
+Either way hover gives the whole truth ("and RGB Matrix, unless the firmware opts out").
+
+**Which lighting keycodes a board gets** (decided with Rico, 2026-10-03). Nazg sorts the board's
+firmware into one of three states, *old* (one set of keycodes drives every system: QMK before
+2024-11, vial-qmk before 2025-02), *new* (`UG_*` and `RM_*` apart) or *unknown*, by the first of
+these that answers. A Vial board is judged by its Vial protocol only: vial-qmk always reports
+VIA 9 (keycodes.md).
+
+1. **VIA protocol 13 or later**: new -- protocol 13 came in 2026-04, long after the overhaul.
+2. **VIA protocol 9 to 11, Vial protocol 5**: old. (VIA 9 from before 2020-06 drives only the
+   underglow on a board with both systems: rare, and drawn as old.)
+3. **Vial protocol 6 with a feature bit set** -- Caps Word or Layer Lock, in the last byte of
+   `get_number_of_entries`, which Nazg reads already for the entry counts: new.
+4. **VIA protocol 12 with an `RM_*` key in the keymap**, any layer or encoder: new. On old firmware
+   `RM_*` did nothing, and the VIA app never offered them to a protocol 12 board (it offered
+   `RM_*` from 2026-07, to protocol 13 only), so one in the keymap came from a keymap compiled for
+   new firmware -- QMK's default keymaps took `RM_*` in the overhaul. **Not for Vial**: vial-gui
+   offers `RM_*` on every Vial 6 board, old firmware included, so there they prove nothing.
+5. Otherwise **unknown** -- VIA 12, and Vial 6 built before 2025-06 or with both features off.
+
+**Unknown is the common state, and a normal one, not a failure.** Rule 4 only ever proves *new*,
+and it rarely fires: many keymaps have no lighting keys at all -- the firmware never put any
+there, or the user removed them in VIA or Vial -- and the absence of `RM_*` says nothing. The
+definition cannot date the firmware either: a registry definition serves every build of its
+board, and Vial's embedded one carries no version. It says only which systems the board has.
+The state is found again at every load, never stored: a board can be reflashed. It is a pure
+function of what the board reports, tested with literals.
+
+What each state offers in the picker, for the systems the definition declares, legends by the header rule above:
+
+| | Backlight | Underglow | RGB Matrix | `RGB_M_*` modes |
+|---|---|---|---|---|
+| **Old** | `BL_*` | the one set (`UG_*` values) -- it also drives the matrix | the same set | offered where they reach: P, B, R and SW the matrix too, the others the underglow only |
+| **New** | `BL_*` | `UG_*` | `RM_*` | not offered: dead since 2024-11 |
+| **Unknown** | `BL_*` | the one set | the same set -- the matrix through the alias (old) or the sharing (new); no matrix-only board in QMK's tree opts out | not offered |
+
+- **Unknown is what works on both sides**: the one set does in every period. Its cost is on a board
+  with underglow and RGB Matrix, which gets no separate matrix control -- as in VIA up to protocol
+  12. `RM_*` and `RGB_M_*` are left out because each does nothing in one of the periods.
+- **Nazg never makes evidence**: since it offers `RM_*` only on new firmware, nothing Nazg writes
+  can turn rule 4 on later.
+- **Keys already on the keymap are always drawn**, legends by the rule above. One that may do
+  nothing on this firmware -- `RM_*` on unknown, `RGB_M_*` on unknown or new -- says so on hover
+  ("does nothing on firmware built before November 2024"); no mark on the board.
+- **LED Matrix** cannot be declared (neither VIA nor Vial knows it), so `LM_*` are never offered;
+  one on the keymap is drawn, "LEDs".
+- **Provisional**: with *Advanced tools* on, the picker could list every lighting keycode, those
+  that may do nothing marked -- for a board whose firmware the user knows better than Nazg.
 
 **Four categories, each a colour** -- Rico chose **D′** of the variants sketched: a **band**
 along the top of the face and the **header** in the category's colour, the **main legend in the
@@ -749,7 +864,8 @@ pinned down from its source, and it cannot see custom keycodes (`QK_KB_*`, `QK_U
 tap dance and combos until their entries are read, nor the board's current default layer.
 **If it comes back: an explicit "Check keymap" button** that roughly checks the keymap on
 demand and words what it finds as possibilities, not a live warning on the board.
-- **Modified keys** (Ctrl+C) are not placed in a category yet.
+- **Modified keys** (Ctrl+C) are Host: "Ctrl+ / C", the header in Host's colour (short-forms.md,
+  rule 7).
 
 ## The common screens
 

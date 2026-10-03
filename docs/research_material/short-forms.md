@@ -64,8 +64,11 @@ initials ("C A S+").
 
 **5. Lighting.** One header for the four systems -- **Light** -- when the board has one; the
 system's word when it has two: **Glow** (underglow), **Matrix** (RGB Matrix), **LEDs** (LED
-Matrix), **Backlit** (backlight). The definition says which a board has (VIA's menus, Vial's
-`lighting`). The table notes each keycode's system.
+Matrix), **Backlit** (backlight). The definition says which a board has (VIA's `keycodes`
+modules and menus, Vial's `lighting`), never the keycode: `RGB_*` drove RGB Matrix on boards
+without underglow, and `UG_*` still drives both by default (ui-design.md, "What a lighting
+keycode drives"). The table notes the system each keycode is named for; a key driving every
+system the board has says Light.
 
 **6. Layers** -- the layer large, the operation as the header: Hold (MO), Toggle (TG), To (TO),
 Once (OSL), Base (DF), **Set base** (PDF, which saves it), Tap tog (TT); LM is "Hold / L1 Ctrl".

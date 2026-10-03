@@ -256,12 +256,42 @@ const FEATURES = {
   KC_C: C('beh', 'Tap dance', 'TD 0', 'TD(0)', 'Tap dance 0'),
   KC_V: C('beh', 'Caps Word', 'On/Off', 'CW_TOGG', 'Toggle Caps Word'),
   KC_P: C('fw', 'Firmware', 'Reboot', 'QK_RBT', 'Reboot'),
+  // (F9-F12 change with the Lighting control: see LIGHTING below.)
   // KC_NO: the search stops here and the key does nothing -- an empty, dimmed key, unlike a
   // transparent one.
   KC_T: { none: true, qmk: 'KC_NO', full: 'Does nothing on this layer' },
   KC_LBRC: C('fw', 'Firmware', 'Clear EE', 'EE_CLR', 'Clear EEPROM'),
   RALT: C('beh', 'Hold', 'L2', 'MO(2)', 'Layer 2 while held'),
 };
+
+// The lighting words, to test (2026-10-03). The header names what the key lights on this board,
+// as its definition declares the systems -- never from the keycode alone: QMK's RGB_ keycodes
+// drove RGB Matrix on a board without underglow, and UG_ still drives both underglow and RGB
+// Matrix unless the board opts out. One system: Light. Two: each system's word, and Light for a
+// key that drives them all -- or, the alternative, the word its keycode is named for.
+const LIGHTING = {
+  'One system': {},
+  'Backlit + Glow': {
+    F9:  C('board', 'Backlit', 'On/Off', 'BL_TOGG', 'Toggle Backlight'),
+    F10: C('board', 'Backlit', 'Bri +', 'BL_UP', 'Backlight Up'),
+    F11: C('board', 'Glow', 'On/Off', 'UG_TOGG', 'Toggle RGB Underglow'),
+    F12: C('board', 'Glow', 'Next', 'UG_NEXT', 'RGB Underglow Next'),
+  },
+  'Glow + Matrix: UG is Light': {
+    F9:  C('board', 'Light', 'On/Off', 'UG_TOGG', 'Toggle RGB Underglow -- and RGB Matrix, unless the firmware opts out'),
+    F10: C('board', 'Light', 'Next', 'UG_NEXT', 'RGB Underglow Next -- and RGB Matrix, unless the firmware opts out'),
+    F11: C('board', 'Matrix', 'On/Off', 'RM_TOGG', 'Toggle RGB Matrix'),
+    F12: C('board', 'Matrix', 'Next', 'RM_NEXT', 'RGB Matrix Next'),
+  },
+  'Glow + Matrix: UG is Glow': {
+    F9:  C('board', 'Glow', 'On/Off', 'UG_TOGG', 'Toggle RGB Underglow -- and RGB Matrix, unless the firmware opts out'),
+    F10: C('board', 'Glow', 'Next', 'UG_NEXT', 'RGB Underglow Next -- and RGB Matrix, unless the firmware opts out'),
+    F11: C('board', 'Matrix', 'On/Off', 'RM_TOGG', 'Toggle RGB Matrix'),
+    F12: C('board', 'Matrix', 'Next', 'RM_NEXT', 'RGB Matrix Next'),
+  },
+};
+const featureOf = key => LIGHTING[state.lighting][key.home] || LIGHTING[state.lighting][key.kc]
+  || FEATURES[key.home] || FEATURES[key.kc] || null;
 
 // Tap-hold keys, on the base layer where they live (Rico, 2026-10-03). The hold is the header --
 // coloured, under the band, as every command's -- and the tap's legends go below as they would on
@@ -381,7 +411,7 @@ function applyLayer() {
   for (const key of KEYS) {
     const base = BASE_HOLDS[key.home] || BASE_HOLDS[key.kc] || null;
     key.cls = baseClass(key, base);   // before the shown layer changes key.code
-    const top = state.layer === 'Features' ? FEATURES[key.home] || FEATURES[key.kc] || null : null;
+    const top = state.layer === 'Features' ? featureOf(key) : null;
     // KC_NO draws the key it disables, faint, as a transparent key draws the one it shows --
     // its mark tells them apart (Rico, 2026-10-03: on a layer, one must see what one disables).
     key.none = !!(top && top.none);
@@ -390,7 +420,7 @@ function applyLayer() {
     key.trans = state.layer === 'Features' && !top;
     key.cmd = f && !f.hold ? f : f && f.tapCmd ? { ...f.tapCmd, qmk: f.qmk, full: f.full } : null;
     key.hold = f && f.hold ? f : null;
-    key.peek = state.peek === 'Features' && state.layer === 'Base' ? FEATURES[key.home] || FEATURES[key.kc] || null : null;
+    key.peek = state.peek === 'Features' && state.layer === 'Base' ? featureOf(key) : null;
     if (!f) continue;
     if (f.tap) { key.code = f.tap; key.named = NAMED[f.tap]; }
     key.primary = f.qmk.includes('(') ? f.qmk : f.full;
@@ -540,7 +570,7 @@ function accentCaps(T) {
 const state = {
   preset: 'Cylindrical', font: 'Arimo', size: 'Medium', modifierSize: '3/5', remap: 'Standard', host: 'US',
   layer: 'Base', commands: 'D′', cmdHeader: '1/2', cmdCase: 'Mixed', cmdPlace: 'Header corner', peekStyle: 'Sublegend', noMark: 'Struck + ✕', selection: 'Neutral', altgrShade: 'Muted', holdPlace: 'Top right', accentCap: 'Slate', darkSlate: 'Lifted',
-  theme: 'Dark', style: 'Outlined', plate: 'Filled', classes: 'On', scene: 'Keymap',
+  theme: 'Dark', style: 'Outlined', plate: 'Filled', classes: 'On', scene: 'Keymap', lighting: 'One system',
   selected: keyNamed('Q'), focus: keyNamed('Q'), hovered: -1, pressed: keyNamed('G'),
   seen: new Set(KEYS.map((k, i) => (k.row === 0 || ['N', 'A', 'Z', 'G'].includes(k.primary)) ? i : -1).filter(i => i >= 0)),
 };
@@ -562,6 +592,8 @@ const CONTROLS = [
   ['host', 'Host layout', Object.keys(HOSTS)],
   ['modifierSize', 'Modifier size', Object.keys(MODIFIER_SIZES)],
   ['layer', 'Layer', ['Base', 'Features']],
+  // The lighting systems the definition declares, to test the header words on F9-F12 (Features).
+  ['lighting', 'Lighting', Object.keys(LIGHTING)],
   // D′: the band and the header in the category's colour, the main legend in the legend's.
   // D: the main legend coloured too. Rico chose D′ (2026-10-03); D stays to compare.
   ['commands', 'Commands', ['D′', 'D']],
