@@ -21,6 +21,7 @@
 #include "imgui.h"
 
 #include "ui/NazgBoardDescription.h"
+#include "ui/NazgKeycapLayout.h"
 
 namespace nazg
 {
@@ -31,21 +32,13 @@ namespace nazg
         Dracula,
     };
 
-    // How a keycap is drawn, independent of the theme. Outlined is the default (Rico,
+    // How a keycap is drawn, independent of the theme. (The legend family, the other half of
+    // the look, is in ui/NazgKeycapLayout.h, where legends are placed.) Outlined is the default (Rico,
     // 2026-10-03); Bottom lip -- a darker strip under the key -- reads best on light themes.
     enum class KeycapStyle
     {
         Outlined,
         BottomLip,
-    };
-
-    // How legends are set, after the two keycap families (ui-design.md, "What real keycap sets
-    // do"): Cylindrical as GMK prints them -- top left, mixed case -- or Spherical as SA does --
-    // centred, capitals. A setting, Cylindrical by default (Rico, 2026-10-03).
-    enum class LegendFamily
-    {
-        Cylindrical,
-        Spherical,
     };
 
     struct BoardStyle
@@ -101,7 +94,7 @@ namespace nazg
         };
 
         [[nodiscard]] Keycap Fill(KeyFill fill, float heat);
-        [[nodiscard]] ImU32  Legend(LegendRole role, KeyFill fill);
+        [[nodiscard]] ImU32  Legend(LegendInk ink, KeyFill fill);
         [[nodiscard]] ImU32  EdgeLabel(uint8_t marks);
         [[nodiscard]] ImU32  Line(uint8_t marks);
 

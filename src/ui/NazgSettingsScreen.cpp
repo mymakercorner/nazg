@@ -15,11 +15,9 @@ namespace nazg
 {
     namespace
     {
-        void DrawHostLayout(std::string& hostLayoutId, SettingsAction& action)
+        void DrawHostLayout(LegendSettings& legends, SettingsAction& action)
         {
-            // A saved id this build does not know falls back to US rather than failing.
-            const HostLayout* found   = FindHostLayout(hostLayoutId);
-            const HostLayout& current = found != nullptr ? *found : UsHostLayout();
+            const HostLayout& current = legends.Layout();
 
             ImGui::SetNextItemWidth(ImGui::GetFontSize() * 14.0f);
             if (ImGui::BeginCombo("Host layout", std::string(current.name).c_str()))
@@ -29,8 +27,8 @@ namespace nazg
                     const bool isCurrent = &choice == &current;
                     if (ImGui::Selectable(std::string(choice.name).c_str(), isCurrent) && !isCurrent)
                     {
-                        hostLayoutId             = choice.id;
-                        action.hostLayoutChanged = true;
+                        legends.hostLayout    = choice.id;
+                        action.legendsChanged = true;
                     }
                     if (isCurrent)
                         ImGui::SetItemDefaultFocus();
@@ -70,6 +68,13 @@ namespace nazg
             action.appearanceChanged |= DrawChoice("Legend style", LegendFamilies(), style.legends);
             ImGui::SetItemTooltip("Cylindrical: as GMK keycaps print them -- top left, mixed case.\n"
                                   "Spherical: as SA keycaps print them -- centred, capitals.");
+        }
+
+        void DrawModifierNames(LegendSettings& legends, SettingsAction& action)
+        {
+            action.legendsChanged |= DrawChoice("Modifier names", AllModifierNames(), legends.modifierNames);
+            ImGui::SetItemTooltip("What the modifiers are called on your computer:\n"
+                                  "Windows: Win, Alt, Alt Gr.  Mac: Cmd, Option.  Linux: Super, Alt, Alt Gr.");
         }
 
         void DrawAppearance(BoardStyle& style, SettingsAction& action)
@@ -168,7 +173,7 @@ namespace nazg
         }
     }
 
-    SettingsAction DrawSettings(const SettingsView& view, std::string& hostLayoutId, BoardStyle& style,
+    SettingsAction DrawSettings(const SettingsView& view, LegendSettings& legends, BoardStyle& style,
                                 bool& advancedTools)
     {
         SettingsAction action;
@@ -179,7 +184,8 @@ namespace nazg
 
         ImGui::SeparatorText("Legends");
         DrawLegendFamily(style, action);
-        DrawHostLayout(hostLayoutId, action);
+        DrawHostLayout(legends, action);
+        DrawModifierNames(legends, action);
 
         ImGui::SeparatorText("Definitions");
         DrawOfficial(view.official);

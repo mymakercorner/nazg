@@ -113,6 +113,7 @@ Letters, digits, punctuation, F1-F24 and the numpad print their QMK label, or wh
 | `KC_PGDN` | Page Down | Page Down (Pg Dn) |
 | `KC_NUM` | Num Lock | Num Lock (Num Lk) |
 | `KC_APP` | App | Menu |
+| `KC_KB_POWER` | Power | Power -- spherical POWER (PWR): Bold capitals are wider than 1u |
 | `KC_EXEC` | Execute | Execute (Exec) |
 | `KC_SLCT` | Select | Select (Sel) |
 | `KC_KB_VOLUME_UP` | Volume Up | Vol + |

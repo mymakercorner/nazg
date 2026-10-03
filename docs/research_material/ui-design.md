@@ -132,6 +132,28 @@ each checked on a real board: keycap shape and themes; fonts (Arimo and its Noto
 committed under `resources/fonts/` with their licences); standard keys in both families; command
 keys; transparent, `KC_NO`, peek and the lighting policy.
 
+**Step 3 as built** (2026-10-03, verified by Rico on the Model F). What the build had to
+settle beyond the decisions below, each one constant or table entry to change:
+- **Weights.** Arimo comes in Regular and Bold only, so the mockup's 500 became **Bold**: letters
+  on both families, modifier text on spherical sets, headers. Cylindrical modifier text, the AltGr
+  character, the fourth level and the numpad's second legends stay **Regular**.
+- **Sizes are em sizes**, as the mockup's CSS: ImGui sizes a font by its line height, 1.117 em for
+  Arimo, so the measurer converts. The Noto faces merged behind it are scaled to Arimo's em too --
+  before, ImGui drew them by their own line height, up to 2.1 em, and Arabic letters at half size.
+- **Lines are placed by a capital's height**, centred in the room a line takes, not by the font's
+  ascent: the same on every font, and within a pixel of the mockup's canvas.
+- **The font test caught three things the mockup's checks never drew**: spherical POWER (Bold
+  capitals) is too wide for 1u -- short form PWR; a spherical lone letter met a wide AltGr
+  character bottom right on the smallest board (German and Turkish Q with @, Portuguese Mac Q with
+  Œ) -- it now moves left just enough, as a legend does for a header; and fifteen host-layout
+  entries are QMK's names for keys, not characters (Henkan, Hanja, Neo's "layer 3") -- set in words,
+  as a modifier, and cut on 1u where they must be.
+- **A legend moves aside for the header only when it shares the header's row**: a lone centred
+  letter in the middle of the key stays centred.
+- **Holds, modified keys and layer keys already print their short headers** -- Ctrl, L1, Ctrl+,
+  Hold / L2, from short-forms.md's parts -- top right, uncoloured; bands and category colours are
+  step 4. Every other command prints its QMK label, centred, until then.
+
 If a need still appears later — icons on keys, say — changing the contract costs one struct
 and its implementations, two while they are Keymap and the Leyden Jar. It gets expensive once
 other people write plugins, which is why these six points go in from the start, and why the

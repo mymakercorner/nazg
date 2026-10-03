@@ -25,6 +25,7 @@
 #include "adapters/vial/NazgVialProtocol.h"
 #include "async/NazgTask.h"
 #include "model/NazgKeyboard.h"
+#include "ui/NazgKeycapLegend.h"
 #include "transport/NazgHidTransport.h"
 
 namespace nazg
@@ -33,13 +34,13 @@ namespace nazg
     {
     public:
         // Starts the unlock on the board at `path`. `keyboard` draws it, `combo` is the keys to
-        // hold, from its unlock status, and `hostLayoutId` the legends' setting. The transport,
+        // hold, from its unlock status, and `legends` the legends' settings. The transport,
         // the keyboard and the setting outlive this object.
         VialUnlock(HidTransport&                            transport,
                    std::string                              path,
                    const Keyboard&                          keyboard,
                    std::vector<std::pair<uint8_t, uint8_t>> combo,
-                   const std::string&                       hostLayoutId);
+                   const LegendSettings&                    legends);
 
         // Into the current window, every frame: draws, and polls when it is time.
         void Draw();
@@ -67,7 +68,7 @@ namespace nazg
         std::string                              m_Path;
         const Keyboard&                          m_Keyboard;
         std::vector<std::pair<uint8_t, uint8_t>> m_Combo;
-        const std::string&                       m_HostLayoutId;
+        const LegendSettings&                    m_Legends;
 
         Stage       m_Stage     = Stage::Starting;
         uint8_t     m_Countdown = c_VialUnlockSteps;

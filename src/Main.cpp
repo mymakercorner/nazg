@@ -128,7 +128,9 @@ namespace
     // which can come when there is more than one setting worth a file.
     struct AppSettings
     {
-        std::string hostLayout = "us";   // a HostLayout id; see NazgKeycapLegend.h
+        // The host layout and the modifier names (ui/NazgKeycapLegend.h). The names start from
+        // the computer's OS, PlatformModifierNames(), and are the user's choice once saved.
+        nazg::LegendSettings legends;
 
         // The look (ui/NazgTheme.h), by id. An id this build does not know -- saved by a newer
         // one -- is kept as it is, and drawn with the default.
@@ -178,6 +180,7 @@ namespace
             AppSettings& loaded = *static_cast<AppSettings*>(self->UserData);
 
             constexpr char c_HostLayout[]    = "HostLayout=";
+            constexpr char c_ModifierNames[] = "ModifierNames=";
             constexpr char c_Theme[]         = "Theme=";
             constexpr char c_KeycapStyle[]   = "Keycaps=";
             constexpr char c_LegendFamily[]  = "Legends=";
@@ -185,7 +188,10 @@ namespace
             constexpr char c_ViaDefinition[] = "ViaDefinition=";
 
             if (std::strncmp(line, c_HostLayout, sizeof(c_HostLayout) - 1) == 0)
-                loaded.hostLayout = line + sizeof(c_HostLayout) - 1;
+                loaded.legends.hostLayout = line + sizeof(c_HostLayout) - 1;
+            else if (std::strncmp(line, c_ModifierNames, sizeof(c_ModifierNames) - 1) == 0)
+                loaded.legends.modifierNames = nazg::ModifierNamesFromId(line + sizeof(c_ModifierNames) - 1)
+                                                   .value_or(loaded.legends.modifierNames);
             else if (std::strncmp(line, c_Theme, sizeof(c_Theme) - 1) == 0)
                 loaded.theme = line + sizeof(c_Theme) - 1;
             else if (std::strncmp(line, c_KeycapStyle, sizeof(c_KeycapStyle) - 1) == 0)
@@ -201,9 +207,11 @@ namespace
         handler.WriteAllFn = [](ImGuiContext*, ImGuiSettingsHandler* self, ImGuiTextBuffer* out)
         {
             const AppSettings& saved = *static_cast<AppSettings*>(self->UserData);
-            out->appendf("[%s][Settings]\nHostLayout=%s\nTheme=%s\nKeycaps=%s\nLegends=%s\nAdvancedTools=%d\n",
-                         self->TypeName, saved.hostLayout.c_str(), saved.theme.c_str(), saved.keycapStyle.c_str(),
-                         saved.legendFamily.c_str(), saved.advancedTools ? 1 : 0);
+            out->appendf("[%s][Settings]\nHostLayout=%s\nModifierNames=%s\nTheme=%s\nKeycaps=%s\nLegends=%s\n"
+                         "AdvancedTools=%d\n",
+                         self->TypeName, saved.legends.hostLayout.c_str(),
+                         std::string(nazg::IdOf(saved.legends.modifierNames)).c_str(), saved.theme.c_str(),
+                         saved.keycapStyle.c_str(), saved.legendFamily.c_str(), saved.advancedTools ? 1 : 0);
             // Only paths not yet imported -- when the library could not be opened -- so
             // none is lost before it can be.
             for (const std::string& path : saved.legacyViaDefinitions)
@@ -277,43 +285,30 @@ namespace
     }
 
     // The legends' fonts, from fonts/ beside the executable, where the build copies
-    // resources/fonts/ (see its README.md): Arimo, Regular and Bold, each with the Noto faces
-    // merged behind it for the characters it lacks -- Arabic and Farsi, ≃, ⌨. A missing Arimo
-    // leaves that weight null, and the board uses the interface's font instead.
+    // resources/fonts/ (see its README.md). A missing Arimo leaves that weight null, and the
+    // board uses the interface's font instead.
     nazg::LegendFonts LoadLegendFonts(ImGuiIO& io)
     {
-        const char*       base   = SDL_GetBasePath();   // owned by SDL, ends with a separator
-        const std::string folder = std::string(base != nullptr ? base : "") + "fonts/";
+        const char* base = SDL_GetBasePath();   // owned by SDL, ends with a separator
 
-        const auto load = [&](const char* face) -> ImFont*
-        {
-            const std::string path = folder + face;
-            if (!std::filesystem::exists(PathFromUtf8(path)))
-            {
-                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "legend font missing: %s", path.c_str());
-                return nullptr;
-            }
-
-            ImFont* font = io.Fonts->AddFontFromFileTTF(path.c_str(), c_FontSize);
-            if (font == nullptr)
-                return nullptr;
-
-            ImFontConfig merge;
-            merge.MergeMode = true;
-            for (const char* fallback : { "NotoSansArabic-Regular.ttf", "NotoSansMath-Regular.ttf",
-                                          "NotoSansSymbols2-Regular.ttf" })
-            {
-                const std::string fallbackPath = folder + fallback;
-                if (std::filesystem::exists(PathFromUtf8(fallbackPath)))
-                    io.Fonts->AddFontFromFileTTF(fallbackPath.c_str(), c_FontSize, &merge);
-            }
-            return font;
-        };
-
-        nazg::LegendFonts fonts;
-        fonts.regular = load("Arimo-Regular.ttf");
-        fonts.bold    = load("Arimo-Bold.ttf");
+        std::vector<std::string> missing;
+        const nazg::LegendFonts  fonts =
+            nazg::LoadLegendFonts(*io.Fonts, std::string(base != nullptr ? base : "") + "fonts/", missing);
+        for (const std::string& path : missing)
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "legend font missing: %s", path.c_str());
         return fonts;
+    }
+
+    // The modifier names of the OS Nazg runs on, for a first launch (ui-design.md, "Modifier
+    // names follow a setting"): a keyboard is configured on the computer it is used with.
+    nazg::ModifierNames PlatformModifierNames()
+    {
+        const std::string platform = SDL_GetPlatform();
+        if (platform == "Windows")
+            return nazg::ModifierNames::Windows;
+        if (platform == "macOS")
+            return nazg::ModifierNames::Mac;
+        return nazg::ModifierNames::Linux;
     }
 
     std::vector<uint8_t> ReadWholeFile(const std::string& path)
@@ -914,6 +909,7 @@ int main(int, char**)
 
     // Before the first NewFrame(), which is when ImGui reads imgui.ini.
     AppSettings settings;
+    settings.legends.modifierNames = PlatformModifierNames();
     RegisterSettings(settings);
 
     // The interface's font first: the first font added is ImGui's default.
@@ -1279,7 +1275,7 @@ int main(int, char**)
                     boardState.matrix->StopLiveTest();
                 if (!boardState.lock->unlocked)
                     boardState.unlock = std::make_unique<nazg::VialUnlock>(
-                        transport, boardState.path, *boardState.keyboard, boardState.lock->combo, settings.hostLayout);
+                        transport, boardState.path, *boardState.keyboard, boardState.lock->combo, settings.legends);
                 else
                     lockTask = LockBoard(transport, boardState.path, boardState);
             }
@@ -1289,7 +1285,7 @@ int main(int, char**)
                 showSettings          = false;
                 boardState.isChoosing = false;
                 boardState.matrix     = std::make_unique<nazg::MatrixView>(
-                    transport, boardState.path, !boardState.isVia, *boardState.keyboard, settings.hostLayout);
+                    transport, boardState.path, !boardState.isVia, *boardState.keyboard, settings.legends);
             }
 
             if (headerAction.exportDefinition)
@@ -1392,7 +1388,7 @@ int main(int, char**)
 
                 nazg::BoardStyle           chosen = look;
                 const nazg::SettingsAction action =
-                    nazg::DrawSettings(view, settings.hostLayout, chosen, settings.advancedTools);
+                    nazg::DrawSettings(view, settings.legends, chosen, settings.advancedTools);
 
                 if (action.appearanceChanged)
                 {
@@ -1402,7 +1398,7 @@ int main(int, char**)
                 }
                 if (action.back)
                     showSettings = false;
-                if (action.appearanceChanged || action.hostLayoutChanged || action.advancedToolsChanged)
+                if (action.appearanceChanged || action.legendsChanged || action.advancedToolsChanged)
                     ImGui::MarkIniSettingsDirty();
                 if (action.import && library.library)
                     showImportDialog();
@@ -1513,7 +1509,7 @@ int main(int, char**)
                     // no match rule to ask yet -- it comes with the first section that is not.
                     if (boardState.sections.empty())
                         boardState.sections.push_back(std::make_unique<nazg::KeymapSection>(
-                            transport, boardState.path, *boardState.keyboard, settings.hostLayout));
+                            transport, boardState.path, *boardState.keyboard, settings.legends));
 
                     if (!boardState.exportMessage.empty())
                         nazg::ColouredText(nazg::PanelColour::Muted, "%s", boardState.exportMessage.c_str());

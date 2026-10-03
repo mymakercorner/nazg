@@ -30,5 +30,5 @@ namespace nazg
     [[nodiscard]] std::optional<Keycode> DrawKeycodePicker(KeycodePickerState& state,
                                                            QmkKeycodeVersion   version,
                                                            uint8_t             layerCount,
-                                                           const HostLayout&   layout);
+                                                           const LegendSettings& legends);
 }

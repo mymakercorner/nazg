@@ -17,6 +17,7 @@
 #pragma once
 
 #include <cstdio>
+#include <initializer_list>
 
 #ifdef _MSC_VER
 #include <crtdbg.h>

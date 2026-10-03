@@ -6,11 +6,13 @@
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
+#include <variant>
 #include <vector>
 
 #include "imgui.h"
 
 #include "ui/NazgKeyShape.h"
+#include "ui/NazgKeycapLayout.h"
 #include "ui/NazgTheme.h"
 
 namespace nazg
@@ -19,26 +21,15 @@ namespace nazg
     {
         LegendFonts g_LegendFonts;
 
-        ImFont* LegendFont()
-        {
-            return g_LegendFonts.regular != nullptr ? g_LegendFonts.regular : ImGui::GetFont();
-        }
+        // The board's size follows the window, down to the smallest legible text
+        // (c_SmallestUnit, ui/NazgKeycapLayout.h); below it the board scrolls. Pixels before
+        // DPI scaling.
+        constexpr float c_MaxUnit = 96.0f;
 
-        // The board's size follows the window, down to the smallest legible text: no text on the
-        // board below 9 px, and the smallest is a command's header, half the letter size, the
-        // letters 0.30 of a key unit -- so 60 px a unit (ui-design.md, "The floor is on the
-        // header"). Below it the board scrolls. Pixels before DPI scaling.
-        constexpr float c_SmallestText = 9.0f;
-        constexpr float c_LetterShare  = 0.30f;   // of a key unit
-        constexpr float c_HeaderShare  = 0.5f;    // of the letter size
-        constexpr float c_MinUnit      = c_SmallestText / (c_LetterShare * c_HeaderShare);
-        constexpr float c_MaxUnit      = 96.0f;
-
-        // Fractions of a key unit.
-        constexpr float c_KeyGap        = 0.06f;   // between two keys, on each side
+        // Fractions of a key unit; the gap between keys and the legends' padding are the
+        // layout's.
         constexpr float c_KeyRounding   = 0.12f;
         constexpr float c_InnerRounding = 0.02f;   // the inner corner of an L-shaped key: a sixth (Rico)
-        constexpr float c_LegendPad     = 0.10f;   // between a keycap's edge and its legends
         constexpr float c_Lip           = 0.06f;   // Bottom lip: in the key's own bottom gap, no more
         constexpr float c_PlateMargin   = 0.35f;   // the plate past the keys, on every side
         constexpr float c_PlateRounding = 0.25f;
@@ -218,82 +209,41 @@ namespace nazg
             drawList->PathStroke(colour, thickness, ImDrawFlags_Closed);
         }
 
-        // Legends come in four rows: the top face's three, then the front.
-        int RowOf(size_t slot) { return static_cast<int>(slot / 3); }
-
-        int RowsUsed(const BoardKey& key)
+        // The legends of the face p0-p1 -- an L-shaped key's first rectangle -- placed by the
+        // layout and clipped to the face.
+        void DrawLegends(ImDrawList* drawList, const BoardKey& key, ImVec2 p0, ImVec2 p1, float unit, bool dimmed)
         {
-            bool used[4] = {};
-            for (size_t slot = 0; slot < c_LegendSlotCount; ++slot)
-                used[RowOf(slot)] |= !key.legends[slot].text.empty();
-            return static_cast<int>(std::count(std::begin(used), std::end(used), true));
-        }
+            const ImGuiTextMeasurer measurer(g_LegendFonts, ImGui::GetFont());
+            const FaceBox           face{ p0.x, p0.y, p1.x, p1.y };
+            const DefinitionKey&    geometry = key.geometry;
+            const bool oneUnit = !geometry.HasSecondRectangle() && geometry.width <= 1.0f && geometry.height <= 1.0f;
 
-        // One legend size for the whole board, from the most rows any key fills -- two in
-        // Keymap, three in a level view -- so that many fit on a 1u key, and never larger
-        // than the UI font.
-        float LegendSize(const BoardDescription& board, float unit)
-        {
-            int rows = 1;
-            for (const BoardKey& key : board.keys)
-                if (!key.geometry.decal)
-                    rows = std::max(rows, RowsUsed(key));
+            const KeycapPrimitives primitives =
+                std::holds_alternative<KeycapLegend>(key.legends)
+                    ? LayOutKeycap(std::get<KeycapLegend>(key.legends), CurrentBoardStyle().legends, face, unit, oneUnit,
+                                   measurer)
+                    : LayOutSlots(std::get<SlotLegends>(key.legends), face, unit, measurer);
 
-            const float inner = unit * (1.0f - 2 * c_KeyGap - 2 * c_LegendPad);
-            return std::min(ImGui::GetFontSize(), inner / static_cast<float>(rows));
-        }
-
-        // The legends of the rectangle p0-p1, clipped to it. Top and front rows sit on the
-        // edges, the bottom row above the front one, and the middle row is centred between
-        // whichever rows this key fills. A legend too wide for the key shrinks, down to 60%,
-        // before it is clipped.
-        void DrawLegends(ImDrawList* drawList, const BoardKey& key, ImVec2 p0, ImVec2 p1, float unit, float size,
-                         bool dimmed)
-        {
-            ImFont*      font       = LegendFont();
-            const float  pad        = unit * c_LegendPad;
-            const float  innerWidth = (p1.x - p0.x) - 2 * pad;
-            const ImVec4 clip(p0.x, p0.y, p1.x, p1.y);
-
-            bool used[4] = {};
-            for (size_t slot = 0; slot < c_LegendSlotCount; ++slot)
-                used[RowOf(slot)] |= !key.legends[slot].text.empty();
-
-            const float top    = p0.y + pad;
-            const float front  = p1.y - pad - size;
-            const float bottom = used[3] ? front - size : front;
-            float       middle = (p0.y + p1.y - size) / 2.0f;
-            if (used[0])
-                middle = std::max(middle, top + size);
-            if (used[2])
-                middle = std::min(middle, bottom - size);
-            const float rowTop[4] = { top, middle, bottom, front };
-
-            for (size_t slot = 0; slot < c_LegendSlotCount; ++slot)
+            const auto colourOf = [&](LegendInk ink)
             {
-                const Legend& legend = key.legends[slot];
-                if (legend.text.empty())
-                    continue;
+                const ImU32 colour = BoardColours::Legend(ink, key.fill);
+                return dimmed ? Over(colour, BoardColours::Dimmed()) : colour;
+            };
 
-                float  shown  = size;
-                ImVec2 extent = font->CalcTextSizeA(shown, FLT_MAX, 0.0f, legend.text.c_str());
-                if (extent.x > innerWidth && extent.x > 0.0f)
-                {
-                    shown  = std::max(size * 0.6f, size * innerWidth / extent.x);
-                    extent = font->CalcTextSizeA(shown, FLT_MAX, 0.0f, legend.text.c_str());
-                }
+            const ImVec4 clip(p0.x, p0.y, p1.x, p1.y);
+            for (const PlacedText& text : primitives.texts)
+                drawList->AddText(measurer.FontFor(text.weight), measurer.ImGuiSize(text.size), ImVec2(text.x, text.y),
+                                  colourOf(text.ink), text.text.c_str(), nullptr, 0.0f, &clip);
 
-                const size_t column = slot % 3;
-                const float  x      = column == 0 ? p0.x + pad
-                                    : column == 1 ? (p0.x + p1.x - extent.x) / 2.0f
-                                                  : p1.x - pad - extent.x;
-                const float  y      = rowTop[RowOf(slot)] + (size - shown) / 2.0f;
-
-                ImU32 colour = BoardColours::Legend(legend.role, key.fill);
-                if (dimmed)
-                    colour = Over(colour, BoardColours::Dimmed());
-
-                drawList->AddText(font, shown, ImVec2(x, y), colour, legend.text.c_str(), nullptr, 0.0f, &clip);
+            // A shaft and a filled head: every arrow alike, at the legend's weight, whatever the font.
+            for (const PlacedArrow& arrow : primitives.arrows)
+            {
+                const ArrowShape shape  = ShapeOf(arrow);
+                const ImU32      colour = colourOf(arrow.ink);
+                drawList->AddLine(ImVec2(shape.tailX, shape.tailY), ImVec2(shape.shaftEndX, shape.shaftEndY), colour,
+                                  arrow.stroke);
+                drawList->AddTriangleFilled(ImVec2(shape.tipX, shape.tipY), ImVec2(shape.baseAX, shape.baseAY),
+                                            ImVec2(shape.baseBX, shape.baseBY), colour);
             }
         }
 
@@ -311,8 +261,8 @@ namespace nazg
         // the vertices it just added to the draw list are turned about its origin -- rounded
         // corners, outlines and legends alike, with no rotated variant of any drawing call.
         // Hovering turns the mouse the other way and tests the unrotated rectangles.
-        bool DrawKey(ImDrawList* drawList, ImVec2 origin, float unit, float legendSize, const BoardKey& described,
-                     bool canHover, KeyPass pass)
+        bool DrawKey(ImDrawList* drawList, ImVec2 origin, float unit, const BoardKey& described, bool canHover,
+                     KeyPass pass)
         {
             const DefinitionKey& key      = described.geometry;
             const float          gap      = unit * c_KeyGap;
@@ -345,7 +295,7 @@ namespace nazg
 
             if (pass == KeyPass::Legends)
             {
-                DrawLegends(drawList, described, p0, p1, unit, legendSize, isDimmed);
+                DrawLegends(drawList, described, p0, p1, unit, isDimmed);
             }
             else if (pass == KeyPass::Lip)
             {
@@ -532,7 +482,7 @@ namespace nazg
         const float       height  = bounds.maxY - bounds.minY + 2 * c_PlateMargin;
         const float       avail   = ImGui::GetContentRegionAvail().x;
         const float       fitting = std::min((avail - leftMargin) / width, (maxHeight - topMargin) / height);
-        const float       unit    = std::clamp(fitting, c_MinUnit * scale, c_MaxUnit * scale);
+        const float       unit    = std::clamp(fitting, c_SmallestUnit * scale, c_MaxUnit * scale);
         const ImVec2      size(leftMargin + width * unit, topMargin + height * unit);
 
         // In a child of its own, which scrolls sideways when the board stops shrinking before the
@@ -553,13 +503,12 @@ namespace nazg
 
         // Only when this window is under the mouse, so a window stacked above the board
         // neither hovers nor clicks the key beneath it.
-        const bool  canHover   = ImGui::IsWindowHovered();
-        const float legendSize = LegendSize(board, unit);
+        const bool canHover = ImGui::IsWindowHovered();
 
         if (CurrentBoardStyle().keycaps == KeycapStyle::BottomLip)
             for (const BoardKey& key : board.keys)
                 if (!key.geometry.decal)
-                    (void)DrawKey(drawList, origin, unit, legendSize, key, canHover, KeyPass::Lip);
+                    (void)DrawKey(drawList, origin, unit, key, canHover, KeyPass::Lip);
 
         for (size_t index = 0; index < board.keys.size(); ++index)
         {
@@ -567,7 +516,7 @@ namespace nazg
             if (key.geometry.decal)
                 continue;
 
-            if (DrawKey(drawList, origin, unit, legendSize, key, canHover, KeyPass::Keycap))
+            if (DrawKey(drawList, origin, unit, key, canHover, KeyPass::Keycap))
                 events.hoveredKey = index;
         }
 
@@ -578,7 +527,7 @@ namespace nazg
 
         for (const BoardKey& key : board.keys)
             if (!key.geometry.decal)
-                (void)DrawKey(drawList, origin, unit, legendSize, key, canHover, KeyPass::Legends);
+                (void)DrawKey(drawList, origin, unit, key, canHover, KeyPass::Legends);
         DrawEdgeLabels(drawList, board, corner, origin, unit, leftMargin, canHover, events);
 
         // Claim the space drawn into, so the child scrolls around the board.

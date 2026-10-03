@@ -28,10 +28,10 @@ namespace nazg
     class KeymapSection : public Section
     {
     public:
-        // The board at `path`, loaded into `keyboard`; writes update it. `hostLayoutId` is
-        // the setting, read every frame so a change shows at once. All three outlive the
+        // The board at `path`, loaded into `keyboard`; writes update it. `legends` is the
+        // legends' settings, read every frame so a change shows at once. All three outlive the
         // section -- see ui/NazgSection.h.
-        KeymapSection(HidTransport& transport, std::string path, Keyboard& keyboard, const std::string& hostLayoutId);
+        KeymapSection(HidTransport& transport, std::string path, Keyboard& keyboard, const LegendSettings& legends);
 
         [[nodiscard]] std::string_view Name() const override { return "Keymap"; }
 
@@ -53,16 +53,14 @@ namespace nazg
             uint8_t column = 0;
         };
 
-        [[nodiscard]] const HostLayout& CurrentHostLayout() const;
-
         // Everything it needs across its co_awaits is passed by value, the version too,
         // rather than read back from the keyboard afterwards.
         Task<void> WriteKey(uint8_t layer, Cell cell, Keycode keycode, QmkKeycodeVersion version);
 
-        HidTransport&      m_Transport;
-        std::string        m_Path;
-        Keyboard&          m_Keyboard;
-        const std::string& m_HostLayoutId;
+        HidTransport&         m_Transport;
+        std::string           m_Path;
+        Keyboard&             m_Keyboard;
+        const LegendSettings& m_Legends;
 
         uint8_t             m_Layer = 0;
         std::optional<Cell> m_Selected;

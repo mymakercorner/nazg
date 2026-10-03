@@ -42,13 +42,13 @@ namespace nazg
     {
     public:
         // The board at `path`, drawn by `keyboard`, which gives the legends -- layer 0's.
-        // `hostLayoutId` is the setting. The transport, the keyboard and the setting outlive
-        // the view.
-        MatrixView(HidTransport&      transport,
-                   std::string        path,
-                   bool               isVial,
-                   const Keyboard&    keyboard,
-                   const std::string& hostLayoutId);
+        // `legends` is the legends' settings. The transport, the keyboard and the settings
+        // outlive the view.
+        MatrixView(HidTransport&         transport,
+                   std::string           path,
+                   bool                  isVial,
+                   const Keyboard&       keyboard,
+                   const LegendSettings& legends);
 
         // Closes the board if the live test left it open. Never while IsBusy().
         ~MatrixView() override;
@@ -100,11 +100,11 @@ namespace nazg
 
         void DrawLivePanel();
 
-        HidTransport&      m_Transport;
-        std::string        m_Path;
-        bool               m_IsVial;
-        const Keyboard&    m_Keyboard;
-        const std::string& m_HostLayoutId;
+        HidTransport&         m_Transport;
+        std::string           m_Path;
+        bool                  m_IsVial;
+        const Keyboard&       m_Keyboard;
+        const LegendSettings& m_Legends;
 
         MatrixFocus                m_Hovered;
         std::optional<MatrixFocus> m_Pinned;

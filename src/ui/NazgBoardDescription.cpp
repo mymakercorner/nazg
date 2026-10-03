@@ -44,6 +44,65 @@ namespace nazg
         }
     }
 
+    Legend& BoardKey::operator[](LegendSlot slot)
+    {
+        if (!std::holds_alternative<SlotLegends>(legends))
+            legends = SlotLegends{};
+        return std::get<SlotLegends>(legends)[static_cast<size_t>(slot)];
+    }
+
+    void DescribeLegends(BoardDescription& board, const Keyboard& keyboard, uint8_t layer,
+                         const LegendSettings& settings)
+    {
+        const float line = SideLine(board.keys);
+
+        for (BoardKey& key : board.keys)
+        {
+            if (key.geometry.decal)
+                continue;
+
+            const LegendContext context{ settings.Layout(), settings.modifierNames, SideOf(key.geometry, line) };
+            key.legends = LegendFor(keyboard.KeycodeFor(key.geometry, layer), context);
+        }
+    }
+
+    float SideLine(const std::vector<BoardKey>& keys)
+    {
+        const BoardKey* widest = nullptr;
+        float           minX   = 0.0f;
+        float           maxX   = 0.0f;
+        bool            any    = false;
+
+        for (const BoardKey& key : keys)
+        {
+            if (key.geometry.decal)
+                continue;
+
+            const DefinitionKey& geometry = key.geometry;
+            if (widest == nullptr || geometry.width > widest->geometry.width)
+                widest = &key;
+
+            const float centre = KeyCentre(geometry).first;
+            const float half   = geometry.width / 2.0f;
+            minX               = any ? std::min(minX, centre - half) : centre - half;
+            maxX               = any ? std::max(maxX, centre + half) : centre + half;
+            any                = true;
+        }
+
+        if (widest != nullptr && widest->geometry.width >= 3.0f)
+            return KeyCentre(widest->geometry).first;
+        return (minX + maxX) / 2.0f;
+    }
+
+    KeySide SideOf(const DefinitionKey& key, float line)
+    {
+        const float centre = KeyCentre(key).first;
+        const float half   = key.width / 2.0f;
+        if (centre - half < line && centre + half > line)
+            return KeySide::Neither;
+        return centre < line ? KeySide::Left : KeySide::Right;
+    }
+
     BoardDescription DescribeKeyboard(const Keyboard& keyboard)
     {
         BoardDescription board;

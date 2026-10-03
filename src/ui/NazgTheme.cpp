@@ -309,11 +309,18 @@ namespace nazg
             return { face, s > 0.5f ? Hex(0xffffff) : t.alpha.legend };
         }
 
-        ImU32 Legend(LegendRole role, KeyFill fill)
+        ImU32 Legend(LegendInk ink, KeyFill fill)
         {
-            if (role == LegendRole::Value)
+            if (ink == LegendInk::Value)
                 return Current().checked;
-            return Fill(fill, 0.0f).legend;
+
+            const Keycap keycap = Fill(fill, 0.0f);
+            if (ink == LegendInk::Legend)
+                return keycap.legend;
+
+            // Muted: set apart by lightness, since hue belongs to the command categories -- the
+            // legend colour taken 45% towards the face (ui-design.md, "spherical AltGr").
+            return ImGui::ColorConvertFloat4ToU32(Mix(keycap.legend, keycap.face, 0.45f));
         }
 
         ImU32 EdgeLabel(uint8_t marks)

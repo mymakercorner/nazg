@@ -54,12 +54,20 @@ keycodes (`KeycapClassOf()`), Light / Dark / Dracula themes for the board and th
 (Cylindrical / Spherical, not used until step 3). Step 2 too: legends are set in Arimo, with Noto
 Sans Arabic, Math and Symbols 2 merged behind -- committed in `resources/fonts/` with their OFL
 licences and a README of sources and coverage, copied beside the executable by the build; the
-interface keeps a system font. **The legends are still the first draft's**: placed in slots,
-capped at the UI font, shrunk to fit. Next: step 3, the legends. What outlives the first draft is
-`ui/NazgKeycapLegend.*`: legends are a Keycode seen through a host layout (plain + Shift, one
-global setting saved in `imgui.ini`, US by default, 69 layouts from QMK's keymap extras in
-`ui/NazgHostLayoutTable.cpp` -- decided in keycodes.md, "Host layouts"). Legends are UTF-8
-(`/utf-8` on MSVC).
+interface keeps a system font. Step 3, the standard keys' legends, is done (2026-10-03, verified by
+Rico: "it works and it is gorgeous"). A key's legends are a variant (`BoardKey::legends`): *keycap
+legends* -- what the key is, `ui/NazgKeycapLegend.*`, filled by `DescribeLegends()` -- or the twelve
+*slot legends*. Three layers: content (`ui/NazgKeycapLegend.*`: the host layout -- plain + Shift +
+AltGr, Bépo's fourth level, 69 layouts from QMK's keymap extras in `ui/NazgHostLayoutTable.cpp` --
+the legend set's words and placement classes, modifier names by a new *Modifier names* setting,
+default from `SDL_GetPlatform()`, and by the key's side of the space bar, `SideLine()`), layout
+(`ui/NazgKeycapLayout.*`, pure: both families, never scaled -- one line, two, short form, cut --
+drawn arrows, ink offsets, numpad second legends, a header top right) and drawing (`NazgBoardView`,
+through `ui/NazgLegendFont.*`'s ImGui measurer). The `legend_font` test loads Arimo through ImGui's
+core and lays out every standard keycode and every layout's characters on 1u at every size: none
+cut, overlapping or leaving the face. Command keys print their QMK label until step 4; holds,
+modified keys and layer keys already print short headers, uncoloured. Legends are UTF-8 (`/utf-8`
+on MSVC). Next: step 4, the command keys.
 
 One key can be edited: click it, pick a keycode, and `WriteKeycode()`
 (`adapters/via/NazgViaKeymap.h`) encodes it for the board's version, sets it, reads the cell

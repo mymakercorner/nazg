@@ -22,10 +22,12 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "model/NazgKeyboard.h"
 #include "model/NazgKeycode.h"
+#include "ui/NazgKeycapLegend.h"
 
 namespace nazg
 {
@@ -41,12 +43,12 @@ namespace nazg
 
     inline constexpr size_t c_LegendSlotCount = 12;
 
-    // What a legend is, for the renderer to style.
+    // What a legend is, for the renderer to style. Decorative sublegends -- Hiragana, Hangul
+    // -- were dropped with their role (ui-design.md, "Second legends: functional only").
     enum class LegendRole : uint8_t
     {
-        Label,       // what the key does: "A", "!", "LT 1"
-        Sublegend,   // a second script some keycap sets print: Hiragana, Hangul
-        Value,       // a reading: a signal level, a bin number
+        Label,   // what the key does
+        Value,   // a reading: a signal level, a bin number
     };
 
     struct Legend
@@ -54,6 +56,8 @@ namespace nazg
         std::string text;   // empty: the slot is empty
         LegendRole  role = LegendRole::Label;
     };
+
+    using SlotLegends = std::array<Legend, c_LegendSlotCount>;
 
     // Rule 2: the fill, by meaning.
     enum class KeyFill : uint8_t
@@ -96,13 +100,18 @@ namespace nazg
         // space and is never drawn; its legends and marks are ignored.
         DefinitionKey geometry;
 
-        std::array<Legend, c_LegendSlotCount> legends;
+        // Rule 1, in one of two forms (ui-design.md, "How the board's look is built"): what
+        // the key IS -- keycap legends, placed by the renderer by the legend family, as Keymap
+        // fills them -- or legends at the twelve slots, placed exactly there, for a section
+        // whose positions mean something themselves. Blank keycap legends to start with.
+        std::variant<KeycapLegend, SlotLegends> legends;
+
         KeyFill fill  = KeyFill::Neutral;
         float   heat  = 0.0f;   // with KeyFill::Heat
         uint8_t marks = 0;
 
-        Legend&       operator[](LegendSlot slot) { return legends[static_cast<size_t>(slot)]; }
-        const Legend& operator[](LegendSlot slot) const { return legends[static_cast<size_t>(slot)]; }
+        // One slot -- turning the key's legends into slot legends, all empty, if they were not.
+        Legend& operator[](LegendSlot slot);
     };
 
     // Rule 4: a line over the board through the centres of these keys, in this order --
@@ -150,6 +159,21 @@ namespace nazg
     // choice, decals included, every legend empty and nothing marked -- each key filled with
     // its keycap class, from the base layer.
     [[nodiscard]] BoardDescription DescribeKeyboard(const Keyboard& keyboard);
+
+    // Keymap's legends for every key of `board` but decals: what `layer` of `keyboard` does
+    // there, seen through `settings` and the key's side of the board. Matrix views fill
+    // layer 0's, to find the keys by.
+    void DescribeLegends(BoardDescription& board, const Keyboard& keyboard, uint8_t layer,
+                         const LegendSettings& settings);
+
+    // Where a board's left half ends, in key units along x: the space bar's centre -- its
+    // widest key, 3u or more -- or the board's own where there is none, on splits and
+    // orthos. A full-size board's own centre falls near Backspace, because of the numpad, and
+    // would put right Alt on the left (ui-design.md, "Names of the modifiers").
+    [[nodiscard]] float SideLine(const std::vector<BoardKey>& keys);
+
+    // The side of `line` a key sits on, by its centre; neither when it straddles the line.
+    [[nodiscard]] KeySide SideOf(const DefinitionKey& key, float line);
 
     // A keycap's colour class from `base`, what the key does on layer 0, whichever layer is
     // shown -- a physical cap keeps its colour. Alpha: the character keys, the numpad's digits

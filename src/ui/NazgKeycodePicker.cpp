@@ -37,9 +37,9 @@ namespace nazg
 
         // Every choice for this version, grouped in the order the groups first appear in
         // the table -- which, sorted by value, puts basic keys first.
-        std::vector<std::pair<std::string, std::vector<Choice>>> BuildChoices(QmkKeycodeVersion version,
-                                                                              uint8_t           layerCount,
-                                                                              const HostLayout& layout)
+        std::vector<std::pair<std::string, std::vector<Choice>>> BuildChoices(QmkKeycodeVersion    version,
+                                                                              uint8_t              layerCount,
+                                                                              const LegendContext& context)
         {
             std::vector<std::pair<std::string, std::vector<Choice>>> groups;
 
@@ -73,10 +73,9 @@ namespace nazg
                 // MacroKey for the macro rows, whose index depends on the numbering.
                 const Keycode keycode = DecodeQmkKeycode(row.value, version);
 
-                const KeycapLegend legend  = LegendFor(keycode, layout);
-                std::string        caption = legend.primary.empty() ? std::string(row.name) : legend.primary;
-                if (!legend.secondary.empty())
-                    caption = legend.secondary + " " + caption;
+                std::string caption = CaptionOf(LegendFor(keycode, context));
+                if (caption.empty())
+                    caption = row.name;
 
                 std::string tooltip = row.name;
                 if (row.label[0] != '\0')
@@ -92,14 +91,16 @@ namespace nazg
     std::optional<Keycode> DrawKeycodePicker(KeycodePickerState& state,
                                              QmkKeycodeVersion   version,
                                              uint8_t             layerCount,
-                                             const HostLayout&   layout)
+                                             const LegendSettings& legends)
     {
         std::optional<Keycode> picked;
 
         ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16.0f);
         ImGui::InputTextWithHint("##filter", "filter: name or label", state.filter, sizeof(state.filter));
 
-        const auto groups = BuildChoices(version, layerCount, layout);
+        // On no board, so a modifier names its side: Left Control, Right Control.
+        const auto groups =
+            BuildChoices(version, layerCount, { legends.Layout(), legends.modifierNames, KeySide::Neither });
 
         const float buttonWidth = ImGui::GetFontSize() * 6.5f;
         const float right       = ImGui::GetCursorScreenPos().x + ImGui::GetContentRegionAvail().x;

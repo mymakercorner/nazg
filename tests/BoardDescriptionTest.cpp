@@ -12,6 +12,7 @@
 #include "TestSupport.h"
 
 #include <cmath>
+#include <variant>
 #include <vector>
 
 using nazg::BoardKey;
@@ -78,8 +79,8 @@ namespace
         for (const BoardKey& key : board.keys)
         {
             blank &= key.marks == 0;
-            for (const nazg::Legend& legend : key.legends)
-                blank &= legend.text.empty();
+            blank &= std::holds_alternative<nazg::KeycapLegend>(key.legends) &&
+                     std::get<nazg::KeycapLegend>(key.legends) == nazg::KeycapLegend{};
         }
         Check(blank, "no legend, no mark, no line, no label");
 
@@ -142,14 +143,85 @@ namespace
         std::printf("legend slots\n");
 
         BoardKey key;
+        Check(std::holds_alternative<nazg::KeycapLegend>(key.legends), "a key starts with keycap legends, blank");
+
         key[LegendSlot::TopLeft].text    = "!";
         key[LegendSlot::MiddleLeft].text = "1";
         key[LegendSlot::FrontRight].text = "F";
 
-        Check(key.legends[0].text == "!", "top left is KLE's position 0");
-        Check(key.legends[3].text == "1", "middle left is KLE's position 3");
-        Check(key.legends[11].text == "F", "front right is KLE's last, 11");
+        const auto* slots = std::get_if<nazg::SlotLegends>(&key.legends);
+        Check(slots != nullptr, "naming a slot turns them into slot legends");
+        Check(slots != nullptr && (*slots)[0].text == "!", "top left is KLE's position 0");
+        Check(slots != nullptr && (*slots)[3].text == "1", "middle left is KLE's position 3");
+        Check(slots != nullptr && (*slots)[11].text == "F", "front right is KLE's last, 11");
         Check(key[LegendSlot::MiddleLeft].role == nazg::LegendRole::Label, "a legend is a label unless it says otherwise");
+    }
+
+    BoardKey Placed(float x, float y, float width)
+    {
+        BoardKey key;
+        key.geometry       = Key(x, y, 0, 0);
+        key.geometry.width = width;
+        return key;
+    }
+
+    // A modifier names its side only where its keycode's side is not where the key sits,
+    // measured from the space bar (ui-design.md, "Names of the modifiers").
+    void TestSides()
+    {
+        std::printf("sides of the board\n");
+
+        using nazg::KeySide;
+        using nazg::SideLine;
+        using nazg::SideOf;
+
+        // A full-size bottom row: Ctrl, Win, Alt, the space bar, Alt, Win, Menu, Ctrl, then the
+        // arrows and a numpad, which put the board's own centre far right of the space bar's.
+        std::vector<BoardKey> keys = { Placed(0, 5, 1.25f),     Placed(1.25f, 5, 1.25f), Placed(2.5f, 5, 1.25f),
+                                       Placed(3.75f, 5, 6.25f), Placed(10, 5, 1.25f),    Placed(11.25f, 5, 1.25f),
+                                       Placed(12.5f, 5, 1.25f), Placed(13.75f, 5, 1.25f), Placed(15.25f, 5, 1),
+                                       Placed(18.5f, 5, 2),     Placed(20.5f, 5, 1),      Placed(21.5f, 0, 1) };
+
+        const float line = SideLine(keys);
+        Check(Near(line, 6.875f), "the line is the space bar's centre, not the board's");
+        Check(SideOf(keys[0].geometry, line) == KeySide::Left, "left Ctrl is on the left");
+        Check(SideOf(keys[4].geometry, line) == KeySide::Right, "right Alt is on the right, though the board's centre is further");
+        Check(SideOf(keys[3].geometry, line) == KeySide::Neither, "the space bar straddles the line");
+
+        // No space bar -- an ortho -- and the board's own centre.
+        std::vector<BoardKey> ortho;
+        for (int column = 0; column < 12; ++column)
+            ortho.push_back(Placed(static_cast<float>(column), 0, 1));
+        Check(Near(SideLine(ortho), 6.0f), "without a space bar, the board's centre");
+        Check(SideOf(ortho[5].geometry, 6.0f) == KeySide::Left && SideOf(ortho[6].geometry, 6.0f) == KeySide::Right,
+              "an ortho's halves");
+    }
+
+    // Keymap's legends: the keycode at each key, seen through the settings and the key's side.
+    void TestDescribeLegends()
+    {
+        std::printf("describe legends\n");
+
+        nazg::Keyboard keyboard;
+        keyboard.definition.matrixRows    = 1;
+        keyboard.definition.matrixColumns = 3;
+        DefinitionKey left  = Key(0, 0, 0, 0);
+        DefinitionKey space = Key(1, 0, 0, 1);
+        space.width         = 6.25f;
+        DefinitionKey right = Key(7.25f, 0, 0, 2);
+        keyboard.definition.keys = { left, space, right };
+        keyboard.keymap          = nazg::Keymap(1, 1, 3);
+        keyboard.keymap.Set(0, 0, 0, nazg::NamedKey{ "KC_RCTL" });
+        keyboard.keymap.Set(0, 0, 1, nazg::NamedKey{ "KC_SPC" });
+        keyboard.keymap.Set(0, 0, 2, nazg::NamedKey{ "KC_RCTL" });
+
+        nazg::BoardDescription board = DescribeKeyboard(keyboard);
+        nazg::DescribeLegends(board, keyboard, 0, nazg::LegendSettings{});
+
+        const auto legendOf = [&](size_t index) { return std::get<nazg::KeycapLegend>(board.keys[index].legends); };
+        Check(legendOf(0).cylindrical.full == "Right Control", "Right Ctrl on the left half names its side");
+        Check(legendOf(2).cylindrical.full == "Control", "on the right half, the plain keycap word");
+        Check(legendOf(1).placement == nazg::PlacementClass::Blank, "the space bar is blank");
     }
 
     void TestKeyCentre()
@@ -195,6 +267,8 @@ int main()
     TestDescribeKeyboard();
     TestKeycapClasses();
     TestLegendSlots();
+    TestSides();
+    TestDescribeLegends();
     TestKeyCentre();
     TestSpreadApart();
 

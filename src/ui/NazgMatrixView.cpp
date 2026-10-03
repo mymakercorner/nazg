@@ -31,9 +31,8 @@ namespace nazg
     }
 
     MatrixView::MatrixView(HidTransport& transport, std::string path, bool isVial, const Keyboard& keyboard,
-                           const std::string& hostLayoutId)
-        : m_Transport(transport), m_Path(std::move(path)), m_IsVial(isVial), m_Keyboard(keyboard),
-          m_HostLayoutId(hostLayoutId)
+                           const LegendSettings& legends)
+        : m_Transport(transport), m_Path(std::move(path)), m_IsVial(isVial), m_Keyboard(keyboard), m_Legends(legends)
     {
     }
 
@@ -98,18 +97,7 @@ namespace nazg
         }
 
         // Layer 0's legends, so each key is recognised; the keymap itself is not the point here.
-        const HostLayout* found  = FindHostLayout(m_HostLayoutId);
-        const HostLayout& layout = found != nullptr ? *found : UsHostLayout();
-
-        for (BoardKey& key : board.keys)
-        {
-            if (key.geometry.decal)
-                continue;
-
-            const KeycapLegend legend        = LegendFor(m_Keyboard.KeycodeFor(key.geometry, 0), layout);
-            key[LegendSlot::MiddleLeft].text = legend.primary;
-            key[LegendSlot::TopLeft].text    = legend.secondary;
-        }
+        DescribeLegends(board, m_Keyboard, 0, m_Legends);
 
         // The live test is a view of its own: only what the board reports, no wiring.
         const bool isLive = m_Live == Live::Running && !m_WantsWiring;

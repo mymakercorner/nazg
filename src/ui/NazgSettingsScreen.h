@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "library/NazgDefinitionLibrary.h"
+#include "ui/NazgKeycapLegend.h"
 #include "ui/NazgTheme.h"
 
 namespace nazg
@@ -46,7 +47,7 @@ namespace nazg
     {
         bool                    back                 = false;
         bool                    appearanceChanged    = false;   // to be saved and applied
-        bool                    hostLayoutChanged    = false;   // to be saved
+        bool                    legendsChanged       = false;   // host layout or modifier names: to be saved
         bool                    advancedToolsChanged = false;   // likewise
         bool                    import               = false;
         std::optional<uint32_t> reimport;                    // library entry ids
@@ -54,7 +55,7 @@ namespace nazg
         std::optional<uint32_t> remove;
     };
 
-    // `hostLayoutId`, `style` and `advancedTools` are the settings, changed here.
-    [[nodiscard]] SettingsAction DrawSettings(const SettingsView& view, std::string& hostLayoutId, BoardStyle& style,
+    // `legends`, `style` and `advancedTools` are the settings, changed here.
+    [[nodiscard]] SettingsAction DrawSettings(const SettingsView& view, LegendSettings& legends, BoardStyle& style,
                                               bool& advancedTools);
 }

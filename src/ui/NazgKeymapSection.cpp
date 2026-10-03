@@ -18,8 +18,8 @@
 namespace nazg
 {
     KeymapSection::KeymapSection(HidTransport& transport, std::string path, Keyboard& keyboard,
-                                 const std::string& hostLayoutId)
-        : m_Transport(transport), m_Path(std::move(path)), m_Keyboard(keyboard), m_HostLayoutId(hostLayoutId)
+                                 const LegendSettings& legends)
+        : m_Transport(transport), m_Path(std::move(path)), m_Keyboard(keyboard), m_Legends(legends)
     {
     }
 
@@ -40,19 +40,10 @@ namespace nazg
 
     void KeymapSection::DescribeBoard(BoardDescription& board)
     {
-        const HostLayout& layout = CurrentHostLayout();
+        DescribeLegends(board, m_Keyboard, m_Layer, m_Legends);
 
         for (BoardKey& key : board.keys)
         {
-            if (key.geometry.decal)
-                continue;
-
-            // The printed-keycap arrangement: the main legend, and above it the Shift
-            // character or the hold action.
-            const KeycapLegend legend        = LegendFor(m_Keyboard.KeycodeFor(key.geometry, m_Layer), layout);
-            key[LegendSlot::MiddleLeft].text = legend.primary;
-            key[LegendSlot::TopLeft].text    = legend.secondary;
-
             if (m_Selected && m_Selected->row == key.geometry.row && m_Selected->column == key.geometry.column)
                 key.marks |= Mark::Selected;
         }
@@ -100,7 +91,7 @@ namespace nazg
         // Always shown, as the design has it; a keycode clicked with no key selected does nothing.
         ImGui::BeginDisabled(IsBusy());
         const std::optional<Keycode> picked =
-            DrawKeycodePicker(m_Picker, m_Keyboard.keycodeVersion, m_Keyboard.keymap.Layers(), CurrentHostLayout());
+            DrawKeycodePicker(m_Picker, m_Keyboard.keycodeVersion, m_Keyboard.keymap.Layers(), m_Legends);
         ImGui::EndDisabled();
 
         // Never replace a Task still running: destroying it would free a coroutine frame the
@@ -112,13 +103,6 @@ namespace nazg
     bool KeymapSection::IsBusy() const
     {
         return m_Write.IsValid() && !m_Write.IsDone();
-    }
-
-    const HostLayout& KeymapSection::CurrentHostLayout() const
-    {
-        // A saved id this build does not know falls back to US rather than failing.
-        const HostLayout* found = FindHostLayout(m_HostLayoutId);
-        return found != nullptr ? *found : UsHostLayout();
     }
 
     // Keep the model in step with what the board says it stored.

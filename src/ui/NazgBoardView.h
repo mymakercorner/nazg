@@ -6,8 +6,8 @@
 // The renderer half of the section contract: the section says what each key means
 // (ui/NazgBoardDescription.h), this decides how that looks -- sizes here, colours in
 // ui/NazgTheme.h -- so a restyle changes these two files and no section. The look is being
-// built from ui-design.md, "How the board's look is built": keycaps, plate and themes are
-// done; the legends are still the first draft's.
+// built from ui-design.md, "How the board's look is built": keycaps, plate, themes and the
+// standard keys' legends are done -- placed by ui/NazgKeycapLayout.h, drawn here.
 //
 // ImGui only, no SDL: compiled into the application, not into nazg_core.
 
@@ -15,20 +15,12 @@
 
 #include "adapters/via/NazgKeyboardDefinition.h"
 #include "ui/NazgBoardDescription.h"
-
-struct ImFont;
+#include "ui/NazgLegendFont.h"
 
 namespace nazg
 {
-    // The fonts legends are set in -- Arimo, with the Noto faces merged behind it for what it
-    // lacks (resources/fonts/README.md) -- loaded in Main.cpp. A null weight: the interface's
-    // font instead.
-    struct LegendFonts
-    {
-        ImFont* regular = nullptr;
-        ImFont* bold    = nullptr;
-    };
-
+    // The fonts legends are set in, loaded in Main.cpp. A null weight: the interface's font
+    // instead.
     void SetLegendFonts(const LegendFonts& fonts);
 
     // Into the current ImGui window, at the cursor: the plate, the keys, the lines over them

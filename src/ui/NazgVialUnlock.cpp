@@ -26,9 +26,9 @@ namespace nazg
                            std::string                              path,
                            const Keyboard&                          keyboard,
                            std::vector<std::pair<uint8_t, uint8_t>> combo,
-                           const std::string&                       hostLayoutId)
+                           const LegendSettings&                    legends)
         : m_Transport(transport), m_Path(std::move(path)), m_Keyboard(keyboard), m_Combo(std::move(combo)),
-          m_HostLayoutId(hostLayoutId)
+          m_Legends(legends)
     {
         m_Request = Start();
     }
@@ -61,18 +61,12 @@ namespace nazg
 
         // The board as the definition draws it: layer 0's legends, to find the keys by, the
         // combo outlined and everything else dimmed.
-        const HostLayout* found  = FindHostLayout(m_HostLayoutId);
-        const HostLayout& layout = found != nullptr ? *found : UsHostLayout();
-
         BoardDescription board = DescribeKeyboard(m_Keyboard);
+        DescribeLegends(board, m_Keyboard, 0, m_Legends);
         for (BoardKey& key : board.keys)
         {
             if (key.geometry.decal)
                 continue;
-
-            const KeycapLegend legend        = LegendFor(m_Keyboard.KeycodeFor(key.geometry, 0), layout);
-            key[LegendSlot::MiddleLeft].text = legend.primary;
-            key[LegendSlot::TopLeft].text    = legend.secondary;
 
             const bool inCombo = std::find(m_Combo.begin(), m_Combo.end(),
                                            std::make_pair(key.geometry.row, key.geometry.column)) != m_Combo.end();

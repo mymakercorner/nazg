@@ -110,6 +110,8 @@ set(NAZG_CORE_SOURCES
   src/ui/NazgBoardDescription.cpp
   src/ui/NazgKeyShape.h
   src/ui/NazgKeyShape.cpp
+  src/ui/NazgKeycapLayout.h
+  src/ui/NazgKeycapLayout.cpp
   src/ui/NazgMatrixDescription.h
   src/ui/NazgMatrixDescription.cpp
 )
@@ -140,6 +142,8 @@ set(NAZG_SOURCES
   src/ui/NazgWorkspace.cpp
   src/ui/NazgBoardView.h
   src/ui/NazgBoardView.cpp
+  src/ui/NazgLegendFont.h
+  src/ui/NazgLegendFont.cpp
   src/ui/NazgTheme.h
   src/ui/NazgTheme.cpp
   src/ui/NazgKeymapSection.h
@@ -244,6 +248,7 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(qmk_keycodes       tests/QmkKeycodesTest.cpp)
     nazg_add_test(qmk_keycode_codec  tests/QmkKeycodeCodecTest.cpp)
     nazg_add_test(keycap_legend      tests/KeycapLegendTest.cpp)
+    nazg_add_test(keycap_layout      tests/KeycapLayoutTest.cpp)
     nazg_add_test(board_description  tests/BoardDescriptionTest.cpp)
     nazg_add_test(key_shape          tests/KeyShapeTest.cpp)
     nazg_add_test(matrix_description tests/MatrixDescriptionTest.cpp)
@@ -251,6 +256,14 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(via_bundle         tests/ViaBundleTest.cpp)
     nazg_add_test(definition_library tests/DefinitionLibraryTest.cpp)
     nazg_add_test(definition_choice  tests/DefinitionChoiceTest.cpp)
+
+    # The legends in the real font, which needs ImGui's core -- no backend, no SDL window.
+    add_executable(nazg_legend_font_test tests/LegendFontTest.cpp tests/TestSupport.h
+                   src/ui/NazgLegendFont.h src/ui/NazgLegendFont.cpp ${IMGUI_CORE_SOURCES})
+    target_include_directories(nazg_legend_font_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tests ${IMGUI_DIR})
+    target_link_libraries(nazg_legend_font_test PRIVATE nazg_core)
+    set_property(TARGET nazg_legend_font_test PROPERTY FOLDER tests)
+    add_test(NAME legend_font COMMAND nazg_legend_font_test ${CMAKE_CURRENT_SOURCE_DIR}/resources/fonts)
 
     # The real bundle, every definition through the parser -- skipped when it has not been
     # built, so a fresh clone passes without Python or a network.
