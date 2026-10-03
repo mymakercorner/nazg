@@ -51,13 +51,15 @@ verified by Rico): one contour per key (`ui/NazgKeyShape.*`, pure, tested -- an 
 outline), the plate, Outlined or Bottom lip keycaps, colour classes from the base layer's
 keycodes (`KeycapClassOf()`), Light / Dark / Dracula themes for the board and the window, the
 9 px text floor with sideways scrolling, and the settings for all of it plus the legend style
-(Cylindrical / Spherical, not used until step 3). **The legends are still the first draft's**:
-placed in slots, capped at the UI font, shrunk to fit. Next: fonts, then the legends. What
-outlives the first draft is
+(Cylindrical / Spherical, not used until step 3). Step 2 too: legends are set in Arimo, with Noto
+Sans Arabic, Math and Symbols 2 merged behind -- committed in `resources/fonts/` with their OFL
+licences and a README of sources and coverage, copied beside the executable by the build; the
+interface keeps a system font. **The legends are still the first draft's**: placed in slots,
+capped at the UI font, shrunk to fit. Next: step 3, the legends. What outlives the first draft is
 `ui/NazgKeycapLegend.*`: legends are a Keycode seen through a host layout (plain + Shift, one
 global setting saved in `imgui.ini`, US by default, 69 layouts from QMK's keymap extras in
 `ui/NazgHostLayoutTable.cpp` -- decided in keycodes.md, "Host layouts"). Legends are UTF-8
-(`/utf-8` on MSVC) and use a system font loaded in `Main.cpp`; the font choice is temporary.
+(`/utf-8` on MSVC).
 
 One key can be edited: click it, pick a keycode, and `WriteKeycode()`
 (`adapters/via/NazgViaKeymap.h`) encodes it for the board's version, sets it, reads the cell

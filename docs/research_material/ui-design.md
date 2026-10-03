@@ -526,6 +526,17 @@ Arabic** (the Farsi layout), **Noto Sans Math** (∂ ∆ ∏ ∑ √ ∞ ∫ ≈
 ‡ ‰, the ﬁ ﬂ ligatures). Whether the interface's own text uses Arimo too belongs to the
 styling of the rest of the window.
 
+**As shipped** (2026-10-03, [resources/fonts/README.md](../../resources/fonts/README.md)): the
+files come from Arimo's own repository, which licenses them under the **SIL OFL 1.1**, not Apache
+2.0 -- just as free to bundle with a GPL program, each licence beside its font. Upstream Arimo
+holds more than the Google Fonts copy checked above: ◊ ‡ ‰ ﬁ ﬂ and ◌ too, and the maths symbols
+but ≃ -- 309 of 386 characters: every non-ASCII character in the host-layout table's source,
+its comments included, a superset of the 277 above, plus ◌ and …. So three Noto faces are merged behind each Arimo
+weight, Regular and Bold: **Noto Sans Arabic** for 74 characters, **Noto Sans Math** for ≃ and
+**Noto Sans Symbols 2** for ⌨. Nothing is left out but the Apple logo. 2.8 MB in all. The
+interface keeps a system font for now; the Yu Gothic, Malgun and Noto CJK fallbacks it carried
+for legends are gone.
+
 **Modifier text is 3/5 of the letter size** by default (Rico, 2026-10-03), near GMK's
 proportions: at that size nothing on the Model F needs a short form or a cut, in either family.
 Its cost: with the smallest text held at 9 px -- the header, below -- the Model F needs about

@@ -192,6 +192,23 @@ add_custom_command(TARGET nazg POST_BUILD
             -P ${CMAKE_CURRENT_SOURCE_DIR}/tools/CopyIfPresent.cmake
     VERBATIM)
 
+# The legend fonts (resources/fonts/README.md), committed: copied into fonts/ beside the
+# executable after every build, where Main.cpp looks for them.
+set(NAZG_FONTS
+    ${CMAKE_CURRENT_SOURCE_DIR}/resources/fonts/Arimo-Regular.ttf
+    ${CMAKE_CURRENT_SOURCE_DIR}/resources/fonts/Arimo-Bold.ttf
+    ${CMAKE_CURRENT_SOURCE_DIR}/resources/fonts/Arimo-OFL.txt
+    ${CMAKE_CURRENT_SOURCE_DIR}/resources/fonts/NotoSansArabic-Regular.ttf
+    ${CMAKE_CURRENT_SOURCE_DIR}/resources/fonts/NotoSansArabic-OFL.txt
+    ${CMAKE_CURRENT_SOURCE_DIR}/resources/fonts/NotoSansMath-Regular.ttf
+    ${CMAKE_CURRENT_SOURCE_DIR}/resources/fonts/NotoSansMath-OFL.txt
+    ${CMAKE_CURRENT_SOURCE_DIR}/resources/fonts/NotoSansSymbols2-Regular.ttf
+    ${CMAKE_CURRENT_SOURCE_DIR}/resources/fonts/NotoSansSymbols2-OFL.txt)
+add_custom_command(TARGET nazg POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:nazg>/fonts
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${NAZG_FONTS} $<TARGET_FILE_DIR:nazg>/fonts
+    VERBATIM)
+
 # --- Tests --------------------------------------------------------------------------
 # CTest, not a test framework: CMake ships it, so there is no submodule and no
 # framework choice locked in. Run with:

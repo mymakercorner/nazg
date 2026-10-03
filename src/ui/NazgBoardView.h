@@ -16,8 +16,21 @@
 #include "adapters/via/NazgKeyboardDefinition.h"
 #include "ui/NazgBoardDescription.h"
 
+struct ImFont;
+
 namespace nazg
 {
+    // The fonts legends are set in -- Arimo, with the Noto faces merged behind it for what it
+    // lacks (resources/fonts/README.md) -- loaded in Main.cpp. A null weight: the interface's
+    // font instead.
+    struct LegendFonts
+    {
+        ImFont* regular = nullptr;
+        ImFont* bold    = nullptr;
+    };
+
+    void SetLegendFonts(const LegendFonts& fonts);
+
     // Into the current ImGui window, at the cursor: the plate, the keys, the lines over them
     // and the labels around them, as large as the width available allows but no taller than
     // `maxHeight` pixels -- and no smaller than legible text allows, scrolling sideways past

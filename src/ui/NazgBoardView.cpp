@@ -17,6 +17,13 @@ namespace nazg
 {
     namespace
     {
+        LegendFonts g_LegendFonts;
+
+        ImFont* LegendFont()
+        {
+            return g_LegendFonts.regular != nullptr ? g_LegendFonts.regular : ImGui::GetFont();
+        }
+
         // The board's size follows the window, down to the smallest legible text: no text on the
         // board below 9 px, and the smallest is a command's header, half the letter size, the
         // letters 0.30 of a key unit -- so 60 px a unit (ui-design.md, "The floor is on the
@@ -233,7 +240,7 @@ namespace nazg
         void DrawLegends(ImDrawList* drawList, const BoardKey& key, ImVec2 p0, ImVec2 p1, float unit, float size,
                          bool dimmed)
         {
-            ImFont*      font       = ImGui::GetFont();
+            ImFont*      font       = LegendFont();
             const float  pad        = unit * c_LegendPad;
             const float  innerWidth = (p1.x - p0.x) - 2 * pad;
             const ImVec4 clip(p0.x, p0.y, p1.x, p1.y);
@@ -475,6 +482,11 @@ namespace nazg
                 }
             }
         }
+    }
+
+    void SetLegendFonts(const LegendFonts& fonts)
+    {
+        g_LegendFonts = fonts;
     }
 
     BoardEvents DrawBoard(const BoardDescription& board, float maxHeight)

@@ -25,6 +25,7 @@
 #include "library/NazgDefinitionLibrary.h"
 #include "transport/NazgDeviceChannel.h"
 #include "transport/NazgHidTransport.h"
+#include "ui/NazgBoardView.h"
 #include "ui/NazgDefinitionPicker.h"
 #include "ui/NazgKeyboardList.h"
 #include "ui/NazgKeymapSection.h"
@@ -213,21 +214,34 @@ namespace
         ImGui::AddSettingsHandler(&handler);   // copied by ImGui
     }
 
-    // TEMPORARY, like the board view: a system font with the glyphs host-layout legends
-    // need -- é, ß, Cyrillic, Greek, CJK -- since ImGui's built-in font is ASCII only.
-    // Which font Nazg ships with is visual design work for later. ImGui 1.92 rasterises
-    // glyphs on demand, so no glyph ranges are listed; merged fonts fill in what the first
-    // one lacks. Falls back to the built-in font when none is found.
-    void LoadFonts(ImGuiIO& io)
+    // A UTF-8 path, as SDL hands them over, as a filesystem path on every platform.
+    std::filesystem::path PathFromUtf8(const std::string& path)
     {
-        constexpr float c_FontSize = 16.0f;
+        return std::filesystem::path(reinterpret_cast<const char8_t*>(path.c_str()));
+    }
 
+    std::string Utf8FromPath(const std::filesystem::path& path)
+    {
+        const std::u8string text = path.u8string();
+        return std::string(text.begin(), text.end());
+    }
+
+    constexpr float c_FontSize = 16.0f;
+
+    // The interface's font:a system one, since ImGui's built-in font is ASCII only and device
+    // names and panels need more -- é, ß, Cyrillic, Greek. Which font the interface ships with
+    // belongs to the styling of the window, not decided yet; legends have their own,
+    // LoadLegendFonts(). ImGui 1.92 rasterises glyphs on demand, so no glyph ranges are
+    // listed; merged fonts fill in what the first one lacks. Falls back to the built-in font
+    // when none is found.
+    void LoadInterfaceFont(ImGuiIO& io)
+    {
 #if defined(_WIN32)
         const char*       windir = std::getenv("WINDIR");
         const std::string fonts  = std::string(windir != nullptr ? windir : "C:\\Windows") + "\\Fonts\\";
 
         const std::vector<std::string> primary  = { fonts + "segoeui.ttf", fonts + "arial.ttf" };
-        const std::vector<std::string> fallback = { fonts + "seguisym.ttf", fonts + "YuGothM.ttc", fonts + "malgun.ttf" };
+        const std::vector<std::string> fallback = { fonts + "seguisym.ttf" };
 #elif defined(__APPLE__)
         const std::vector<std::string> primary  = { "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
                                                     "/System/Library/Fonts/Helvetica.ttc" };
@@ -236,8 +250,7 @@ namespace
         const std::vector<std::string> primary  = { "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
                                                     "/usr/share/fonts/TTF/DejaVuSans.ttf",
                                                     "/usr/share/fonts/noto/NotoSans-Regular.ttf" };
-        const std::vector<std::string> fallback = { "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-                                                    "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc" };
+        const std::vector<std::string> fallback = {};
 #endif
 
         bool haveBase = false;
@@ -252,7 +265,7 @@ namespace
 
         if (!haveBase)
         {
-            SDL_Log("no system font found; legends beyond ASCII will not render");
+            SDL_Log("no system font found; the interface falls back to ImGui's ASCII font");
             return;
         }
 
@@ -263,16 +276,44 @@ namespace
                 io.Fonts->AddFontFromFileTTF(path.c_str(), c_FontSize, &merge);
     }
 
-    // A UTF-8 path, as SDL hands them over, as a filesystem path on every platform.
-    std::filesystem::path PathFromUtf8(const std::string& path)
+    // The legends' fonts, from fonts/ beside the executable, where the build copies
+    // resources/fonts/ (see its README.md): Arimo, Regular and Bold, each with the Noto faces
+    // merged behind it for the characters it lacks -- Arabic and Farsi, ≃, ⌨. A missing Arimo
+    // leaves that weight null, and the board uses the interface's font instead.
+    nazg::LegendFonts LoadLegendFonts(ImGuiIO& io)
     {
-        return std::filesystem::path(reinterpret_cast<const char8_t*>(path.c_str()));
-    }
+        const char*       base   = SDL_GetBasePath();   // owned by SDL, ends with a separator
+        const std::string folder = std::string(base != nullptr ? base : "") + "fonts/";
 
-    std::string Utf8FromPath(const std::filesystem::path& path)
-    {
-        const std::u8string text = path.u8string();
-        return std::string(text.begin(), text.end());
+        const auto load = [&](const char* face) -> ImFont*
+        {
+            const std::string path = folder + face;
+            if (!std::filesystem::exists(PathFromUtf8(path)))
+            {
+                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "legend font missing: %s", path.c_str());
+                return nullptr;
+            }
+
+            ImFont* font = io.Fonts->AddFontFromFileTTF(path.c_str(), c_FontSize);
+            if (font == nullptr)
+                return nullptr;
+
+            ImFontConfig merge;
+            merge.MergeMode = true;
+            for (const char* fallback : { "NotoSansArabic-Regular.ttf", "NotoSansMath-Regular.ttf",
+                                          "NotoSansSymbols2-Regular.ttf" })
+            {
+                const std::string fallbackPath = folder + fallback;
+                if (std::filesystem::exists(PathFromUtf8(fallbackPath)))
+                    io.Fonts->AddFontFromFileTTF(fallbackPath.c_str(), c_FontSize, &merge);
+            }
+            return font;
+        };
+
+        nazg::LegendFonts fonts;
+        fonts.regular = load("Arimo-Regular.ttf");
+        fonts.bold    = load("Arimo-Bold.ttf");
+        return fonts;
     }
 
     std::vector<uint8_t> ReadWholeFile(const std::string& path)
@@ -875,7 +916,9 @@ int main(int, char**)
     AppSettings settings;
     RegisterSettings(settings);
 
-    LoadFonts(io);
+    // The interface's font first: the first font added is ImGui's default.
+    LoadInterfaceFont(io);
+    nazg::SetLegendFonts(LoadLegendFonts(io));
 
     ImGui::StyleColorsDark();
 
