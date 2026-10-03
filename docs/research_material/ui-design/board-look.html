@@ -325,7 +325,14 @@ function ink(face, hue, target) {
 // Six host layouts, taken from src/ui/NazgHostLayoutTable.cpp: per basic keycode, [plain, Shift,
 // AltGr]. A position a layout does not list keeps the keycode's own legend -- US lists only its
 // symbols, so its letters come from the keycodes.
-const HOSTS = {"US":{"KC_0":["0",")",""],"KC_1":["1","!",""],"KC_2":["2","@",""],"KC_3":["3","#",""],"KC_4":["4","$",""],"KC_5":["5","%",""],"KC_6":["6","^",""],"KC_7":["7","&",""],"KC_8":["8","*",""],"KC_9":["9","(",""],"KC_BSLS":["\\","|",""],"KC_COMM":[",","<",""],"KC_DOT":[".",">",""],"KC_EQL":["=","+",""],"KC_GRV":["`","~",""],"KC_LBRC":["[","{",""],"KC_MINS":["-","_",""],"KC_NUBS":["\\","|",""],"KC_NUHS":["\\","|",""],"KC_QUOT":["'","\"",""],"KC_RBRC":["]","}",""],"KC_SCLN":[";",":",""],"KC_SLSH":["/","?",""]},"UK":{"KC_0":["0",")",""],"KC_1":["1","!",""],"KC_2":["2","\"",""],"KC_3":["3","£",""],"KC_4":["4","$","€"],"KC_5":["5","%",""],"KC_6":["6","^",""],"KC_7":["7","&",""],"KC_8":["8","*",""],"KC_9":["9","(",""],"KC_A":["A","","Á"],"KC_B":["B","",""],"KC_BSLS":["#","~",""],"KC_C":["C","",""],"KC_COMM":[",","<",""],"KC_D":["D","",""],"KC_DOT":[".",">",""],"KC_E":["E","","É"],"KC_EQL":["=","+",""],"KC_F":["F","",""],"KC_G":["G","",""],"KC_GRV":["`","¬","¦"],"KC_H":["H","",""],"KC_I":["I","","Í"],"KC_J":["J","",""],"KC_K":["K","",""],"KC_L":["L","",""],"KC_LBRC":["[","{",""],"KC_M":["M","",""],"KC_MINS":["-","_",""],"KC_N":["N","",""],"KC_NUBS":["\\","|",""],"KC_NUHS":["#","~",""],"KC_O":["O","","Ó"],"KC_P":["P","",""],"KC_Q":["Q","",""],"KC_QUOT":["'","@",""],"KC_R":["R","",""],"KC_RBRC":["]","}",""],"KC_S":["S","",""],"KC_SCLN":[";",":",""],"KC_SLSH":["/","?",""],"KC_T":["T","",""],"KC_U":["U","","Ú"],"KC_V":["V","",""],"KC_W":["W","",""],"KC_X":["X","",""],"KC_Y":["Y","",""],"KC_Z":["Z","",""]},"French":{"KC_0":["à","0","@"],"KC_1":["&","1",""],"KC_2":["é","2","~"],"KC_3":["\"","3","#"],"KC_4":["'","4","{"],"KC_5":["(","5","["],"KC_6":["-","6","|"],"KC_7":["è","7","`"],"KC_8":["_","8","\\"],"KC_9":["ç","9",""],"KC_A":["Q","",""],"KC_B":["B","",""],"KC_BSLS":["*","µ",""],"KC_C":["C","",""],"KC_COMM":[";",".",""],"KC_D":["D","",""],"KC_DOT":[":","/",""],"KC_E":["E","","€"],"KC_EQL":["=","+","}"],"KC_F":["F","",""],"KC_G":["G","",""],"KC_GRV":["²","",""],"KC_H":["H","",""],"KC_I":["I","",""],"KC_J":["J","",""],"KC_K":["K","",""],"KC_L":["L","",""],"KC_LBRC":["^","¨",""],"KC_M":[",","?",""],"KC_MINS":[")","°","]"],"KC_N":["N","",""],"KC_NUBS":["<",">",""],"KC_NUHS":["*","µ",""],"KC_O":["O","",""],"KC_P":["P","",""],"KC_Q":["A","",""],"KC_QUOT":["ù","%",""],"KC_R":["R","",""],"KC_RBRC":["$","£","¤"],"KC_S":["S","",""],"KC_SCLN":["M","",""],"KC_SLSH":["!","§",""],"KC_T":["T","",""],"KC_U":["U","",""],"KC_V":["V","",""],"KC_W":["Z","",""],"KC_X":["X","",""],"KC_Y":["Y","",""],"KC_Z":["W","",""]},"German":{"KC_0":["0","=","}"],"KC_1":["1","!",""],"KC_2":["2","\"","²"],"KC_3":["3","§","³"],"KC_4":["4","$",""],"KC_5":["5","%",""],"KC_6":["6","&",""],"KC_7":["7","/","{"],"KC_8":["8","(","["],"KC_9":["9",")","]"],"KC_A":["A","",""],"KC_B":["B","",""],"KC_BSLS":["#","'",""],"KC_C":["C","",""],"KC_COMM":[",",";",""],"KC_D":["D","",""],"KC_DOT":[".",":",""],"KC_E":["E","","€"],"KC_EQL":["´","`",""],"KC_F":["F","",""],"KC_G":["G","",""],"KC_GRV":["^","°",""],"KC_H":["H","",""],"KC_I":["I","",""],"KC_J":["J","",""],"KC_K":["K","",""],"KC_L":["L","",""],"KC_LBRC":["Ü","",""],"KC_M":["M","","µ"],"KC_MINS":["ß","?","\\"],"KC_N":["N","",""],"KC_NUBS":["<",">","|"],"KC_NUHS":["#","'",""],"KC_O":["O","",""],"KC_P":["P","",""],"KC_Q":["Q","","@"],"KC_QUOT":["Ä","",""],"KC_R":["R","",""],"KC_RBRC":["+","*","~"],"KC_S":["S","",""],"KC_SCLN":["Ö","",""],"KC_SLSH":["-","_",""],"KC_T":["T","",""],"KC_U":["U","",""],"KC_V":["V","",""],"KC_W":["W","",""],"KC_X":["X","",""],"KC_Y":["Z","",""],"KC_Z":["Y","",""]},"Greek":{"KC_0":["0",")","°"],"KC_1":["1","!",""],"KC_2":["2","@","²"],"KC_3":["3","#","³"],"KC_4":["4","$","£"],"KC_5":["5","%","§"],"KC_6":["6","^","¶"],"KC_7":["7","&",""],"KC_8":["8","*","¤"],"KC_9":["9","(","¦"],"KC_A":["Α","",""],"KC_B":["Β","",""],"KC_BSLS":["\\","|","¬"],"KC_C":["Ψ","","©"],"KC_COMM":[",","<",""],"KC_D":["Δ","",""],"KC_DOT":[".",">",""],"KC_E":["Ε","","€"],"KC_EQL":["=","+","½"],"KC_F":["Φ","",""],"KC_G":["Γ","",""],"KC_GRV":["`","~",""],"KC_H":["Η","",""],"KC_I":["Ι","",""],"KC_J":["Ξ","",""],"KC_K":["Κ","",""],"KC_L":["Λ","",""],"KC_LBRC":["[","{","«"],"KC_M":["Μ","",""],"KC_MINS":["-","_","±"],"KC_N":["Ν","",""],"KC_NUBS":["\\","|",""],"KC_NUHS":["\\","|","¬"],"KC_O":["Ο","",""],"KC_P":["Π","",""],"KC_Q":[";",":",""],"KC_QUOT":["'","\"",""],"KC_R":["Ρ","","®"],"KC_RBRC":["]","}","»"],"KC_S":["Σ","",""],"KC_SCLN":["΄","¨",""],"KC_SLSH":["/","?",""],"KC_T":["Τ","",""],"KC_U":["Θ","",""],"KC_V":["Ω","",""],"KC_W":["ς","΅",""],"KC_X":["Χ","",""],"KC_Y":["Υ","","¥"],"KC_Z":["Ζ","",""]},"Russian":{"KC_0":["0",")",""],"KC_1":["1","!",""],"KC_2":["2","\"",""],"KC_3":["3","№",""],"KC_4":["4",";",""],"KC_5":["5","%",""],"KC_6":["6",":",""],"KC_7":["7","?",""],"KC_8":["8","*","₽"],"KC_9":["9","(",""],"KC_A":["Ф","",""],"KC_B":["И","",""],"KC_BSLS":["\\","/",""],"KC_C":["С","",""],"KC_COMM":["Б","",""],"KC_D":["В","",""],"KC_DOT":["Ю","",""],"KC_E":["У","",""],"KC_EQL":["=","+",""],"KC_F":["А","",""],"KC_G":["П","",""],"KC_GRV":["Ё","",""],"KC_H":["Р","",""],"KC_I":["Ш","",""],"KC_J":["О","",""],"KC_K":["Л","",""],"KC_L":["Д","",""],"KC_LBRC":["Х","",""],"KC_M":["Ь","",""],"KC_MINS":["-","_",""],"KC_N":["Т","",""],"KC_NUBS":["\\","/",""],"KC_NUHS":["\\","/",""],"KC_O":["Щ","",""],"KC_P":["З","",""],"KC_Q":["Й","",""],"KC_QUOT":["Э","",""],"KC_R":["К","",""],"KC_RBRC":["Ъ","",""],"KC_S":["Ы","",""],"KC_SCLN":["Ж","",""],"KC_SLSH":[".",",",""],"KC_T":["Е","",""],"KC_U":["Г","",""],"KC_V":["М","",""],"KC_W":["Ц","",""],"KC_X":["Ч","",""],"KC_Y":["Н","",""],"KC_Z":["Я","",""]}};
+// Host layouts whose caps print the fourth level, Shift+AltGr, top right as ISO 9995 places it --
+// data, per layout (Rico, 2026-10-03): Bépo, where 31 of 50 positions have one and the level is
+// part of the layout. Every other layout prints three levels; French AFNOR gets no special case.
+const FOURTH_LEVEL = { 'Bépo': true };
+// A combining character alone has nothing to attach to: it is printed on a dotted circle, as
+// Unicode's charts and OS keyboard viewers show it -- Bépo's horn, dot below and hook above.
+const standalone = t => /^[\u0300-\u036f]/.test(t) ? '\u25cc' + t : t;
+const HOSTS = {"US":{"KC_0":["0",")",""],"KC_1":["1","!",""],"KC_2":["2","@",""],"KC_3":["3","#",""],"KC_4":["4","$",""],"KC_5":["5","%",""],"KC_6":["6","^",""],"KC_7":["7","&",""],"KC_8":["8","*",""],"KC_9":["9","(",""],"KC_BSLS":["\\","|",""],"KC_COMM":[",","<",""],"KC_DOT":[".",">",""],"KC_EQL":["=","+",""],"KC_GRV":["`","~",""],"KC_LBRC":["[","{",""],"KC_MINS":["-","_",""],"KC_NUBS":["\\","|",""],"KC_NUHS":["\\","|",""],"KC_QUOT":["'","\"",""],"KC_RBRC":["]","}",""],"KC_SCLN":[";",":",""],"KC_SLSH":["/","?",""]},"UK":{"KC_0":["0",")",""],"KC_1":["1","!",""],"KC_2":["2","\"",""],"KC_3":["3","£",""],"KC_4":["4","$","€"],"KC_5":["5","%",""],"KC_6":["6","^",""],"KC_7":["7","&",""],"KC_8":["8","*",""],"KC_9":["9","(",""],"KC_A":["A","","Á"],"KC_B":["B","",""],"KC_BSLS":["#","~",""],"KC_C":["C","",""],"KC_COMM":[",","<",""],"KC_D":["D","",""],"KC_DOT":[".",">",""],"KC_E":["E","","É"],"KC_EQL":["=","+",""],"KC_F":["F","",""],"KC_G":["G","",""],"KC_GRV":["`","¬","¦"],"KC_H":["H","",""],"KC_I":["I","","Í"],"KC_J":["J","",""],"KC_K":["K","",""],"KC_L":["L","",""],"KC_LBRC":["[","{",""],"KC_M":["M","",""],"KC_MINS":["-","_",""],"KC_N":["N","",""],"KC_NUBS":["\\","|",""],"KC_NUHS":["#","~",""],"KC_O":["O","","Ó"],"KC_P":["P","",""],"KC_Q":["Q","",""],"KC_QUOT":["'","@",""],"KC_R":["R","",""],"KC_RBRC":["]","}",""],"KC_S":["S","",""],"KC_SCLN":[";",":",""],"KC_SLSH":["/","?",""],"KC_T":["T","",""],"KC_U":["U","","Ú"],"KC_V":["V","",""],"KC_W":["W","",""],"KC_X":["X","",""],"KC_Y":["Y","",""],"KC_Z":["Z","",""]},"French":{"KC_0":["à","0","@"],"KC_1":["&","1",""],"KC_2":["é","2","~"],"KC_3":["\"","3","#"],"KC_4":["'","4","{"],"KC_5":["(","5","["],"KC_6":["-","6","|"],"KC_7":["è","7","`"],"KC_8":["_","8","\\"],"KC_9":["ç","9",""],"KC_A":["Q","",""],"KC_B":["B","",""],"KC_BSLS":["*","µ",""],"KC_C":["C","",""],"KC_COMM":[";",".",""],"KC_D":["D","",""],"KC_DOT":[":","/",""],"KC_E":["E","","€"],"KC_EQL":["=","+","}"],"KC_F":["F","",""],"KC_G":["G","",""],"KC_GRV":["²","",""],"KC_H":["H","",""],"KC_I":["I","",""],"KC_J":["J","",""],"KC_K":["K","",""],"KC_L":["L","",""],"KC_LBRC":["^","¨",""],"KC_M":[",","?",""],"KC_MINS":[")","°","]"],"KC_N":["N","",""],"KC_NUBS":["<",">",""],"KC_NUHS":["*","µ",""],"KC_O":["O","",""],"KC_P":["P","",""],"KC_Q":["A","",""],"KC_QUOT":["ù","%",""],"KC_R":["R","",""],"KC_RBRC":["$","£","¤"],"KC_S":["S","",""],"KC_SCLN":["M","",""],"KC_SLSH":["!","§",""],"KC_T":["T","",""],"KC_U":["U","",""],"KC_V":["V","",""],"KC_W":["Z","",""],"KC_X":["X","",""],"KC_Y":["Y","",""],"KC_Z":["W","",""]},"German":{"KC_0":["0","=","}"],"KC_1":["1","!",""],"KC_2":["2","\"","²"],"KC_3":["3","§","³"],"KC_4":["4","$",""],"KC_5":["5","%",""],"KC_6":["6","&",""],"KC_7":["7","/","{"],"KC_8":["8","(","["],"KC_9":["9",")","]"],"KC_A":["A","",""],"KC_B":["B","",""],"KC_BSLS":["#","'",""],"KC_C":["C","",""],"KC_COMM":[",",";",""],"KC_D":["D","",""],"KC_DOT":[".",":",""],"KC_E":["E","","€"],"KC_EQL":["´","`",""],"KC_F":["F","",""],"KC_G":["G","",""],"KC_GRV":["^","°",""],"KC_H":["H","",""],"KC_I":["I","",""],"KC_J":["J","",""],"KC_K":["K","",""],"KC_L":["L","",""],"KC_LBRC":["Ü","",""],"KC_M":["M","","µ"],"KC_MINS":["ß","?","\\"],"KC_N":["N","",""],"KC_NUBS":["<",">","|"],"KC_NUHS":["#","'",""],"KC_O":["O","",""],"KC_P":["P","",""],"KC_Q":["Q","","@"],"KC_QUOT":["Ä","",""],"KC_R":["R","",""],"KC_RBRC":["+","*","~"],"KC_S":["S","",""],"KC_SCLN":["Ö","",""],"KC_SLSH":["-","_",""],"KC_T":["T","",""],"KC_U":["U","",""],"KC_V":["V","",""],"KC_W":["W","",""],"KC_X":["X","",""],"KC_Y":["Z","",""],"KC_Z":["Y","",""]},"Greek":{"KC_0":["0",")","°"],"KC_1":["1","!",""],"KC_2":["2","@","²"],"KC_3":["3","#","³"],"KC_4":["4","$","£"],"KC_5":["5","%","§"],"KC_6":["6","^","¶"],"KC_7":["7","&",""],"KC_8":["8","*","¤"],"KC_9":["9","(","¦"],"KC_A":["Α","",""],"KC_B":["Β","",""],"KC_BSLS":["\\","|","¬"],"KC_C":["Ψ","","©"],"KC_COMM":[",","<",""],"KC_D":["Δ","",""],"KC_DOT":[".",">",""],"KC_E":["Ε","","€"],"KC_EQL":["=","+","½"],"KC_F":["Φ","",""],"KC_G":["Γ","",""],"KC_GRV":["`","~",""],"KC_H":["Η","",""],"KC_I":["Ι","",""],"KC_J":["Ξ","",""],"KC_K":["Κ","",""],"KC_L":["Λ","",""],"KC_LBRC":["[","{","«"],"KC_M":["Μ","",""],"KC_MINS":["-","_","±"],"KC_N":["Ν","",""],"KC_NUBS":["\\","|",""],"KC_NUHS":["\\","|","¬"],"KC_O":["Ο","",""],"KC_P":["Π","",""],"KC_Q":[";",":",""],"KC_QUOT":["'","\"",""],"KC_R":["Ρ","","®"],"KC_RBRC":["]","}","»"],"KC_S":["Σ","",""],"KC_SCLN":["΄","¨",""],"KC_SLSH":["/","?",""],"KC_T":["Τ","",""],"KC_U":["Θ","",""],"KC_V":["Ω","",""],"KC_W":["ς","΅",""],"KC_X":["Χ","",""],"KC_Y":["Υ","","¥"],"KC_Z":["Ζ","",""]},"Russian":{"KC_0":["0",")",""],"KC_1":["1","!",""],"KC_2":["2","\"",""],"KC_3":["3","№",""],"KC_4":["4",";",""],"KC_5":["5","%",""],"KC_6":["6",":",""],"KC_7":["7","?",""],"KC_8":["8","*","₽"],"KC_9":["9","(",""],"KC_A":["Ф","",""],"KC_B":["И","",""],"KC_BSLS":["\\","/",""],"KC_C":["С","",""],"KC_COMM":["Б","",""],"KC_D":["В","",""],"KC_DOT":["Ю","",""],"KC_E":["У","",""],"KC_EQL":["=","+",""],"KC_F":["А","",""],"KC_G":["П","",""],"KC_GRV":["Ё","",""],"KC_H":["Р","",""],"KC_I":["Ш","",""],"KC_J":["О","",""],"KC_K":["Л","",""],"KC_L":["Д","",""],"KC_LBRC":["Х","",""],"KC_M":["Ь","",""],"KC_MINS":["-","_",""],"KC_N":["Т","",""],"KC_NUBS":["\\","/",""],"KC_NUHS":["\\","/",""],"KC_O":["Щ","",""],"KC_P":["З","",""],"KC_Q":["Й","",""],"KC_QUOT":["Э","",""],"KC_R":["К","",""],"KC_RBRC":["Ъ","",""],"KC_S":["Ы","",""],"KC_SCLN":["Ж","",""],"KC_SLSH":[".",",",""],"KC_T":["Е","",""],"KC_U":["Г","",""],"KC_V":["М","",""],"KC_W":["Ц","",""],"KC_X":["Ч","",""],"KC_Y":["Н","",""],"KC_Z":["Я","",""]},"Bépo":{"KC_0":["*","0","×","¾"],"KC_1":["\"","1","—","„"],"KC_2":["«","2","<","“"],"KC_3":["»","3",">","”"],"KC_4":["(","4","[","≤"],"KC_5":[")","5","]","≥"],"KC_6":["@","6","^",""],"KC_7":["+","7","±","¬"],"KC_8":["-","8","−","¼"],"KC_9":["/","9","÷","½"],"KC_A":["A","","Æ",""],"KC_B":["K","","~","⌨"],"KC_BSLS":["Ç","","¸",","],"KC_C":["X","","}","’"],"KC_COMM":["G","","µ",""],"KC_D":["I","","¨","˙"],"KC_DOT":["H","","†","‡"],"KC_E":["P","","&","§"],"KC_EQL":["%","`","‰","″"],"KC_F":["E","","€","¤"],"KC_G":[",",";","","̛"],"KC_GRV":["$","#","–","¶"],"KC_H":["C","","©","ſ"],"KC_I":["D","","Ð",""],"KC_J":["T","","Þ",""],"KC_K":["S","","ẞ",""],"KC_L":["R","","®","™"],"KC_LBRC":["Z","","Ə",""],"KC_M":["Q","","°","̣"],"KC_MINS":["=","°","≠","′"],"KC_N":["'","?","","̉"],"KC_NUBS":["Ê","","",""],"KC_NUHS":["Ç","","¸",","],"KC_O":["L","","/",""],"KC_P":["J","","Ĳ",""],"KC_Q":["B","","|","¦"],"KC_QUOT":["M","","¯","º"],"KC_R":["O","","Œ",""],"KC_RBRC":["W","","˘",""],"KC_S":["U","","Ù",""],"KC_SCLN":["N","","~",""],"KC_SLSH":["F","","˛","ª"],"KC_T":["È","","`",""],"KC_U":["V","","ˇ",""],"KC_V":[".",":","…","·"],"KC_W":["É","","´","˝"],"KC_X":["Y","","{","‘"],"KC_Y":["^","!","¡",""],"KC_Z":["À","","\\",""]}};
 
 // What a character key types on the host layout chosen: { plain, shifted, altgr }. KC_NUHS and
 // KC_NUBS a layout does not describe take KC_BSLS's legend, as keycodes.md decided.
@@ -334,8 +341,8 @@ function applyHost() {
   for (const key of KEYS) {
     if (!key.kc) continue;
     const entry = host[key.kc] || ((key.kc === 'KC_NUHS' || key.kc === 'KC_NUBS') && host.KC_BSLS);
-    key.chars = entry ? { plain: entry[0], shifted: entry[1], altgr: entry[2] }
-                      : { plain: key.letter || key.plain, shifted: key.letter ? '' : key.shifted, altgr: '' };
+    key.chars = entry ? { plain: entry[0], shifted: entry[1], altgr: entry[2], shiftAltgr: entry[3] || '' }
+                      : { plain: key.letter || key.plain, shifted: key.letter ? '' : key.shifted, altgr: '', shiftAltgr: '' };
     key.primary = key.chars.plain;
     key.secondary = key.chars.shifted;
   }
@@ -516,7 +523,7 @@ function accentCaps(T) {
 
 const state = {
   preset: 'Cylindrical', font: 'Arimo', size: 'Medium', modifierSize: '3/5', remap: 'Standard', host: 'US',
-  layer: 'Base', commands: 'D′', cmdHeader: '1/2', cmdCase: 'Mixed', cmdPlace: 'Header top', peekStyle: 'Sublegend', noMark: 'Struck + ✕', selection: 'Neutral', accentCap: 'Slate', darkSlate: 'Lifted',
+  layer: 'Base', commands: 'D′', cmdHeader: '1/2', cmdCase: 'Mixed', cmdPlace: 'Header corner', peekStyle: 'Sublegend', noMark: 'Struck + ✕', selection: 'Neutral', altgrShade: 'Muted', holdPlace: 'Top right', accentCap: 'Slate', darkSlate: 'Lifted',
   theme: 'Dark', style: 'Outlined', plate: 'Filled', classes: 'Off', scene: 'Keymap',
   selected: keyNamed('Q'), focus: keyNamed('Q'), hovered: -1, pressed: keyNamed('G'),
   seen: new Set(KEYS.map((k, i) => (k.row === 0 || ['N', 'A', 'Z', 'G'].includes(k.primary)) ? i : -1).filter(i => i >= 0)),
@@ -546,8 +553,9 @@ const CONTROLS = [
   // families.
   ['cmdHeader', 'Header size', ['1/2', '3/5']],
   ['cmdCase', 'Command case', ['Family', 'Mixed']],
-  // The same placements on both families (Rico, 2026-10-03); Header top is the default.
-  ['cmdPlace', 'Command placement', ['Header top', 'Top left', 'Middle left', 'Centred']],
+  // The same placements on both families (Rico, 2026-10-03); Header corner is the default, the
+  // header in the top right as a tap-hold key's hold is.
+  ['cmdPlace', 'Command placement', ['Header corner', 'Header top', 'Top left', 'Middle left', 'Centred']],
   // How a peeked layer shows (hover the Layer control's Features button): a coloured second
   // legend bottom right, the base's bottom legends stepping aside, or the strip tried first --
   // found too busy, and colliding with glyphs (Rico, 2026-10-03).
@@ -561,7 +569,13 @@ const CONTROLS = [
   ['selection', 'Selection', ['Neutral', 'UI blue', 'Orange']],
   // Seen with Colour classes on.
   ['accentCap', 'Accent caps', ['Sage', 'Slate', 'Graphite', 'Orange']],
-  ['darkSlate', 'Dark slate', ['Lifted', 'Pale', 'Before']],];
+  ['darkSlate', 'Dark slate', ['Lifted', 'Pale', 'Before']],
+  // The AltGr character on spherical sets: a muted shade of the legend colour, or the same --
+  // smaller either way.
+  ['altgrShade', 'Spherical AltGr', ['Muted', 'Same']],
+  // Where a tap-hold key's hold goes on cylindrical sets: the free top right corner, or above as
+  // before.
+  ['holdPlace', 'Hold', ['Top right', 'Above']],];
 // (Orange is the accent of before, kept to compare. Slate chosen, Lifted on Dark: Rico, 2026-10-03.)
 
 function buildControls() {
@@ -936,8 +950,8 @@ function legendLines(ctx, key, unit, W, H) {
   // Q position types ; and : -- with the Shift character on top.
   // Under a tap-hold header the pair packs tighter -- line height 1.0, the glyphs unchanged.
   if (key.chars) return key.chars.shifted
-    ? [{ t: key.chars.shifted, s: A, w: 500, lh: key.hold ? 1.0 : undefined },
-       { t: key.chars.plain, s: A, w: 500, lh: key.hold ? 1.0 : undefined }]
+    ? [{ t: key.chars.shifted, s: A, w: 500, lh: key.hold && !key.holdCorner ? 1.0 : undefined },
+       { t: key.chars.plain, s: A, w: 500, lh: key.hold && !key.holdCorner ? 1.0 : undefined }]
     : [{ t: key.chars.plain, s: A, w: 500 }];
 
   const n = key.named;
@@ -1003,20 +1017,32 @@ function drawLegends(ctx, key, unit, colour) {
   const a = key.face, p = 0.10 * unit;
   const box = { x0: a.x0 + p, y0: a.y0 + p, x1: a.x1 - p, y1: a.y1 - p };
   const bandHeight = Math.max(2, 0.055 * unit);
+  const fullY0 = box.y0, fullY1 = box.y1;   // the legend box of any key, for centring
   // A tap-hold key's hold is its header, right under the band -- the top padding goes, and most
   // of the bottom's -- and the tap's legends take the room below.
+  // The hold can take the top right instead (Rico, 2026-10-03: above, it pushed a pair down from
+  // where its neighbours' sit), so the tap's legends stay exactly as on any key. Free on both
+  // families: cylindrical legends keep the left column and the bottom right; spherical ones keep
+  // the centre, a pair moving left for an AltGr character on the lower line. Not for a command tap
+  // with another placement than Header corner.
   let holdHead = null;
+  // With Header corner, a command tap's header goes right under the hold, both top right.
+  // Every hold, for uniformity (Rico, 2026-10-03) -- the space bar's too; on Bépo the fourth level
+  // moves just below it, so the right column reads hold, fourth level, AltGr.
+  key.holdCorner = !!key.hold && state.holdPlace === 'Top right' && (!key.cmd || state.cmdPlace === 'Header corner');
   if (key.hold) {
     const s = HEADER_SHARES[state.cmdHeader] * SIZES[state.size] * unit;
-    holdHead = { t: commandCase(key.hold.hold), s, y: a.y0 + bandHeight + 0.02 * unit };
-    box.y0 = holdHead.y + s * WORD_LINE;
-    box.y1 = a.y1 - 0.05 * unit;
+    holdHead = { t: commandCase(key.hold.hold), s, y: a.y0 + bandHeight + 0.02 * unit, corner: key.holdCorner };
+    if (!key.holdCorner) {
+      box.y0 = holdHead.y + s * WORD_LINE;
+      box.y1 = a.y1 - 0.05 * unit;
+    }
   }
   let lines = legendLines(ctx, key, unit, box.x1 - box.x0, box.y1 - box.y0);
   // Where a pair does not fit under the header -- Large size -- the Shift character goes, rather
   // than any glyph shrinking; hover still gives it.
   const height = ls => ls.reduce((h, l) => h + l.s * (l.lh || 1.12), 0);
-  if (holdHead && key.chars && lines.length === 2 && height(lines) > box.y1 - box.y0 + 0.5) lines = [lines[1]];
+  if (holdHead && !holdHead.corner && key.chars && lines.length === 2 && height(lines) > box.y1 - box.y0 + 0.5) lines = [lines[1]];
   // On cylindrical sets, as on Rico's GMK Dolch R5: a 1u modifier centred both ways, as GMK's
   // Delete, End and Pg Dn; wider modifiers and the function row -- F-keys, and Esc by its
   // `place` -- at the left, centred vertically. Letters, pairs and numpad digits keep the top
@@ -1031,13 +1057,42 @@ function drawLegends(ctx, key, unit, colour) {
   // chosen: Header top pins the header to the top, centred, and centres the main legend in the
   // room below.
   const command = !!key.cmd;
-  const cmdPlace = command && state.cmdPlace;
-  const centred = command ? cmdPlace === 'Centred' || cmdPlace === 'Header top'
+  // A tap-hold key whose hold could not take the corner stacks: hold, header, main legend.
+  const cmdPlace = command && (state.cmdPlace === 'Header corner' && key.hold && !key.holdCorner ? 'Header top' : state.cmdPlace);
+  const centred = command ? cmdPlace === 'Centred' || cmdPlace === 'Header top' || cmdPlace === 'Header corner'
                           : spherical || place === 'centre' || (kind === 'mod' && oneUnit && !place);
   const middle = command ? cmdPlace === 'Middle left'
                          : !centred && (kind === 'fn' || kind === 'mod' || place === 'middle left');
   const total = lines.reduce((h, l) => h + l.s * (l.lh || 1.12), 0);
   const headerTop = cmdPlace === 'Header top', headHeight = headerTop ? lines[0].s * (lines[0].lh || 1.12) : 0;
+
+  // Spherical sets with an AltGr character, as KAT Napoleonic's AZERTY and Bépo kits print it
+  // (2026-10-03): the pair moves left of centre and the AltGr character takes the right, level
+  // with the lower legend, smaller and set apart -- by lightness here, since hue now belongs to the
+  // command categories. A lone legend keeps the centre, its AltGr character bottom right.
+  const peeking = key.peek && state.peekStyle === 'Sublegend';
+  const altgrSize = 0.8 * SIZES[state.size] * unit;
+  const altgrText = key.chars && key.chars.altgr && !key.cmd && !peeking ? standalone(key.chars.altgr) : '';
+  const altgrColour = spherical && state.altgrShade === 'Muted' ? over(colour, withAlpha(key.faceColour, 0.45)) : colour;
+  let centreX = (box.x0 + box.x1) / 2, altgrBeside = null;
+  if (spherical && altgrText && lines.length === 2) {
+    const pairWidth = Math.max(...lines.map(l => { ctx.font = fontSpec(l.s, l.w || 400); return ctx.measureText(l.t).width; }));
+    ctx.font = fontSpec(altgrSize, 400);
+    // A clear gap between the pair and the AltGr character (Rico, 2026-10-03: further right).
+    const gap = 0.7 * altgrSize, altgrWidth = ctx.measureText(altgrText).width;
+    const x0 = (box.x0 + box.x1 - (pairWidth + gap + altgrWidth)) / 2;
+    centreX = x0 + pairWidth / 2;
+    altgrBeside = { x: x0 + pairWidth + gap };
+  }
+  // A centred top legend that would reach a hold in the corner -- a wide "@" under "L2" at Large
+  // size -- moves left just enough to clear it, as a pair does for an AltGr character.
+  if (centred && !command && holdHead && holdHead.corner && lines.length && !lines[0].arrow) {
+    ctx.font = fontSpec(holdHead.s, 500);
+    const limit = box.x1 - ctx.measureText(holdHead.t).width - 0.04 * unit;
+    ctx.font = fontSpec(lines[0].s, lines[0].w || 400);
+    const half = ctx.measureText(lines[0].t).width / 2;
+    if (centreX + half > limit) centreX = Math.max(box.x0 + half, limit - half);
+  }
 
   // A command's colours: the band along the top of the face, and the header -- and on D the main
   // legend -- in its category's hue, solved for this face. Dimmed with the key. On a tap-hold
@@ -1056,21 +1111,48 @@ function drawLegends(ctx, key, unit, colour) {
     ctx.fillStyle = inkOf('text');
     const w = ctx.measureText(holdHead.t).width;
     const left = state.cmdPlace === 'Top left' || state.cmdPlace === 'Middle left';
-    ctx.fillText(holdHead.t, left ? box.x0 : (box.x0 + box.x1 - w) / 2, holdHead.y);
+    const x = holdHead.corner ? box.x1 - w : left ? box.x0 : (box.x0 + box.x1 - w) / 2;
+    ctx.fillText(holdHead.t, x, holdHead.y);
   }
   ctx.fillStyle = colour;
-  let y = (centred || middle) && !headerTop ? (box.y0 + box.y1 - total) / 2 : box.y0;
-  for (const l of lines) {
+  // Legends centred on the whole key, as on every other key -- not in the room a header leaves,
+  // which set command and tap-hold legends lower than their neighbours' (Rico, 2026-10-03) --
+  // and pushed down only as far as the header needs.
+  let y = (centred || middle) && !headerTop ? Math.max((fullY0 + fullY1 - total) / 2, box.y0) : box.y0;
+  // Header corner (Rico, 2026-10-03: as the hold): a command's header in the top right corner --
+  // right under the hold when the key has one, so two commands always stack, each in its own
+  // colour (Rico: not side by side) -- and its main legend centred on the key, as any key's,
+  // pushed below the headers only where a wide legend would run into them.
+  let mainLines = lines;
+  if (command && cmdPlace === 'Header corner') {
+    const head = lines[0];
+    mainLines = lines.slice(1);
+    ctx.font = fontSpec(head.s, head.w || 500);
+    ctx.fillStyle = inkOf('text', head.ink);
+    const hw = ctx.measureText(head.t).width;
+    const hy = a.y0 + bandHeight + 0.02 * unit + (key.holdCorner ? holdHead.s * WORD_LINE : 0);
+    ctx.fillText(head.t, box.x1 - hw, hy);
+    const mainHeight = total - head.s * (head.lh || 1.12);
+    const mainWidth = Math.max(0, ...mainLines.map(l => { ctx.font = fontSpec(l.s, l.w || 400); return ctx.measureText(l.t).width; }));
+    const headBottom = hy + head.s * WORD_LINE;
+    y = (fullY0 + fullY1 - mainHeight) / 2;
+    ctx.font = fontSpec(head.s, 500);
+    const holdWidth = key.holdCorner ? ctx.measureText(holdHead.t).width : 0;
+    const clear = (box.x1 - box.x0 - mainWidth) / 2 >= Math.max(hw, holdWidth) + 0.04 * unit;   // the headers fit beside the legend
+    if (y < headBottom && !clear) y = headBottom;
+  }
+  for (const l of mainLines) {
     ctx.font = fontSpec(l.s, l.w || 400);
     ctx.fillStyle = l.ink ? inkOf('text', l.ink) : colour;
     const w = ctx.measureText(l.t).width;
     const lh = l.lh || 1.12;
     if (l.arrow)
-      drawArrow(ctx, centred ? (box.x0 + box.x1) / 2 : box.x0 + l.s / 2, y + l.s * lh / 2, l.s, l.arrow);
+      drawArrow(ctx, centred ? centreX : box.x0 + l.s / 2, y + l.s * lh / 2, l.s, l.arrow);
     else
-      ctx.fillText(l.t, centred ? (box.x0 + box.x1 - w) / 2 : box.x0, y + l.s * (lh - 1) / 2 + opticalShift(ctx, l.t));
+      ctx.fillText(l.t, centred ? centreX - w / 2 : box.x0, y + l.s * (lh - 1) / 2 + opticalShift(ctx, l.t));
+    if (altgrBeside && l === lines[1]) altgrBeside.y = y + l.s * (lh - 1) / 2 + (l.s - altgrSize) * 0.8;
     y += l.s * lh;
-    if (headerTop && l === lines[0]) y = (y + box.y1 - (total - headHeight)) / 2;
+    if (headerTop && l === lines[0]) y = Math.max((fullY0 + fullY1 - (total - headHeight)) / 2, y + 0.02 * unit);
   }
 
   // A second legend in a bottom corner -- cylindrical only for now: where SA puts the numpad's,
@@ -1080,14 +1162,24 @@ function drawLegends(ctx, key, unit, colour) {
   // always, where the host layout has one: functional, so nothing to switch off (Rico,
   // 2026-10-03). Plain US has no AltGr level, so a US board is unchanged.
   // Letter weight, a little smaller than the letters.
-  ctx.fillStyle = colour;
   // A peeked key's own bottom legends step aside for the peeked one while the peek lasts.
-  const peeking = key.peek && state.peekStyle === 'Sublegend';
-  if (key.chars && key.chars.altgr && !key.cmd && !peeking) {
-    const s = 0.8 * SIZES[state.size] * unit;
+  ctx.fillStyle = altgrColour;
+  if (altgrText) {
+    ctx.font = fontSpec(altgrSize, 400);
+    const w = ctx.measureText(altgrText).width;
+    if (altgrBeside) ctx.fillText(altgrText, altgrBeside.x, altgrBeside.y + opticalShift(ctx, altgrText));
+    else ctx.fillText(altgrText, box.x1 - w, box.y1 - altgrSize * 1.06 + opticalShift(ctx, altgrText));
+  }
+  ctx.fillStyle = colour;
+  // The fourth level, Shift+AltGr, top right -- on the host layouts that print it, and on
+  // cylindrical sets only: spherical caps have no room for it (Rico, 2026-10-03), and KAT's
+  // spherical Bépo kit leaves it off too.
+  if (key.chars && key.chars.shiftAltgr && FOURTH_LEVEL[state.host] && !spherical && !key.cmd && !peeking) {
+    const s = 0.8 * SIZES[state.size] * unit, t = standalone(key.chars.shiftAltgr);
     ctx.font = fontSpec(s, 400);
-    const w = ctx.measureText(key.chars.altgr).width;
-    ctx.fillText(key.chars.altgr, box.x1 - w, box.y1 - s * 1.06 + opticalShift(ctx, key.chars.altgr));
+    const w = ctx.measureText(t).width;
+    const y = key.holdCorner && holdHead ? holdHead.y + holdHead.s * WORD_LINE : box.y0;   // under a hold
+    ctx.fillText(t, box.x1 - w, y + opticalShift(ctx, t));
   }
 
   const sublegend = key.named && key.named.sublegend;

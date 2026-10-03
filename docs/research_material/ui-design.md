@@ -436,6 +436,25 @@ on Greek the Q position is "; :". Nothing changes in the placement rules. Two fi
   themselves; **Montserrat and Nunito have no Greek**, so a Greek board would mix in Noto's
   letters. A point against them in the font choice.
 
+**The fourth level, Bépo, and spherical AltGr** (Rico, 2026-10-03):
+- **Shift+AltGr is printed on the layouts that need it, as data per host layout**: Bépo, where 31
+  of 50 positions have one and the level is part of the layout. **Top right**, where ISO 9995
+  places it, at the AltGr character's size. Every other layout prints three levels -- most
+  national caps do -- and hover can list all four. **French AFNOR** (NF Z71-300, the 2019
+  "AZERTY amélioré", rarely used) gets no special case.
+- **Never on spherical sets**: no room for it, and KAT Napoleonic's spherical Bépo kit
+  (NoPunIn10Did) leaves it off too.
+- **A combining character is printed on a dotted circle**, ◌ (U+25CC), as Unicode's charts and
+  OS keyboard viewers show one alone -- else it floats over nothing. Six exist in the host
+  layouts (hook above, horn, dot below, comma below, double grave, inverted breve), nearly all on
+  the fourth level: Bépo's three are the ones Nazg prints.
+- **AltGr on spherical sets follows KAT Napoleonic's AZERTY and Bépo kits**: a key with an AltGr
+  character moves its pair left of centre and prints the AltGr character to its right, level
+  with the lower legend and smaller; a lone legend keeps the centre, its AltGr character bottom
+  right. KAT prints it in a second colour; hue now belongs to the command categories, so Nazg
+  sets it apart by **lightness** -- a muted shade of the legend colour (the mockup's *Spherical
+  AltGr: Muted*, against *Same*).
+
 **The legend font is Arimo** (Rico, 2026-10-03), of the look-alikes tried: a Helvetica-like
 grotesque like GMK's Cherry legends, free to bundle (Apache 2.0, compatible with GPL-3.0). Of the
 host layouts' 277 non-ASCII characters it holds Latin, Greek, Cyrillic, Hebrew and every currency
@@ -540,8 +559,17 @@ and placement constrained them too much, SA's capitals most. So, on both familie
 - **the header at 1/2 the letter size** -- every tested header fits 1u that way, "Firmware" and
   "Toggle" included; only "Caps Word" still needs its short form;
 - **mixed case**, GMK's wording, on spherical sets too;
-- **Header top**: the header pinned to the top under the band, centred; the main legend centred
-  both ways in the room below. The mockup keeps Top left, Middle left and Centred to compare.
+- **Header corner**: the header in the **top right** under the band, as a tap-hold key's hold
+  (Rico, 2026-10-03: one rule for every command); the main legend centred both ways **on the
+  whole key**, as any key's, pushed below the header only where a wide legend would run into it.
+  A key with both a hold and a command tap **always stacks** its two headers, each in its own
+  colour, both right-aligned: the hold top right, the tap's header right under it, the main legend
+  centred -- "L1 / Media / Play", "Boot / Media / Play" (Rico, 2026-10-03: side by side, "Media"
+  and "Boot" collided on 1u, and two commands read better one above the other). Checked in the
+  mockup over 600 draws -- every font, both families, every size, keys 50 to 110 px: no two
+  legends overlap and none leaves the face. Before it, *Header top* centred the header above and the main legend in the room under
+  it, which set command legends 6.8 px lower than their neighbours' at a 90 px key. The mockup
+  keeps Header top, Top left, Middle left and Centred to compare.
 
 The cost to weigh: the board stops shrinking when modifier text reaches 9 px, where a header at
 1/2 the letter size is about 7.5 px. If that reads badly on screen, the 9 px floor moves to the
@@ -559,6 +587,16 @@ header and the board scrolls a little sooner.
   legends: L2, 2 over é, ~. A pair fits on 1u because the header is small and the pair packs to
   line height 1.0 with the top padding gone -- the glyphs never shrink; where even that fails
   (Large size) the Shift character goes, and hover gives it. Today's "MT LCTL" goes.
+- **The hold takes the top right corner, on both families** (Rico, 2026-10-03): above, it
+  pushed a pair down from where its neighbours' sit. Cylindrical legends keep the left column and
+  the bottom right; spherical ones the centre, a pair moving left for an AltGr character on the
+  lower line -- so the top right is free either way, and the tap's legends stay exactly as on any
+  key: no packing, no dropped Shift character. **Every hold goes there**, for uniformity (Rico,
+  2026-10-03) -- the space bar's too. On Bépo the fourth level moves just below the hold, so the
+  right column reads hold, fourth level, AltGr. A centred spherical legend that would reach the
+  hold -- a wide "@" under "L2" at Large size -- moves left just enough to clear it, as a pair
+  does for an AltGr character. Checked over 5,400 draws -- US, French and Bépo, every font, both
+  families, every size, keys 50 to 110 px: no two legends overlap and none leaves the face.
 - **The hold's header is coloured by what the hold does**, and the band with it. MT and LT can
   only hold a modifier or a layer -- a behaviour, magenta -- but a **Vial tap dance** holds any
   keycode (`on_hold`, via-vial-commands.md), and one with a tap and a hold is drawn as a tap-hold:
