@@ -77,11 +77,64 @@ namespace
         bool blank = board.lines.empty() && board.labels.empty();
         for (const BoardKey& key : board.keys)
         {
-            blank &= key.marks == 0 && key.fill == nazg::KeyFill::Neutral;
+            blank &= key.marks == 0;
             for (const nazg::Legend& legend : key.legends)
                 blank &= legend.text.empty();
         }
         Check(blank, "no legend, no mark, no line, no label");
+
+        // No keymap here: every key is KC_NO, which leaves a 1u key an alpha.
+        bool classed = true;
+        for (const BoardKey& key : board.keys)
+            classed &= key.fill == nazg::KeyFill::Alpha;
+        Check(classed, "each key filled with its keycap class");
+    }
+
+    // The class comes from what the key does on the base layer (ui-design.md, "Keycap colour
+    // classes").
+    void TestKeycapClasses()
+    {
+        std::printf("keycap classes\n");
+
+        using nazg::KeyFill;
+        using nazg::KeycapClassOf;
+        using nazg::NamedKey;
+
+        const DefinitionKey unit = Key(0, 0, 0, 0);
+        DefinitionKey       wide = unit;
+        wide.width               = 2.25f;
+
+        Check(KeycapClassOf(NamedKey{ "KC_A" }, unit) == KeyFill::Alpha, "a letter is an alpha");
+        Check(KeycapClassOf(NamedKey{ "KC_1" }, unit) == KeyFill::Alpha, "a digit is an alpha");
+        Check(KeycapClassOf(NamedKey{ "KC_SCLN" }, unit) == KeyFill::Alpha, "punctuation is an alpha");
+        Check(KeycapClassOf(NamedKey{ "KC_SPC" }, wide) == KeyFill::Alpha, "the space bar is an alpha");
+        Check(KeycapClassOf(NamedKey{ "KC_P7" }, unit) == KeyFill::Alpha, "a numpad digit is an alpha");
+        Check(KeycapClassOf(NamedKey{ "KC_PDOT" }, unit) == KeyFill::Alpha, "the numpad's dot is an alpha");
+        Check(KeycapClassOf(NamedKey{ "KC_ESC" }, unit) == KeyFill::Accent, "Esc is an accent");
+        Check(KeycapClassOf(NamedKey{ "KC_ENT" }, wide) == KeyFill::Accent, "Enter is an accent");
+        Check(KeycapClassOf(NamedKey{ "KC_PENT" }, unit) == KeyFill::Accent, "the numpad's Enter is an accent");
+        Check(KeycapClassOf(NamedKey{ "KC_F1" }, unit) == KeyFill::Modifier, "an F-key is a modifier");
+        Check(KeycapClassOf(NamedKey{ "KC_LSFT" }, wide) == KeyFill::Modifier, "Shift is a modifier");
+        Check(KeycapClassOf(NamedKey{ "KC_PSLS" }, unit) == KeyFill::Modifier, "a numpad operator is a modifier");
+        Check(KeycapClassOf(NamedKey{ "KC_UP" }, unit) == KeyFill::Modifier, "an arrow is a modifier");
+        Check(KeycapClassOf(NamedKey{ "UG_TOGG" }, unit) == KeyFill::Modifier, "a command is a modifier");
+        Check(KeycapClassOf(nazg::LayerKey{ nazg::LayerOp::Momentary, 1 }, unit) == KeyFill::Modifier,
+              "a layer key is a modifier");
+
+        Check(KeycapClassOf(nazg::ModTapKey{ nazg::Mod::LeftCtrl, "KC_ESC" }, unit) == KeyFill::Accent,
+              "a tap-hold takes its tap's class: Ctrl when held, Esc when tapped is an accent");
+        Check(KeycapClassOf(nazg::LayerTapKey{ 1, "KC_SPC" }, wide) == KeyFill::Alpha,
+              "a space bar holding a layer stays an alpha");
+        Check(KeycapClassOf(nazg::ModifiedKey{ nazg::Mod::LeftShift, "KC_1" }, unit) == KeyFill::Alpha,
+              "Shift with a character key still prints a character: an alpha");
+        Check(KeycapClassOf(nazg::ModifiedKey{ nazg::Mod::LeftCtrl, "KC_C" }, unit) == KeyFill::Modifier,
+              "Ctrl+C is a modifier");
+
+        Check(KeycapClassOf(NamedKey{ "KC_NO" }, unit) == KeyFill::Alpha, "KC_NO on 1u: an alpha");
+        Check(KeycapClassOf(NamedKey{ "KC_NO" }, wide) == KeyFill::Modifier, "KC_NO past 1.25u: a modifier");
+        DefinitionKey quarter = unit;
+        quarter.width         = 1.25f;
+        Check(KeycapClassOf(NamedKey{ "KC_TRNS" }, quarter) == KeyFill::Alpha, "KC_TRNS on 1.25u: still an alpha");
     }
 
     void TestLegendSlots()
@@ -140,6 +193,7 @@ int main()
     ConfigureCrtReporting();
 
     TestDescribeKeyboard();
+    TestKeycapClasses();
     TestLegendSlots();
     TestKeyCentre();
     TestSpreadApart();

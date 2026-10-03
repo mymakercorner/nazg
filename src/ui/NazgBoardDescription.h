@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "model/NazgKeyboard.h"
+#include "model/NazgKeycode.h"
 
 namespace nazg
 {
@@ -59,8 +60,9 @@ namespace nazg
     {
         Neutral,
 
-        // The keycap's colour class, which keycap themes (Olivia, Dolch...) colour. Needs the
-        // definition parser to keep each key's KLE colour, which it drops today.
+        // The keycap's colour class, which the theme colours (ui-design.md, "Keycap colour
+        // classes"): from what the key does on the base layer -- see KeycapClassOf(). KLE
+        // colours will only group the keys, once the definition parser keeps them.
         Alpha,
         Modifier,
         Accent,
@@ -145,8 +147,17 @@ namespace nazg
     };
 
     // What a section starts from: the board as its definition draws it, at its layout
-    // choice, decals included, every legend empty and nothing marked.
+    // choice, decals included, every legend empty and nothing marked -- each key filled with
+    // its keycap class, from the base layer.
     [[nodiscard]] BoardDescription DescribeKeyboard(const Keyboard& keyboard);
+
+    // A keycap's colour class from `base`, what the key does on layer 0, whichever layer is
+    // shown -- a physical cap keeps its colour. Alpha: the character keys, the numpad's digits
+    // and dot, the space bar. Accent: Esc, Enter, the numpad's Enter. Modifier: everything
+    // else, F-keys and commands included. A tap-hold takes its tap's class; Shift with a
+    // character key is still a character. KC_NO and KC_TRNS say nothing, so the key's width
+    // decides: a modifier past 1.25u, else an alpha.
+    [[nodiscard]] KeyFill KeycapClassOf(const Keycode& base, const DefinitionKey& key);
 
     // A key's centre in key units, where it is drawn -- its rotation applied. An L-shaped
     // key's is its first rectangle's.

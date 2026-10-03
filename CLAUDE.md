@@ -45,8 +45,15 @@ the Model F 2026-09-23: all three layers decode to named keycodes -- including `
 `HF_DWLD`, `HF_DWLU` on layer 2 -- with no unknown values, and every one encodes back.
 
 The board draws: "Open" on a raw-HID row of the device list loads it through the Vial loader,
-and the Keymap section shows it (see "Sections" below). **The board's look is a first draft
-meant to be thrown away** -- it needs real visual design work. What outlives it is
+and the Keymap section shows it (see "Sections" below). **The board's look is being built** from
+ui-design.md, "How the board's look is built", in five steps. Step 1 is done (2026-10-03,
+verified by Rico): one contour per key (`ui/NazgKeyShape.*`, pure, tested -- an ISO Enter is one
+outline), the plate, Outlined or Bottom lip keycaps, colour classes from the base layer's
+keycodes (`KeycapClassOf()`), Light / Dark / Dracula themes for the board and the window, the
+9 px text floor with sideways scrolling, and the settings for all of it plus the legend style
+(Cylindrical / Spherical, not used until step 3). **The legends are still the first draft's**:
+placed in slots, capped at the UI font, shrunk to fit. Next: fonts, then the legends. What
+outlives the first draft is
 `ui/NazgKeycapLegend.*`: legends are a Keycode seen through a host layout (plain + Shift, one
 global setting saved in `imgui.ini`, US by default, 69 layouts from QMK's keymap extras in
 `ui/NazgHostLayoutTable.cpp` -- decided in keycodes.md, "Host layouts"). Legends are UTF-8

@@ -129,6 +129,12 @@ namespace
     {
         std::string hostLayout = "us";   // a HostLayout id; see NazgKeycapLegend.h
 
+        // The look (ui/NazgTheme.h), by id. An id this build does not know -- saved by a newer
+        // one -- is kept as it is, and drawn with the default.
+        std::string theme        = "dark";
+        std::string keycapStyle  = "outlined";
+        std::string legendFamily = "cylindrical";
+
         // The board menu's Advanced submenu: tools for designers and debugging, out of an
         // ordinary user's way until asked for (ui-design.md, screen 6).
         bool advancedTools = false;
@@ -138,6 +144,16 @@ namespace
         // there is no library to import them into.
         std::vector<std::string> legacyViaDefinitions;
     };
+
+    // The look the settings ask for -- the defaults for ids this build does not know.
+    nazg::BoardStyle StyleOf(const AppSettings& settings)
+    {
+        nazg::BoardStyle style;
+        style.theme   = nazg::ThemeFromId(settings.theme).value_or(style.theme);
+        style.keycaps = nazg::KeycapStyleFromId(settings.keycapStyle).value_or(style.keycaps);
+        style.legends = nazg::LegendFamilyFromId(settings.legendFamily).value_or(style.legends);
+        return style;
+    }
 
     void RegisterSettings(AppSettings& settings)
     {
@@ -161,11 +177,20 @@ namespace
             AppSettings& loaded = *static_cast<AppSettings*>(self->UserData);
 
             constexpr char c_HostLayout[]    = "HostLayout=";
+            constexpr char c_Theme[]         = "Theme=";
+            constexpr char c_KeycapStyle[]   = "Keycaps=";
+            constexpr char c_LegendFamily[]  = "Legends=";
             constexpr char c_AdvancedTools[] = "AdvancedTools=";
             constexpr char c_ViaDefinition[] = "ViaDefinition=";
 
             if (std::strncmp(line, c_HostLayout, sizeof(c_HostLayout) - 1) == 0)
                 loaded.hostLayout = line + sizeof(c_HostLayout) - 1;
+            else if (std::strncmp(line, c_Theme, sizeof(c_Theme) - 1) == 0)
+                loaded.theme = line + sizeof(c_Theme) - 1;
+            else if (std::strncmp(line, c_KeycapStyle, sizeof(c_KeycapStyle) - 1) == 0)
+                loaded.keycapStyle = line + sizeof(c_KeycapStyle) - 1;
+            else if (std::strncmp(line, c_LegendFamily, sizeof(c_LegendFamily) - 1) == 0)
+                loaded.legendFamily = line + sizeof(c_LegendFamily) - 1;
             else if (std::strncmp(line, c_AdvancedTools, sizeof(c_AdvancedTools) - 1) == 0)
                 loaded.advancedTools = std::strcmp(line + sizeof(c_AdvancedTools) - 1, "1") == 0;
             else if (std::strncmp(line, c_ViaDefinition, sizeof(c_ViaDefinition) - 1) == 0)
@@ -175,8 +200,9 @@ namespace
         handler.WriteAllFn = [](ImGuiContext*, ImGuiSettingsHandler* self, ImGuiTextBuffer* out)
         {
             const AppSettings& saved = *static_cast<AppSettings*>(self->UserData);
-            out->appendf("[%s][Settings]\nHostLayout=%s\nAdvancedTools=%d\n", self->TypeName, saved.hostLayout.c_str(),
-                         saved.advancedTools ? 1 : 0);
+            out->appendf("[%s][Settings]\nHostLayout=%s\nTheme=%s\nKeycaps=%s\nLegends=%s\nAdvancedTools=%d\n",
+                         self->TypeName, saved.hostLayout.c_str(), saved.theme.c_str(), saved.keycapStyle.c_str(),
+                         saved.legendFamily.c_str(), saved.advancedTools ? 1 : 0);
             // Only paths not yet imported -- when the library could not be opened -- so
             // none is lost before it can be.
             for (const std::string& path : saved.legacyViaDefinitions)
@@ -999,6 +1025,9 @@ int main(int, char**)
     const ImVec4 clearColor = ImVec4(0.09f, 0.09f, 0.11f, 1.0f);
     bool showAllHidDevices = false;   // the keyboard list shows only keyboards unless asked
     bool showSettings      = false;   // settings in place of the main area
+
+    // The window's colours are set when the theme changes -- first once imgui.ini is read.
+    std::optional<nazg::ThemeId> appliedTheme;
     bool openLoneBoard     = true;    // until the first list is in
     // One frame: finished transport work resumed, dialog results collected, then the UI drawn
     // and presented. Run by the loop below, and from inside SDL's event pumping while the
@@ -1073,6 +1102,16 @@ int main(int, char**)
         ImGui_ImplSDLGPU3_NewFrame();
         ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();
+
+        // The look, as the settings say: read from imgui.ini by the first NewFrame(), changed in
+        // Settings.
+        const nazg::BoardStyle look = StyleOf(settings);
+        if (appliedTheme != look.theme)
+        {
+            nazg::ApplyWindowTheme(look.theme);
+            appliedTheme = look.theme;
+        }
+        nazg::SetBoardStyle(look);
 
         // With exactly one keyboard plugged in at start, Nazg opens it: most people never see
         // the list. Only the first time -- afterwards the list is shown because it was asked for.
@@ -1308,12 +1347,19 @@ int main(int, char**)
                 std::snprintf(line, sizeof(line), "Frame: %.3f ms (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
                 view.about.emplace_back(line);
 
+                nazg::BoardStyle           chosen = look;
                 const nazg::SettingsAction action =
-                    nazg::DrawSettings(view, settings.hostLayout, settings.advancedTools);
+                    nazg::DrawSettings(view, settings.hostLayout, chosen, settings.advancedTools);
 
+                if (action.appearanceChanged)
+                {
+                    settings.theme        = std::string(nazg::IdOf(chosen.theme));
+                    settings.keycapStyle  = std::string(nazg::IdOf(chosen.keycaps));
+                    settings.legendFamily = std::string(nazg::IdOf(chosen.legends));
+                }
                 if (action.back)
                     showSettings = false;
-                if (action.hostLayoutChanged || action.advancedToolsChanged)
+                if (action.appearanceChanged || action.hostLayoutChanged || action.advancedToolsChanged)
                     ImGui::MarkIniSettingsDirty();
                 if (action.import && library.library)
                     showImportDialog();

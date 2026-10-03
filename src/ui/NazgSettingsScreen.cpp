@@ -3,6 +3,9 @@
 
 #include "NazgSettingsScreen.h"
 
+#include <span>
+#include <string>
+
 #include "imgui.h"
 
 #include "ui/NazgKeycapLegend.h"
@@ -14,8 +17,6 @@ namespace nazg
     {
         void DrawHostLayout(std::string& hostLayoutId, SettingsAction& action)
         {
-            ImGui::SeparatorText("Legends");
-
             // A saved id this build does not know falls back to US rather than failing.
             const HostLayout* found   = FindHostLayout(hostLayoutId);
             const HostLayout& current = found != nullptr ? *found : UsHostLayout();
@@ -38,6 +39,46 @@ namespace nazg
             }
             ImGui::SetItemTooltip("The layout your computer types with: legends show what each key\n"
                                   "types there. The keymap on the board does not change.");
+        }
+
+        // A combo over a setting's choices, by their names; true when one was picked.
+        template <typename Choice>
+        bool DrawChoice(const char* label, std::span<const Choice> choices, Choice& current)
+        {
+            bool changed = false;
+            ImGui::SetNextItemWidth(ImGui::GetFontSize() * 14.0f);
+            if (ImGui::BeginCombo(label, std::string(NameOf(current)).c_str()))
+            {
+                for (const Choice choice : choices)
+                {
+                    const bool isCurrent = choice == current;
+                    if (ImGui::Selectable(std::string(NameOf(choice)).c_str(), isCurrent) && !isCurrent)
+                    {
+                        current = choice;
+                        changed = true;
+                    }
+                    if (isCurrent)
+                        ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+            return changed;
+        }
+
+        void DrawLegendFamily(BoardStyle& style, SettingsAction& action)
+        {
+            action.appearanceChanged |= DrawChoice("Legend style", LegendFamilies(), style.legends);
+            ImGui::SetItemTooltip("Cylindrical: as GMK keycaps print them -- top left, mixed case.\n"
+                                  "Spherical: as SA keycaps print them -- centred, capitals.");
+        }
+
+        void DrawAppearance(BoardStyle& style, SettingsAction& action)
+        {
+            ImGui::SeparatorText("Appearance");
+            action.appearanceChanged |= DrawChoice("Theme", Themes(), style.theme);
+            action.appearanceChanged |= DrawChoice("Keycaps", KeycapStyles(), style.keycaps);
+            ImGui::SetItemTooltip("Outlined: a thin border around each key.\n"
+                                  "Bottom lip: a darker strip under each key, as if seen slightly from above.");
         }
 
         void DrawOfficial(const OfficialDefinitionsInfo& official)
@@ -127,12 +168,17 @@ namespace nazg
         }
     }
 
-    SettingsAction DrawSettings(const SettingsView& view, std::string& hostLayoutId, bool& advancedTools)
+    SettingsAction DrawSettings(const SettingsView& view, std::string& hostLayoutId, BoardStyle& style,
+                                bool& advancedTools)
     {
         SettingsAction action;
 
         action.back = ImGui::Button(view.backLabel);
 
+        DrawAppearance(style, action);
+
+        ImGui::SeparatorText("Legends");
+        DrawLegendFamily(style, action);
         DrawHostLayout(hostLayoutId, action);
 
         ImGui::SeparatorText("Definitions");

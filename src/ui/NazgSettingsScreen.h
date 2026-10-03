@@ -2,9 +2,9 @@
 // SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com>
 //
 // SettingsScreen - what the settings button shows, in place of the main area; the header
-// stays, so the open board is still named (ui-design.md, screen 6). The host layout, the
-// definitions -- official and user, with the library's Re-import, Restore previous, Remove
-// and Import -- the Advanced tools switch and, last, what Nazg runs on.
+// stays, so the open board is still named (ui-design.md, screen 6). The theme and keycap
+// style, the host layout, the definitions -- official and user, with the library's Re-import,
+// Restore previous, Remove and Import -- the Advanced tools switch and, last, what Nazg runs on.
 //
 // It only draws and reports what was clicked; the library is changed by the caller. ImGui
 // only, no SDL.
@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "library/NazgDefinitionLibrary.h"
+#include "ui/NazgTheme.h"
 
 namespace nazg
 {
@@ -44,6 +45,7 @@ namespace nazg
     struct SettingsAction
     {
         bool                    back                 = false;
+        bool                    appearanceChanged    = false;   // to be saved and applied
         bool                    hostLayoutChanged    = false;   // to be saved
         bool                    advancedToolsChanged = false;   // likewise
         bool                    import               = false;
@@ -52,6 +54,7 @@ namespace nazg
         std::optional<uint32_t> remove;
     };
 
-    // `hostLayoutId` and `advancedTools` are the settings, changed here.
-    [[nodiscard]] SettingsAction DrawSettings(const SettingsView& view, std::string& hostLayoutId, bool& advancedTools);
+    // `hostLayoutId`, `style` and `advancedTools` are the settings, changed here.
+    [[nodiscard]] SettingsAction DrawSettings(const SettingsView& view, std::string& hostLayoutId, BoardStyle& style,
+                                              bool& advancedTools);
 }

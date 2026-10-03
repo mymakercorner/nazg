@@ -1,16 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com>
 //
-// Theme - every colour Nazg chooses, in one place, so the visual design to come changes this
-// file and the board renderer's sizes, and nothing else.
+// Theme - every colour Nazg chooses, in one place: the board's and the window's. A theme is
+// one table of named colours (ui-design.md, "The board's look"): Light, Dark and Dracula, from
+// the mockup ui-design/board-look.html. Panels -- a section's included -- use the four named
+// colours and no other; the board is coloured by what a key means (ui/NazgBoardDescription.h),
+// mapped to colours here.
 //
-// PLACEHOLDER values: the styling is not designed yet (ui-design.md). What is decided is the
-// names. Panels -- a section's included -- use the four named colours and no other; the board
-// is coloured by what a key means (ui/NazgBoardDescription.h), mapped to colours here.
+// The theme and the keycap style are settings, set once a frame from Main.cpp with
+// SetBoardStyle(); everything drawing reads them from here.
 //
 // ImGui only, no SDL: compiled into the application, not into nazg_core.
 
 #pragma once
+
+#include <optional>
+#include <span>
+#include <string_view>
 
 #include "imgui.h"
 
@@ -18,6 +24,58 @@
 
 namespace nazg
 {
+    enum class ThemeId
+    {
+        Light,
+        Dark,
+        Dracula,
+    };
+
+    // How a keycap is drawn, independent of the theme. Outlined is the default (Rico,
+    // 2026-10-03); Bottom lip -- a darker strip under the key -- reads best on light themes.
+    enum class KeycapStyle
+    {
+        Outlined,
+        BottomLip,
+    };
+
+    // How legends are set, after the two keycap families (ui-design.md, "What real keycap sets
+    // do"): Cylindrical as GMK prints them -- top left, mixed case -- or Spherical as SA does --
+    // centred, capitals. A setting, Cylindrical by default (Rico, 2026-10-03).
+    enum class LegendFamily
+    {
+        Cylindrical,
+        Spherical,
+    };
+
+    struct BoardStyle
+    {
+        ThemeId      theme   = ThemeId::Dark;
+        KeycapStyle  keycaps = KeycapStyle::Outlined;
+        LegendFamily legends = LegendFamily::Cylindrical;
+    };
+
+    void                     SetBoardStyle(const BoardStyle& style);
+    [[nodiscard]] BoardStyle CurrentBoardStyle();
+
+    // Ids are what imgui.ini keeps -- stable, lower case; names are for people.
+    [[nodiscard]] std::span<const ThemeId>      Themes();
+    [[nodiscard]] std::string_view              IdOf(ThemeId theme);
+    [[nodiscard]] std::string_view              NameOf(ThemeId theme);
+    [[nodiscard]] std::optional<ThemeId>        ThemeFromId(std::string_view id);
+    [[nodiscard]] std::span<const KeycapStyle>  KeycapStyles();
+    [[nodiscard]] std::string_view              IdOf(KeycapStyle style);
+    [[nodiscard]] std::string_view              NameOf(KeycapStyle style);
+    [[nodiscard]] std::optional<KeycapStyle>    KeycapStyleFromId(std::string_view id);
+    [[nodiscard]] std::span<const LegendFamily> LegendFamilies();
+    [[nodiscard]] std::string_view              IdOf(LegendFamily family);
+    [[nodiscard]] std::string_view              NameOf(LegendFamily family);
+    [[nodiscard]] std::optional<LegendFamily>   LegendFamilyFromId(std::string_view id);
+
+    // The window's colours -- ImGui's style -- for `theme`. Colours only: sizes and their DPI
+    // scaling are left alone.
+    void ApplyWindowTheme(ThemeId theme);
+
     // The named colours for panels.
     enum class PanelColour
     {
@@ -32,25 +90,35 @@ namespace nazg
     // ImGui::Text in one of them.
     void ColouredText(PanelColour colour, const char* format, ...) IM_FMTARGS(2);
 
-    // The board's colours, by meaning.
+    // The board's colours, by meaning, in the current theme.
     namespace BoardColours
     {
-        [[nodiscard]] ImU32 Fill(KeyFill fill, float heat);
-        [[nodiscard]] ImU32 Legend(LegendRole role);
-        [[nodiscard]] ImU32 EdgeLabel(uint8_t marks);
-        [[nodiscard]] ImU32 Line(uint8_t marks);
+        // A keycap of one class: its face, the lip under it, the legends on it.
+        struct Keycap
+        {
+            ImU32 face;
+            ImU32 lip;
+            ImU32 legend;
+        };
 
-        // The states, drawn over the fill.
-        inline constexpr ImU32 c_Hovered               = IM_COL32(255, 255, 255, 34);    // overlay
-        inline constexpr ImU32 c_Pressed               = IM_COL32(60, 110, 255, 170);    // overlay
-        inline constexpr ImU32 c_Dimmed                = IM_COL32(12, 12, 16, 190);      // overlay
-        inline constexpr ImU32 c_HighlightedTint       = IM_COL32(110, 200, 255, 70);    // overlay
-        inline constexpr ImU32 c_HighlightedSecondTint = IM_COL32(190, 150, 255, 70);    // overlay
-        inline constexpr ImU32 c_CheckedTint           = IM_COL32(90, 200, 110, 110);    // overlay
-        inline constexpr ImU32 c_Checked               = IM_COL32(120, 220, 130, 255);   // edge labels
-        inline constexpr ImU32 c_Selected              = IM_COL32(240, 180, 60, 255);    // outline
-        inline constexpr ImU32 c_Highlighted           = IM_COL32(110, 200, 255, 255);   // outline
-        inline constexpr ImU32 c_HighlightedSecond     = IM_COL32(190, 150, 255, 255);   // outline
-        inline constexpr ImU32 c_Warning               = IM_COL32(255, 120, 60, 255);    // outline
+        [[nodiscard]] Keycap Fill(KeyFill fill, float heat);
+        [[nodiscard]] ImU32  Legend(LegendRole role, KeyFill fill);
+        [[nodiscard]] ImU32  EdgeLabel(uint8_t marks);
+        [[nodiscard]] ImU32  Line(uint8_t marks);
+
+        [[nodiscard]] ImU32 Plate();
+        [[nodiscard]] ImU32 Outline();   // the Outlined keycap's border
+
+        // The states. Overlays are painted over the fill; outlines nest around the face.
+        [[nodiscard]] ImU32 Hovered();                 // overlay
+        [[nodiscard]] ImU32 Pressed();                 // overlay
+        [[nodiscard]] ImU32 Dimmed();                  // overlay
+        [[nodiscard]] ImU32 HighlightedTint();         // overlay
+        [[nodiscard]] ImU32 HighlightedSecondTint();   // overlay
+        [[nodiscard]] ImU32 CheckedTint();             // overlay
+        [[nodiscard]] ImU32 Selected();                // outline
+        [[nodiscard]] ImU32 Highlighted();             // outline
+        [[nodiscard]] ImU32 HighlightedSecond();       // outline
+        [[nodiscard]] ImU32 Warning();                 // outline
     }
 }

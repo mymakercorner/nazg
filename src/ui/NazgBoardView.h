@@ -5,8 +5,9 @@
 //
 // The renderer half of the section contract: the section says what each key means
 // (ui/NazgBoardDescription.h), this decides how that looks -- sizes here, colours in
-// ui/NazgTheme.h. The look itself is still a FIRST DRAFT awaiting real visual design; the
-// point is that a restyle changes these two files and no section.
+// ui/NazgTheme.h -- so a restyle changes these two files and no section. The look is being
+// built from ui-design.md, "How the board's look is built": keycaps, plate and themes are
+// done; the legends are still the first draft's.
 //
 // ImGui only, no SDL: compiled into the application, not into nazg_core.
 
@@ -17,9 +18,10 @@
 
 namespace nazg
 {
-    // Into the current ImGui window, at the cursor: the keys, the lines over them and the
-    // labels around them, as large as the width available allows but no taller than
-    // `maxHeight` pixels. Returns what the mouse did on it this frame.
+    // Into the current ImGui window, at the cursor: the plate, the keys, the lines over them
+    // and the labels around them, as large as the width available allows but no taller than
+    // `maxHeight` pixels -- and no smaller than legible text allows, scrolling sideways past
+    // that. Returns what the mouse did on it this frame.
     [[nodiscard]] BoardEvents DrawBoard(const BoardDescription& board, float maxHeight);
 
     // A definition drawn small -- blank keys, the first choice of every layout option -- so

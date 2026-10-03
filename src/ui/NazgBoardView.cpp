@@ -10,19 +10,30 @@
 
 #include "imgui.h"
 
+#include "ui/NazgKeyShape.h"
 #include "ui/NazgTheme.h"
 
 namespace nazg
 {
     namespace
     {
-        constexpr float c_MinUnit = 28.0f;   // pixels per key unit, before DPI scaling
-        constexpr float c_MaxUnit = 64.0f;
+        // The board's size follows the window, down to the smallest legible text: no text on the
+        // board below 9 px, and the smallest is a command's header, half the letter size, the
+        // letters 0.30 of a key unit -- so 60 px a unit (ui-design.md, "The floor is on the
+        // header"). Below it the board scrolls. Pixels before DPI scaling.
+        constexpr float c_SmallestText = 9.0f;
+        constexpr float c_LetterShare  = 0.30f;   // of a key unit
+        constexpr float c_HeaderShare  = 0.5f;    // of the letter size
+        constexpr float c_MinUnit      = c_SmallestText / (c_LetterShare * c_HeaderShare);
+        constexpr float c_MaxUnit      = 96.0f;
 
         // Fractions of a key unit.
-        constexpr float c_KeyGap      = 0.06f;   // between two keys, on each side
-        constexpr float c_KeyRounding = 0.12f;
-        constexpr float c_LegendPad   = 0.10f;   // between a keycap's edge and its legends
+        constexpr float c_KeyGap        = 0.06f;   // between two keys, on each side
+        constexpr float c_KeyRounding   = 0.12f;
+        constexpr float c_LegendPad     = 0.10f;   // between a keycap's edge and its legends
+        constexpr float c_Lip           = 0.06f;   // Bottom lip: in the key's own bottom gap, no more
+        constexpr float c_PlateMargin   = 0.35f;   // the plate past the keys, on every side
+        constexpr float c_PlateRounding = 0.25f;
 
         // A key's rotation: a turn by its angle about its origin -- clockwise on screen,
         // since y grows downward. In key units for the board's extent, in pixels for
@@ -103,6 +114,93 @@ namespace nazg
                                                          under.z + (over.z - under.z) * a, under.w));
         }
 
+        // A fill with the key's states painted over it, in a fixed order.
+        ImU32 WithStates(ImU32 colour, uint8_t marks, bool hovered)
+        {
+            if ((marks & Mark::Checked) != 0)
+                colour = Over(colour, BoardColours::CheckedTint());
+            if ((marks & Mark::Pressed) != 0)
+                colour = Over(colour, BoardColours::Pressed());
+            if ((marks & Mark::Highlighted) != 0)
+                colour = Over(colour, BoardColours::HighlightedTint());
+            if ((marks & Mark::HighlightedSecond) != 0)
+                colour = Over(colour, BoardColours::HighlightedSecondTint());
+            if (hovered)
+                colour = Over(colour, BoardColours::Hovered());
+            if ((marks & Mark::Dimmed) != 0)
+                colour = Over(colour, BoardColours::Dimmed());
+            return colour;
+        }
+
+        // The key's outline in screen pixels, unrotated, `inset` pixels in from its edge.
+        std::vector<ContourPoint> ContourOnScreen(const DefinitionKey& key, ImVec2 origin, float unit, float inset)
+        {
+            std::vector<ContourPoint> contour = KeyContour(key);
+            for (ContourPoint& point : contour)
+                point = { origin.x + point.x * unit, origin.y + point.y * unit };
+            return InsetContour(contour, inset);
+        }
+
+        // The outline as a path, its corners rounded: the outer ones by `outerRadius`, the inner
+        // corner of an L the other way, by `innerRadius`. An outline drawn inside another keeps
+        // its distance all round when its outer radius shrinks by that distance and its inner
+        // one grows by it.
+        void TraceContour(ImDrawList* drawList, const std::vector<ContourPoint>& contour, float outerRadius,
+                          float innerRadius)
+        {
+            constexpr float c_Pi    = 3.14159265358979f;
+            const size_t    count   = contour.size();
+
+            for (size_t i = 0; i < count; ++i)
+            {
+                const ContourPoint before = contour[(i + count - 1) % count];
+                const ContourPoint here   = contour[i];
+                const ContourPoint after  = contour[(i + 1) % count];
+
+                const float lengthIn  = std::hypot(here.x - before.x, here.y - before.y);
+                const float lengthOut = std::hypot(after.x - here.x, after.y - here.y);
+                if (lengthIn <= 0.0f || lengthOut <= 0.0f)
+                    continue;
+
+                const bool  inner  = IsInnerCorner(contour, i);
+                const float radius = std::min(inner ? innerRadius : outerRadius, std::min(lengthIn, lengthOut) / 2.0f);
+                if (radius < 0.5f)
+                {
+                    drawList->PathLineTo(ImVec2(here.x, here.y));
+                    continue;
+                }
+
+                // Each edge's inward side; the arc's centre is inside an outer corner, outside
+                // an inner one, and it touches both edges.
+                const ImVec2 normalIn((before.y - here.y) / lengthIn, (here.x - before.x) / lengthIn);
+                const ImVec2 normalOut((here.y - after.y) / lengthOut, (after.x - here.x) / lengthOut);
+                const float  side = inner ? -radius : radius;
+                const ImVec2 centre(here.x + side * (normalIn.x + normalOut.x), here.y + side * (normalIn.y + normalOut.y));
+
+                const float from  = std::atan2(-side * normalIn.y, -side * normalIn.x);
+                float       sweep = std::atan2(-side * normalOut.y, -side * normalOut.x) - from;
+                if (sweep > c_Pi)
+                    sweep -= 2 * c_Pi;
+                if (sweep < -c_Pi)
+                    sweep += 2 * c_Pi;
+                drawList->PathArcTo(centre, radius, from, from + sweep);
+            }
+        }
+
+        void FillContour(ImDrawList* drawList, const std::vector<ContourPoint>& contour, float rounding, ImU32 colour)
+        {
+            TraceContour(drawList, contour, rounding, rounding);
+            drawList->PathFillConcave(colour);
+        }
+
+        // A line along the contour, `inset` pixels in from the face's edge to its middle.
+        void StrokeContour(ImDrawList* drawList, const std::vector<ContourPoint>& face, float rounding, float inset,
+                           float thickness, ImU32 colour)
+        {
+            TraceContour(drawList, InsetContour(face, inset), std::max(0.0f, rounding - inset), rounding + inset);
+            drawList->PathStroke(colour, thickness, ImDrawFlags_Closed);
+        }
+
         // Legends come in four rows: the top face's three, then the front.
         int RowOf(size_t slot) { return static_cast<int>(slot / 3); }
 
@@ -174,19 +272,21 @@ namespace nazg
                                                   : p1.x - pad - extent.x;
                 const float  y      = rowTop[RowOf(slot)] + (size - shown) / 2.0f;
 
-                ImU32 colour = BoardColours::Legend(legend.role);
+                ImU32 colour = BoardColours::Legend(legend.role, key.fill);
                 if (dimmed)
-                    colour = Over(colour, BoardColours::c_Dimmed);
+                    colour = Over(colour, BoardColours::Dimmed());
 
                 drawList->AddText(font, shown, ImVec2(x, y), colour, legend.text.c_str(), nullptr, 0.0f, &clip);
             }
         }
 
-        // A key is drawn in two passes, with the lines between them, so a line runs over the
-        // keycaps and under their legends.
+        // A key is drawn in passes, each over every key before the next: the lips first, so an
+        // L-shaped key shows its lip only where its contour has a bottom; the keycaps; then the
+        // lines; then the legends, so a line runs over the keycaps and under their legends.
         enum class KeyPass
         {
-            Keycap,    // the fill and the outlines
+            Lip,       // Bottom lip only
+            Keycap,    // the face, its border and the state outlines
             Legends,
         };
 
@@ -200,6 +300,7 @@ namespace nazg
             const DefinitionKey& key      = described.geometry;
             const float          gap      = unit * c_KeyGap;
             const float          rounding = unit * c_KeyRounding;
+            const float          scale    = ImGui::GetStyle().FontScaleDpi;
 
             const Rotation rotation(key, ImVec2(origin.x + key.rotationX * unit, origin.y + key.rotationY * unit));
             const int      firstVertex = drawList->VtxBuffer.Size;
@@ -222,50 +323,50 @@ namespace nazg
                                 ImGui::IsMouseHoveringRect(drawList->GetClipRectMin(), drawList->GetClipRectMax());
             const bool hovered = inView && (Contains(p0, p1, mouse) || (hasSecond && Contains(q0, q1, mouse)));
 
-            const bool isDimmed = (described.marks & Mark::Dimmed) != 0;
+            const bool                 isDimmed = (described.marks & Mark::Dimmed) != 0;
+            const BoardColours::Keycap colours  = BoardColours::Fill(described.fill, described.heat);
 
             if (pass == KeyPass::Legends)
             {
                 DrawLegends(drawList, described, p0, p1, unit, legendSize, isDimmed);
             }
+            else if (pass == KeyPass::Lip)
+            {
+                // The face's shape, lower by the lip, behind every face: it shows only in the
+                // key's own bottom gap.
+                std::vector<ContourPoint> lip = ContourOnScreen(key, origin, unit, gap);
+                for (ContourPoint& point : lip)
+                    point.y += unit * c_Lip;
+                FillContour(drawList, lip, rounding, WithStates(colours.lip, described.marks, hovered));
+            }
             else
             {
-                ImU32 fill = BoardColours::Fill(described.fill, described.heat);
-                if ((described.marks & Mark::Checked) != 0)
-                    fill = Over(fill, BoardColours::c_CheckedTint);
-                if ((described.marks & Mark::Pressed) != 0)
-                    fill = Over(fill, BoardColours::c_Pressed);
-                if ((described.marks & Mark::Highlighted) != 0)
-                    fill = Over(fill, BoardColours::c_HighlightedTint);
-                if ((described.marks & Mark::HighlightedSecond) != 0)
-                    fill = Over(fill, BoardColours::c_HighlightedSecondTint);
-                if (hovered)
-                    fill = Over(fill, BoardColours::c_Hovered);
-                if (isDimmed)
-                    fill = Over(fill, BoardColours::c_Dimmed);
+                const std::vector<ContourPoint> face = ContourOnScreen(key, origin, unit, gap);
+                FillContour(drawList, face, rounding, WithStates(colours.face, described.marks, hovered));
 
-                drawList->AddRectFilled(p0, p1, fill, rounding);
-                if (hasSecond)
-                    drawList->AddRectFilled(q0, q1, fill, rounding);
+                if (CurrentBoardStyle().keycaps == KeycapStyle::Outlined)
+                {
+                    const float border = std::max(1.0f, scale);
+                    ImU32       colour = BoardColours::Outline();
+                    if (isDimmed)
+                        colour = Over(colour, BoardColours::Dimmed());
+                    StrokeContour(drawList, face, rounding, border / 2, border, colour);
+                }
 
-                // Outlines nest, the first outermost, so several states read at once.
+                // Outlines nest along the contour, the first outermost, so several states read at
+                // once.
                 const float thickness = std::max(2.0f, unit * 0.04f);
                 float       inset     = 0.0f;
                 for (const auto& [mark, colour] :
-                     { std::pair{ Mark::Selected, BoardColours::c_Selected },
-                       std::pair{ Mark::Warning, BoardColours::c_Warning },
-                       std::pair{ Mark::Highlighted, BoardColours::c_Highlighted },
-                       std::pair{ Mark::HighlightedSecond, BoardColours::c_HighlightedSecond } })
+                     { std::pair{ Mark::Selected, BoardColours::Selected() },
+                       std::pair{ Mark::Warning, BoardColours::Warning() },
+                       std::pair{ Mark::Highlighted, BoardColours::Highlighted() },
+                       std::pair{ Mark::HighlightedSecond, BoardColours::HighlightedSecond() } })
                 {
                     if ((described.marks & mark) == 0)
                         continue;
 
-                    const float in = inset + thickness / 2;
-                    drawList->AddRect(ImVec2(p0.x + in, p0.y + in), ImVec2(p1.x - in, p1.y - in), colour, rounding, 0,
-                                      thickness);
-                    if (hasSecond)
-                        drawList->AddRect(ImVec2(q0.x + in, q0.y + in), ImVec2(q1.x - in, q1.y - in), colour, rounding,
-                                          0, thickness);
+                    StrokeContour(drawList, face, rounding, inset + thickness / 2, thickness, colour);
                     inset += thickness;
                 }
             }
@@ -402,22 +503,41 @@ namespace nazg
                 topMargin = std::max(topMargin, ImGui::GetTextLineHeight() + gap);
         }
 
-        const float scale   = ImGui::GetStyle().FontScaleDpi;
-        const float width   = bounds.maxX - bounds.minX;
-        const float height  = bounds.maxY - bounds.minY;
-        const float fitting = std::min((ImGui::GetContentRegionAvail().x - leftMargin) / width,
-                                       (maxHeight - topMargin) / height);
-        const float unit    = std::clamp(fitting, c_MinUnit * scale, c_MaxUnit * scale);
+        // The plate reaches past the keys, so it counts in the board's size.
+        const ImGuiStyle& style   = ImGui::GetStyle();
+        const float       scale   = style.FontScaleDpi;
+        const float       width   = bounds.maxX - bounds.minX + 2 * c_PlateMargin;
+        const float       height  = bounds.maxY - bounds.minY + 2 * c_PlateMargin;
+        const float       avail   = ImGui::GetContentRegionAvail().x;
+        const float       fitting = std::min((avail - leftMargin) / width, (maxHeight - topMargin) / height);
+        const float       unit    = std::clamp(fitting, c_MinUnit * scale, c_MaxUnit * scale);
+        const ImVec2      size(leftMargin + width * unit, topMargin + height * unit);
+
+        // In a child of its own, which scrolls sideways when the board stops shrinking before the
+        // window does -- with room for the scrollbar under it, then.
+        const bool scrolls = size.x > avail;
+        ImGui::BeginChild("##board", ImVec2(0.0f, size.y + (scrolls ? style.ScrollbarSize : 0.0f)), ImGuiChildFlags_None,
+                          ImGuiWindowFlags_HorizontalScrollbar);
 
         const ImVec2 corner = ImGui::GetCursorScreenPos();
-        const ImVec2 origin(corner.x + leftMargin - bounds.minX * unit, corner.y + topMargin - bounds.minY * unit);
+        const ImVec2 origin(corner.x + leftMargin + (c_PlateMargin - bounds.minX) * unit,
+                            corner.y + topMargin + (c_PlateMargin - bounds.minY) * unit);
 
         ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+        // The plate, always filled: it gives the board a boundary.
+        drawList->AddRectFilled(ImVec2(corner.x + leftMargin, corner.y + topMargin), ImVec2(corner.x + size.x, corner.y + size.y),
+                                BoardColours::Plate(), c_PlateRounding * unit);
 
         // Only when this window is under the mouse, so a window stacked above the board
         // neither hovers nor clicks the key beneath it.
         const bool  canHover   = ImGui::IsWindowHovered();
         const float legendSize = LegendSize(board, unit);
+
+        if (CurrentBoardStyle().keycaps == KeycapStyle::BottomLip)
+            for (const BoardKey& key : board.keys)
+                if (!key.geometry.decal)
+                    (void)DrawKey(drawList, origin, unit, legendSize, key, canHover, KeyPass::Lip);
 
         for (size_t index = 0; index < board.keys.size(); ++index)
         {
@@ -439,8 +559,9 @@ namespace nazg
                 (void)DrawKey(drawList, origin, unit, legendSize, key, canHover, KeyPass::Legends);
         DrawEdgeLabels(drawList, board, corner, origin, unit, leftMargin, canHover, events);
 
-        // Claim the space drawn into, so the window scrolls and sizes around the board.
-        ImGui::Dummy(ImVec2(leftMargin + width * unit, topMargin + height * unit));
+        // Claim the space drawn into, so the child scrolls around the board.
+        ImGui::Dummy(size);
+        ImGui::EndChild();
         return events;
     }
 
@@ -473,7 +594,7 @@ namespace nazg
         ImDrawList* drawList = ImGui::GetWindowDrawList();
         const float gap      = std::max(1.0f, unit * c_KeyGap);
         const float rounding = unit * c_KeyRounding;
-        const ImU32 fill     = BoardColours::Fill(KeyFill::Neutral, 0.0f);
+        const ImU32 fill     = BoardColours::Fill(KeyFill::Alpha, 0.0f).face;
 
         for (const DefinitionKey& key : placed)
         {

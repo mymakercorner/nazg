@@ -94,6 +94,44 @@ styling, and the only colours a section may use. `Main.cpp`'s hard-coded `TextCo
 are what this replaces. **No pixels** anywhere in the contract: the layout sizes the regions,
 and a section can at most say it does not use the board.
 
+### How the board's look is built
+
+*Decided with Rico 2026-10-03, when implementing the look started.* Rule 1's slots were the
+placement itself; with the decided legends, placement depends on what no section should know --
+the legend family, the key's size in pixels, the chain from full word to short form. So a key's
+legends come in **one of two forms** (a `std::variant`, as `Keycode` is):
+
+- **Keycap legends** -- what the key *is*, with no positions: the main legend or the plain/Shift
+  pair, the AltGr character and Bépo's fourth level, the placement class and its exceptions, the
+  numpad's second legend, a command's header and main legend with their short forms and
+  category, a tap-hold's hold, transparent or `KC_NO`, the peeked layer's legend. Keymap fills
+  these; the renderer places them.
+- **Slot legends** -- rule 1's twelve KLE slots with a role, placed exactly as the section says:
+  the Leyden Jar's levels and bin, anything a section puts at a meaningful spot of the keycap. A
+  new need there is a new role the renderer styles, never pixels.
+
+Three layers, the first two pure and in `nazg_core`:
+1. **Content** -- `KeycapLegend` grows from two strings to the keycap legends: a `Keycode` and a
+   context (host layout, modifier names, the key's side of the space bar, the lighting state)
+   read through the **legend set**, committed tables -- placement classes and exceptions, the
+   short forms of short-forms.md, the ink offsets. Board-wide facts are computed once per load.
+2. **Layout** -- one key's content, the family, the face's size in pixels and a text measurer in;
+   a few primitives out, in the key's own pixels: text with a colour *role*, a drawn arrow, a
+   band, a mark. Every placement rule lives here. The measurer is an interface: ImGui's font in
+   the app, a fake one for rule tests, and Arimo loaded through ImGui's core (no SDL, no GPU) for
+   a test that re-runs the mockup's checks -- every short form fits, no legend overlaps another or
+   leaves the face -- so a new QMK keycode that does not fit fails the build.
+3. **Drawing** -- `NazgBoardView`: the board's size and its 9 px floor, the keycap's contour
+   (shared by fill, border, lip and state outlines), the plate, then the primitives through the
+   theme; rotation by turning vertices, as before. `NazgTheme` holds the theme tables and the
+   category colour solver, itself pure and tested over every theme, keycap class and category.
+
+Settings -- theme, keycap style, legend family (a setting, Cylindrical by default), modifier
+names, host layout -- reach the view as one value, saved in `imgui.ini`. Built in five steps,
+each checked on a real board: keycap shape and themes; fonts (Arimo and its Noto fallbacks,
+committed under `resources/fonts/` with their licences); standard keys in both families; command
+keys; transparent, `KC_NO`, peek and the lighting policy.
+
 If a need still appears later — icons on keys, say — changing the contract costs one struct
 and its implementations, two while they are Keymap and the Leyden Jar. It gets expensive once
 other people write plugins, which is why these six points go in from the start, and why the
@@ -206,7 +244,12 @@ shows each screen's states as Nazg sets them: Keymap, Matrix view, Live test, Vi
   on Light, face lightest, plate between, lip darkest (the mockup's first Light plate was the
   lip's grey and muted it). A plate drawn as a border only kept the lip too, but the filled one,
   coloured by that rule, looked better: the border is dropped, unless a theme some day cannot
-  meet the rule.
+  meet the rule. **The rule, measured** (2026-10-03, after Rico saw Light's modifier caps merge
+  with the plate in Nazg, 0.923 against 0.925): on every theme, the alpha and modifier faces
+  lighter than the plate and every lip darker, each **at least 0.04 apart in OKLab lightness**.
+  Light's plate went to `#d3d4d8`, its alpha lip to `#bec1c9`; Dark's and Dracula's lips, lighter
+  than their plates before, went darker. Accent caps stand apart by their hue. To become a test
+  with the category colour solver.
 - **Outlines follow the key's contour.** An L-shaped key gets one L-shaped outline: the two
   KLE rectangles traced together (at most 3×3 cells, walked around the edge), outer corners
   rounded, the inner corner rounded the other way (`PathArcTo`, then a closed `PathStroke`).
