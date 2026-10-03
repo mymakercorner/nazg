@@ -24,6 +24,7 @@ registry, a browser dependency, or a firmware fork?
 | [via-registry.md](via-registry.md) | **Implementation level** — how VIA builds, serves and caches keyboard definitions, web and desktop; what a client of the registry must handle *(added 2026-09-24)* |
 | [ui-inventory.md](ui-inventory.md) | **Design input** — how Vial, VIA and ZMK Studio lay out their screens and edit a key, and what Nazg draws today *(added 2026-09-26)* |
 | [ui-design.md](ui-design.md) | **Design decisions** — the workspace: regions, sections and plugins, the common screens, choosing among many definitions, the keyboard list *(added 2026-09-26)* |
+| [short-forms.md](short-forms.md) | **Design decisions** — what every keycode's legend says: the header / main-legend rules, the action vocabulary, the word table, and the complete table for QMK's keycodes, checked to fit 1u *(added 2026-10-03)* |
 
 Each protocol document carries an **"Extending with custom features"** section; they are
 summarised under [Adding custom features](#adding-custom-features) below.

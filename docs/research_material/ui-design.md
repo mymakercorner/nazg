@@ -534,7 +534,9 @@ Settled 2026-10-03 with Rico, shown in the mockup's *Layer: Features*. Beyond th
 some 600 named keycodes remain once steno and MIDI are left out -- too many to write by hand,
 and most of QMK's labels are *system + action* ("RGB Matrix Saturation Down").
 
-**Short forms are generated, with overrides.**
+**Short forms are generated, with overrides** -- formalised in
+[short-forms.md](short-forms.md): the rules, the vocabulary and the complete table, every entry
+checked to fit 1u at the smallest size.
 - A **word table** of a few dozen entries, applied word by word to QMK's label: Brightness Bri,
   Saturation Sat, Speed Spd, Previous Prev, Volume Vol, Button Btn, Wheel Wh, Acceleration Acc,
   Bluetooth BT... New QMK keycodes get a short form with no new entry.

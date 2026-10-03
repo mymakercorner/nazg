@@ -193,9 +193,10 @@ const REMAPS = {
 // A plausible feature layer -- not read off the board -- to see command keys: QMK behaviours a
 // stock keyboard does not have. Each is a category, a header, the main legend and QMK's own
 // names, which hover shows. The keys it leaves out are transparent and drawn faint.
-// Short forms (Rico, 2026-10-03): built from QMK's label with a word table -- Brightness Bri,
-// Previous Prev, Volume Vol, Button Btn, Wheel Wh... -- plus overrides; + and − for a quantity,
-// Up and Dn for a direction; a toggle prints On/Off under the feature's header. Layers: the layer
+// Short forms (Rico, 2026-10-03), formalised in docs/research_material/short-forms.md: built from
+// QMK's label with a word table -- Brightness Bri, Previous Prev, Volume Vol, Button Btn, Wheel
+// Wh... -- plus overrides; + and − for a quantity, Up and Dn for a direction, Next and Prev for
+// cycling a list; a toggle prints On/Off under the feature's header. Layers: the layer
 // large, the operation as the header.
 // The categories, four. Their hues are theme tokens, as the state colours are; Light and Dark
 // share one palette, the standard choice (Rico, 2026-10-03), found by a search that simulates
@@ -230,7 +231,7 @@ const FEATURES = {
   // One lighting system on the board, so no prefix: the header says Light. With two, it would
   // name the system -- Glow, Matrix, LEDs, Backlit.
   F9:   C('board', 'Light', 'On/Off', 'UG_TOGG', 'Toggle RGB Underglow'),
-  F10:  C('board', 'Light', 'Mode +', 'UG_NEXT', 'RGB Underglow Next'),
+  F10:  C('board', 'Light', 'Next', 'UG_NEXT', 'RGB Underglow Next'),
   F11:  C('board', 'Light', 'Hue +', 'UG_HUEU', 'RGB Underglow Hue Up'),
   F12:  C('board', 'Light', 'Bri +', 'UG_VALU', 'RGB Underglow Value Up'),
   PSCR: C('board', 'Haptic', 'On/Off', 'HF_TOGG', 'Toggle Haptic'),
@@ -258,7 +259,7 @@ const FEATURES = {
   // KC_NO: the search stops here and the key does nothing -- an empty, dimmed key, unlike a
   // transparent one.
   KC_T: { none: true, qmk: 'KC_NO', full: 'Does nothing on this layer' },
-  KC_LBRC: C('fw', 'Firmware', 'Clear EEPROM', 'EE_CLR', 'Clear EEPROM', 'Clr EE'),
+  KC_LBRC: C('fw', 'Firmware', 'Clear EE', 'EE_CLR', 'Clear EEPROM'),
   RALT: C('beh', 'Hold', 'L2', 'MO(2)', 'Layer 2 while held'),
 };
 
