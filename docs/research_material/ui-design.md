@@ -588,8 +588,44 @@ Seen in the mockup, to settle:
   selection and highlight outlines, so it overwrites their top edge (Rico, 2026-10-03). In Nazg
   the band goes **under** the marks -- drawn with the face, before the outlines, or inset inside
   them -- so a selected or highlighted command key keeps its whole outline.
-- **Transparent keys** on a layer are drawn faint over the layer below, provisionally -- not
-  discussed yet.
+- **The ▽'s corner**: bottom right, as asked. At legend size it landed on the faint AltGr of
+  French 6, 7, 8; made small and moved into the face's corner padding, it no longer meets a
+  glyph. The mockup's switch still puts it top right to compare.
+
+**Transparent keys** (Rico, 2026-10-03). `KC_TRNS` makes a layer partial: QMK looks for a key's
+keycode from the highest active layer down, and a transparent key says "keep looking"; `KC_NO`
+says "stop, do nothing". The search is made at press time and kept for the release; it falls to
+the next *active* layer, so what a transparent key does depends on the board's state; and on the
+default layer it falls to nothing. VIA and Vial print ▽, ZMK Studio "Transprnt": *that* a key is
+transparent, not what it does. Nazg shows both:
+- **the keycode it falls through to, faint** -- command keys and tap-hold keys with their bands
+  and headers -- **with a small ▽** in the face's very corner, half strength, clear of every
+  legend (Rico: a mark, not a legend), drawn as the arrows are. The board stays whole
+  on a partial layer, the layer's own keys stand out, and the ▽ tells "transparent, shows A"
+  from "this layer says A", which differ when the base changes;
+- **resolved by walking down the layer numbers** to the first keycode -- exact while one layer
+  is on at a time, the common case; hover says which layer it fell to;
+- **`KC_NO` shows the key it disables, faint, struck through, with a small ✕** in the ▽'s
+  corner (Rico, 2026-10-03): working on a layer, one must see *what* one is disabling, and an
+  empty key hid it. The marks are a pair -- ▽ "shows the key below", ✕ "disables the key below"
+  -- and the thin line across the face, corner to corner, makes a disabled key stand out from a
+  distance, since ✕ and ▽ alone look alike at a glance. Hover says which. First drawn empty and
+  dimmed, dropped: dimmed is already a state (the matrix view, the Vial unlock). A
+  transparent key on the default layer falls to nothing: drawn as `KC_NO` with nothing below.
+
+**The other direction: peek** (being tried, 2026-10-03). From a lower layer, what the layers
+above put on each key -- what laptop Fn legends, side-printed caps and Biip's Operator set show.
+Hovering a layer in the strip lays that layer's own keys over the board until the mouse leaves,
+as **second legends**: the main legend, or the hold, bottom right at the header's size, in the
+key's category colour, with no fill. While a key is peeked its own bottom legends -- AltGr, the
+numpad's second ones -- step aside. Keys the peeked layer leaves transparent get none, so what it
+reprograms stands out. Chosen over a permanent front legend (one layer only, a taller lip, one
+keycap style) and markers (silent on what is there). **Tried first and dropped: a filled strip**
+along the bottom of each key -- too much at once, and it ran over the glyphs (Rico); the mockup
+keeps it as a switch.
+
+Proposed, not settled: a warning mark where a keymap can lock you on a layer -- TG(1) on layer 0
+with neither TG(1) nor a transparent key at the same position on layer 1; TO and DF alike.
 - **Modified keys** (Ctrl+C) are not placed in a category yet.
 
 ## The common screens

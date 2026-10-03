@@ -245,6 +245,9 @@ const FEATURES = {
   KC_C: C('beh', 'Tap dance', 'TD 0', 'TD(0)', 'Tap dance 0'),
   KC_V: C('beh', 'Caps Word', 'On/Off', 'CW_TOGG', 'Toggle Caps Word'),
   KC_P: C('fw', 'Firmware', 'Reboot', 'QK_RBT', 'Reboot'),
+  // KC_NO: the search stops here and the key does nothing -- an empty, dimmed key, unlike a
+  // transparent one.
+  KC_T: { none: true, qmk: 'KC_NO', full: 'Does nothing on this layer' },
   KC_LBRC: C('fw', 'Firmware', 'Clear EEPROM', 'EE_CLR', 'Clear EEPROM', 'Clr EE'),
   RALT: C('beh', 'Hold', 'L2', 'MO(2)', 'Layer 2 while held'),
 };
@@ -339,14 +342,22 @@ function applyRemap() {
 
 // The feature layer over the base one, or the base layer's tap-hold keys. Today prints QMK's
 // notation for layers and tap-hold, QMK's label for the rest.
+// A key left transparent on the feature layer falls through to the base layer's keycode -- the
+// walk down the layers, which is exact while one layer is on at a time -- and draws it faint,
+// tap-hold keys included, with a ▽ at full strength (Rico, 2026-10-03).
 function applyLayer() {
   for (const key of KEYS) {
-    const f = state.layer === 'Features' ? FEATURES[key.home] || FEATURES[key.kc]
-                                         : BASE_HOLDS[key.home] || BASE_HOLDS[key.kc] || null;
-    key.feature = f;
+    const base = BASE_HOLDS[key.home] || BASE_HOLDS[key.kc] || null;
+    const top = state.layer === 'Features' ? FEATURES[key.home] || FEATURES[key.kc] || null : null;
+    // KC_NO draws the key it disables, faint, as a transparent key draws the one it shows --
+    // its mark tells them apart (Rico, 2026-10-03: on a layer, one must see what one disables).
+    key.none = !!(top && top.none);
+    const f = key.none ? base : top || base;
+    key.feature = top || base;
+    key.trans = state.layer === 'Features' && !top;
     key.cmd = f && !f.hold ? f : f && f.tapCmd ? { ...f.tapCmd, qmk: f.qmk, full: f.full } : null;
     key.hold = f && f.hold ? f : null;
-    key.trans = state.layer === 'Features' && !f;
+    key.peek = state.peek === 'Features' && state.layer === 'Base' ? FEATURES[key.home] || FEATURES[key.kc] || null : null;
     if (!f) continue;
     if (f.tap) { key.code = f.tap; key.named = NAMED[f.tap]; }
     key.primary = f.qmk.includes('(') ? f.qmk : f.full;
@@ -462,7 +473,7 @@ const fontSpec = (size, weight = 400) => `${weight} ${size}px ${FONTS[state.font
 
 const state = {
   preset: 'Cylindrical', font: 'Arimo', size: 'Medium', modifierSize: '3/5', remap: 'Standard', host: 'US',
-  layer: 'Base', commands: 'D′', cmdHeader: '1/2', cmdCase: 'Mixed', cmdPlace: 'Header top',
+  layer: 'Base', commands: 'D′', cmdHeader: '1/2', cmdCase: 'Mixed', cmdPlace: 'Header top', transMark: 'Bottom right', peekStyle: 'Sublegend', noMark: 'Struck + ✕',
   theme: 'Dark', style: 'Outlined', plate: 'Filled', classes: 'Off', scene: 'Keymap',
   selected: keyNamed('Q'), focus: keyNamed('Q'), hovered: -1, pressed: keyNamed('G'),
   seen: new Set(KEYS.map((k, i) => (k.row === 0 || ['N', 'A', 'Z', 'G'].includes(k.primary)) ? i : -1).filter(i => i >= 0)),
@@ -493,7 +504,14 @@ const CONTROLS = [
   ['cmdHeader', 'Header size', ['1/2', '3/5']],
   ['cmdCase', 'Command case', ['Family', 'Mixed']],
   // The same placements on both families (Rico, 2026-10-03); Header top is the default.
-  ['cmdPlace', 'Command placement', ['Header top', 'Top left', 'Middle left', 'Centred']],];
+  ['cmdPlace', 'Command placement', ['Header top', 'Top left', 'Middle left', 'Centred']],
+  ['transMark', 'Transparent ▽', ['Bottom right', 'Top right']],
+  // How a peeked layer shows (hover the Layer control's Features button): a coloured second
+  // legend bottom right, the base's bottom legends stepping aside, or the strip tried first --
+  // found too busy, and colliding with glyphs (Rico, 2026-10-03).
+  ['peekStyle', 'Peek', ['Sublegend', 'Strip']],
+  // Struck + ✕ chosen (Rico, 2026-10-03): a disabled key stands out from a distance.
+  ['noMark', 'KC_NO', ['Struck + ✕', 'Faint + ✕']],];
 
 function buildControls() {
   const root = document.getElementById('controls');
@@ -511,7 +529,13 @@ function buildControls() {
       const b = document.createElement('button');
       b.textContent = value;
       if (state[key] === value) b.className = 'on';
-      b.onclick = () => { state[key] = value; buildControls(); draw(); };
+      b.onclick = () => { state[key] = value; state.peek = null; buildControls(); draw(); };
+      // Peek: hovering a layer above the one shown lays its own keys over the board, until the
+      // mouse leaves -- the layer strip's job in Nazg, the Layer control's here.
+      if (key === 'layer') {
+        b.onmouseenter = () => { if (state.layer === 'Base' && value === 'Features') { state.peek = value; draw(); } };
+        b.onmouseleave = () => { if (state.peek) { state.peek = null; draw(); } };
+      }
       group.appendChild(b);
     }
     root.appendChild(group);
@@ -725,11 +749,15 @@ function draw() {
   for (const key of KEYS) {
     let colour = state.classes === 'On' && key.cls === 'x' ? T.legendAccent : T.legend;
     if (key.marks.has('dimmed')) colour = over(colour, T.dimmed);
-    // A transparent key on the feature layer shows the layer below, faint -- provisional.
-    ctx.globalAlpha = key.trans ? 0.28 : 1;
+    // A transparent key shows the layer below, faint, with a small ▽; a KC_NO key the key it
+    // disables, faint, with a small ✕ -- struck through too, on that variant.
+    ctx.globalAlpha = key.trans || key.none ? 0.28 : 1;
     if (today) drawTodayLegends(ctx, key, S, unit, legendSize, colour);
     else drawLegends(ctx, key, unit, colour);
     ctx.globalAlpha = 1;
+    if (key.trans && !today) drawTransparentMark(ctx, key, unit, colour);
+    if (key.none && !today) drawNoMark(ctx, key, unit, colour);
+    if (key.peek && !today) drawPeek(ctx, key, unit, T);
   }
 
   if (scene.rulers) drawRulers(ctx, T, leftMargin, topMargin, labelGap);
@@ -749,13 +777,18 @@ const FEATURE_NOTES = '<b>Feature layer</b>, a plausible one: command keys -- QM
   'magenta for behaviour (layers, tap-hold, tap dance, Caps Word), cyan for what goes to the computer (media, mouse, ' +
   "macros), amber for the keyboard's own settings (lighting, haptic, audio), red for firmware. The colour is a hue; " +
   'its lightness is solved per keycap face for 4.5:1 on text and 3:1 on the band, so it holds on every theme and ' +
-  "keycap colour. Hover a command key for QMK's name. Transparent keys show the base layer faint, provisionally.";
+  "keycap colour. Hover a command key for QMK's name. A transparent key shows what it falls through to -- the " +
+  "base layer's keycode, tap-hold keys included -- faint, with a small ▽ in the corner: what VIA and Vial show as ▽ " +
+  "alone. T is KC_NO: the key does nothing on this layer, so it shows the key it disables, faint, with a small ✕, " +
+  "and a thin line strikes the face through.";
 const HOLD_NOTES = '<b>Tap-hold keys</b> on the base layer: Caps Lock is Esc tapped and Ctrl held, the space bar ' +
   'layer 1 held, 1 and 2 layers 1 and 2 held. The hold is the header, under the band; the tap keeps its own legends ' +
   'below -- a character pair packs tighter, and where even that does not fit (Large size) the Shift character goes. ' +
   'Try the French host layout for a key with four legends. Scroll Lock is LT(1, KC_MPLY): its tap is a command, ' +
   'with its own header in its own colour. Pause is a Vial tap dance, Play tapped and Boot held: the band and the ' +
-  'top header take the colour of what the hold does, red here.';
+  'top header take the colour of what the hold does, red here. <b>Peek</b>: hover the Layer control\'s Features ' +
+  'button to see what the feature layer puts on each key -- a coloured second legend bottom right, or the strip ' +
+  'tried first -- while the base layer stays; keys it leaves transparent get none.';
 
 const LEGEND_NOTES = {
   'Today': '<b>Legends: today.</b> What NazgBoardView draws now: QMK\'s labels, the Shift legend top left and the main ' +
@@ -981,7 +1014,9 @@ function drawLegends(ctx, key, unit, colour) {
   // 2026-10-03). Plain US has no AltGr level, so a US board is unchanged.
   // Letter weight, a little smaller than the letters.
   ctx.fillStyle = colour;
-  if (key.chars && key.chars.altgr && !key.cmd) {
+  // A peeked key's own bottom legends step aside for the peeked one while the peek lasts.
+  const peeking = key.peek && state.peekStyle === 'Sublegend';
+  if (key.chars && key.chars.altgr && !key.cmd && !peeking) {
     const s = 0.8 * SIZES[state.size] * unit;
     ctx.font = fontSpec(s, 400);
     const w = ctx.measureText(key.chars.altgr).width;
@@ -989,7 +1024,7 @@ function drawLegends(ctx, key, unit, colour) {
   }
 
   const sublegend = key.named && key.named.sublegend;
-  if (sublegend && !spherical) {
+  if (sublegend && !spherical && !peeking) {
     const s = modifierShare() * SIZES[state.size] * unit;
     if (sublegend.arrow) {
       const a = SIZES[state.size] * unit;
@@ -1000,6 +1035,88 @@ function drawLegends(ctx, key, unit, colour) {
       ctx.fillText(sublegend.t, sublegend.at === 'bottom right' ? box.x1 - w : box.x0, box.y1 - s);
     }
   }
+  ctx.restore();
+}
+
+// The ▽ of a transparent key, drawn rather than taken from a font, as the arrows are: a small
+// outlined triangle in a corner -- bottom right by default, top right to compare.
+// Small, in the very corner, half strength (Rico, 2026-10-03): a mark, not a legend -- tucked
+// in the face's corner padding, clear of the legends' box, so it meets no glyph.
+function drawTransparentMark(ctx, key, unit, colour) {
+  const a = key.face, p = 0.035 * unit;
+  const s = Math.max(5, 0.075 * unit);
+  const x1 = a.x1 - p - key.faceRounding * 0.3, x0 = x1 - s;
+  const y0 = state.transMark === 'Top right' ? a.y0 + p + key.faceRounding * 0.3 : a.y1 - p - key.faceRounding * 0.3 - s * 0.87;
+  ctx.save();
+  ctx.globalAlpha = 0.55;
+  ctx.strokeStyle = colour;
+  ctx.lineWidth = Math.max(1, s * 0.14);
+  ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y0); ctx.lineTo((x0 + x1) / 2, y0 + s * 0.87); ctx.closePath();
+  ctx.stroke();
+  ctx.restore();
+}
+
+// The ✕ of a KC_NO key, in the ▽'s corner and at its size and strength, so the two marks read
+// as a pair: "shows the layer below" and "disables the key below". On the Struck variant a thin
+// line also crosses the face, corner to corner.
+function drawNoMark(ctx, key, unit, colour) {
+  const a = key.face, p = 0.035 * unit;
+  const s = Math.max(5, 0.075 * unit) * 0.85, inset = key.faceRounding * 0.3;
+  const x1 = a.x1 - p - inset, x0 = x1 - s;
+  const y0 = state.transMark === 'Top right' ? a.y0 + p + inset : a.y1 - p - inset - s;
+  ctx.save();
+  ctx.strokeStyle = colour;
+  ctx.lineCap = 'round';
+  if (state.noMark === 'Struck + ✕') {
+    ctx.globalAlpha = 0.35;
+    ctx.lineWidth = Math.max(1, 0.012 * unit);
+    ctx.beginPath(); ctx.moveTo(a.x0 + 0.12 * unit, a.y1 - 0.12 * unit); ctx.lineTo(a.x1 - 0.12 * unit, a.y0 + 0.12 * unit); ctx.stroke();
+  }
+  ctx.globalAlpha = 0.55;
+  ctx.lineWidth = Math.max(1, s * 0.16);
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y0 + s); ctx.moveTo(x1, y0); ctx.lineTo(x0, y0 + s); ctx.stroke();
+  ctx.restore();
+}
+
+// A peeked layer's key, over the one shown: a strip along the bottom of the face in the key's
+// category colour -- solved for 4.5:1 against the face, so the face's own colour reads on it --
+// holding its main legend, or its hold, at the header's size. Keys the peeked layer leaves
+// transparent get nothing, so what the layer reprograms stands out. It covers the bottom
+// legends (AltGr, the numpad's second ones) while the peek lasts.
+function drawPeek(ctx, key, unit, T) {
+  if (state.peekStyle === 'Sublegend') return drawPeekSublegend(ctx, key, unit, T);
+  const f = key.peek, a = key.face, p = 0.06 * unit;
+  const s = HEADER_SHARES[state.cmdHeader] * SIZES[state.size] * unit, h = s * 1.45;
+  const fill = f.none ? T.muted : ink(key.faceColour, COMMAND_HUES[f.cat], 4.5) || T.legend;
+  ctx.save();
+  ctx.beginPath(); ctx.roundRect(a.x0, a.y0, a.x1 - a.x0, a.y1 - a.y0, key.faceRounding); ctx.clip();
+  ctx.fillStyle = fill;
+  ctx.fillRect(a.x0, a.y1 - h, a.x1 - a.x0, h);
+  ctx.font = fontSpec(s, 500);
+  const room = a.x1 - a.x0 - 2 * p;
+  let t = commandCase(f.none ? 'None' : f.hold || f.name);
+  if (ctx.measureText(t).width > room && f.short) t = commandCase(f.short);
+  while (t.length > 1 && ctx.measureText(t).width > room) t = t.slice(0, -2) + '…';
+  ctx.fillStyle = key.faceColour;
+  ctx.fillText(t, (a.x0 + a.x1 - ctx.measureText(t).width) / 2, a.y1 - h + (h - s) / 2);
+  ctx.restore();
+}
+
+// A peeked layer's key as a second legend: its main legend, or its hold, bottom right at the
+// header's size, in its category's colour -- no fill, so the board stays calm.
+function drawPeekSublegend(ctx, key, unit, T) {
+  const f = key.peek, a = key.face, p = 0.10 * unit;
+  const s = HEADER_SHARES[state.cmdHeader] * SIZES[state.size] * unit;
+  ctx.save();
+  ctx.beginPath(); ctx.roundRect(a.x0, a.y0, a.x1 - a.x0, a.y1 - a.y0, key.faceRounding); ctx.clip();
+  ctx.font = fontSpec(s, 500);
+  const room = a.x1 - a.x0 - 2 * p;
+  let t = commandCase(f.none ? 'None' : f.hold || f.name);
+  if (ctx.measureText(t).width > room && f.short) t = commandCase(f.short);
+  while (t.length > 1 && ctx.measureText(t).width > room) t = t.slice(0, -2) + '…';
+  ctx.fillStyle = f.none ? T.muted : ink(key.faceColour, COMMAND_HUES[f.cat], 4.5) || T.legend;
+  ctx.fillText(t, a.x1 - p - ctx.measureText(t).width, a.y1 - p - s);
   ctx.restore();
 }
 
@@ -1083,7 +1200,11 @@ canvas.addEventListener('mousemove', e => {
   state.hovered = h;
   // Hover gives a command key's full meaning: QMK's name and what it does.
   const f = h >= 0 && KEYS[h].feature;
-  canvas.title = f ? `${f.qmk} -- ${f.full}` : '';
+  const k = h >= 0 && KEYS[h];
+  const below = k && (BASE_HOLDS[k.home] || BASE_HOLDS[k.kc]);
+  canvas.title = k && k.none ? `KC_NO -- does nothing on this layer; disables layer 0's ${below ? below.qmk : k.letter || k.code || 'key'}`
+               : k && k.trans ? `KC_TRNS -- falls through to layer 0${f ? `: ${f.qmk}, ${f.full}` : ''}`
+               : f ? `${f.qmk} -- ${f.full}` : '';
   if (h >= 0 && state.scene === 'Matrix view') state.focus = h;   // the focus stays where the mouse left it
   draw();
 });
