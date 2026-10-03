@@ -14,7 +14,12 @@
 // - A legend is never scaled to fit: its name on one line, on two, its short form, then cut
 //   with "...". Arrows are drawn -- no font has them at a legend's weight.
 // - The AltGr character bottom right, always; Bépo's fourth level top right, cylindrical only;
-//   the numpad's second legends, cylindrical only; a header -- a hold -- top right.
+//   the numpad's second legends, cylindrical only.
+// - Headers top right, under the band, one above the other: a tap-hold's hold, then a command's
+//   own header, each in its category's colour. A command's main legend is centred on the whole
+//   key, as any key's, and pushed below the headers only where it would run into them; so is a
+//   tap's legend under a long hold -- Alt Gr over W on 1u -- which then drops its Shift
+//   character if the pair no longer fits.
 // - Some glyphs are placed by their ink, not where the font puts them: "-", "_", "`" centred on
 //   a capital's height, "~" resting on the baseline.
 //
@@ -57,6 +62,13 @@ namespace nazg
     // Fractions of a key unit.
     inline constexpr float c_KeyGap    = 0.06f;   // between two keys, on each side
     inline constexpr float c_LegendPad = 0.10f;   // between a face's edge and its legends
+    inline constexpr float c_BandShare = 0.055f;  // a command's band along the top of the face
+
+    // The band's height in pixels: a share of the unit, never thinner than 2 px.
+    [[nodiscard]] inline float BandHeight(float unit)
+    {
+        return c_BandShare * unit > 2.0f ? c_BandShare * unit : 2.0f;
+    }
 
     // The legend font's two weights. Arimo comes in Regular and Bold; the mockup's 500 for
     // letters became Bold, its 400 Regular.
@@ -92,17 +104,19 @@ namespace nazg
         Value,   // a slot legend's reading
     };
 
-    // Text at (x, y), the top-left of its line as the measurer places it.
+    // Text at (x, y), the top-left of its line as the measurer places it. A header carries its
+    // category, whose colour the theme solves for the keycap's face; None: the ink's colour.
     struct PlacedText
     {
-        std::string  text;
-        float        x      = 0.0f;
-        float        y      = 0.0f;
-        float        size   = 0.0f;
-        float        width  = 0.0f;
-        LegendWeight weight = LegendWeight::Regular;
-        LegendInk    ink    = LegendInk::Legend;
-        bool         cut    = false;   // ended with "..." as nothing shorter fitted
+        std::string     text;
+        float           x        = 0.0f;
+        float           y        = 0.0f;
+        float           size     = 0.0f;
+        float           width    = 0.0f;
+        LegendWeight    weight   = LegendWeight::Regular;
+        LegendInk       ink      = LegendInk::Legend;
+        bool            cut      = false;   // ended with "..." as nothing shorter fitted
+        CommandCategory category = CommandCategory::None;
     };
 
     // An arrow drawn as a shaft and a filled head, centred on (x, y), `size` long.

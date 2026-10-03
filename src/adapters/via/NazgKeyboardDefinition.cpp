@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 #include <nlohmann/json.hpp>
 
@@ -444,6 +445,16 @@ namespace nazg
 
         if (document.contains("lighting") && document["lighting"].is_string())
             definition.lighting = document["lighting"].get<std::string>();
+
+        for (const auto& [field, ids] : { std::pair{ "keycodes", &definition.keycodeModules },
+                                          std::pair{ "menus", &definition.menuIds } })
+        {
+            const auto list = document.find(field);
+            if (list != document.end() && list->is_array())
+                for (const nlohmann::json& id : *list)
+                    if (id.is_string())
+                        ids->push_back(id.get<std::string>());
+        }
 
         const auto matrix = document.find("matrix");
         if (matrix == document.end() || !matrix->is_object())

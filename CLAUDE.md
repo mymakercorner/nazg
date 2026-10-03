@@ -65,9 +65,18 @@ default from `SDL_GetPlatform()`, and by the key's side of the space bar, `SideL
 drawn arrows, ink offsets, numpad second legends, a header top right) and drawing (`NazgBoardView`,
 through `ui/NazgLegendFont.*`'s ImGui measurer). The `legend_font` test loads Arimo through ImGui's
 core and lays out every standard keycode and every layout's characters on 1u at every size: none
-cut, overlapping or leaving the face. Command keys print their QMK label until step 4; holds,
-modified keys and layer keys already print short headers, uncoloured. Legends are UTF-8 (`/utf-8`
-on MSVC). Next: step 4, the command keys.
+cut, overlapping or leaving the face. Legends are UTF-8 (`/utf-8` on MSVC). Step 4, the command
+keys, is done (2026-10-03, checked by Rico on the Model F): a header over a main legend, a band,
+both in one of four category colours (ui-design.md, "Step 4 as built"). Words from the command table
+`ui/NazgCommandTable.cpp`, written from short-forms.md; a key carries a `hold` and a `header`, each
+with its category, the band the hold's else the header's; lighting headers by the board's systems
+(`LightingSystemsOf()`: Vial's or VIA V2's `lighting`, VIA V3's `keycodes` and `menus`, which the
+parser now keeps, LM_* keys). Colours are pure code in `ui/NazgPalette.*` -- the theme tables, moved
+out of `NazgTheme.cpp`, and the category solver -- checked by the `palette` test over every theme,
+keycap class and category, and under simulated colour blindness, where Dark's slate accent caps and
+Dracula's alphas fall short (to settle with Rico). `legend_font` lays out every keycode, the
+parameterised ones and long holds on 1u: none cut, none overlapping. Next: step 5 -- transparent,
+`KC_NO`, peek, the lighting policy.
 
 One key can be edited: click it, pick a keycode, and `WriteKeycode()`
 (`adapters/via/NazgViaKeymap.h`) encodes it for the board's version, sets it, reads the cell

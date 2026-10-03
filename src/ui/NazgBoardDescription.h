@@ -161,10 +161,16 @@ namespace nazg
     [[nodiscard]] BoardDescription DescribeKeyboard(const Keyboard& keyboard);
 
     // Keymap's legends for every key of `board` but decals: what `layer` of `keyboard` does
-    // there, seen through `settings` and the key's side of the board. Matrix views fill
+    // there, seen through `settings`, the key's side of the board and the board's lighting. Matrix views fill
     // layer 0's, to find the keys by.
     void DescribeLegends(BoardDescription& board, const Keyboard& keyboard, uint8_t layer,
                          const LegendSettings& settings);
+
+    // The lighting systems a board has, LightingSystem bits, for the lighting keys' headers
+    // (ui-design.md, "Where the definition says it"): from Vial's or VIA V2's `lighting`, VIA V3's
+    // keycode modules and standard menus -- what either says the board has -- and LED Matrix,
+    // which no definition can declare, from an LM_* key anywhere on the keymap.
+    [[nodiscard]] uint8_t LightingSystemsOf(const Keyboard& keyboard);
 
     // Where a board's left half ends, in key units along x: the space bar's centre -- its
     // widest key, 3u or more -- or the board's own where there is none, on splits and

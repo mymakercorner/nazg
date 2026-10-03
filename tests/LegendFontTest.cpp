@@ -2,16 +2,18 @@
 // SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com>
 //
 // The legends in the real font: Arimo and its Noto faces, loaded through ImGui's core -- no
-// SDL, no GPU -- exactly as the app loads them, then every standard key and every host
-// layout's characters laid out on a 1u key, in both families, with every modifier name and
-// side, from the smallest board to the largest. The mockup's checks (ui-design.md, "Legends --
-// the plan" and short-forms.md, "Checked"): no standard legend is cut, none leaves the face,
-// no two overlap. So a new QMK keycode or host layout that does not fit fails the build.
+// SDL, no GPU -- exactly as the app loads them, then every named keycode, the parameterised ones
+// built from their parts, and every host layout's characters under the longest holds, laid out
+// on a 1u key, in both families, with every modifier name and side, from the smallest board to
+// the largest. The mockup's checks (ui-design.md, "Legends -- the plan" and short-forms.md,
+// "Checked"): no legend is cut, none leaves the face, no two overlap, and every character has a
+// glyph. So a new QMK keycode or host layout that does not fit fails the build.
 //
 // Takes the fonts folder as its argument. Registered with CTest:
 //   ctest --test-dir build_VS2022 -C Debug --output-on-failure
 
 #include "imgui.h"
+#include "imgui_internal.h"   // ImTextCharFromUtf8
 
 #include "TestSupport.h"
 #include "adapters/qmk/NazgQmkKeycodes.h"
@@ -175,11 +177,73 @@ namespace
         Check(std::fabs((h.bottom - h.top) - 68.8f) < 1.5f, "a capital is 0.688 em, as Arimo draws it");
     }
 
-    void TestStandardKeys(const nazg::ImGuiTextMeasurer& measurer)
+    void Summarise(const Tally& tally)
     {
-        std::printf("standard keys on 1u\n");
+        std::printf("    %d draws: %d cut, %d leaving the face, %d overlaps\n", tally.draws, tally.cut, tally.outside,
+                    tally.overlaps);
+    }
+
+    // Every character a command or a standard key prints is in a bundled font -- "↔" in the Magic
+    // swaps' headers, the true minus -- or it would draw as a box.
+    void TestGlyphs(const nazg::LegendFonts& fonts)
+    {
+        std::printf("glyphs\n");
+
+        std::set<unsigned int> missing;
+        const auto             check = [&](const std::string& text)
+        {
+            for (const char* at = text.c_str(); *at != '\0';)
+            {
+                unsigned int codepoint = 0;
+                at += ImTextCharFromUtf8(&codepoint, at, nullptr);
+                for (ImFont* font : { fonts.regular, fonts.bold })
+                    if (!font->IsGlyphInFont(static_cast<ImWchar>(codepoint)))
+                        missing.insert(codepoint);
+            }
+        };
+
+        int texts = 0;
+        for (const nazg::QmkKeycode& row : nazg::QmkKeycodeTable())
+            for (nazg::ModifierNames names : nazg::AllModifierNames())
+            {
+                const KeycapLegend legend = nazg::LegendFor(nazg::NamedKey{ row.name }, { nazg::UsHostLayout(), names });
+                for (const nazg::Words* words : { &legend.cylindrical, &legend.spherical, &legend.header.words, &legend.hold.words })
+                {
+                    check(words->full);
+                    check(words->shortForm);
+                    texts += 2;
+                }
+            }
+
+        // The modifiers' words and short forms, ⌘ among them.
+        for (nazg::ModifierNames names : nazg::AllModifierNames())
+            for (uint8_t mods = 1; mods < 16; ++mods)
+            {
+                const KeycapLegend legend = nazg::LegendFor(nazg::OneShotModKey{ mods }, { nazg::UsHostLayout(), names });
+                check(legend.cylindrical.full);
+                check(legend.cylindrical.shortForm);
+                texts += 2;
+            }
+
+        for (unsigned int codepoint : missing)
+            std::printf("    no glyph for U+%04X\n", codepoint);
+        Check(texts > 1000 && missing.empty(), "every character of every named key's words has a glyph");
+    }
+
+    // Lighting on a board with one system, and with each pair: every header word.
+    constexpr uint8_t c_Lightings[] = {
+        nazg::LightingSystem::Underglow,
+        nazg::LightingSystem::Backlight | nazg::LightingSystem::Underglow,
+        nazg::LightingSystem::Underglow | nazg::LightingSystem::RgbMatrix | nazg::LightingSystem::LedMatrix,
+    };
+
+    // Every named keycode: the standard keys and the commands, each in its words.
+    void TestNamedKeys(const nazg::ImGuiTextMeasurer& measurer)
+    {
+        std::printf("named keys on 1u\n");
 
         Tally tally;
+        int   commands = 0;
         for (const nazg::QmkKeycode& row : nazg::QmkKeycodeTable())
         {
             if (!row.ExistsIn(nazg::c_LatestQmkKeycodeVersion))
@@ -187,19 +251,98 @@ namespace
 
             for (nazg::ModifierNames names : nazg::AllModifierNames())
                 for (nazg::KeySide side : { nazg::KeySide::Left, nazg::KeySide::Right, nazg::KeySide::Neither })
-                {
-                    const KeycapLegend legend =
-                        nazg::LegendFor(nazg::NamedKey{ row.name }, { nazg::UsHostLayout(), names, side });
-                    if (legend.placement == nazg::PlacementClass::Command)
-                        continue;   // their own legends come with step 4
-                    Draw(legend, row.name, false, measurer, tally);
-                }
+                    for (uint8_t lighting : c_Lightings)
+                    {
+                        const KeycapLegend legend =
+                            nazg::LegendFor(nazg::NamedKey{ row.name }, { nazg::UsHostLayout(), names, side, lighting });
+                        commands += legend.placement == nazg::PlacementClass::Command;
+                        Draw(legend, row.name, false, measurer, tally);
+                    }
         }
 
-        std::printf("    %d draws: %d cut, %d leaving the face, %d overlaps\n", tally.draws, tally.cut, tally.outside,
-                    tally.overlaps);
-        Check(tally.draws > 1000, "every standard keycode, family, size, modifier name and side");
-        Check(tally.cut == 0, "no standard legend is cut");
+        Summarise(tally);
+        Check(tally.draws > 10000 && commands > 1000,
+              "every named keycode, commands included, every family, size, modifier name, side and lighting");
+        Check(tally.cut == 0, "no legend is cut: every short form fits");
+        Check(tally.outside == 0, "none leaves the face");
+        Check(tally.overlaps == 0, "no two overlap");
+    }
+
+    // The parameterised keycodes, built from their parts: layers up to 31, every modifier set.
+    void TestParameterised(const nazg::ImGuiTextMeasurer& measurer)
+    {
+        std::printf("parameterised keys on 1u\n");
+
+        std::vector<uint8_t> modSets;
+        for (uint8_t mods = 1; mods < 16; ++mods)
+        {
+            modSets.push_back(mods);
+            modSets.push_back(static_cast<uint8_t>(mods << 4));
+        }
+
+        Tally tally;
+        for (nazg::ModifierNames names : nazg::AllModifierNames())
+        {
+            const nazg::LegendContext context{ nazg::UsHostLayout(), names, nazg::KeySide::Neither };
+            const auto                draw = [&](const nazg::Keycode& keycode)
+            { Draw(nazg::LegendFor(keycode, context), nazg::FormatKeycode(keycode), false, measurer, tally); };
+
+            for (uint8_t layer = 0; layer < 32; ++layer)
+            {
+                for (uint8_t op = 0; op <= static_cast<uint8_t>(nazg::LayerOp::TapToggle); ++op)
+                    draw(nazg::LayerKey{ static_cast<nazg::LayerOp>(op), layer });
+                for (uint8_t mods : modSets)
+                    draw(nazg::LayerModKey{ layer, mods });
+            }
+            for (uint8_t mods : modSets)
+            {
+                draw(nazg::OneShotModKey{ mods });
+                for (const char* key : { "KC_C", "KC_1", "KC_W", "KC_ENT", "KC_BSPC", "KC_PGDN", "KC_F12", "KC_UP" })
+                    draw(nazg::ModifiedKey{ mods, key });
+            }
+            for (int index = 0; index < 256; ++index)
+                draw(nazg::TapDanceKey{ static_cast<uint8_t>(index) });
+            for (int index = 0; index < 128; ++index)
+                draw(nazg::MacroKey{ static_cast<uint8_t>(index) });
+            draw(nazg::UnknownKey{ 0x7E40 });
+        }
+
+        Summarise(tally);
+        Check(tally.draws > 10000, "layer keys, one-shot and modified keys with every modifier set, tap dance, macros");
+        Check(tally.cut == 0, "no legend is cut");
+        Check(tally.outside == 0, "none leaves the face");
+        Check(tally.overlaps == 0, "no two overlap");
+    }
+
+    // Tap-holds whose tap is a command: two headers stacked over the main legend -- "L1 / Media /
+    // Play" -- for every basic keycode that is a command, under a layer and the longest holds.
+    void TestCommandTaps(const nazg::ImGuiTextMeasurer& measurer)
+    {
+        std::printf("command taps under a hold on 1u\n");
+
+        Tally tally;
+        for (const nazg::QmkKeycode& row : nazg::QmkKeycodeTable())
+        {
+            if (!row.ExistsIn(nazg::c_LatestQmkKeycodeVersion) || row.value > 0xFF)
+                continue;
+
+            for (nazg::ModifierNames names : nazg::AllModifierNames())
+            {
+                const nazg::LegendContext context{ nazg::UsHostLayout(), names, nazg::KeySide::Neither };
+                if (nazg::LegendFor(nazg::NamedKey{ row.name }, context).placement != nazg::PlacementClass::Command)
+                    continue;
+
+                for (const nazg::Keycode& keycode :
+                     { nazg::Keycode{ nazg::LayerTapKey{ 15, row.name } },
+                       nazg::Keycode{ nazg::ModTapKey{ nazg::Mod::RightAlt, row.name } },
+                       nazg::Keycode{ nazg::ModTapKey{ nazg::Mod::LeftCtrl | nazg::Mod::LeftShift, row.name } } })
+                    Draw(nazg::LegendFor(keycode, context), nazg::FormatKeycode(keycode), false, measurer, tally);
+            }
+        }
+
+        Summarise(tally);
+        Check(tally.draws > 500, "every basic command under a layer, Alt Gr and two modifiers");
+        Check(tally.cut == 0, "no legend is cut");
         Check(tally.outside == 0, "none leaves the face");
         Check(tally.overlaps == 0, "no two overlap");
     }
@@ -221,16 +364,23 @@ namespace
                 const nazg::LegendContext context{ layout, nazg::ModifierNames::Windows, nazg::KeySide::Neither };
                 const std::string         name = std::string(layout.id) + " " + std::string(key);
 
-                // On its own, and with a hold in the corner -- the mockup's: a layer, and Ctrl.
+                // On its own, and with a hold in the corner -- the mockup's: a layer, and Ctrl -- and
+                // the longest holds, which a letter goes below (Alt Gr over W on 1u).
                 Draw(nazg::LegendFor(nazg::NamedKey{ key }, context), name, false, measurer, tally);
                 Draw(nazg::LegendFor(nazg::LayerTapKey{ 1, key }, context), name + " LT", false, measurer, tally);
-                Draw(nazg::LegendFor(nazg::ModTapKey{ nazg::Mod::LeftCtrl, key }, context), name + " MT", false,
-                     measurer, tally);
+                for (uint8_t mods : { nazg::Mod::LeftCtrl, nazg::Mod::LeftShift, nazg::Mod::RightAlt, nazg::Mod::LeftGui,
+                                      static_cast<uint8_t>(nazg::Mod::LeftCtrl | nazg::Mod::LeftShift) })
+                    Draw(nazg::LegendFor(nazg::ModTapKey{ mods, key }, context),
+                         name + " MT " + std::to_string(mods), false, measurer, tally);
+                for (nazg::ModifierNames names : { nazg::ModifierNames::Mac, nazg::ModifierNames::Linux })
+                    for (uint8_t mods : { nazg::Mod::LeftAlt, nazg::Mod::LeftGui })
+                        Draw(nazg::LegendFor(nazg::ModTapKey{ mods, key }, { layout, names, nazg::KeySide::Neither }),
+                             name + " MT " + std::string(nazg::IdOf(names)) + std::to_string(mods), false, measurer,
+                             tally);
             }
         }
 
-        std::printf("    %d draws: %d cut, %d leaving the face, %d overlaps\n", tally.draws, tally.cut, tally.outside,
-                    tally.overlaps);
+        Summarise(tally);
         Check(tally.draws > 10000, "every layout's every position, alone and under a hold");
         Check(tally.outside == 0, "no character leaves the face");
         Check(tally.overlaps == 0, "no two overlap");
@@ -265,7 +415,10 @@ int main(int argc, char** argv)
         TestFonts(fonts, measurer);
         if (fonts.regular != nullptr && fonts.bold != nullptr)
         {
-            TestStandardKeys(measurer);
+            TestGlyphs(fonts);
+            TestNamedKeys(measurer);
+            TestParameterised(measurer);
+            TestCommandTaps(measurer);
             TestHostLayouts(measurer);
         }
     }

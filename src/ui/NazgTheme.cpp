@@ -7,96 +7,15 @@
 #include <array>
 #include <cstdarg>
 #include <cstdint>
+#include <map>
+#include <tuple>
 
 namespace nazg
 {
     namespace
     {
-        // 0xRRGGBB, and how opaque.
-        constexpr ImU32 Hex(uint32_t rgb, float alpha = 1.0f)
-        {
-            return IM_COL32((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, static_cast<int>(alpha * 255.0f + 0.5f));
-        }
-
-        struct Theme
-        {
-            // The window.
-            ImU32 window, menubar, text, muted, control, border, accent, accentText;
-
-            // The board.
-            ImU32                 plate;
-            BoardColours::Keycap  alpha, modifier, accentCap;
-            ImU32                 lip;   // Bottom lip: one shadow under every key, whatever its class
-            ImU32                 outline;
-            ImU32                 highlighted, highlightedTint, second, secondTint, checked, checkedTint, warning;
-            ImU32                 pressed, hovered, dimmed;
-
-            // The panels' named colours.
-            ImU32 error, warningText, success;
-        };
-
-        // Every theme keeps the keycap's three tones in one order of lightness: the faces of the
-        // alphas and modifiers lighter than the plate, the lip darker than it, each at least 0.04
-        // apart in OKLab -- else a cap and the plate merge, or the lip vanishes into the plate
-        // (Rico, 2026-10-03: Light's modifiers had the plate's colour). Accent caps stand apart by
-        // their hue. The lip is one colour for every key, the alphas' (Rico, 2026-10-03: a shade
-        // of each cap's own colour was disturbing, on Dark most) -- on Light a little darker, to
-        // stay below the slate accent face too.
-        //
-        // The values are the mockup's, ui-design/board-look.html. Light and Dark share their
-        // state hues, Dark's lighter; Dracula, Rico's own, takes the shared ones too. The
-        // selection is the theme's text colour -- no hue, so it meets no category, highlight or
-        // warning colour. The accent caps are slate on Light, a lifted slate on Dark.
-        constexpr Theme c_Light{
-            Hex(0xf3f3f5), Hex(0xe3e4e9), Hex(0x1d1e22), Hex(0x6b6e78), Hex(0xffffff), Hex(0xc8cad2), Hex(0x3b82f6),
-            Hex(0xffffff),
-
-            Hex(0xd3d4d8),
-            { Hex(0xffffff), Hex(0x24262b) },
-            { Hex(0xe4e5ea), Hex(0x24262b) },
-            { Hex(0xafbfd5), Hex(0x18222f) },
-            Hex(0xacafb7),
-            Hex(0xb4b7c2),
-            Hex(0x1c7ed6), Hex(0x1c7ed6, 0.22f), Hex(0xbf308f), Hex(0xbf308f, 0.20f), Hex(0x2f9e44), Hex(0x2f9e44, 0.32f),
-            Hex(0xe03131),
-            Hex(0x1c64f2, 0.50f), Hex(0x000000, 0.08f), Hex(0xf3f3f5, 0.72f),
-
-            Hex(0xe03131), Hex(0xe8590c), Hex(0x2f9e44),
-        };
-
-        constexpr Theme c_Dark{
-            Hex(0x0f0f11), Hex(0x24252b), Hex(0xececf1), Hex(0x80838f), Hex(0x20232b), Hex(0x3a3d48), Hex(0x4296fa),
-            Hex(0xffffff),
-
-            Hex(0x1c1d23),
-            { Hex(0x3a3c48), Hex(0xebebf0) },
-            { Hex(0x2c2e38), Hex(0xebebf0) },
-            { Hex(0x5a6a80), Hex(0xe8eff9) },
-            Hex(0x12131b),
-            Hex(0x4b4e5c),
-            Hex(0x71b6ff), Hex(0x71b6ff, 0.27f), Hex(0xf387c7), Hex(0xf387c7, 0.27f), Hex(0x78dc82), Hex(0x5ac86e, 0.43f),
-            Hex(0xff8b7f),
-            Hex(0x3c6eff, 0.67f), Hex(0xffffff, 0.13f), Hex(0x0c0c10, 0.75f),
-
-            Hex(0xff8b7f), Hex(0xffb34d), Hex(0x78dc82),
-        };
-
-        constexpr Theme c_Dracula{
-            Hex(0x282a36), Hex(0x21222c), Hex(0xf8f8f2), Hex(0x6272a4), Hex(0x343746), Hex(0x44475a), Hex(0xbd93f9),
-            Hex(0x282a36),
-
-            Hex(0x21222c),
-            { Hex(0x44475a), Hex(0xf8f8f2) },
-            { Hex(0x373949), Hex(0xf8f8f2) },
-            { Hex(0xbd93f9), Hex(0x282a36) },
-            Hex(0x151725),
-            Hex(0x6272a4),
-            Hex(0x71b6ff), Hex(0x71b6ff, 0.25f), Hex(0xf387c7), Hex(0xf387c7, 0.25f), Hex(0x50fa7b), Hex(0x50fa7b, 0.33f),
-            Hex(0xff8b7f),
-            Hex(0xf1fa8c, 0.45f), Hex(0xffffff, 0.10f), Hex(0x282a36, 0.75f),
-
-            Hex(0xff5555), Hex(0xffb86c), Hex(0x50fa7b),
-        };
+        // The palette's colours go to ImGui as they are: both pack red in the low byte.
+        static_assert(Hex(0x123456, 0.5f) == IM_COL32(0x12, 0x34, 0x56, 128), "the palette packs as IM_COL32 does");
 
         constexpr std::array<ThemeId, 3>     c_Themes{ ThemeId::Light, ThemeId::Dark, ThemeId::Dracula };
         constexpr std::array<KeycapStyle, 2> c_KeycapStyles{ KeycapStyle::Outlined, KeycapStyle::BottomLip };
@@ -104,15 +23,9 @@ namespace nazg
 
         BoardStyle g_Style;
 
-        const Theme& Current()
+        const Palette& Current()
         {
-            switch (g_Style.theme)
-            {
-            case ThemeId::Light:   return c_Light;
-            case ThemeId::Dark:    break;
-            case ThemeId::Dracula: return c_Dracula;
-            }
-            return c_Dark;
+            return PaletteOf(g_Style.theme);
         }
 
         ImVec4 ToFloat(ImU32 colour, float alpha = 1.0f)
@@ -229,7 +142,7 @@ namespace nazg
         else
             ImGui::StyleColorsDark(&style);
 
-        const Theme& t      = theme == ThemeId::Light ? c_Light : theme == ThemeId::Dracula ? c_Dracula : c_Dark;
+        const Palette& t      = PaletteOf(theme);
         ImVec4*      colour = style.Colors;
 
         colour[ImGuiCol_Text]                 = ToFloat(t.text);
@@ -267,7 +180,7 @@ namespace nazg
 
     ImVec4 ColourOf(PanelColour colour)
     {
-        const Theme& t = Current();
+        const Palette& t = Current();
         switch (colour)
         {
         case PanelColour::Error:   return ToFloat(t.error);
@@ -290,7 +203,7 @@ namespace nazg
     {
         Keycap Fill(KeyFill fill, float heat)
         {
-            const Theme& t = Current();
+            const Palette& t = Current();
             switch (fill)
             {
             case KeyFill::Neutral:
@@ -323,9 +236,25 @@ namespace nazg
             return ImGui::ColorConvertFloat4ToU32(Mix(keycap.legend, keycap.face, 0.45f));
         }
 
+        std::optional<ImU32> Category(CommandCategory category, CategoryUse use, KeyFill fill, float heat)
+        {
+            // Solving walks up to two hundred lightnesses: once per face, category and use, then
+            // remembered -- a theme has a handful of faces, a heat map a few hundred at most.
+            static std::map<std::tuple<ImU32, CommandCategory, CategoryUse, const Palette*>, std::optional<ImU32>> s_Solved;
+
+            const Palette& palette = Current();
+            const ImU32    face    = Fill(fill, heat).face;
+            const auto     key     = std::make_tuple(face, category, use, &palette);
+
+            const auto found = s_Solved.find(key);
+            if (found != s_Solved.end())
+                return found->second;
+            return s_Solved[key] = CategoryColour(palette, face, category, use);
+        }
+
         ImU32 EdgeLabel(uint8_t marks)
         {
-            const Theme& t = Current();
+            const Palette& t = Current();
             if ((marks & Mark::Highlighted) != 0)
                 return t.highlighted;
             if ((marks & Mark::HighlightedSecond) != 0)
@@ -340,7 +269,7 @@ namespace nazg
         ImU32 Line(uint8_t marks)
         {
             // Lit lines let the keycaps under them show through.
-            const Theme& t     = Current();
+            const Palette& t     = Current();
             const ImU32  alpha = ~IM_COL32_A_MASK;
             if ((marks & Mark::Highlighted) != 0)
                 return (t.highlighted & alpha) | IM_COL32(0, 0, 0, 190);

@@ -54,16 +54,66 @@ namespace nazg
     void DescribeLegends(BoardDescription& board, const Keyboard& keyboard, uint8_t layer,
                          const LegendSettings& settings)
     {
-        const float line = SideLine(board.keys);
+        const float   line     = SideLine(board.keys);
+        const uint8_t lighting = LightingSystemsOf(keyboard);
 
         for (BoardKey& key : board.keys)
         {
             if (key.geometry.decal)
                 continue;
 
-            const LegendContext context{ settings.Layout(), settings.modifierNames, SideOf(key.geometry, line) };
+            const LegendContext context{ settings.Layout(), settings.modifierNames, SideOf(key.geometry, line),
+                                         lighting };
             key.legends = LegendFor(keyboard.KeycodeFor(key.geometry, layer), context);
         }
+    }
+
+    uint8_t LightingSystemsOf(const Keyboard& keyboard)
+    {
+        using namespace LightingSystem;
+
+        const struct
+        {
+            std::string_view id;
+            uint8_t          systems;
+        } c_Ids[] = {
+            // Vial and VIA V2 presets; Vial's RGB Matrix is VialRGB.
+            { "qmk_backlight", Backlight },
+            { "qmk_rgblight", Underglow },
+            { "qmk_backlight_rgblight", Backlight | Underglow },
+            { "vialrgb", RgbMatrix },
+            // VIA V3's standard menus, and its keycode modules.
+            { "qmk_rgb_matrix", RgbMatrix },
+            { "qmk_backlight_keycodes", Backlight },
+            { "qmk_rgblight_keycodes", Underglow },
+            { "qmk_rgb_matrix_keycodes", RgbMatrix },
+            { "qmk_backlight_rgblight_keycodes", Backlight | Underglow },
+        };
+
+        const KeyboardDefinition& definition = keyboard.definition;
+        uint8_t                   systems    = 0;
+        const auto                add        = [&](std::string_view id)
+        {
+            for (const auto& known : c_Ids)
+                if (known.id == id)
+                    systems |= known.systems;
+        };
+
+        add(definition.lighting);
+        for (const std::string& id : definition.keycodeModules)
+            add(id);
+        for (const std::string& id : definition.menuIds)
+            add(id);
+
+        const Keymap& keymap = keyboard.keymap;
+        for (uint8_t layer = 0; layer < keymap.Layers(); ++layer)
+            for (uint8_t row = 0; row < keymap.Rows(); ++row)
+                for (uint8_t column = 0; column < keymap.Columns(); ++column)
+                    if (const auto* named = std::get_if<NamedKey>(&keymap.At(layer, row, column));
+                        named != nullptr && named->name.substr(0, 3) == "LM_")
+                        systems |= LedMatrix;
+
+        return systems;
     }
 
     float SideLine(const std::vector<BoardKey>& keys)

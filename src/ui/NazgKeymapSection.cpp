@@ -4,11 +4,14 @@
 #include "NazgKeymapSection.h"
 
 #include <exception>
+#include <string>
 #include <utility>
+#include <variant>
 
 #include "imgui.h"
 
 #include "adapters/qmk/NazgQmkKeycodeCodec.h"
+#include "adapters/qmk/NazgQmkKeycodes.h"
 #include "adapters/via/NazgViaKeymap.h"
 #include "adapters/via/NazgViaProtocol.h"
 #include "transport/NazgDeviceChannel.h"
@@ -64,8 +67,15 @@ namespace nazg
             return;
         }
 
-        ImGui::SetTooltip("%s\nrow %d, column %d", FormatKeycode(m_Keyboard.KeycodeFor(key, m_Layer)).c_str(), key.row,
-                          key.column);
+        // QMK's name and label, so a short form on the key may be terse (short-forms.md, rule 10).
+        const Keycode keycode = m_Keyboard.KeycodeFor(key, m_Layer);
+        std::string   name    = FormatKeycode(keycode);
+        if (const auto* named = std::get_if<NamedKey>(&keycode))
+            if (const QmkKeycode* row = FindQmkKeycodeByName(named->name, m_Keyboard.keycodeVersion);
+                row != nullptr && row->label[0] != '\0' && name != row->label)
+                name += std::string(" -- ") + row->label;
+
+        ImGui::SetTooltip("%s\nrow %d, column %d", name.c_str(), key.row, key.column);
 
         if (events.clickedKey)
             m_Selected = Cell{ key.row, key.column };

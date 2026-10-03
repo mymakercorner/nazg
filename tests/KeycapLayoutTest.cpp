@@ -26,6 +26,8 @@ using nazg::LegendWeight;
 using nazg::PlacedText;
 using nazg::PlacementClass;
 
+using Category = nazg::CommandCategory;
+
 namespace
 {
     // Every character half an em wide -- a little more in Bold -- and a capital from 0.2 to
@@ -91,6 +93,11 @@ namespace
         legend.shifted   = shifted;
         legend.altgr     = altgr;
         return legend;
+    }
+
+    nazg::Header Hold(const char* words)
+    {
+        return { { words, "" }, Category::Behaviour };
     }
 
     KeycapLegend Named(PlacementClass placement, const char* full, const char* shortForm = "",
@@ -233,11 +240,13 @@ namespace
         std::printf("headers\n");
 
         KeycapLegend escape = Named(PlacementClass::Modifier, "Esc");
-        escape.header       = "Ctrl";
+        escape.hold         = Hold("Ctrl");
         const KeycapPrimitives primitives = Lay(escape, LegendFamily::Cylindrical);
         const PlacedText*      hold       = Find(primitives, "Ctrl");
         Check(hold && Near(Right(*hold), c_Box1), "a hold top right");
         Check(hold && Near(hold->size, nazg::c_HeaderShare * c_Letter), "at half the letter size");
+        Check(hold && hold->category == Category::Behaviour, "in its category's colour");
+        Check(hold && hold->y < Find(primitives, "Esc")->y, "under the band, above the legends");
         const KeycapPrimitives alone   = Lay(Named(PlacementClass::Modifier, "Esc"), LegendFamily::Cylindrical);
         const PlacedText*      tap     = Find(primitives, "Esc");
         const PlacedText*      without = Find(alone, "Esc");
@@ -247,7 +256,7 @@ namespace
         // A wide centred legend on top -- "@" under "L2" -- moves left just enough to clear the
         // header; one in the middle of the key is clear of it and stays.
         KeycapLegend wide = Character("2", "WW");
-        wide.header       = "LL";
+        wide.hold         = Hold("LL");
         const KeycapPrimitives moved  = Lay(wide, LegendFamily::Spherical);
         const PlacedText*      header = Find(moved, "LL");
         const PlacedText*      ww     = Find(moved, "WW");
@@ -255,10 +264,67 @@ namespace
         Check(header && ww && Near(Right(*ww), header->x - 0.04f * c_Unit), "just enough to clear it");
 
         KeycapLegend lone = Character("WW");
-        lone.header       = "LL";
+        lone.hold         = Hold("LL");
         const KeycapPrimitives middle = Lay(lone, LegendFamily::Spherical);
         Check(Find(middle, "WW") && Near(Find(middle, "WW")->x + Find(middle, "WW")->width / 2.0f, 50.0f),
               "a lone legend in the middle stays centred");
+
+        // A long hold over a letter on 1u -- Alt Gr over W -- would reach it: the letter goes below
+        // the hold. Here "Alt Gr" is 49.5 px wide, so a 16.5 px letter at the left meets it.
+        KeycapLegend altGrW = Character("W");
+        altGrW.hold         = Hold("Alt Gr");
+        const KeycapPrimitives under   = Lay(altGrW, LegendFamily::Cylindrical);
+        const PlacedText*      altGr   = Find(under, "Alt Gr");
+        const PlacedText*      w       = Find(under, "W");
+        Check(altGr && w && CapTop(*w) > altGr->y + altGr->size, "a letter a long hold would reach goes below it");
+        Check(w && Near(w->x, c_Box0), "and keeps its column");
+
+        // A pair under it no longer fits: its Shift character goes, rather than anything shrinking.
+        KeycapLegend altGrTwo = Character("2", "@");
+        altGrTwo.hold         = Hold("Alt Gr");
+        const KeycapPrimitives dropped = Lay(altGrTwo, LegendFamily::Cylindrical);
+        Check(Find(dropped, "2") && !Find(dropped, "@"), "a pair that no longer fits drops its Shift character");
+        Check(Find(dropped, "2") && Near(Find(dropped, "2")->size, c_Letter), "the other keeps its size");
+    }
+
+    void TestCommands()
+    {
+        std::printf("commands\n");
+
+        // A tap-hold whose tap is a command: two headers stacked top right, each in its colour.
+        KeycapLegend play = Named(PlacementClass::Command, "Play");
+        play.hold         = Hold("L1");
+        play.header       = { { "Media", "" }, Category::Host };
+        const KeycapPrimitives stacked = Lay(play, LegendFamily::Cylindrical);
+        const PlacedText*      layer   = Find(stacked, "L1");
+        const PlacedText*      media   = Find(stacked, "Media");
+        const PlacedText*      action  = Find(stacked, "Play");
+        Check(layer && media && Near(Right(*layer), c_Box1) && Near(Right(*media), c_Box1), "both headers right-aligned");
+        Check(layer && media && Near(media->y - layer->y, nazg::c_HeaderShare * c_Letter), "the hold's on top, one line apart");
+        Check(layer && media && layer->category == Category::Behaviour && media->category == Category::Host,
+              "each in its own category's colour");
+        Check(action && action->category == Category::None && Near(action->size, c_Small),
+              "the main legend in the legend colour, at the modifier text's size");
+        Check(action && media && CapTop(*action) > media->y + media->size,
+              "a main legend the headers would reach goes below them");
+        Check(action && Near(action->x + action->width / 2.0f, 50.0f), "centred across the key");
+
+        // One clear of a short header stays centred on the whole key, as any key's legend.
+        KeycapLegend clear = Named(PlacementClass::Command, "Play");
+        clear.header       = { { "M", "" }, Category::Host };
+        const KeycapPrimitives centred = Lay(clear, LegendFamily::Cylindrical);
+        const KeycapPrimitives bare    = Lay(Named(PlacementClass::Command, "Play"), LegendFamily::Cylindrical);
+        Check(Find(centred, "Play") && Find(bare, "Play") && Near(Find(centred, "Play")->y, Find(bare, "Play")->y),
+              "a main legend clear of its header stays centred on the whole key");
+
+        // A header too long for its line takes its short form; it never wraps.
+        KeycapLegend capsWord = Named(PlacementClass::Command, "On/Off");
+        capsWord.header       = { { "Caps Word Wrapping", "Caps Wd" }, Category::Behaviour };
+        Check(Find(Lay(capsWord, LegendFamily::Cylindrical), "Caps Wd"), "a header's short form where its name is too long");
+
+        // QMK's own name splits after its prefix's "_".
+        const KeycapPrimitives steno = Lay(Named(PlacementClass::Command, "STN_RES1"), LegendFamily::Cylindrical);
+        Check(Find(steno, "STN_") && Find(steno, "RES1"), "a QMK name splits after its prefix");
     }
 
     void TestInk()
@@ -300,6 +366,7 @@ int main()
     TestNeverScaled();
     TestSecondLegends();
     TestHeaders();
+    TestCommands();
     TestInk();
     TestArrowShape();
 

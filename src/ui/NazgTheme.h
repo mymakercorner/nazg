@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com>
 //
-// Theme - every colour Nazg chooses, in one place: the board's and the window's. A theme is
+// Theme - every colour Nazg chooses, handed to ImGui: the board's and the window's. A theme is
 // one table of named colours (ui-design.md, "The board's look"): Light, Dark and Dracula, from
-// the mockup ui-design/board-look.html. Panels -- a section's included -- use the four named
-// colours and no other; the board is coloured by what a key means (ui/NazgBoardDescription.h),
-// mapped to colours here.
+// the mockup ui-design/board-look.html, kept as data in ui/NazgPalette.h with the command
+// categories' solver. Panels -- a section's included -- use the four named colours and no
+// other; the board is coloured by what a key means (ui/NazgBoardDescription.h), mapped to
+// colours here.
 //
 // The theme and the keycap style are settings, set once a frame from Main.cpp with
 // SetBoardStyle(); everything drawing reads them from here.
@@ -22,16 +23,10 @@
 
 #include "ui/NazgBoardDescription.h"
 #include "ui/NazgKeycapLayout.h"
+#include "ui/NazgPalette.h"
 
 namespace nazg
 {
-    enum class ThemeId
-    {
-        Light,
-        Dark,
-        Dracula,
-    };
-
     // How a keycap is drawn, independent of the theme. (The legend family, the other half of
     // the look, is in ui/NazgKeycapLayout.h, where legends are placed.) Outlined is the default (Rico,
     // 2026-10-03); Bottom lip -- a darker strip under the key -- reads best on light themes.
@@ -87,14 +82,16 @@ namespace nazg
     namespace BoardColours
     {
         // A keycap of one class: its face, the legends on it.
-        struct Keycap
-        {
-            ImU32 face;
-            ImU32 legend;
-        };
+        using Keycap = KeycapColours;
 
         [[nodiscard]] Keycap Fill(KeyFill fill, float heat);
         [[nodiscard]] ImU32  Legend(LegendInk ink, KeyFill fill);
+
+        // A command category's colour on a keycap of this fill -- its band, or its header's text
+        // -- solved for the face. nullopt where no lightness of its hue is legible there, a
+        // mid-tone cap: the legend colour is drawn instead.
+        [[nodiscard]] std::optional<ImU32> Category(CommandCategory category, CategoryUse use, KeyFill fill,
+                                                    float heat);
         [[nodiscard]] ImU32  EdgeLabel(uint8_t marks);
         [[nodiscard]] ImU32  Line(uint8_t marks);
 

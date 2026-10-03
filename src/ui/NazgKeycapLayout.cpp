@@ -13,7 +13,6 @@ namespace nazg
         constexpr float c_PairLine   = 1.12f;   // line height of a letter pair, in em
         constexpr float c_WordLine   = 1.0f;    // of a wrapped name, tighter
         constexpr float c_AltGrShare = 0.8f;    // the AltGr character and the fourth level, of the letter size
-        constexpr float c_BandShare  = 0.055f;  // a command's band along the top: a header sits under it
         constexpr float c_HeaderGap  = 0.02f;   // between the band and the header
         constexpr float c_Clearance  = 0.04f;   // kept between a legend and a header beside it
         constexpr float c_AltGrGap   = 0.7f;    // between a spherical pair and its AltGr character, of its size
@@ -48,8 +47,9 @@ namespace nazg
         }
 
         // A name as lines, never scaled (ui-design.md, "Rico's answers"): on one line, else on two
-        // split at the space that makes the longer line shortest, else its short form likewise,
-        // else the short form cut with "...". `width` and `height` are the room on the key.
+        // split at the space -- or after the "_" of a QMK name, MI_ over CHND -- that makes the
+        // longer line shortest, else its short form likewise, else the short form cut with "...".
+        // `width` and `height` are the room on the key.
         std::vector<Line> TextChain(const Words& words, float size, LegendWeight weight, float width, float height,
                                     const TextMeasurer& measurer)
         {
@@ -65,10 +65,13 @@ namespace nazg
 
                 std::vector<Line> best;
                 float             bestWidth = 0.0f;
-                for (size_t space = text.find(' '); space != std::string::npos; space = text.find(' ', space + 1))
+                for (size_t at = text.find_first_of(" _"); at != std::string::npos; at = text.find_first_of(" _", at + 1))
                 {
-                    const std::string first  = text.substr(0, space);
-                    const std::string second = text.substr(space + 1);
+                    const bool        space  = text[at] == ' ';
+                    const std::string first  = text.substr(0, space ? at : at + 1);
+                    const std::string second = text.substr(at + 1);
+                    if (first.empty() || second.empty())
+                        continue;
                     const float       wider  = std::max(measure(first), measure(second));
                     if (wider <= width && (best.empty() || wider < bestWidth))
                     {
@@ -132,22 +135,22 @@ namespace nazg
             // `text` with its capital's top at `capTop`, its left at `x`; returns the capital's
             // bottom -- the baseline, near enough.
             float AtCapTop(const std::string& text, float x, float capTop, float size, LegendWeight weight,
-                           LegendInk ink, bool cut = false)
+                           LegendInk ink, bool cut = false, CommandCategory category = CommandCategory::None)
             {
                 const InkExtent capital = Capital(size, weight);
                 const float     top     = capTop - capital.top + InkShift(m_Measurer, text, size, weight, capital);
 
-                m_Out.texts.push_back({ text, x, top, size, Width(text, size, weight), weight, ink, cut });
+                m_Out.texts.push_back({ text, x, top, size, Width(text, size, weight), weight, ink, cut, category });
                 return capTop + (capital.bottom - capital.top);
             }
 
             // In a line's room from `top`, `height` tall.
             float InRoom(const std::string& text, float x, float top, float height, float size, LegendWeight weight,
-                         LegendInk ink, bool cut = false)
+                         LegendInk ink, bool cut = false, CommandCategory category = CommandCategory::None)
             {
                 const InkExtent capital = Capital(size, weight);
                 const float     capTop  = top + (height - (capital.bottom - capital.top)) / 2.0f;
-                return AtCapTop(text, x, capTop, size, weight, ink, cut);
+                return AtCapTop(text, x, capTop, size, weight, ink, cut, category);
             }
 
             // With its capital's bottom at `baseline`.
@@ -190,24 +193,53 @@ namespace nazg
         const float altgr     = c_AltGrShare * letter;
 
         // Letters heavier than modifier text on cylindrical sets, as GMK prints them; the same
-        // weight on spherical ones, as SA's single stroke (Rico, 2026-10-03).
+        // weight on spherical ones, as SA's single stroke (Rico, 2026-10-03). A command's main
+        // legend leaves the family's rules: Regular on both -- in Bold, Arimo's nearest to the
+        // mockup's 500, spherical "Unswap" no longer fitted 1u.
         const LegendWeight letterWeight   = LegendWeight::Bold;
-        const LegendWeight modifierWeight = spherical ? LegendWeight::Bold : LegendWeight::Regular;
+        const LegendWeight modifierWeight = spherical && !command ? LegendWeight::Bold : LegendWeight::Regular;
         const LegendInk    altgrInk       = spherical ? LegendInk::Muted : LegendInk::Legend;
 
-        // The header -- a hold, a modified key's modifiers, a command's -- top right, under where
-        // a command's band runs: one line, its words or cut.
-        const float headerTop = face.y0 + std::max(2.0f, c_BandShare * unit) + c_HeaderGap * unit;
-        float       headerWidth = 0.0f;
-        if (!legend.header.empty())
+        // The headers -- a hold, then a command's or a modified key's modifiers -- top right, one
+        // under the other, under where the band runs: one line each, its words, its short form or
+        // cut, in its category's colour. Two always stack (Rico, 2026-10-03: side by side, Media
+        // and Boot collided on 1u).
+        const float headerTop  = face.y0 + BandHeight(unit) + c_HeaderGap * unit;
+        const float headerLine = header * c_WordLine;
+        float       headersBottom = headerTop;
+        float       headersInk    = headerTop;   // where the headers' ink ends, descenders included
+        float       headerWidth   = 0.0f;
+        for (const Header* each : { &legend.hold, &legend.header })
         {
-            const Line line = TextChain({ legend.header, "" }, header, LegendWeight::Bold, width,
-                                        header * c_WordLine, measurer)
-                                  .front();
-            headerWidth = placer.Width(line.text, header, LegendWeight::Bold);
-            placer.InRoom(line.text, box.x1 - headerWidth, headerTop, line.Height(), header, LegendWeight::Bold,
-                          LegendInk::Legend, line.cut);
+            if (each->IsEmpty())
+                continue;
+
+            const Line  line = TextChain(each->words, header, LegendWeight::Bold, width, headerLine, measurer).front();
+            const float lineWidth = placer.Width(line.text, header, LegendWeight::Bold);
+            placer.InRoom(line.text, box.x1 - lineWidth, headersBottom, line.Height(), header, LegendWeight::Bold,
+                          LegendInk::Legend, line.cut, each->category);
+            headersInk  = std::max(headersInk, out.texts.back().y + measurer.Ink(line.text, header, LegendWeight::Bold).bottom);
+            headerWidth = std::max(headerWidth, lineWidth);
+            headersBottom += headerLine;
         }
+        const bool  hasHeaders  = headersBottom > headerTop;
+        const float headerRoom  = headersBottom - headerTop;
+        const float headersLeft = box.x1 - headerWidth - c_Clearance * unit;
+
+        // Where a line `height` tall goes to sit below the headers: under their lines, and its ink
+        // clear of theirs -- an accented capital or a hook above under the p of "Option" -- by the
+        // clearance kept beside them. Its capital is centred in its room, as InRoom() places it;
+        // an arrow `size` long is centred too.
+        const auto belowHeaders = [&](const std::string& text, float size, LegendWeight weight, float height)
+        {
+            float inkTop = (height - size) / 2.0f;
+            if (!text.empty())
+            {
+                const InkExtent capital = placer.Capital(size, weight);
+                inkTop = (height - (capital.bottom - capital.top)) / 2.0f - capital.top + measurer.Ink(text, size, weight).top;
+            }
+            return std::max(headersBottom, headersInk + c_Clearance * unit - inkTop);
+        };
 
         const Words& words = spherical ? legend.spherical : legend.cylindrical;
 
@@ -239,8 +271,7 @@ namespace nazg
         case PlacementClass::FunctionRow:
         case PlacementClass::Modifier:
         case PlacementClass::Command:
-            lines = TextChain(words, modifier, modifierWeight, width,
-                              command && !legend.header.empty() ? height - header * c_WordLine : height, measurer);
+            lines = TextChain(words, modifier, modifierWeight, width, command ? height - headerRoom : height, measurer);
             break;
         }
 
@@ -255,25 +286,31 @@ namespace nazg
                                          legend.placement == PlacementClass::Modifier ||
                                          legend.place == Placement::MiddleLeft);
 
-        float total = 0.0f;
+        float total  = 0.0f;
         float widest = 0.0f;
-        for (const Line& line : lines)
+        const auto measureLines = [&]
         {
-            total += line.Height();
-            if (line.arrow == ArrowDirection::None)
-                widest = std::max(widest, placer.Width(line.text, line.size, line.weight));
-        }
+            total  = 0.0f;
+            widest = 0.0f;
+            for (const Line& line : lines)
+            {
+                total += line.Height();
+                if (line.arrow == ArrowDirection::None)
+                    widest = std::max(widest, placer.Width(line.text, line.size, line.weight));
+            }
+        };
+        measureLines();
 
         // Legends centred on the whole key, as every key's, not in the room a header leaves.
         float y       = centred || middle ? std::max((box.y0 + box.y1 - total) / 2.0f, box.y0) : box.y0;
         float centreX = (box.x0 + box.x1) / 2.0f;
 
-        // A command's main legend goes below its header only where it would run into it.
-        if (command && !legend.header.empty())
+        // A command's main legend goes below its headers only where it would run into them.
+        if (command && hasHeaders)
         {
             const bool clear = (width - widest) / 2.0f >= headerWidth + c_Clearance * unit;
-            if (y < headerTop + header * c_WordLine && !clear)
-                y = headerTop + header * c_WordLine;
+            if (y < headersBottom && !clear)
+                y = headersBottom;
         }
 
         // Spherical sets with an AltGr character, as KAT Napoleonic's AZERTY and Bépo kits print
@@ -292,13 +329,38 @@ namespace nazg
         // A centred legend that would reach the header in the corner -- a wide "@" under "L2" --
         // moves left just enough to clear it, as a pair does for an AltGr character. One lower
         // down, clear of the header's line, stays.
-        if (centred && !command && !legend.header.empty() && !lines.empty() &&
-            lines.front().arrow == ArrowDirection::None && y < headerTop + header * c_WordLine)
+        if (centred && !command && hasHeaders && !lines.empty() && lines.front().arrow == ArrowDirection::None &&
+            y < headersBottom)
         {
-            const float limit = box.x1 - headerWidth - c_Clearance * unit;
-            const float half  = placer.Width(lines.front().text, lines.front().size, lines.front().weight) / 2.0f;
-            if (centreX + half > limit)
-                centreX = std::max(box.x0 + half, limit - half);
+            const float half = placer.Width(lines.front().text, lines.front().size, lines.front().weight) / 2.0f;
+            if (centreX + half > headersLeft)
+                centreX = std::max(box.x0 + half, headersLeft - half);
+        }
+
+        // A legend the headers still reach -- a W under a long hold such as Alt Gr, on 1u -- goes
+        // below them, rather than any glyph shrinking. Where a pair then runs off the key, its
+        // Shift character goes, and hover gives it; words take the room left.
+        if (!command && hasHeaders && !lines.empty() && y < headersBottom)
+        {
+            const Line& first = lines.front();
+            const float firstWidth =
+                first.arrow != ArrowDirection::None ? first.size : placer.Width(first.text, first.size, first.weight);
+            const float left = centred ? centreX - firstWidth / 2.0f : box.x0;
+            if (left + firstWidth > headersLeft)
+            {
+                // Below the headers, a centred legend has no reason to stand aside any more.
+                y = belowHeaders(first.text, first.size, first.weight, first.Height());
+                if (centred && !altgrBeside)
+                    centreX = (box.x0 + box.x1) / 2.0f;
+                if (y + total > box.y1)
+                {
+                    if (legend.placement == PlacementClass::Character && lines.size() == 2)
+                        lines.erase(lines.begin());
+                    else if (legend.placement == PlacementClass::Modifier || legend.placement == PlacementClass::FunctionRow)
+                        lines = TextChain(words, modifier, modifierWeight, width, box.y1 - y, measurer);
+                    measureLines();
+                }
+            }
         }
 
         // Likewise a centred legend that would reach the AltGr character bottom right -- a wide Q
@@ -345,7 +407,8 @@ namespace nazg
         // the right column reads header, fourth level, AltGr.
         if (!legend.shiftAltgr.empty() && !spherical)
         {
-            const float top = legend.header.empty() ? box.y0 : headerTop + header * c_WordLine;
+            const float top =
+                hasHeaders ? belowHeaders(legend.shiftAltgr, altgr, LegendWeight::Regular, altgr * c_WordLine) : box.y0;
             placer.InRoom(legend.shiftAltgr, box.x1 - placer.Width(legend.shiftAltgr, altgr, LegendWeight::Regular), top,
                           altgr * c_WordLine, altgr, LegendWeight::Regular, LegendInk::Legend);
         }

@@ -18,6 +18,11 @@ header 7.5 px (1/2 the letter size), 34 px of room; the smallest board is now 20
 with Windows, Mac and Linux modifier names: 2,402 checks on one line, 166 on two, **none cut**.
 Widths measured in the mockup's canvas, per character; Arimo applies no kerning to these strings.
 
+**Checked again in Nazg** (2026-10-03, the `legend_font` test, ui-design.md "Step 4 as built"):
+in Arimo as ImGui draws it, every named keycode and the parameterised ones on 1u at every size --
+none cut once command main legends are set in Regular on both families (spherical "Unswap" in
+Bold was too wide) and Mac's two too-wide pairs shorten to "Ctl ⌘+" and "Opt ⌘+".
+
 ## Kinds
 
 | Kind | What it prints | Examples |
@@ -61,7 +66,9 @@ Categories and colours are in ui-design.md: Behaviour, Host, Board, Firmware.
 **4. Modifier names follow the *Modifier names* setting** (ui-design.md): `{GUI}` is Win, Cmd
 or Super; `{ALT}` Alt or Option; right Alt Alt Gr or Option. Shortened in the tight places:
 Ctrl to Ctl and Option to Opt in the Magic swaps' short headers, three modifiers to their
-initials ("C A S+").
+initials ("C A S+"), and two to their shortest words where they do not fit, Cmd as ⌘: only
+"Ctrl Cmd+" and "Opt Cmd+" are too wide for 1u at the smallest size, and print "Ctl ⌘+" and
+"Opt ⌘+" there.
 
 **5. Lighting.** One header for the four systems -- **Light** -- when the board has one; the
 system's word when it has two: **UGlow** (underglow), **Matrix** (RGB Matrix), **LEDs** (LED
@@ -79,7 +86,8 @@ A layer name, once layers have them, replaces "L1".
 **7. Modified keys** -- `LCTL(KC_C)`: the modifiers as a header ending in "+", in the Host colour,
 over the key's own legend: "Ctrl+ / C". The "+" and the colour set it apart from a tap-hold's
 "Ctrl / C". Shift alone prints the shifted character instead ("!"); Hyper and Meh print their
-names ("Hyper+", "Meh+"); three modifiers shorten to initials ("C A S+").
+names ("Hyper+", "Meh+"); three modifiers shorten to initials ("C A S+"), and two to their
+shortest words where they do not fit ("Ctl ⌘+").
 
 **8. Numbered families** print their number: Macro / M3, User / U3, Custom / KB 3 (a VIA
 definition's `customKeycodes` name wins), Joystick / Btn 3, Prog btn / 3, Bluetooth / Prof 3,

@@ -278,14 +278,119 @@ namespace nazg
             spherical   = { std::string(initial) + " " + sphericalShort, "" };
         }
 
-        // A command, until command keys get their own legends: its QMK label, the same words on
-        // both families -- command keys leave the family's case.
-        KeycapLegend CommandLegend(std::string header, std::string words)
+        // A command: its header over its main legend, the same words on both families -- command
+        // keys leave the family's case (ui-design.md, "Command keys leave the family's rules").
+        KeycapLegend CommandLegend(Header header, Words main)
         {
-            KeycapLegend legend = WordsLegend(PlacementClass::Command, { words, "" }, { words, "" });
+            KeycapLegend legend = WordsLegend(PlacementClass::Command, main, main);
             legend.header       = std::move(header);
             return legend;
         }
+
+        // The command table's {GUI}, {ALT}, {ALTS} and {ALTGR}, by the modifier-names setting
+        // (short-forms.md, rule 4).
+        std::string Expand(std::string_view text, ModifierNames names)
+        {
+            const bool mac = names == ModifierNames::Mac;
+            const struct
+            {
+                std::string_view token;
+                std::string_view word;
+            } c_Tokens[] = {
+                { "{GUI}", mac ? "Cmd" : names == ModifierNames::Linux ? "Super" : "Win" },
+                { "{ALTGR}", mac ? "Option" : "Alt Gr" },
+                { "{ALTS}", mac ? "Opt" : "Alt" },
+                { "{ALT}", mac ? "Option" : "Alt" },
+            };
+
+            std::string expanded(text);
+            for (const auto& [token, word] : c_Tokens)
+                for (size_t at = expanded.find(token); at != std::string::npos; at = expanded.find(token, at + word.size()))
+                    expanded.replace(at, token.size(), word);
+            return expanded;
+        }
+
+        // Light on a board with one lighting system, or none declared; with several, the system
+        // the key acts on (short-forms.md, rule 5). RGB_* and UG_* are UGlow on any board with
+        // underglow, even where they drive the matrix too, and Matrix on one with backlight and
+        // RGB Matrix.
+        std::string_view LightingHeader(uint8_t system, uint8_t board)
+        {
+            int count = 0;
+            for (uint8_t bits = board; bits != 0; bits &= bits - 1)
+                ++count;
+            if (count < 2)
+                return "Light";
+
+            switch (system)
+            {
+            case LightingSystem::Backlight: return "Backlit";
+            case LightingSystem::LedMatrix: return "LEDs";
+            case LightingSystem::RgbMatrix: return "Matrix";
+            default: break;
+            }
+            return (board & LightingSystem::Underglow) == 0 && (board & LightingSystem::RgbMatrix) != 0 ? "Matrix"
+                                                                                                       : "UGlow";
+        }
+
+        const CommandEntry* FindCommand(std::string_view key)
+        {
+            for (const CommandEntry& entry : CommandEntries())
+                if (entry.key == key)
+                    return &entry;
+            return nullptr;
+        }
+
+        KeycapLegend CommandFromTable(const CommandEntry& entry, const LegendContext& context)
+        {
+            Header header{ { Expand(entry.header, context.names), Expand(entry.headerShort, context.names) },
+                           entry.category };
+            if (entry.system != 0)
+                header.words = { std::string(LightingHeader(entry.system, context.lighting)), "" };
+
+            return CommandLegend(std::move(header),
+                                 { Expand(entry.main, context.names), Expand(entry.mainShort, context.names) });
+        }
+
+        // The numbered families, which print their number (short-forms.md, rule 8): "JS_3" is
+        // Joystick / Btn 3.
+        std::optional<KeycapLegend> NumberedLegend(std::string_view key)
+        {
+            const struct
+            {
+                std::string_view prefix;
+                CommandCategory  category;
+                std::string_view header, headerShort, before;
+            } c_Families[] = {
+                { "MC_", CommandCategory::Host, "Macro", "", "M" },
+                { "JS_", CommandCategory::Host, "Joystick", "Joy", "Btn " },
+                { "PB_", CommandCategory::Host, "Prog btn", "Prog", "" },
+                { "BT_PRF", CommandCategory::Host, "Bluetooth", "BT", "Prof " },
+                { "QK_USER_", CommandCategory::Host, "User", "", "U" },
+                { "QK_KB_", CommandCategory::Board, "Custom", "", "KB " },
+            };
+
+            for (const auto& family : c_Families)
+            {
+                if (key.substr(0, family.prefix.size()) != family.prefix)
+                    continue;
+
+                const std::string_view number = key.substr(family.prefix.size());
+                if (number.empty() || number.find_first_not_of("0123456789") != std::string_view::npos)
+                    continue;
+
+                return CommandLegend({ { std::string(family.header), std::string(family.headerShort) }, family.category },
+                                     { std::string(family.before) + std::string(number), "" });
+            }
+            return std::nullopt;
+        }
+
+        KeycapLegend NamedLegend(std::string_view key, const LegendContext& context);
+
+        // Space Cadet keys are drawn as tap-hold keys: the modifier held, what a tap types
+        // (short-forms.md, "Space Cadet"). The parenthesis is Shift with 9 or 0, as QMK sends it,
+        // so the host layout says what it types.
+        std::optional<KeycapLegend> SpaceCadetLegend(std::string_view key, const LegendContext& context);
 
         KeycapLegend NamedLegend(std::string_view key, const LegendContext& context)
         {
@@ -341,15 +446,60 @@ namespace nazg
                 return WordsLegend(PlacementClass::Modifier, { "Lang " + std::string(label.substr(5)), "" },
                                    { std::string(label), "" });
 
+            // Anything QMK adds is a command: from the table, a numbered family, or Space Cadet.
+            if (const CommandEntry* command = FindCommand(key))
+                return CommandFromTable(*command, context);
+            if (std::optional<KeycapLegend> numbered = NumberedLegend(key))
+                return *numbered;
+            if (std::optional<KeycapLegend> spaceCadet = SpaceCadetLegend(key, context))
+                return *spaceCadet;
+
             // The other basic keycodes -- Help, Undo, Mute -- are keys a stock keyboard can have:
-            // modifiers in words. Anything QMK adds is a command.
+            // modifiers in words.
             const QmkKeycode* keycode = FindQmkKeycodeByName(key, c_LatestQmkKeycodeVersion);
             if (keycode != nullptr && std::string_view(keycode->group) == "basic")
                 return WordsLegend(PlacementClass::Modifier, { std::string(label), "" }, { Capitals(label), "" });
 
+            // Until transparent keys are drawn as what they fall through to (step 5).
             if (key == "KC_TRNS")
-                return CommandLegend({}, "Trans");
-            return CommandLegend({}, std::string(label));
+                return CommandLegend({}, { "Trans", "" });
+
+            // MIDI and steno, which nobody types on a configurator board, and anything this
+            // build has no words for: QMK's own name, split after its prefix where it must be
+            // (short-forms.md, rule 9). Hover gives the label.
+            return CommandLegend({}, { std::string(key), "" });
+        }
+
+        std::optional<KeycapLegend> SpaceCadetLegend(std::string_view key, const LegendContext& context)
+        {
+            const struct
+            {
+                std::string_view key, hold, tap;
+            } c_SpaceCadet[] = {
+                { "SC_LSPO", "Shift", "KC_9" },  { "SC_RSPC", "Shift", "KC_0" },  { "SC_SENT", "Shift", "KC_ENT" },
+                { "SC_LCPO", "Ctrl", "KC_9" },   { "SC_RCPC", "Ctrl", "KC_0" },   { "SC_LAPO", "{ALT}", "KC_9" },
+                { "SC_RAPC", "{ALTGR}", "KC_0" },
+            };
+
+            for (const auto& entry : c_SpaceCadet)
+            {
+                if (entry.key != key)
+                    continue;
+
+                KeycapLegend legend;
+                const HostLegend* host = context.layout.Find(entry.tap);
+                if (entry.tap == "KC_ENT")
+                    legend = NamedLegend(entry.tap, context);
+                else
+                {
+                    legend.placement = PlacementClass::Character;
+                    legend.plain     = host != nullptr && !host->shifted.empty() ? Printable(host->shifted)
+                                                                                 : (entry.tap == "KC_9" ? "(" : ")");
+                }
+                legend.hold = { { Expand(entry.hold, context.names), "" }, CommandCategory::Behaviour };
+                return legend;
+            }
+            return std::nullopt;
         }
 
         // Modifiers as a header, the shortest that reads (short-forms.md, rule 4 and
@@ -391,6 +541,32 @@ namespace nazg
             return text;
         }
 
+        // The modifiers' words, and for two their shortest words as the short form, the GUI key as
+        // ⌘ with Mac names: "Ctrl Cmd+" and "Opt Cmd+" are too wide for a 1u header at the
+        // smallest size, "Ctl ⌘+" and "Opt ⌘+" are not (Rico, 2026-10-03: initials, "C G+", read
+        // badly). Every other pair fits in full, so its short form never shows.
+        Words ModsWords(uint8_t mods, ModifierNames names, std::string_view before = "", std::string_view after = "")
+        {
+            const std::string full = std::string(before) + ModsName(mods, names) + std::string(after);
+
+            const bool  mac   = names == ModifierNames::Mac;
+            std::string words;
+            int         count = 0;
+            for (const auto& [bits, word] : { std::pair{ Mod::LeftCtrl | Mod::RightCtrl, "Ctl" },
+                                               std::pair{ Mod::LeftAlt | Mod::RightAlt, mac ? "Opt" : "Alt" },
+                                               std::pair{ Mod::LeftShift | Mod::RightShift, "Sft" },
+                                               std::pair{ Mod::LeftGui | Mod::RightGui,
+                                                          mac ? "⌘" : names == ModifierNames::Linux ? "Sup" : "Win" } })
+                if ((mods & bits) != 0)
+                {
+                    words += words.empty() ? word : std::string(" ") + word;
+                    ++count;
+                }
+
+            const std::string shortForm = std::string(before) + words + std::string(after);
+            return { full, count == 2 && shortForm != full ? shortForm : "" };
+        }
+
         std::string LayerName(uint8_t layer)
         {
             return "L" + std::to_string(layer);
@@ -415,62 +591,64 @@ namespace nazg
                     return legend;
                 }
 
+                // The modifiers as a header ending in "+", in the Host colour: "Ctrl+" over C --
+                // the "+" and the colour tell it from a tap-hold's "Ctrl" (short-forms.md, rule 7).
                 KeycapLegend legend = NamedLegend(k.key, context);
-                legend.header       = ModsName(k.mods, context.names) + "+";
+                legend.header       = { ModsWords(k.mods, context.names, "", "+"), CommandCategory::Host };
                 return legend;
             }
 
-            KeycapLegend operator()(const ModTapKey& k) const
+            // A tap-hold's hold is a header above the tap's own legends, which stay as on any key:
+            // the tap may be a command, with its own header under the hold's.
+            KeycapLegend WithHold(std::string_view tap, Words hold) const
             {
-                KeycapLegend legend = NamedLegend(k.key, context);
-                legend.header       = ModsName(k.mods, context.names);
+                KeycapLegend legend = NamedLegend(tap, context);
+                legend.hold         = { std::move(hold), CommandCategory::Behaviour };
                 return legend;
             }
 
-            KeycapLegend operator()(const LayerTapKey& k) const
+            KeycapLegend operator()(const ModTapKey& k) const { return WithHold(k.key, ModsWords(k.mods, context.names)); }
+            KeycapLegend operator()(const LayerTapKey& k) const { return WithHold(k.key, { LayerName(k.layer), "" }); }
+            KeycapLegend operator()(const SwapHandsTapKey& k) const { return WithHold(k.key, { "Swap", "" }); }
+
+            static KeycapLegend Behaviour(std::string header, Words main)
             {
-                KeycapLegend legend = NamedLegend(k.key, context);
-                legend.header       = LayerName(k.layer);
-                return legend;
+                return CommandLegend({ { std::move(header), "" }, CommandCategory::Behaviour }, std::move(main));
             }
 
-            KeycapLegend operator()(const SwapHandsTapKey& k) const
-            {
-                KeycapLegend legend = NamedLegend(k.key, context);
-                legend.header       = "Swap";
-                return legend;
-            }
-
+            // The layer large, the operation as the header (short-forms.md, rule 6).
             KeycapLegend operator()(const LayerKey& k) const
             {
                 static constexpr const char* c_Operations[] = { "Hold", "Toggle", "To", "Base", "Set base", "Once",
                                                                 "Tap tog" };
-                return CommandLegend(c_Operations[static_cast<size_t>(k.op)], LayerName(k.layer));
+                return Behaviour(c_Operations[static_cast<size_t>(k.op)], { LayerName(k.layer), "" });
             }
 
             KeycapLegend operator()(const LayerModKey& k) const
             {
-                return CommandLegend("Hold", LayerName(k.layer) + " " + ModsName(k.mods, context.names));
+                return Behaviour("Hold", ModsWords(k.mods, context.names, LayerName(k.layer) + " "));
             }
 
             KeycapLegend operator()(const OneShotModKey& k) const
             {
-                return CommandLegend("Once", ModsName(k.mods, context.names));
+                return Behaviour("Once", ModsWords(k.mods, context.names));
             }
 
+            // Until Vial's tap dance entries are read and a tap dance with a tap and a hold is
+            // drawn as a tap-hold.
             KeycapLegend operator()(const TapDanceKey& k) const
             {
-                return CommandLegend("Dance", "TD " + std::to_string(k.index));
+                return Behaviour("Dance", { "TD " + std::to_string(k.index), "" });
             }
 
             KeycapLegend operator()(const MacroKey& k) const
             {
-                return CommandLegend("Macro", "M" + std::to_string(k.index));
+                return CommandLegend({ { "Macro", "" }, CommandCategory::Host }, { "M" + std::to_string(k.index), "" });
             }
 
             KeycapLegend operator()(const UnknownKey& k) const
             {
-                return CommandLegend({}, FormatKeycode(k));
+                return CommandLegend({}, { FormatKeycode(k), "" });
             }
         };
 
@@ -558,8 +736,9 @@ namespace nazg
         std::string caption = legend.placement == PlacementClass::Character
                                   ? (legend.shifted.empty() ? legend.plain : legend.shifted + " " + legend.plain)
                                   : legend.cylindrical.full;
-        if (!legend.header.empty())
-            caption = caption.empty() ? legend.header : legend.header + " " + caption;
+        for (const Header* header : { &legend.header, &legend.hold })
+            if (!header->IsEmpty())
+                caption = caption.empty() ? header->words.full : header->words.full + " " + caption;
         return caption;
     }
 }

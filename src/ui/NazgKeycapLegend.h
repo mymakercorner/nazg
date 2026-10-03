@@ -13,12 +13,12 @@
 // QMK's keymap extras.
 //
 // The words come from the legend set in NazgKeycapLegend.cpp -- placement classes, their
-// exceptions, the standard keys' names and short forms of short-forms.md -- and the rules
-// from ui-design.md, "Legends -- the plan" and after: Alt Gr and the GUI key by the
-// modifier-names setting, a modifier naming its side only where its keycode's side is not
-// where the key sits, the numpad's second legends, the AltGr character always, Bépo's
-// fourth level. Command keys print a provisional fallback until their own legends come
-// (step 4 of "How the board's look is built").
+// exceptions, the standard keys' names and short forms of short-forms.md -- and from the
+// command table in NazgCommandTable.cpp; the rules from ui-design.md, "Legends -- the plan"
+// and after: Alt Gr and the GUI key by the modifier-names setting, a modifier naming its side
+// only where its keycode's side is not where the key sits, the numpad's second legends, the
+// AltGr character always, Bépo's fourth level; a command's header over its main legend, in
+// one of four categories, and a tap-hold's hold above it.
 //
 // Pure code, no ImGui, so it tests with literals.
 
@@ -118,7 +118,7 @@ namespace nazg
         Modifier,      // a named key in words: Shift, Backspace, Page Up
         Arrow,         // drawn, not set in a font
         Numpad,        // a digit or an operator, at letter size
-        Command,       // anything QMK adds -- provisional: its QMK label, centred
+        Command,       // anything QMK adds: its main legend, centred under a header
     };
 
     // Where a key breaks its class's rule -- data in the legend set, never a key named in the
@@ -149,14 +149,51 @@ namespace nazg
         bool operator==(const Words&) const = default;
     };
 
+    // What a command acts on, each a colour (ui-design.md, "Four categories, each a colour"). The
+    // theme gives a category its hue only; its lightness is solved per keycap face.
+    enum class CommandCategory : uint8_t
+    {
+        None,
+        Behaviour,   // layers, tap-hold holds, one-shot, tap dance, Caps Word
+        Host,        // media, mouse, system keys, macros, modified keys: what goes to the computer
+        Board,       // lighting, haptic, audio, Magic, combos: the keyboard's own settings
+        Firmware,    // Boot, Reboot, Clear EEPROM, Debug: the keys that can hurt
+    };
+
+    // The lighting systems a board has, a bit set (ui-design.md, "What a lighting keycode
+    // drives"). The definition says which, never the keycode -- except LED Matrix, which neither
+    // VIA nor Vial can declare and only an LM_* key on the keymap reveals.
+    namespace LightingSystem
+    {
+        inline constexpr uint8_t Backlight = 0x01;
+        inline constexpr uint8_t Underglow = 0x02;
+        inline constexpr uint8_t RgbMatrix = 0x04;
+        inline constexpr uint8_t LedMatrix = 0x08;
+    }
+
+    // A header, one line top right: its words or their short form, cut where neither fits, in
+    // its category's colour.
+    struct Header
+    {
+        Words           words;
+        CommandCategory category = CommandCategory::None;
+
+        [[nodiscard]] bool IsEmpty() const noexcept { return words.full.empty(); }
+
+        bool operator==(const Header&) const = default;
+    };
+
     // What a keycap says. Which fields are filled depends on `placement`:
     // - Character: `plain`, and `shifted` for a pair; `altgr`, printed bottom right on every
     //   layout that has one, and `shiftAltgr` where the layout prints the fourth level.
-    // - FunctionRow, Modifier, Numpad, Command: the words, one set per legend family --
-    //   cylindrical in GMK's mixed case, spherical in SA's capitals and words.
+    // - FunctionRow, Modifier, Numpad: the words, one set per legend family -- cylindrical in
+    //   GMK's mixed case, spherical in SA's capitals and words.
+    // - Command: the main legend, the same words on both families -- command keys leave the
+    //   family's rules (ui-design.md, "Command keys leave the family's rules").
     // - Arrow: `arrow`.
-    // Any key can carry a `header` -- a tap-hold's hold, a modified key's modifiers -- top right,
-    // and a numpad key its `second` legend, what it does with Num Lock off.
+    // Top right, one above the other: a tap-hold's `hold`, then a `header` -- a command's, or a
+    // modified key's modifiers. A numpad key carries its `second` legend, what it does with Num
+    // Lock off.
     struct KeycapLegend
     {
         PlacementClass placement = PlacementClass::Blank;
@@ -176,7 +213,15 @@ namespace nazg
         std::string    second;
         ArrowDirection secondArrow = ArrowDirection::None;
 
-        std::string header;
+        Header hold;
+        Header header;
+
+        // The band along the top of the face: one per key, the hold's -- coloured by what the
+        // hold does -- else the header's. None: no band.
+        [[nodiscard]] CommandCategory Band() const noexcept
+        {
+            return !hold.IsEmpty() ? hold.category : header.category;
+        }
 
         bool operator==(const KeycapLegend&) const = default;
     };
@@ -184,11 +229,29 @@ namespace nazg
     struct LegendContext
     {
         const HostLayout& layout;
-        ModifierNames     names = ModifierNames::Windows;
-        KeySide           side  = KeySide::Neither;
+        ModifierNames     names    = ModifierNames::Windows;
+        KeySide           side     = KeySide::Neither;
+        uint8_t           lighting = 0;   // LightingSystem bits: the board's, computed once per load
     };
 
     [[nodiscard]] KeycapLegend LegendFor(const Keycode& keycode, const LegendContext& context);
+
+    // One entry of the command table (NazgCommandTable.cpp, from short-forms.md): a named QMK
+    // keycode a stock keyboard does not have, its category, its header and its main legend with
+    // their short forms. {GUI}, {ALT}, {ALTS} and {ALTGR} are the modifier names, by the setting.
+    // A lighting keycode's header is "Light", or the word for `system` on a board with several.
+    struct CommandEntry
+    {
+        std::string_view key;
+        CommandCategory  category = CommandCategory::None;
+        std::string_view header;
+        std::string_view headerShort;
+        std::string_view main;
+        std::string_view mainShort;
+        uint8_t          system = 0;   // the LightingSystem a lighting keycode is named for
+    };
+
+    [[nodiscard]] std::span<const CommandEntry> CommandEntries() noexcept;
 
     // One line for lists, where nothing is placed -- the keycode picker: "! 1", "Backspace",
     // "Ctrl+ C".

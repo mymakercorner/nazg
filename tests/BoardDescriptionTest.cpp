@@ -222,6 +222,46 @@ namespace
         Check(legendOf(0).cylindrical.full == "Right Control", "Right Ctrl on the left half names its side");
         Check(legendOf(2).cylindrical.full == "Control", "on the right half, the plain keycap word");
         Check(legendOf(1).placement == nazg::PlacementClass::Blank, "the space bar is blank");
+
+        // The lighting keys' headers follow the board's lighting systems.
+        keyboard.keymap.Set(0, 0, 0, nazg::NamedKey{ "UG_TOGG" });
+        keyboard.definition.lighting = "qmk_backlight_rgblight";
+        nazg::DescribeLegends(board, keyboard, 0, nazg::LegendSettings{});
+        Check(legendOf(0).header.words.full == "UGlow", "with backlight and underglow, UG_TOGG names the underglow");
+        keyboard.definition.lighting = "qmk_rgblight";
+        nazg::DescribeLegends(board, keyboard, 0, nazg::LegendSettings{});
+        Check(legendOf(0).header.words.full == "Light", "with underglow alone, Light");
+    }
+
+    // ui-design.md, "Where the definition says it".
+    void TestLightingSystems()
+    {
+        std::printf("lighting systems\n");
+
+        namespace System = nazg::LightingSystem;
+
+        nazg::Keyboard keyboard;
+        Check(nazg::LightingSystemsOf(keyboard) == 0, "a definition that says nothing: none");
+
+        keyboard.definition.lighting = "qmk_backlight_rgblight";
+        Check(nazg::LightingSystemsOf(keyboard) == (System::Backlight | System::Underglow), "Vial's and VIA V2's presets");
+        keyboard.definition.lighting = "vialrgb";
+        Check(nazg::LightingSystemsOf(keyboard) == System::RgbMatrix, "VialRGB is RGB Matrix");
+        keyboard.definition.lighting = "none";
+        Check(nazg::LightingSystemsOf(keyboard) == 0, "none is none");
+
+        keyboard.definition.keycodeModules = { "qmk_lighting" };
+        keyboard.definition.menuIds        = { "qmk_rgblight", "qmk_rgb_matrix" };
+        Check(nazg::LightingSystemsOf(keyboard) == (System::Underglow | System::RgbMatrix),
+              "VIA V3: the standard menus behind qmk_lighting");
+        keyboard.definition.keycodeModules = { "qmk_backlight_keycodes" };
+        keyboard.definition.menuIds        = {};
+        Check(nazg::LightingSystemsOf(keyboard) == System::Backlight, "VIA V3: an explicit keycode module");
+
+        keyboard.keymap = nazg::Keymap(2, 1, 1);
+        keyboard.keymap.Set(1, 0, 0, nazg::NamedKey{ "LM_TOGG" });
+        Check(nazg::LightingSystemsOf(keyboard) == (System::Backlight | System::LedMatrix),
+              "LED Matrix, which nothing declares, from an LM_ key on any layer");
     }
 
     void TestKeyCentre()
@@ -269,6 +309,7 @@ int main()
     TestLegendSlots();
     TestSides();
     TestDescribeLegends();
+    TestLightingSystems();
     TestKeyCentre();
     TestSpreadApart();
 

@@ -308,6 +308,22 @@ namespace
         Check(Throws([&] { (void)ids(R"("12G4")", R"("1")"); }), "an id that is not hex is rejected");
     }
 
+    // What VIA V3 says of the board's lighting, kept verbatim for the lighting keys' headers.
+    void TestLightingFields()
+    {
+        std::printf("lighting fields\n");
+
+        const char text[] = R"({"matrix":{"rows":1,"cols":1},"layouts":{"keymap":[["0,0"]]},
+                               "keycodes":["qmk_lighting"],
+                               "menus":["qmk_rgblight",{"label":"Custom","content":[]},"qmk_rgb_matrix"]})";
+        const KeyboardDefinition definition =
+            ParseDefinition(std::vector<uint8_t>(text, text + std::char_traits<char>::length(text)));
+
+        Check(definition.keycodeModules == std::vector<std::string>{ "qmk_lighting" }, "the keycode modules");
+        Check(definition.menuIds == std::vector<std::string>{ "qmk_rgblight", "qmk_rgb_matrix" },
+              "the standard menus' ids, a custom menu left to the board");
+    }
+
     void TestConvertedForm()
     {
         std::printf("converted form\n");
@@ -382,6 +398,7 @@ int main()
     TestSourceDecalMarkedWithD();
     TestKleDetails();
     TestUsbIdStrings();
+    TestLightingFields();
     TestConvertedForm();
     TestConvertedEdgeCases();
 

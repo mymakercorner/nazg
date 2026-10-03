@@ -209,6 +209,35 @@ namespace nazg
             drawList->PathStroke(colour, thickness, ImDrawFlags_Closed);
         }
 
+        // A command's band along the top of the face p0-p1, in its category's colour: the face's
+        // top edge down to `height`, its rounded corners followed, so the band never pokes past
+        // them.
+        void FillBand(ImDrawList* drawList, ImVec2 p0, ImVec2 p1, float radius, float height, ImU32 colour)
+        {
+            constexpr float c_Pi = 3.14159265358979f;
+
+            const float r = std::min(radius, std::min((p1.x - p0.x) / 2.0f, (p1.y - p0.y) / 2.0f));
+            const float h = std::min(height, p1.y - p0.y);
+            if (r < 0.5f)
+            {
+                drawList->AddRectFilled(p0, ImVec2(p1.x, p0.y + h), colour);
+                return;
+            }
+
+            // Where the corner's arc meets the band's bottom edge, or its side when the band is
+            // deeper than the corner.
+            const float cut  = std::asin((r - std::min(h, r)) / r);
+            const float topY = p0.y + r;
+            drawList->PathArcTo(ImVec2(p0.x + r, topY), r, c_Pi + cut, 1.5f * c_Pi);
+            drawList->PathArcTo(ImVec2(p1.x - r, topY), r, 1.5f * c_Pi, 2.0f * c_Pi - cut);
+            if (h > r)
+            {
+                drawList->PathLineTo(ImVec2(p1.x, p0.y + h));
+                drawList->PathLineTo(ImVec2(p0.x, p0.y + h));
+            }
+            drawList->PathFillConvex(colour);
+        }
+
         // The legends of the face p0-p1 -- an L-shaped key's first rectangle -- placed by the
         // layout and clipped to the face.
         void DrawLegends(ImDrawList* drawList, const BoardKey& key, ImVec2 p0, ImVec2 p1, float unit, bool dimmed)
@@ -224,16 +253,18 @@ namespace nazg
                                    measurer)
                     : LayOutSlots(std::get<SlotLegends>(key.legends), face, unit, measurer);
 
-            const auto colourOf = [&](LegendInk ink)
+            // A header in its category's colour, solved for this face; the rest in the legend's.
+            const auto colourOf = [&](LegendInk ink, CommandCategory category = CommandCategory::None)
             {
-                const ImU32 colour = BoardColours::Legend(ink, key.fill);
+                const ImU32 colour = BoardColours::Category(category, CategoryUse::Text, key.fill, key.heat)
+                                         .value_or(BoardColours::Legend(ink, key.fill));
                 return dimmed ? Over(colour, BoardColours::Dimmed()) : colour;
             };
 
             const ImVec4 clip(p0.x, p0.y, p1.x, p1.y);
             for (const PlacedText& text : primitives.texts)
                 drawList->AddText(measurer.FontFor(text.weight), measurer.ImGuiSize(text.size), ImVec2(text.x, text.y),
-                                  colourOf(text.ink), text.text.c_str(), nullptr, 0.0f, &clip);
+                                  colourOf(text.ink, text.category), text.text.c_str(), nullptr, 0.0f, &clip);
 
             // A shaft and a filled head: every arrow alike, at the legend's weight, whatever the font.
             for (const PlacedArrow& arrow : primitives.arrows)
@@ -318,6 +349,19 @@ namespace nazg
                     if (isDimmed)
                         colour = Over(colour, BoardColours::Dimmed());
                     StrokeContour(drawList, face, rounding, border / 2, border, colour);
+                }
+
+                // A command's band, with the face and under the marks, so a selected or highlighted
+                // command keeps its whole outline (Rico, 2026-10-03). One per key: the hold's,
+                // coloured by what the hold does, else the command's.
+                if (const KeycapLegend* legend = std::get_if<KeycapLegend>(&described.legends);
+                    legend != nullptr && legend->Band() != CommandCategory::None)
+                {
+                    ImU32 band = BoardColours::Category(legend->Band(), CategoryUse::Band, described.fill, described.heat)
+                                     .value_or(colours.legend);
+                    if (isDimmed)
+                        band = Over(band, BoardColours::Dimmed());
+                    FillBand(drawList, p0, p1, rounding.outer, BandHeight(unit), band);
                 }
 
                 // Outlines nest along the contour, the first outermost, so several states read at

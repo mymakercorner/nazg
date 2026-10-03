@@ -154,6 +154,59 @@ settle beyond the decisions below, each one constant or table entry to change:
   Hold / L2, from short-forms.md's parts -- top right, uncoloured; bands and category colours are
   step 4. Every other command prints its QMK label, centred, until then.
 
+**Step 4 as built** (2026-10-03, checked by Rico on the Model F, "Ctl ⌘+" included). Command keys print a header over
+their main legend, a band along the top of the face, both in the category's colour:
+- **The command table** -- `ui/NazgCommandTable.cpp`, written from short-forms.md, 249 entries --
+  with the numbered families, Space Cadet and the fallback built in code. Space Cadet is a
+  tap-hold whose tap is what Shift with 9 or 0 types on the host: "(" on US, "=" for SC_RCPC on a
+  German host, which is what the key does there. MIDI and steno print QMK's name, split after its
+  prefix ("STN_" over "RES1"), with no category and no band. A test checks that every QMK feature
+  keycode has a header and a category, so a new one cannot be forgotten.
+- **Two headers, one band**: `KeycapLegend` carries a `hold` and a `header`, each words and a
+  category; the band is the hold's, else the header's. A modified key's "Ctrl+" is a Host header,
+  so it **gets a Host band** -- the design gave it the Host colour without saying band or not.
+- **Colours** are pure code now, `ui/NazgPalette.*`: the three themes' tables, moved out of
+  `NazgTheme.cpp`, and the category solver, which checks the contrast of the colour as packed in
+  8 bits. `NazgTheme` remembers each solved colour per face. The **palette test** asserts the
+  lightness order of face, plate and lip on every theme; every band legible on every face of
+  every theme; every header on every alpha and modifier face. Only one header falls back to the
+  legend colour: Firmware on Dark's lifted slate accent.
+- **Colour blindness, measured** with Machado's matrices: the search's 0.086 holds where it was
+  run, Light's and Dark's alphas and modifiers (0.085 here, after 8-bit rounding), and the test
+  asserts 0.08 there. **Two places fall short, both Behaviour against Host under deuteranopia**:
+  Dracula's alphas, 0.057, and **Dark's lifted slate accent, 0.016** -- on Dark's Esc and Enter
+  caps a violet and a cyan header look the same to a deuteranope; there the headers are near
+  white, to reach 4.5:1 on a mid-tone face, and little hue is left. The band still differs; the
+  test prints these and does not assert them. **To settle (Rico).**
+- **Choices the build made**, one constant or rule each:
+  - **Command main legends are Regular on both families**: in Bold, Arimo's nearest to the
+    mockup's 500, spherical "Unswap" no longer fitted 1u. Command keys leave the family's rules
+    already.
+  - **Two modifiers shorten to their shortest words, Cmd as ⌘**, where their words do not fit:
+    only Mac's "Ctrl Cmd+" and "Opt Cmd+" (43.3 px against 40.8 of room, 1u at the smallest size)
+    -- "Ctrl Win+" (39.7) and "Ctrl Sup+" (40.3) fit. They print **"Ctl ⌘+" and "Opt ⌘+"** there
+    (Rico, 2026-10-03: initials, "C G+", read badly, and "Ctrl C+" reads as Ctrl+C). ⌘ is the one
+    icon in the legends, on Mac names only, where it is a habit. The same for holds and LM / OSM.
+  - **Long holds**: "Alt Gr", "Shift", "Option" or "Super" over W, @ or an accented capital on 1u
+    met the tap's legend at the left. A legend the headers would reach **goes below them**, its
+    ink clear of theirs by the clearance kept beside them; a pair that then runs off the key
+    **drops its Shift character** -- the fallback the mockup had for Large size, hover gives it --
+    and words take the room left. Bépo's fourth level keeps the same distance under a hold.
+  - **The board's lighting systems** are the union of what the definition says: Vial's or VIA
+    V2's `lighting` preset, and VIA V3's keycode modules and standard menus, which the parser now
+    keeps (their ids only). LED Matrix comes from an LM_* key on any layer.
+  - TD(n) prints "Dance", as short-forms.md's table has it; hover gives QMK's name and label.
+- **Checked in Arimo** (`legend_font`): about 520,000 draws on 1u, both families, every size --
+  every named keycode with each modifier names, side and three lighting sets; layers 0 to 31,
+  LM and OSM with every modifier set, modified keys, TD 0 to 255, macros 0 to 127; every basic
+  command under L15, Alt Gr and Ctrl+Shift; every host layout's positions under a layer and seven
+  holds. None cut but the host layouts' own words (step 3), none leaves the face, no overlap, and
+  every character of every named key's words has a glyph.
+- **Not in step 4**: the firmware state (old, new, unknown) behind which lighting keycodes the
+  picker offers and the hover warning on a dead one -- the picker is a first draft; Vial's tap
+  dances drawn as tap-holds, once their entries are read; a VIA definition's `customKeycodes`
+  names for QK_KB_n.
+
 If a need still appears later — icons on keys, say — changing the contract costs one struct
 and its implementations, two while they are Keymap and the Leyden Jar. It gets expensive once
 other people write plugins, which is why these six points go in from the start, and why the

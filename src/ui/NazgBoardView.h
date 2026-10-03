@@ -6,8 +6,9 @@
 // The renderer half of the section contract: the section says what each key means
 // (ui/NazgBoardDescription.h), this decides how that looks -- sizes here, colours in
 // ui/NazgTheme.h -- so a restyle changes these two files and no section. The look is being
-// built from ui-design.md, "How the board's look is built": keycaps, plate, themes and the
-// standard keys' legends are done -- placed by ui/NazgKeycapLayout.h, drawn here.
+// built from ui-design.md, "How the board's look is built": keycaps, plate, themes, the
+// standard keys' legends and the command keys' bands and headers are done -- placed by
+// ui/NazgKeycapLayout.h, drawn here.
 //
 // ImGui only, no SDL: compiled into the application, not into nazg_core.
 

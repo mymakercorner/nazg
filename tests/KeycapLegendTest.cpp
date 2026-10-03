@@ -18,6 +18,7 @@
 #include <string>
 
 using nazg::ArrowDirection;
+using nazg::Header;
 using nazg::HostLayout;
 using nazg::KeycapLegend;
 using nazg::KeySide;
@@ -29,6 +30,8 @@ using nazg::PlacementClass;
 using nazg::UsHostLayout;
 
 namespace Mod = nazg::Mod;
+
+using Category = nazg::CommandCategory;
 
 namespace
 {
@@ -46,6 +49,11 @@ namespace
     bool Says(const KeycapLegend& legend, const char* full, const char* shortForm = "")
     {
         return legend.cylindrical.full == full && legend.cylindrical.shortForm == shortForm;
+    }
+
+    std::string HeaderOf(const KeycapLegend& legend)
+    {
+        return legend.header.words.full;
     }
 
     // The host layout table is committed data produced by hand, so its shape is checked
@@ -199,11 +207,9 @@ namespace
               "5 has no second legend");
         Check(Of(nazg::NamedKey{ "KC_PDOT" }).second == "Del", "the dot is Delete");
 
-        const KeycapLegend haptic = Of(nazg::NamedKey{ "HF_TOGG" });
-        Check(haptic.placement == PlacementClass::Command && Says(haptic, "Toggle Haptic"),
-              "a QMK feature is a command, by its label until commands get their own legends");
-        Check(Says(Of(nazg::NamedKey{ "QK_STENO_BOLT" }), "QK_STENO_BOLT"),
-              "a keycode QMK has since removed falls back to its name");
+        Check(Says(Of(nazg::NamedKey{ "KC_HELP" }), "Help") &&
+                  Of(nazg::NamedKey{ "KC_HELP" }).placement == PlacementClass::Modifier,
+              "a basic keycode a stock keyboard can have is a modifier in words, by its QMK label");
     }
 
     // ui-design.md, "Names of the modifiers" and "Modifier names follow a setting".
@@ -245,32 +251,178 @@ namespace
               "LSFT(KC_1) is shown as the character it types");
         Check(Pair(Of(nazg::ModifiedKey{ Mod::RightShift, "KC_SLSH" }), "?", ""), "on either Shift");
 
+        // A modified key: the modifiers as a header ending in "+", in the Host colour.
         const KeycapLegend shiftedA = Of(nazg::ModifiedKey{ Mod::LeftShift, "KC_A" });
-        Check(Pair(shiftedA, "A", "") && shiftedA.header == "Shift+",
-              "a shifted letter has no separate character, so the modifier is the header");
-        Check(Of(nazg::ModifiedKey{ Mod::LeftCtrl | Mod::LeftShift, "KC_C" }).header == "Ctrl Sft+",
+        Check(Pair(shiftedA, "A", "") && shiftedA.header == Header{ { "Shift+", "" }, Category::Host },
+              "a shifted letter has no separate character, so the modifier is the header, in Host's colour");
+        Check(shiftedA.Band() == Category::Host, "with a Host band");
+        Check(HeaderOf(Of(nazg::ModifiedKey{ Mod::LeftCtrl | Mod::LeftShift, "KC_C" })) == "Ctrl Sft+",
               "two modifiers in short words");
-        Check(Of(nazg::ModifiedKey{ Mod::LeftCtrl | Mod::LeftShift | Mod::LeftAlt | Mod::LeftGui, "KC_C" }).header ==
+        Check(HeaderOf(Of(nazg::ModifiedKey{ Mod::LeftCtrl | Mod::LeftShift | Mod::LeftAlt | Mod::LeftGui, "KC_C" })) ==
                   "Hyper+",
               "all four is Hyper");
-        Check(Of(nazg::ModifiedKey{ Mod::LeftCtrl | Mod::LeftShift | Mod::LeftAlt, "KC_C" }).header == "Meh+",
+        Check(HeaderOf(Of(nazg::ModifiedKey{ Mod::LeftCtrl | Mod::LeftShift | Mod::LeftAlt, "KC_C" })) == "Meh+",
               "three without the GUI key is Meh");
-        Check(Of(nazg::ModifiedKey{ Mod::LeftCtrl | Mod::LeftShift | Mod::LeftGui, "KC_C" }).header == "C S G+",
+        Check(HeaderOf(Of(nazg::ModifiedKey{ Mod::LeftCtrl | Mod::LeftShift | Mod::LeftGui, "KC_C" })) == "C S G+",
               "other threes by initials");
 
+        // Two modifiers too wide for 1u -- only Cmd's pairs -- shorten to their shortest words, Cmd
+        // as ⌘ (Rico, 2026-10-03).
+        const auto mac = [](uint8_t mods)
+        { return Of(nazg::ModifiedKey{ mods, "KC_C" }, UsHostLayout(), ModifierNames::Mac).header.words; };
+        Check(mac(Mod::LeftCtrl | Mod::LeftGui) == nazg::Words{ "Ctrl Cmd+", "Ctl ⌘+" }, "Ctrl Cmd+, short Ctl ⌘+");
+        Check(mac(Mod::LeftAlt | Mod::LeftGui) == nazg::Words{ "Opt Cmd+", "Opt ⌘+" }, "Opt Cmd+, short Opt ⌘+");
+        Check(Of(nazg::ModifiedKey{ Mod::LeftCtrl | Mod::LeftGui, "KC_C" }).header.words ==
+                  nazg::Words{ "Ctrl Win+", "Ctl Win+" },
+              "on Windows, Ctrl Win+ -- which fits 1u, so its short form never shows");
+
+        // Tap-hold keys: the hold above the tap's own legends, a Behaviour.
         const KeycapLegend space = Of(nazg::LayerTapKey{ 1, "KC_SPC" });
-        Check(space.placement == PlacementClass::Blank && space.header == "L1", "LT: the layer as header over the tap");
+        Check(space.placement == PlacementClass::Blank && space.hold == Header{ { "L1", "" }, Category::Behaviour },
+              "LT: the layer as the hold over the tap, a Behaviour");
+        Check(space.header.IsEmpty() && space.Band() == Category::Behaviour, "the band is the hold's");
         const KeycapLegend escape = Of(nazg::ModTapKey{ Mod::LeftCtrl, "KC_ESC" });
-        Check(Says(escape, "Esc") && escape.header == "Ctrl", "MT: Ctrl over Esc");
-        Check(Of(nazg::ModTapKey{ Mod::RightAlt, "KC_A" }).header == "Alt Gr", "a right-Alt hold is Alt Gr");
-        Check(Of(nazg::ModTapKey{ Mod::RightAlt, "KC_A" }, UsHostLayout(), ModifierNames::Mac).header == "Option",
+        Check(Says(escape, "Esc") && escape.hold.words.full == "Ctrl", "MT: Ctrl over Esc");
+        Check(Of(nazg::ModTapKey{ Mod::RightAlt, "KC_A" }).hold.words.full == "Alt Gr", "a right-Alt hold is Alt Gr");
+        Check(Of(nazg::ModTapKey{ Mod::RightAlt, "KC_A" }, UsHostLayout(), ModifierNames::Mac).hold.words.full ==
+                  "Option",
               "and Option on a Mac");
+        Check(Of(nazg::SwapHandsTapKey{ "KC_A" }).hold.words.full == "Swap", "SH_T: Swap held");
+
+        // A tap that is a command keeps its own header, under the hold's, each in its colour.
+        const KeycapLegend play = Of(nazg::LayerTapKey{ 1, "KC_MPLY" });
+        Check(play.hold == Header{ { "L1", "" }, Category::Behaviour } &&
+                  play.header == Header{ { "Media", "" }, Category::Host } && Says(play, "Play"),
+              "LT(1, KC_MPLY): L1 over Media / Play");
+        Check(play.Band() == Category::Behaviour, "one band per key, the hold's");
 
         const KeycapLegend hold = Of(nazg::LayerKey{ nazg::LayerOp::Momentary, 2 });
-        Check(hold.placement == PlacementClass::Command && hold.header == "Hold" && Says(hold, "L2"),
-              "MO(2): Hold over L2");
-        Check(Of(nazg::LayerKey{ nazg::LayerOp::PersistentDefault, 1 }).header == "Set base", "PDF is Set base");
-        Check(Says(Of(nazg::UnknownKey{ 0x8123 }), "0x8123"), "an unknown value is shown as hex");
+        Check(hold.placement == PlacementClass::Command && HeaderOf(hold) == "Hold" && Says(hold, "L2") &&
+                  hold.header.category == Category::Behaviour,
+              "MO(2): Hold over L2, a Behaviour");
+        Check(HeaderOf(Of(nazg::LayerKey{ nazg::LayerOp::PersistentDefault, 1 })) == "Set base", "PDF is Set base");
+        Check(HeaderOf(Of(nazg::LayerKey{ nazg::LayerOp::TapToggle, 3 })) == "Tap tog", "TT is Tap tog");
+        Check(Says(Of(nazg::LayerModKey{ 1, Mod::LeftCtrl }), "L1 Ctrl") &&
+                  HeaderOf(Of(nazg::LayerModKey{ 1, Mod::LeftCtrl })) == "Hold",
+              "LM(1, Ctrl): Hold over L1 Ctrl");
+        Check(Says(Of(nazg::OneShotModKey{ Mod::LeftShift }), "Shift") &&
+                  HeaderOf(Of(nazg::OneShotModKey{ Mod::LeftShift })) == "Once",
+              "OSM(Shift): Once over Shift");
+        Check(Says(Of(nazg::TapDanceKey{ 3 }), "TD 3") && HeaderOf(Of(nazg::TapDanceKey{ 3 })) == "Dance",
+              "TD(3): Dance over TD 3");
+        const KeycapLegend macro = Of(nazg::MacroKey{ 3 });
+        Check(Says(macro, "M3") && macro.header == Header{ { "Macro", "" }, Category::Host }, "a macro is Host: Macro / M3");
+
+        const KeycapLegend unknown = Of(nazg::UnknownKey{ 0x8123 });
+        Check(Says(unknown, "0x8123") && unknown.Band() == Category::None, "an unknown value is its hex, with no band");
+    }
+
+    // The command table and the families built from parts (short-forms.md).
+    void TestCommands()
+    {
+        std::printf("commands\n");
+
+        const KeycapLegend haptic = Of(nazg::NamedKey{ "HF_TOGG" });
+        Check(haptic.placement == PlacementClass::Command && Says(haptic, "On/Off") &&
+                  haptic.header == Header{ { "Haptic", "" }, Category::Board },
+              "HF_TOGG: Haptic / On/Off, a Board command");
+        Check(haptic.spherical == haptic.cylindrical, "command keys leave the family's case: the same words on both");
+
+        const KeycapLegend boot = Of(nazg::NamedKey{ "QK_BOOT" });
+        Check(Says(boot, "Boot") && boot.header.category == Category::Firmware && boot.Band() == Category::Firmware,
+              "QK_BOOT: Firmware / Boot");
+
+        const KeycapLegend capsWord = Of(nazg::NamedKey{ "CW_TOGG" });
+        Check(capsWord.header.words == nazg::Words{ "Caps Word", "Caps Wd" } && capsWord.header.category == Category::Behaviour,
+              "a header carries its short form");
+        Check(Says(Of(nazg::NamedKey{ "KC_MCTL" }), "Mission Ctrl", "Mission"), "so does a main legend");
+        Check(Of(nazg::NamedKey{ "KC_VOLU" }).header.category == Category::Host, "media keys are Host");
+        Check(Says(Of(nazg::NamedKey{ "KC_VOLD" }), "Vol −"), "a quantity goes down with the true minus");
+        Check(Says(Of(nazg::NamedKey{ "MS_WHLD" }), "Wh Dn"), "a direction with Dn");
+
+        // The modifier names, by the setting.
+        const auto agTogg = [](ModifierNames names) { return Of(nazg::NamedKey{ "AG_TOGG" }, UsHostLayout(), names).header.words; };
+        Check(agTogg(ModifierNames::Windows) == nazg::Words{ "Alt↔Win", "Alt/Win" }, "AG_TOGG: Alt↔Win on Windows");
+        Check(agTogg(ModifierNames::Mac) == nazg::Words{ "Option↔Cmd", "Opt/Cmd" }, "Option↔Cmd on a Mac");
+        Check(HeaderOf(Of(nazg::NamedKey{ "GU_TOGG" }, UsHostLayout(), ModifierNames::Linux)) == "Super key",
+              "GU_TOGG: Super key on Linux");
+
+        // The numbered families.
+        Check(Says(Of(nazg::NamedKey{ "JS_3" }), "Btn 3") && HeaderOf(Of(nazg::NamedKey{ "JS_3" })) == "Joystick",
+              "JS_3: Joystick / Btn 3");
+        Check(Says(Of(nazg::NamedKey{ "PB_12" }), "12"), "PB_12: Prog btn / 12");
+        Check(Says(Of(nazg::NamedKey{ "BT_PRF2" }), "Prof 2"), "BT_PRF2: Bluetooth / Prof 2");
+        Check(Says(Of(nazg::NamedKey{ "QK_USER_4" }), "U4"), "QK_USER_4: User / U4");
+        const KeycapLegend custom = Of(nazg::NamedKey{ "QK_KB_7" });
+        Check(Says(custom, "KB 7") && custom.header == Header{ { "Custom", "" }, Category::Board }, "QK_KB_7: Custom / KB 7");
+
+        // Space Cadet is drawn as a tap-hold key, its parenthesis what Shift+9 types on the host.
+        const KeycapLegend cadet = Of(nazg::NamedKey{ "SC_LSPO" });
+        Check(Pair(cadet, "(", "") && cadet.hold == Header{ { "Shift", "" }, Category::Behaviour },
+              "SC_LSPO: Shift over (");
+        Check(Pair(Of(nazg::NamedKey{ "SC_RCPC" }, *nazg::FindHostLayout("german")), "=", ""),
+              "SC_RCPC on a German host: Shift+0 types =");
+        Check(Says(Of(nazg::NamedKey{ "SC_SENT" }), "Enter"), "SC_SENT: Shift over Enter");
+        Check(Of(nazg::NamedKey{ "SC_RAPC" }, UsHostLayout(), ModifierNames::Mac).hold.words.full == "Option",
+              "SC_RAPC: Option held on a Mac");
+
+        // MIDI and steno print QMK's own name.
+        const KeycapLegend midi = Of(nazg::NamedKey{ "MI_CHND" });
+        Check(Says(midi, "MI_CHND") && midi.Band() == Category::None, "MIDI: QMK's own name, no band");
+        Check(Says(Of(nazg::NamedKey{ "QK_STENO_BOLT" }), "Bolt"), "a keycode QMK has since removed still has its words");
+    }
+
+    // Light on a board with one lighting system; the system's word with several (short-forms.md,
+    // rule 5).
+    void TestLighting()
+    {
+        std::printf("lighting\n");
+
+        namespace System = nazg::LightingSystem;
+        const auto header = [](const char* key, uint8_t board)
+        { return LegendFor(nazg::NamedKey{ key }, LegendContext{ UsHostLayout(), ModifierNames::Windows, KeySide::Neither, board }).header.words.full; };
+
+        Check(header("UG_TOGG", System::Underglow) == "Light", "one system: Light");
+        Check(header("UG_TOGG", 0) == "Light", "none declared: Light");
+        Check(header("BL_TOGG", System::Backlight | System::Underglow) == "Backlit" &&
+                  header("UG_TOGG", System::Backlight | System::Underglow) == "UGlow",
+              "backlight and underglow: Backlit and UGlow");
+        Check(header("UG_TOGG", System::Underglow | System::RgbMatrix) == "UGlow" &&
+                  header("RM_TOGG", System::Underglow | System::RgbMatrix) == "Matrix",
+              "underglow and RGB Matrix: UG_ is UGlow, RM_ is Matrix");
+        Check(header("UG_TOGG", System::Backlight | System::RgbMatrix) == "Matrix",
+              "backlight and RGB Matrix: UG_ drives the matrix");
+        Check(header("RGB_M_P", System::Backlight | System::Underglow) == "UGlow", "RGB_M_ modes are UGlow too");
+        Check(header("LM_TOGG", System::Underglow | System::LedMatrix) == "LEDs", "LED Matrix: LEDs");
+        Check(Of(nazg::NamedKey{ "UG_TOGG" }).header.category == Category::Board, "lighting is Board");
+    }
+
+    // Every QMK keycode a stock keyboard does not have is in the command table, or built from its
+    // parts -- so a new one, once in the keycode table, cannot be forgotten here.
+    void TestCoverage()
+    {
+        std::printf("coverage\n");
+
+        std::set<std::string_view> missing;
+        for (const nazg::QmkKeycode& row : nazg::QmkKeycodeTable())
+        {
+            const std::string_view group = row.group;
+            if (group == "basic" || group == "modifiers" || group == "internal" || group == "midi" || group == "steno")
+                continue;
+
+            const KeycapLegend legend = Of(nazg::NamedKey{ row.name });
+            if (legend.Band() == Category::None && legend.hold.IsEmpty())
+                missing.insert(row.name);
+        }
+        for (std::string_view name : missing)
+            std::printf("    no words: %.*s\n", static_cast<int>(name.size()), name.data());
+        Check(missing.empty(), "every QMK feature keycode has a header and a category");
+
+        std::set<std::string_view> keys;
+        bool                       unique = true;
+        for (const nazg::CommandEntry& entry : nazg::CommandEntries())
+            unique &= keys.insert(entry.key).second;
+        Check(unique, "no keycode twice in the command table");
     }
 
     void TestCaptions()
@@ -295,6 +447,9 @@ int main()
     TestLegendSet();
     TestModifiers();
     TestComposedKeys();
+    TestCommands();
+    TestLighting();
+    TestCoverage();
     TestCaptions();
 
     return TestResult();
