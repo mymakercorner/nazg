@@ -556,15 +556,49 @@ stays in the mockup to compare; a coloured main legend went muddy on accent caps
 
 | Category | Hue (OKLCH) | Covers |
 |---|---|---|
-| Behaviour | magenta, 345 | layers, tap-hold holds, one-shot, tap dance, Caps Word |
-| Host | cyan, 195 | media, mouse, system keys, macros -- what goes to the computer |
-| Board | amber, 75 | lighting, haptic, audio, Magic, combos -- the keyboard's own settings |
-| Firmware | red, 27 | Boot, Reboot, Clear EEPROM, Debug -- the keys that can hurt |
+| Behaviour | violet, 300 | layers, tap-hold holds, one-shot, tap dance, Caps Word |
+| Host | cyan, 200 | media, mouse, system keys, macros -- what goes to the computer |
+| Board | amber, 80 | lighting, haptic, audio, Magic, combos -- the keyboard's own settings |
+| Firmware | red, 30 | Boot, Reboot, Clear EEPROM, Debug -- the keys that can hurt |
 
-Four because the state colours already take most of the wheel -- orange selected, blue
-highlighted, purple second, green checked, red warning -- leaving magenta, cyan and amber; red
-for firmware shares "careful" with the warning, a fitting overlap. More categories would mean
-revisiting the state colours.
+Four because the state colours already take much of the wheel -- orange selected, blue
+highlighted, magenta second, green checked, red warning; red for firmware shares "careful" with
+the warning, a fitting overlap. More categories would mean revisiting the state colours.
+
+**The palette is chosen for colour-blind users** (Rico, 2026-10-03). The hues first picked by
+eye -- magenta 345, cyan 195, amber 75, red 27 -- fell apart under deuteranopia: solving every
+category to the same contrast gives them the same lightness, hue is left as the only cue, and
+magenta and cyan came within 0.038 of each other in OKLab, about two just-noticeable steps. The
+hues above come from a search that simulates protanopia, deuteranopia and tritanopia (Machado's
+matrices) on light and dark caps and maximises the smallest distance between categories while
+keeping clear of the selection and highlight colours: **at least 0.086 under every deficiency**,
+0.152 with normal vision. Behaviour moved from magenta to violet; the rest barely changed. And
+**Firmware is solved to a higher contrast** -- 7:1 on text, 4.5:1 on its band, against 4.5:1 and
+3:1 -- so it differs in **lightness** too, the one cue no colour deficiency removes, for the
+category that matters most.
+
+**Hues are theme tokens; Light and Dark share one palette** (Rico, 2026-10-03), the standard
+choices, states included: Dark's selection moved from amber to Light's orange, its highlight,
+second highlight and warning to Light's hues, lighter. The second highlight moved from violet to
+**magenta** on both, clear of Behaviour's violet -- it is the matrix view's column colour. Dracula,
+Rico's own theme, takes the shared state colours too: its full palette had a state on every
+category's hue. Its purple accent caps still share Behaviour's hue; the band's solved lightness
+keeps it legible there.
+
+**The selection is neutral, the accent caps slate** (Rico, 2026-10-03), both on Light and Dark:
+- **Selection**: the theme's text colour -- near black on Light, near white on Dark -- not the
+  orange of before, too loud. With no hue it meets no category, highlight or warning colour,
+  never merges with a command's band, and survives colour blindness: it differs in lightness.
+  The UI accent blue was the alternative, but it merges with the blue highlight during a Vial
+  unlock.
+- **Accent caps** (Esc, Enter, when KLE colours are kept): a **slate** grey-blue at low chroma,
+  about a third of the command colours', so it competes with no band or selection -- the orange
+  was loud and sat on Board's amber. Light `#afbfd5`, lip `#8a9aae`, legend `#18222f`. On Dark,
+  the same slate was only 0.09 lighter than the main caps, against 0.20 darker on Light --
+  lightness, not hue, was the gap (neutral dark caps barely helped) -- so Dark takes a **lifted**
+  slate: `#5a6a80`, lip `#415166`, legend `#e8eff9` at 4.8:1, 0.16 from the main caps. A middle
+  lightness is a trap there: no legend reads well on it. Sage, graphite, a pale dark slate with a
+  dark legend and the orange stay in the mockup to compare. Dracula keeps its own purple.
 
 **Legible on any theme and keycap colour, by computation.** A theme gives a category only its
 hue. Its lightness is solved per keycap face: from the face's own lightness, darker on a light
@@ -577,10 +611,9 @@ keycap colours once the parser keeps them, cannot make a command illegible witho
 build.
 
 Seen in the mockup, to settle:
-- **Hues against each theme's states**: the dark theme's selection is amber, near Board's;
-  Dracula's second highlight is pink and its highlight cyan. Free hues depend on the theme, so a
-  theme may need its own category hues, and the test should check hue distance as well as
-  contrast.
+- **Hues against each theme's states**: Dark's amber selection sat on Board's hue and Dracula
+  had a state on every category's hue -- settled above by a shared palette. The test should check
+  distance under the simulated deficiencies as well as contrast, so a new theme cannot undo it.
 - **Header words at the smallest size**: at the modifier text's size, "Firmware", "Caps Word",
   "Tap tog" and spherical "TOGGLE" were cut on 1u -- the reason for the smaller, mixed-case
   header above. "Caps Word" still uses its short form, "Caps Wd", as "Tap dance" uses "Dance".

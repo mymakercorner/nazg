@@ -197,12 +197,22 @@ const REMAPS = {
 // Previous Prev, Volume Vol, Button Btn, Wheel Wh... -- plus overrides; + and − for a quantity,
 // Up and Dn for a direction; a toggle prints On/Off under the feature's header. Layers: the layer
 // large, the operation as the header.
-// The categories, four -- the hues free between the state colours (Rico, 2026-10-03):
-//   beh    behaviour: layers, tap-hold holds, one-shot, tap dance, Caps Word -- magenta
-//   host   sent to the computer: media, mouse, system, macros -- cyan
-//   board  the keyboard's own settings: lighting, haptic, audio -- amber
-//   fw     firmware, the keys that can hurt: Boot, Reboot, Clear EEPROM -- red
-const COMMAND_HUES = { beh: 345, host: 195, board: 75, fw: 27 };
+// The categories, four. Their hues are theme tokens, as the state colours are; Light and Dark
+// share one palette, the standard choice (Rico, 2026-10-03), found by a search that simulates
+// protanopia, deuteranopia and tritanopia (Machado's matrices) and maximises the smallest OKLab
+// distance between categories on light and dark caps -- at least 0.086 under every deficiency,
+// where magenta and cyan had fallen to 0.038 under deuteranopia -- while keeping clear of the
+// selection and highlight colours:
+//   beh    behaviour: layers, tap-hold holds, one-shot, tap dance, Caps Word -- violet, 300
+//   host   sent to the computer: media, mouse, system, macros -- cyan, 200
+//   board  the keyboard's own settings: lighting, haptic, audio -- amber, 80
+//   fw     firmware, the keys that can hurt: Boot, Reboot, Clear EEPROM -- red, 30
+// Firmware is also solved to a higher contrast -- 7:1 on text, 4.5:1 on its band, against 4.5:1
+// and 3:1 -- so it differs in lightness too, which no colour deficiency takes away.
+const COMMAND_HUES = { beh: 300, host: 200, board: 80, fw: 30 };
+const COMMAND_TARGETS = { text: { beh: 4.5, host: 4.5, board: 4.5, fw: 7 }, band: { beh: 3, host: 3, board: 3, fw: 4.5 } };
+const commandInk = (face, cat, use) =>
+  ink(face, (THEMES[state.theme].commandHues || COMMAND_HUES)[cat], COMMAND_TARGETS[use][cat]);
 // Headers have short forms too, for a 1u key: a header is one line, never wrapped, so its
 // short form is what fits there.
 const HEADER_SHORT = { 'Tap dance': 'Dance', 'Caps Word': 'Caps Wd' };
@@ -391,8 +401,8 @@ const THEMES = {
     // The lips darker than the plate, so a filled plate does not swallow them.
     alpha: { top: '#ffffff', side: '#c6c9d1' }, mod: { top: '#e4e5ea', side: '#b3b7c1' }, accent: { top: '#f2a54e', side: '#c98130' },
     outline: '#b4b7c2', legend: '#24262b', legendAccent: '#2b1a05',
-    selected: '#e8590c', highlighted: '#1c7ed6', highlightedTint: 'rgba(28,126,214,0.22)', second: '#7048e8',
-    secondTint: 'rgba(112,72,232,0.20)', checked: '#2f9e44', checkedTint: 'rgba(47,158,68,0.32)', warning: '#e03131',
+    selected: '#e8590c', highlighted: '#1c7ed6', highlightedTint: 'rgba(28,126,214,0.22)', second: '#bf308f',
+    secondTint: 'rgba(191,48,143,0.20)', checked: '#2f9e44', checkedTint: 'rgba(47,158,68,0.32)', warning: '#e03131',
     pressed: 'rgba(28,100,242,0.50)', hovered: 'rgba(0,0,0,0.08)', dimmed: 'rgba(243,243,245,0.72)',
   },
   Dark: {
@@ -400,8 +410,9 @@ const THEMES = {
     uiAccent: '#4296fa', uiAccentText: '#ffffff', plate: '#1c1d23', plateBorder: '#4b4e5c',
     alpha: { top: '#3a3c48', side: '#2a2b34' }, mod: { top: '#2c2e38', side: '#1f2028' }, accent: { top: '#60482c', side: '#45331f' },
     outline: '#4b4e5c', legend: '#ebebf0', legendAccent: '#f3e3cf',
-    selected: '#f0b43c', highlighted: '#6ec8ff', highlightedTint: 'rgba(110,200,255,0.27)', second: '#be96ff',
-    secondTint: 'rgba(190,150,255,0.27)', checked: '#78dc82', checkedTint: 'rgba(90,200,110,0.43)', warning: '#ff783c',
+    // Light's state hues, lighter (Rico, 2026-10-03): the two standard themes share their colours.
+    selected: '#ff8e61', highlighted: '#71b6ff', highlightedTint: 'rgba(113,182,255,0.27)', second: '#f387c7',
+    secondTint: 'rgba(243,135,199,0.27)', checked: '#78dc82', checkedTint: 'rgba(90,200,110,0.43)', warning: '#ff8b7f',
     pressed: 'rgba(60,110,255,0.67)', hovered: 'rgba(255,255,255,0.13)', dimmed: 'rgba(12,12,16,0.75)',
   },
   Dracula: {
@@ -409,8 +420,11 @@ const THEMES = {
     uiAccent: '#bd93f9', uiAccentText: '#282a36', plate: '#21222c', plateBorder: '#6272a4',
     alpha: { top: '#44475a', side: '#343746' }, mod: { top: '#373949', side: '#2a2c38' }, accent: { top: '#bd93f9', side: '#9471d0' },
     outline: '#6272a4', legend: '#f8f8f2', legendAccent: '#282a36',
-    selected: '#ffb86c', highlighted: '#8be9fd', highlightedTint: 'rgba(139,233,253,0.25)', second: '#ff79c6',
-    secondTint: 'rgba(255,121,198,0.25)', checked: '#50fa7b', checkedTint: 'rgba(80,250,123,0.33)', warning: '#ff5555',
+    // Rico's own theme, free to change (2026-10-03): its states take the shared hues, so its
+    // full palette no longer collides with the command categories. Its purple accent caps share
+    // Behaviour's hue; the band's lightness keeps it legible there.
+    selected: '#ff8e61', highlighted: '#71b6ff', highlightedTint: 'rgba(113,182,255,0.25)', second: '#f387c7',
+    secondTint: 'rgba(243,135,199,0.25)', checked: '#50fa7b', checkedTint: 'rgba(80,250,123,0.33)', warning: '#ff8b7f',
     pressed: 'rgba(241,250,140,0.45)', hovered: 'rgba(255,255,255,0.10)', dimmed: 'rgba(40,42,54,0.75)',
   },
 };
@@ -471,9 +485,38 @@ const modifierShare = () => MODIFIER_SIZES[state.modifierSize];
 const FALLBACKS = '"Noto Sans", "Noto Sans Math", "Noto Sans Symbols 2", "Segoe UI Symbol", sans-serif';
 const fontSpec = (size, weight = 400) => `${weight} ${size}px ${FONTS[state.font]}, ${FALLBACKS}`;
 
+// The accent keycaps -- Esc, Enter -- of Light and Dark (Rico, 2026-10-03: the orange is too loud,
+// and its hue sat on Board's amber). Muted candidates, low chroma -- about a third of the command
+// colours' -- so the cap never competes with a command's band or the selection, at hues away from
+// the categories and the states: sage 130, slate 255, graphite (near neutral). Dracula keeps its
+// own purple.
+const ACCENT_CAPS = {
+  Light: { Sage: { top: '#b4c4a6', side: '#8f9e81', legend: '#1c2512' },
+           Slate: { top: '#afbfd5', side: '#8a9aae', legend: '#18222f' },
+           Graphite: { top: '#bbbec3', side: '#96989d', legend: '#202225' } },
+  Dark:  { Sage: { top: '#4d5b40', side: '#354229', legend: '#e3ebdc' },
+           Slate: { top: '#485669', side: '#313e4f', legend: '#e0e9f4' },
+           Graphite: { top: '#53555a', side: '#3b3d41', legend: '#e6e8eb' } },
+};
+// Slate on Dark (Rico, 2026-10-03: good, could be better): Dark's caps are only 0.09 darker than
+// the slate of before, against 0.20 on Light -- lightness, not hue, was the problem (neutral dark
+// caps barely helped: 0.091 to 0.096). Lifted brings the gap to 0.16 with a light legend at
+// 4.8:1; Pale to 0.32 with a dark legend at 6:1, as Light's. A middle lightness is a trap: the
+// legend reads poorly either way.
+const DARK_SLATES = {
+  'Lifted': { top: '#5a6a80', side: '#415166', legend: '#e8eff9' },
+  'Pale':   { top: '#889ab1', side: '#6e7f95', legend: '#111b28' },
+  'Before': { top: '#485669', side: '#313e4f', legend: '#e0e9f4' },
+};
+function accentCaps(T) {
+  if (state.theme === 'Dark' && state.accentCap === 'Slate') return DARK_SLATES[state.darkSlate];
+  const muted = ACCENT_CAPS[state.theme] && ACCENT_CAPS[state.theme][state.accentCap];
+  return muted || { ...T.accent, legend: T.legendAccent };
+}
+
 const state = {
   preset: 'Cylindrical', font: 'Arimo', size: 'Medium', modifierSize: '3/5', remap: 'Standard', host: 'US',
-  layer: 'Base', commands: 'D′', cmdHeader: '1/2', cmdCase: 'Mixed', cmdPlace: 'Header top', transMark: 'Bottom right', peekStyle: 'Sublegend', noMark: 'Struck + ✕',
+  layer: 'Base', commands: 'D′', cmdHeader: '1/2', cmdCase: 'Mixed', cmdPlace: 'Header top', transMark: 'Bottom right', peekStyle: 'Sublegend', noMark: 'Struck + ✕', selection: 'Neutral', accentCap: 'Slate', darkSlate: 'Lifted',
   theme: 'Dark', style: 'Outlined', plate: 'Filled', classes: 'Off', scene: 'Keymap',
   selected: keyNamed('Q'), focus: keyNamed('Q'), hovered: -1, pressed: keyNamed('G'),
   seen: new Set(KEYS.map((k, i) => (k.row === 0 || ['N', 'A', 'Z', 'G'].includes(k.primary)) ? i : -1).filter(i => i >= 0)),
@@ -511,7 +554,16 @@ const CONTROLS = [
   // found too busy, and colliding with glyphs (Rico, 2026-10-03).
   ['peekStyle', 'Peek', ['Sublegend', 'Strip']],
   // Struck + ✕ chosen (Rico, 2026-10-03): a disabled key stands out from a distance.
-  ['noMark', 'KC_NO', ['Struck + ✕', 'Faint + ✕']],];
+  ['noMark', 'KC_NO', ['Struck + ✕', 'Faint + ✕']],
+  // The selection outline (Rico, 2026-10-03: orange too loud; Neutral chosen): the theme's text colour -- no hue,
+  // so it meets no category, highlight or warning colour and survives colour blindness -- or the
+  // UI accent blue the buttons use -- which merges with the blue highlight during a Vial unlock --
+  // or the orange of before.
+  ['selection', 'Selection', ['Neutral', 'UI blue', 'Orange']],
+  // Seen with Colour classes on.
+  ['accentCap', 'Accent caps', ['Sage', 'Slate', 'Graphite', 'Orange']],
+  ['darkSlate', 'Dark slate', ['Lifted', 'Pale', 'Before']],];
+// (Orange is the accent of before, kept to compare. Slate chosen, Lifted on Dark: Rico, 2026-10-03.)
 
 function buildControls() {
   const root = document.getElementById('controls');
@@ -696,7 +748,8 @@ function draw() {
 
   KEYS.forEach((key, index) => {
     const marks = marksOf(index);
-    const caps = T[state.classes === 'On' ? { a: 'alpha', m: 'mod', x: 'accent' }[key.cls] : 'alpha'];
+    const cls = state.classes === 'On' ? { a: 'alpha', m: 'mod', x: 'accent' }[key.cls] : 'alpha';
+    const caps = cls === 'accent' ? accentCaps(T) : T[cls];
     const outer = key.rects.map(r => inset(R(r), gap, gap, gap, gap));
     layout.keys.push(outer);
 
@@ -718,7 +771,8 @@ function draw() {
 
     // Outlines nest, the first outermost, as in DrawKey().
     let depth = 0;
-    for (const [mark, colour] of [['selected', T.selected], ['warning', T.warning], ['highlighted', T.highlighted], ['second', T.second]]) {
+    const selectedColour = { 'Neutral': T.text, 'UI blue': T.uiAccent, 'Orange': T.selected }[state.selection];
+    for (const [mark, colour] of [['selected', selectedColour], ['warning', T.warning], ['highlighted', T.highlighted], ['second', T.second]]) {
       if (!marks.has(mark)) continue;
       const i = depth + thickness / 2;
       ctx.strokeStyle = colour; ctx.lineWidth = thickness;
@@ -747,7 +801,7 @@ function draw() {
 
   ctx.textBaseline = 'top';
   for (const key of KEYS) {
-    let colour = state.classes === 'On' && key.cls === 'x' ? T.legendAccent : T.legend;
+    let colour = state.classes === 'On' && key.cls === 'x' ? accentCaps(T).legend : T.legend;
     if (key.marks.has('dimmed')) colour = over(colour, T.dimmed);
     // A transparent key shows the layer below, faint, with a small ▽; a KC_NO key the key it
     // disables, faint, with a small ✕ -- struck through too, on that variant.
@@ -774,9 +828,11 @@ function draw() {
 
 const FEATURE_NOTES = '<b>Feature layer</b>, a plausible one: command keys -- QMK behaviours a stock keyboard does not ' +
   "have -- carry a band along the top and a header naming what they act on, both in their category's colour: " +
-  'magenta for behaviour (layers, tap-hold, tap dance, Caps Word), cyan for what goes to the computer (media, mouse, ' +
-  "macros), amber for the keyboard's own settings (lighting, haptic, audio), red for firmware. The colour is a hue; " +
-  'its lightness is solved per keycap face for 4.5:1 on text and 3:1 on the band, so it holds on every theme and ' +
+  'violet for behaviour (layers, tap-hold, tap dance, Caps Word), cyan for what goes to the computer (media, mouse, ' +
+  "macros), amber for the keyboard's own settings (lighting, haptic, audio), red for firmware -- hues chosen to stay " +
+  'apart under the common colour-vision deficiencies, shared by Light and Dark. The colour is a hue; its lightness ' +
+  'is solved per keycap face for 4.5:1 on text and 3:1 on the band -- firmware 7:1 and 4.5:1, so it differs in ' +
+  'lightness as well -- so it holds on every theme and ' +
   "keycap colour. Hover a command key for QMK's name. A transparent key shows what it falls through to -- the " +
   "base layer's keycode, tap-hold keys included -- faint, with a small ▽ in the corner: what VIA and Vial show as ▽ " +
   "alone. T is KC_NO: the key does nothing on this layer, so it shows the key it disables, faint, with a small ✕, " +
@@ -973,20 +1029,20 @@ function drawLegends(ctx, key, unit, colour) {
   // key the band and the top header are the hold's: coloured by what the hold does.
   const T = THEMES[state.theme], feature = key.hold || key.cmd;
   const inkOf = (target, cat = feature && feature.cat) => {
-    const c = cat && ink(key.faceColour, COMMAND_HUES[cat], target) || colour;
+    const c = cat && commandInk(key.faceColour, cat, target) || colour;
     return key.marks.has('dimmed') ? over(c, T.dimmed) : c;
   };
 
   ctx.save();
   ctx.beginPath(); ctx.roundRect(a.x0, a.y0, a.x1 - a.x0, a.y1 - a.y0, key.faceRounding); ctx.clip();
   if (feature) {
-    ctx.fillStyle = inkOf(3);
+    ctx.fillStyle = inkOf('band');
     ctx.fillRect(a.x0, a.y0, a.x1 - a.x0, bandHeight);
   }
   // The hold's header: centred, or at the left with the left placements.
   if (holdHead) {
     ctx.font = fontSpec(holdHead.s, 500);
-    ctx.fillStyle = inkOf(4.5);
+    ctx.fillStyle = inkOf('text');
     const w = ctx.measureText(holdHead.t).width;
     const left = state.cmdPlace === 'Top left' || state.cmdPlace === 'Middle left';
     ctx.fillText(holdHead.t, left ? box.x0 : (box.x0 + box.x1 - w) / 2, holdHead.y);
@@ -995,7 +1051,7 @@ function drawLegends(ctx, key, unit, colour) {
   let y = (centred || middle) && !headerTop ? (box.y0 + box.y1 - total) / 2 : box.y0;
   for (const l of lines) {
     ctx.font = fontSpec(l.s, l.w || 400);
-    ctx.fillStyle = l.ink ? inkOf(4.5, l.ink) : colour;
+    ctx.fillStyle = l.ink ? inkOf('text', l.ink) : colour;
     const w = ctx.measureText(l.t).width;
     const lh = l.lh || 1.12;
     if (l.arrow)
@@ -1088,7 +1144,7 @@ function drawPeek(ctx, key, unit, T) {
   if (state.peekStyle === 'Sublegend') return drawPeekSublegend(ctx, key, unit, T);
   const f = key.peek, a = key.face, p = 0.06 * unit;
   const s = HEADER_SHARES[state.cmdHeader] * SIZES[state.size] * unit, h = s * 1.45;
-  const fill = f.none ? T.muted : ink(key.faceColour, COMMAND_HUES[f.cat], 4.5) || T.legend;
+  const fill = f.none ? T.muted : commandInk(key.faceColour, f.cat, 'text') || T.legend;
   ctx.save();
   ctx.beginPath(); ctx.roundRect(a.x0, a.y0, a.x1 - a.x0, a.y1 - a.y0, key.faceRounding); ctx.clip();
   ctx.fillStyle = fill;
@@ -1115,7 +1171,7 @@ function drawPeekSublegend(ctx, key, unit, T) {
   let t = commandCase(f.none ? 'None' : f.hold || f.name);
   if (ctx.measureText(t).width > room && f.short) t = commandCase(f.short);
   while (t.length > 1 && ctx.measureText(t).width > room) t = t.slice(0, -2) + '…';
-  ctx.fillStyle = f.none ? T.muted : ink(key.faceColour, COMMAND_HUES[f.cat], 4.5) || T.legend;
+  ctx.fillStyle = f.none ? T.muted : commandInk(key.faceColour, f.cat, 'text') || T.legend;
   ctx.fillText(t, a.x1 - p - ctx.measureText(t).width, a.y1 - p - s);
   ctx.restore();
 }
