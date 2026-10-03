@@ -624,8 +624,16 @@ keycap style) and markers (silent on what is there). **Tried first and dropped: 
 along the bottom of each key -- too much at once, and it ran over the glyphs (Rico); the mockup
 keeps it as a switch.
 
-Proposed, not settled: a warning mark where a keymap can lock you on a layer -- TG(1) on layer 0
-with neither TG(1) nor a transparent key at the same position on layer 1; TO and DF alike.
+**Stuck-layer warnings: deferred** (Rico, 2026-10-03) -- too complicated for results that cannot
+be sure. A keymap traps you when a sticky layer key -- TG, tapped TT, TO, DF, layer lock, and
+PDF, which persists the default layer in EEPROM so unplugging does not help -- leads to a state
+with no way back. The same-position rule ("TG(1) on layer 0 needs TG(1) or a transparent key there
+on layer 1") gives false alarms and misses traps; the exact answer is a reachability search over
+layer states, momentary holds included -- small pure code, but it needs QMK's layer semantics
+pinned down from its source, and it cannot see custom keycodes (`QK_KB_*`, `QK_USER_*`), Vial's
+tap dance and combos until their entries are read, nor the board's current default layer.
+**If it comes back: an explicit "Check keymap" button** that roughly checks the keymap on
+demand and words what it finds as possibilities, not a live warning on the board.
 - **Modified keys** (Ctrl+C) are not placed in a category yet.
 
 ## The common screens
