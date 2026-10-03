@@ -534,7 +534,9 @@ const FONTS = { 'System (today)': '"Segoe UI"', 'Arimo': '"Arimo"', 'Inter': '"I
 // GMK's are about half their height and lighter.
 const SIZES = { 'Small': 0.26, 'Medium': 0.30, 'Large': 0.34 };
 const MODIFIER_SIZES = { '1/2': 0.5, '3/5': 0.6, '3/4': 0.75 };
-const SMALLEST_LEGEND = 9;   // px, the modifier text: below it the board stops shrinking and scrolls
+// px, the smallest text on the board -- the header, 1/2 the letter size (Rico, 2026-10-03: 7.5 px
+// headers were too small to read; 9 px is his limit): below it the board stops shrinking and scrolls.
+const SMALLEST_LEGEND = 9;
 const modifierShare = () => MODIFIER_SIZES[state.modifierSize];
 // Behind the legend font, for whatever it lacks -- Noto in Nazg, merged in ImGui.
 const FALLBACKS = '"Noto Sans", "Noto Sans Math", "Noto Sans Symbols 2", "Segoe UI Symbol", sans-serif';
@@ -774,10 +776,11 @@ function draw() {
 
   const plateUnits = state.plate !== 'Off' ? 0.35 : 0;
   const avail = document.getElementById('stage').clientWidth - 32 - leftMargin;
-  // Legends follow the key unit both ways; the board stops shrinking where modifier text would
-  // fall below the smallest legible size, and scrolls instead. Today keeps its 28-64 px range.
+  // Legends follow the key unit both ways; the board stops shrinking where its smallest text --
+  // the header -- would fall below the smallest legible size, and scrolls instead. Today keeps
+  // its 28-64 px range.
   const today = state.preset === 'Today';
-  const smallestUnit = today ? 28 : SMALLEST_LEGEND / (SIZES[state.size] * modifierShare());
+  const smallestUnit = today ? 28 : SMALLEST_LEGEND / (SIZES[state.size] * Math.min(modifierShare(), HEADER_SHARES[state.cmdHeader]));
   const unit = Math.max(smallestUnit, Math.min(today ? 64 : 96, avail / (width + 2 * plateUnits)));
   const pad = plateUnits * unit;
 
@@ -941,7 +944,7 @@ const RULES = 'No legend is ever shrunk to fit: a name goes on one line, else on
               'SA\'s; all of it provisional. Modifier text is a share of the letter size. Arrows are icons, drawn ' +
               'rather than taken from a font, and the space bar is blank on every preset, as on real sets. ' +
               'Legends follow the key size; narrow ' +
-              'the window and the board stops shrinking once modifier text reaches ' + SMALLEST_LEGEND + ' px, then scrolls.';
+              'the window and the board stops shrinking once its smallest text, the header, reaches ' + SMALLEST_LEGEND + ' px, then scrolls.';
 for (const preset of PRESETS) LEGEND_NOTES[preset] = LEGEND_NOTES[preset].replace('%RULES%', RULES);
 
 // The command header's size, as a share of the letters'.

@@ -484,8 +484,8 @@ styling of the rest of the window.
 
 **Modifier text is 3/5 of the letter size** by default (Rico, 2026-10-03), near GMK's
 proportions: at that size nothing on the Model F needs a short form or a cut, in either family.
-Its cost: with modifier text held at 9 px or more, the Model F needs about 1170 px of width
-before the board scrolls.
+Its cost: with the smallest text held at 9 px -- the header, below -- the Model F needs about
+1420 px of width before the board scrolls.
 
 **Names of the modifiers** (Rico, 2026-10-03):
 - **The GUI key prints "Win"**, after QMK's own name (`KC_LWIN`, `KC_RWIN`) -- "WIN" on
@@ -592,9 +592,37 @@ and placement constrained them too much, SA's capitals most. So, on both familie
   it, which set command legends 6.8 px lower than their neighbours' at a 90 px key. The mockup
   keeps Header top, Top left, Middle left and Centred to compare.
 
-The cost to weigh: the board stops shrinking when modifier text reaches 9 px, where a header at
-1/2 the letter size is about 7.5 px. If that reads badly on screen, the 9 px floor moves to the
-header and the board scrolls a little sooner.
+**The floor is on the header** (Rico, 2026-10-03, judged in the mockup at 100% zoom on his QHD
+screen): **no text on the board below 9 px**, and the header is the smallest. The board first
+stopped shrinking at 9 px of modifier text, which left headers at 7.5 px -- too small to read; 3/5
+of the letter size, 9 px there, was his limit. Two ways out were weighed:
+- **Headers at 3/5, the floor unchanged** -- rejected: at 9 px on a 50 px key, 11 headers no
+  longer fit even shortened (Firmware, One shot, Set base, Combos, Tap term, Caps Wd, the Magic
+  swaps' Ctl/Caps, Esc/Caps, Ctl/Super, Alt/Super, Opt/Cmd), and each would have needed a terser
+  form -- worst for Firmware, the category that must read best.
+- **Headers at 1/2, the floor moved to them** -- chosen: at the smallest size every legend is 20%
+  larger (keys 60 px, letters 18, modifier text 10.8, headers 9), proportions unchanged, so every
+  check in short-forms.md still holds. The cost: the board scrolls sooner -- the Model F (22.5
+  units) below about 1420 px of width, against 1190 before. Above the floor nothing changes.
+
+The width below which a board scrolls, plate included, and with the section column (150 px) a
+board with several sections shows:
+
+| Board | Units | Scrolls below | With the column |
+|---|---|---|---|
+| 60% | 15 | 970 px | 1120 px |
+| 65%, 75% -- the most popular (Rico) | 16 | 1030 px | 1180 px |
+| TKL | 18.25 | 1170 px | 1320 px |
+| Full size, Model F B104 | 22.5 | 1420 px | 1570 px |
+| Model F F122 / B122, two more columns on the left (estimated) | about 25 | 1570 px | 1720 px |
+
+A window half a QHD screen wide (1280 px, Rico's) holds a 65% or 75% with the column shown and a
+TKL without it; the big boards scroll there, and fit a 1920 px window without the column.
+
+Nazg scales its UI by the display's content scale (`SDL_GetDisplayContentScale`), so these are the
+browser's CSS pixels: the mockup at 100% zoom shows the sizes Nazg will draw. Nazg's text is softer
+than Firefox's, though -- ImGui without FreeType does not hint -- so the floor is to confirm in
+Nazg once the board is drawn; it is one constant.
 
 - **Layers: the layer large, the operation as the header** -- "Hold / L2" for MO(2), "Toggle",
   "To", "Once", "Base", "Tap tog". Ready for layer names: "Hold / Nav" once a layer has one.
@@ -1159,6 +1187,11 @@ Studio backend needs anyway. Flashing, QMK Toolbox's other job, is not part of t
     button is removed, so it is built then. Until then an unplugged board is noticed by a
     failed request and the list needs Refresh.
 - **Which sections fold the board away**, and whether folding it confuses more than it helps.
+- **Folding the section column to icons in a narrow window** (Rico, 2026-10-03). The column is
+  150 px, shown on every board with more than one section -- most Vial boards, once Macros, Tap
+  Dance and Combos are sections -- and with the 9 px floor it is what pushes a TKL past a 1280 px
+  window ("The floor is on the header"). Icons only, about 40 px, would give that back. Not
+  needed while Keymap is the only section: to settle when the column gets its second one.
 - **Row labels on a board whose rows share a line** (Rico, 2026-10-01, from the mockup): on
   the Model F, R3 and R4 both have their leftmost key on the Caps Lock row, so spreading them
   apart puts R4 between two rows and nudges R2 off its own. To revisit when the board's look

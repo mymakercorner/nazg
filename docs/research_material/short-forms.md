@@ -12,8 +12,9 @@ A legend never shrinks. The renderer tries, in order: the full form on one line,
 (split at a space, or after the `_` of a QMK name), the short form on one line, on two, then cut
 with "…". So short forms exist only where the full form fails on a 1u key.
 
-**Checked.** Every entry below fits a 1u key at the smallest board size -- modifier text 9 px,
-header 7.5 px (1/2 the letter size), 34 px of room -- in Arimo, at both families' weights, and
+**Checked.** Every entry below fits a 1u key at any board size -- measured at modifier text 9 px,
+header 7.5 px (1/2 the letter size), 34 px of room; the smallest board is now 20% larger (header
+9 px, ui-design.md "The floor is on the header"), and every proportion is the same -- in Arimo, at both families' weights, and
 with Windows, Mac and Linux modifier names: 2,402 checks on one line, 166 on two, **none cut**.
 Widths measured in the mockup's canvas, per character; Arimo applies no kerning to these strings.
 
