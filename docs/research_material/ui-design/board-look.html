@@ -190,6 +190,125 @@ const REMAPS = {
   'Caps ↔ Ctrl': { CAPS: 'LCTL', LCTL: 'CAPS' },
   'Ctrls swapped': { LCTL: 'RCTL', RCTL: 'LCTL' },
 };
+// A plausible feature layer -- not read off the board -- to see command keys: QMK behaviours a
+// stock keyboard does not have. Each is a category, a header, the main legend and QMK's own
+// names, which hover shows. The keys it leaves out are transparent and drawn faint.
+// Short forms (Rico, 2026-10-03): built from QMK's label with a word table -- Brightness Bri,
+// Previous Prev, Volume Vol, Button Btn, Wheel Wh... -- plus overrides; + and − for a quantity,
+// Up and Dn for a direction; a toggle prints On/Off under the feature's header. Layers: the layer
+// large, the operation as the header.
+// The categories, four -- the hues free between the state colours (Rico, 2026-10-03):
+//   beh    behaviour: layers, tap-hold holds, one-shot, tap dance, Caps Word -- magenta
+//   host   sent to the computer: media, mouse, system, macros -- cyan
+//   board  the keyboard's own settings: lighting, haptic, audio -- amber
+//   fw     firmware, the keys that can hurt: Boot, Reboot, Clear EEPROM -- red
+const COMMAND_HUES = { beh: 345, host: 195, board: 75, fw: 27 };
+// Headers have short forms too, for a 1u key: a header is one line, never wrapped, so its
+// short form is what fits there.
+const HEADER_SHORT = { 'Tap dance': 'Dance', 'Caps Word': 'Caps Wd' };
+const C = (cat, head, name, qmk, full, short) => ({ cat, head, name, qmk, full, short });
+const FEATURES = {
+  ESC:  C('fw', 'Firmware', 'Boot', 'QK_BOOT', 'Bootloader'),
+  F1:   C('host', 'Media', 'Mute', 'KC_MUTE', 'Mute'),
+  F2:   C('host', 'Media', 'Vol −', 'KC_VOLD', 'Volume Down'),
+  F3:   C('host', 'Media', 'Vol +', 'KC_VOLU', 'Volume Up'),
+  F4:   C('host', 'Media', 'Prev', 'KC_MPRV', 'Previous'),
+  F5:   C('host', 'Media', 'Play', 'KC_MPLY', 'Play/Pause'),
+  F6:   C('host', 'Media', 'Next', 'KC_MNXT', 'Next'),
+  F7:   C('host', 'Screen', 'Bri −', 'KC_BRID', 'Brightness Down'),
+  F8:   C('host', 'Screen', 'Bri +', 'KC_BRIU', 'Brightness Up'),
+  // One lighting system on the board, so no prefix: the header says Light. With two, it would
+  // name the system -- Glow, Matrix, LEDs, Backlit.
+  F9:   C('board', 'Light', 'On/Off', 'UG_TOGG', 'Toggle RGB Underglow'),
+  F10:  C('board', 'Light', 'Mode +', 'UG_NEXT', 'RGB Underglow Next'),
+  F11:  C('board', 'Light', 'Hue +', 'UG_HUEU', 'RGB Underglow Hue Up'),
+  F12:  C('board', 'Light', 'Bri +', 'UG_VALU', 'RGB Underglow Value Up'),
+  PSCR: C('board', 'Haptic', 'On/Off', 'HF_TOGG', 'Toggle Haptic'),
+  SCRL: C('board', 'Haptic', 'Dwell −', 'HF_DWLD', 'Haptic Dwell Down'),
+  PAUS: C('board', 'Haptic', 'Dwell +', 'HF_DWLU', 'Haptic Dwell Up'),
+  KC_1: C('beh', 'To', 'L0', 'TO(0)', 'Layer 0 on, every other off'),
+  KC_2: C('beh', 'Toggle', 'L2', 'TG(2)', 'Toggle layer 2'),
+  KC_3: C('beh', 'Once', 'L2', 'OSL(2)', 'Layer 2 for the next key'),
+  KC_4: C('beh', 'Base', 'L0', 'DF(0)', 'Default layer 0'),
+  KC_5: C('beh', 'Tap tog', 'L2', 'TT(2)', 'Layer 2 while held, toggled when tapped'),
+  KC_Q: C('host', 'Mouse', 'Btn 1', 'MS_BTN1', 'Mouse Button 1'),
+  KC_W: C('host', 'Mouse', 'Up', 'MS_UP', 'Mouse Up'),
+  KC_E: C('host', 'Mouse', 'Btn 2', 'MS_BTN2', 'Mouse Button 2'),
+  KC_R: C('host', 'Mouse', 'Wh Up', 'MS_WHLU', 'Mouse Wheel Up'),
+  KC_A: C('host', 'Mouse', 'Left', 'MS_LEFT', 'Mouse Left'),
+  KC_S: C('host', 'Mouse', 'Down', 'MS_DOWN', 'Mouse Down'),
+  KC_D: C('host', 'Mouse', 'Right', 'MS_RGHT', 'Mouse Right'),
+  KC_F: C('host', 'Mouse', 'Wh Dn', 'MS_WHLD', 'Mouse Wheel Down'),
+  KC_G: C('board', 'Audio', 'On/Off', 'AU_TOGG', 'Toggle Audio'),
+  KC_Z: C('host', 'Macro', 'M0', 'MC_0', 'Macro 0'),
+  KC_X: C('host', 'Macro', 'M1', 'MC_1', 'Macro 1'),
+  KC_C: C('beh', 'Tap dance', 'TD 0', 'TD(0)', 'Tap dance 0'),
+  KC_V: C('beh', 'Caps Word', 'On/Off', 'CW_TOGG', 'Toggle Caps Word'),
+  KC_P: C('fw', 'Firmware', 'Reboot', 'QK_RBT', 'Reboot'),
+  KC_LBRC: C('fw', 'Firmware', 'Clear EEPROM', 'EE_CLR', 'Clear EEPROM', 'Clr EE'),
+  RALT: C('beh', 'Hold', 'L2', 'MO(2)', 'Layer 2 while held'),
+};
+
+// Tap-hold keys, on the base layer where they live (Rico, 2026-10-03). The hold is the header --
+// coloured, under the band, as every command's -- and the tap's legends go below as they would on
+// their own key: Esc, a blank space bar, a character pair, an AltGr character. The hold prints
+// plain, "Ctrl" rather than "Hold Ctrl": short enough for a pair to fit under it. `tap` names a
+// named keycode; a character key keeps its host layout's legends.
+const BASE_HOLDS = {
+  CAPS: { cat: 'beh', tap: 'ESC', hold: 'Ctrl', qmk: 'MT(MOD_LCTL, KC_ESC)', full: 'Esc when tapped, Left Control when held' },
+  SPC:  { cat: 'beh', tap: 'SPC', hold: 'L1', qmk: 'LT(1, KC_SPC)', full: 'Space when tapped, layer 1 when held' },
+  KC_1: { cat: 'beh', hold: 'L1', qmk: 'LT(1, KC_1)', full: 'The 1 key when tapped, layer 1 when held' },
+  KC_2: { cat: 'beh', hold: 'L2', qmk: 'LT(2, KC_2)', full: 'The 2 key when tapped, layer 2 when held' },
+  // A tap that is itself a command keeps its own header, in its own colour, under the hold's.
+  SCRL: { cat: 'beh', hold: 'L1', tapCmd: { cat: 'host', head: 'Media', name: 'Play' },
+          qmk: 'LT(1, KC_MPLY)', full: 'Play/Pause when tapped, layer 1 when held' },
+  // A Vial tap dance whose tap and hold are both commands: drawn as a tap-hold, the hold's header
+  // coloured by what the hold does -- red here, so a Boot behind a harmless tap shows. Its double
+  // tap and tap + hold are for hover and the tap dance panel.
+  PAUS: { cat: 'fw', hold: 'Boot', tapCmd: { cat: 'host', head: 'Media', name: 'Play' },
+          qmk: 'TD(0)', full: 'Tap dance 0: Play/Pause when tapped, Bootloader when held' },
+};
+
+// The colour of a category on one keycap face: the hue is the category's, the lightness solved
+// for that face -- in OKLCH, so the hue holds while the lightness moves. From the face's own
+// lightness it walks darker on a light cap, lighter on a dark one, and stops at the first that
+// reaches `target` (WCAG: 4.5 for text, 3 for a graphic), so the colour stays as vivid as
+// legibility allows; chroma is clamped to sRGB. Null where no lightness reaches it: the text then
+// takes the legend colour. A pure function, so a test can assert every theme, keycap class and
+// category.
+const srgbToLinear = c => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+const linearToSrgb = c => c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
+const luminance = v => 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+const contrast = (a, b) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+function oklchToLinear(L, C, h) {
+  const a = C * Math.cos(h * Math.PI / 180), b = C * Math.sin(h * Math.PI / 180);
+  const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3, m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3,
+        s = (L - 0.0894841775 * a - 1.2914855480 * b) ** 3;
+  return [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s, -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+          -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s];
+}
+const inGamut = v => v.every(x => x >= 0 && x <= 1);
+function clampChroma(L, C, h) {
+  if (inGamut(oklchToLinear(L, C, h))) return oklchToLinear(L, C, h);
+  let lo = 0, hi = C;
+  for (let i = 0; i < 20; ++i) { const c = (lo + hi) / 2; inGamut(oklchToLinear(L, c, h)) ? lo = c : hi = c; }
+  return oklchToLinear(L, lo, h);
+}
+const inkCache = new Map();
+function ink(face, hue, target) {
+  const id = `${face}|${hue}|${target}`;
+  if (inkCache.has(id)) return inkCache.get(id);
+  const yFace = luminance(rgba(face).slice(0, 3).map(c => srgbToLinear(c / 255))), darker = yFace > 0.18;
+  let found = null;
+  for (let i = 0; i <= 200 && !found; ++i) {
+    const v = clampChroma(darker ? 1 - i / 200 : i / 200, 0.16, hue);
+    if (contrast(luminance(v), yFace) >= target)
+      found = `rgb(${v.map(x => Math.round(255 * linearToSrgb(Math.min(1, Math.max(0, x))))).join(',')})`;
+  }
+  inkCache.set(id, found);
+  return found;
+}
+
 // Six host layouts, taken from src/ui/NazgHostLayoutTable.cpp: per basic keycode, [plain, Shift,
 // AltGr]. A position a layout does not list keeps the keycode's own legend -- US lists only its
 // symbols, so its letters come from the keycodes.
@@ -215,6 +334,23 @@ function applyRemap() {
     key.code = REMAPS[state.remap][key.home] || key.home;
     key.named = NAMED[key.code];
     key.primary = key.named.qmk;
+  }
+}
+
+// The feature layer over the base one, or the base layer's tap-hold keys. Today prints QMK's
+// notation for layers and tap-hold, QMK's label for the rest.
+function applyLayer() {
+  for (const key of KEYS) {
+    const f = state.layer === 'Features' ? FEATURES[key.home] || FEATURES[key.kc]
+                                         : BASE_HOLDS[key.home] || BASE_HOLDS[key.kc] || null;
+    key.feature = f;
+    key.cmd = f && !f.hold ? f : f && f.tapCmd ? { ...f.tapCmd, qmk: f.qmk, full: f.full } : null;
+    key.hold = f && f.hold ? f : null;
+    key.trans = state.layer === 'Features' && !f;
+    if (!f) continue;
+    if (f.tap) { key.code = f.tap; key.named = NAMED[f.tap]; }
+    key.primary = f.qmk.includes('(') ? f.qmk : f.full;
+    key.secondary = '';
   }
 }
 
@@ -326,6 +462,7 @@ const fontSpec = (size, weight = 400) => `${weight} ${size}px ${FONTS[state.font
 
 const state = {
   preset: 'Cylindrical', font: 'Arimo', size: 'Medium', modifierSize: '3/5', remap: 'Standard', host: 'US',
+  layer: 'Base', commands: 'D′', cmdHeader: '1/2', cmdCase: 'Mixed', cmdPlace: 'Header top',
   theme: 'Dark', style: 'Outlined', plate: 'Filled', classes: 'Off', scene: 'Keymap',
   selected: keyNamed('Q'), focus: keyNamed('Q'), hovered: -1, pressed: keyNamed('G'),
   seen: new Set(KEYS.map((k, i) => (k.row === 0 || ['N', 'A', 'Z', 'G'].includes(k.primary)) ? i : -1).filter(i => i >= 0)),
@@ -344,7 +481,19 @@ const CONTROLS = [
   ['size', 'Size', Object.keys(SIZES)],
   ['remap', 'Keymap', Object.keys(REMAPS)],
   ['host', 'Host layout', Object.keys(HOSTS)],
-  ['modifierSize', 'Modifier size', Object.keys(MODIFIER_SIZES)],];
+  ['modifierSize', 'Modifier size', Object.keys(MODIFIER_SIZES)],
+  ['layer', 'Layer', ['Base', 'Features']],
+  // D′: the band and the header in the category's colour, the main legend in the legend's.
+  // D: the main legend coloured too. Rico chose D′ (2026-10-03); D stays to compare.
+  ['commands', 'Commands', ['D′', 'D']],
+  'break',
+  // Command keys free of the family's rules (Rico, 2026-10-03): the coloured header at a share of
+  // the letter size, mixed case on spherical sets too, and placements to compare -- on both
+  // families.
+  ['cmdHeader', 'Header size', ['1/2', '3/5']],
+  ['cmdCase', 'Command case', ['Family', 'Mixed']],
+  // The same placements on both families (Rico, 2026-10-03); Header top is the default.
+  ['cmdPlace', 'Command placement', ['Header top', 'Top left', 'Middle left', 'Centred']],];
 
 function buildControls() {
   const root = document.getElementById('controls');
@@ -459,6 +608,7 @@ const LABEL_FONT = '13px "Segoe UI", Helvetica, Arial, sans-serif';
 function draw() {
   applyHost();
   applyRemap();
+  applyLayer();
   const T = THEMES[state.theme], S = STYLES[state.style], scene = SCENES[state.scene];
   const root = document.documentElement.style;
   for (const [name, value] of [['window', T.window], ['menubar', T.menubar], ['text', T.text], ['muted', T.muted],
@@ -552,6 +702,8 @@ function draw() {
       depth += thickness;
     }
     key.face = faces[0];
+    key.faceColour = caps.top;
+    key.faceRounding = S.face ? S.face.rounding * unit : rounding;
     key.centre = { x: (outer[0].x0 + outer[0].x1) / 2, y: (outer[0].y0 + outer[0].y1) / 2 };
     key.marks = marks;
   });
@@ -573,13 +725,17 @@ function draw() {
   for (const key of KEYS) {
     let colour = state.classes === 'On' && key.cls === 'x' ? T.legendAccent : T.legend;
     if (key.marks.has('dimmed')) colour = over(colour, T.dimmed);
+    // A transparent key on the feature layer shows the layer below, faint -- provisional.
+    ctx.globalAlpha = key.trans ? 0.28 : 1;
     if (today) drawTodayLegends(ctx, key, S, unit, legendSize, colour);
     else drawLegends(ctx, key, unit, colour);
+    ctx.globalAlpha = 1;
   }
 
   if (scene.rulers) drawRulers(ctx, T, leftMargin, topMargin, labelGap);
 
   const notes = [scene.notes, LEGEND_NOTES[state.preset]];
+  notes.push(state.layer === 'Features' ? FEATURE_NOTES : HOLD_NOTES);
   if (state.style === 'Outlined' || state.scene !== 'Keymap')
     notes.push('The outlines on the ISO Enter are still drawn per rectangle; Nazg will draw them along the key\'s contour.');
   notes.push('<b>Model F Labs B104</b>, from its real definition, at choice 0 of every layout option. The keymap is a ' +
@@ -587,6 +743,19 @@ function draw() {
              '<b>Colour classes</b> need the parser to keep KLE colours, which it drops today.');
   document.getElementById('notes').innerHTML = notes.map(n => `<p>${n}</p>`).join('');
 }
+
+const FEATURE_NOTES = '<b>Feature layer</b>, a plausible one: command keys -- QMK behaviours a stock keyboard does not ' +
+  "have -- carry a band along the top and a header naming what they act on, both in their category's colour: " +
+  'magenta for behaviour (layers, tap-hold, tap dance, Caps Word), cyan for what goes to the computer (media, mouse, ' +
+  "macros), amber for the keyboard's own settings (lighting, haptic, audio), red for firmware. The colour is a hue; " +
+  'its lightness is solved per keycap face for 4.5:1 on text and 3:1 on the band, so it holds on every theme and ' +
+  "keycap colour. Hover a command key for QMK's name. Transparent keys show the base layer faint, provisionally.";
+const HOLD_NOTES = '<b>Tap-hold keys</b> on the base layer: Caps Lock is Esc tapped and Ctrl held, the space bar ' +
+  'layer 1 held, 1 and 2 layers 1 and 2 held. The hold is the header, under the band; the tap keeps its own legends ' +
+  'below -- a character pair packs tighter, and where even that does not fit (Large size) the Shift character goes. ' +
+  'Try the French host layout for a key with four legends. Scroll Lock is LT(1, KC_MPLY): its tap is a command, ' +
+  'with its own header in its own colour. Pause is a Vial tap dance, Play tapped and Boot held: the band and the ' +
+  'top header take the colour of what the hold does, red here.';
 
 const LEGEND_NOTES = {
   'Today': '<b>Legends: today.</b> What NazgBoardView draws now: QMK\'s labels, the Shift legend top left and the main ' +
@@ -603,6 +772,11 @@ const RULES = 'No legend is ever shrunk to fit: a name goes on one line, else on
               'Legends follow the key size; narrow ' +
               'the window and the board stops shrinking once modifier text reaches ' + SMALLEST_LEGEND + ' px, then scrolls.';
 for (const preset of PRESETS) LEGEND_NOTES[preset] = LEGEND_NOTES[preset].replace('%RULES%', RULES);
+
+// The command header's size, as a share of the letters'.
+const HEADER_SHARES = { '1/2': 0.5, '3/5': 0.6 };
+// A command's words: capitals on spherical sets when commands follow the family, else as written.
+const commandCase = t => state.preset === 'Spherical' && state.cmdCase === 'Family' ? t.toUpperCase() : t;
 
 // What one named key says, as lines of {t, s, w}: on one line, two lines, the short form, or cut
 // -- never shrunk. `fits` measures at the given size against the room on the key.
@@ -640,10 +814,26 @@ function legendLines(ctx, key, unit, W, H) {
   const width = (t, s, w = 400) => { ctx.font = fontSpec(s, w); return ctx.measureText(t).width; };
   const fits = Object.assign((t, s, w = 400) => width(t, s, w) <= W, { width });
 
+  // A command key: its header, then the main legend on what room is left -- one line, two, the
+  // short form, or cut. The header is at the weight of letters, so a coloured header stays legible.
+  if (key.cmd) {
+    const up = commandCase;
+    // The header is one line, at its own size: its name, its short form, or cut.
+    const Hs = HEADER_SHARES[state.cmdHeader] * A;
+    const headShort = up(HEADER_SHORT[key.cmd.head] || key.cmd.head);
+    const head = { ...textChain(up(key.cmd.head), headShort, Hs, W, Hs * WORD_LINE, fits, 500)[0], ink: key.cmd.cat };
+    const name = up(key.cmd.name), short = up(key.cmd.short || key.cmd.name);
+    const main = textChain(name, short, M, W, H - Hs * WORD_LINE, fits, modifierWeight);
+    if (state.commands === 'D') main.forEach(l => l.ink = key.cmd.cat);
+    return [head, ...main];
+  }
+
   // A character key is one legend or a pair by what the host layout gives it -- on Greek the
   // Q position types ; and : -- with the Shift character on top.
+  // Under a tap-hold header the pair packs tighter -- line height 1.0, the glyphs unchanged.
   if (key.chars) return key.chars.shifted
-    ? [{ t: key.chars.shifted, s: A, w: 500 }, { t: key.chars.plain, s: A, w: 500 }]
+    ? [{ t: key.chars.shifted, s: A, w: 500, lh: key.hold ? 1.0 : undefined },
+       { t: key.chars.plain, s: A, w: 500, lh: key.hold ? 1.0 : undefined }]
     : [{ t: key.chars.plain, s: A, w: 500 }];
 
   const n = key.named;
@@ -708,7 +898,21 @@ function opticalShift(ctx, text) {
 function drawLegends(ctx, key, unit, colour) {
   const a = key.face, p = 0.10 * unit;
   const box = { x0: a.x0 + p, y0: a.y0 + p, x1: a.x1 - p, y1: a.y1 - p };
-  const lines = legendLines(ctx, key, unit, box.x1 - box.x0, box.y1 - box.y0);
+  const bandHeight = Math.max(2, 0.055 * unit);
+  // A tap-hold key's hold is its header, right under the band -- the top padding goes, and most
+  // of the bottom's -- and the tap's legends take the room below.
+  let holdHead = null;
+  if (key.hold) {
+    const s = HEADER_SHARES[state.cmdHeader] * SIZES[state.size] * unit;
+    holdHead = { t: commandCase(key.hold.hold), s, y: a.y0 + bandHeight + 0.02 * unit };
+    box.y0 = holdHead.y + s * WORD_LINE;
+    box.y1 = a.y1 - 0.05 * unit;
+  }
+  let lines = legendLines(ctx, key, unit, box.x1 - box.x0, box.y1 - box.y0);
+  // Where a pair does not fit under the header -- Large size -- the Shift character goes, rather
+  // than any glyph shrinking; hover still gives it.
+  const height = ls => ls.reduce((h, l) => h + l.s * (l.lh || 1.12), 0);
+  if (holdHead && key.chars && lines.length === 2 && height(lines) > box.y1 - box.y0 + 0.5) lines = [lines[1]];
   // On cylindrical sets, as on Rico's GMK Dolch R5: a 1u modifier centred both ways, as GMK's
   // Delete, End and Pg Dn; wider modifiers and the function row -- F-keys, and Esc by its
   // `place` -- at the left, centred vertically. Letters, pairs and numpad digits keep the top
@@ -719,16 +923,46 @@ function drawLegends(ctx, key, unit, colour) {
   const oneUnit = key.rects.length === 1 && key.rects[0].w <= 1 && key.rects[0].h <= 1;
   const place = key.named && key.named.place;
   // Arrow keys keep the top left on cylindrical sets too, as on Rico's Dolch R5.
-  const centred = spherical || place === 'centre' || (kind === 'mod' && oneUnit && !place);
-  const middle = !centred && (kind === 'fn' || kind === 'mod' || place === 'middle left');
+  // A command key reads from its header down, placed the same on both families by the strategy
+  // chosen: Header top pins the header to the top, centred, and centres the main legend in the
+  // room below.
+  const command = !!key.cmd;
+  const cmdPlace = command && state.cmdPlace;
+  const centred = command ? cmdPlace === 'Centred' || cmdPlace === 'Header top'
+                          : spherical || place === 'centre' || (kind === 'mod' && oneUnit && !place);
+  const middle = command ? cmdPlace === 'Middle left'
+                         : !centred && (kind === 'fn' || kind === 'mod' || place === 'middle left');
   const total = lines.reduce((h, l) => h + l.s * (l.lh || 1.12), 0);
+  const headerTop = cmdPlace === 'Header top', headHeight = headerTop ? lines[0].s * (lines[0].lh || 1.12) : 0;
+
+  // A command's colours: the band along the top of the face, and the header -- and on D the main
+  // legend -- in its category's hue, solved for this face. Dimmed with the key. On a tap-hold
+  // key the band and the top header are the hold's: coloured by what the hold does.
+  const T = THEMES[state.theme], feature = key.hold || key.cmd;
+  const inkOf = (target, cat = feature && feature.cat) => {
+    const c = cat && ink(key.faceColour, COMMAND_HUES[cat], target) || colour;
+    return key.marks.has('dimmed') ? over(c, T.dimmed) : c;
+  };
 
   ctx.save();
-  ctx.beginPath(); ctx.rect(a.x0, a.y0, a.x1 - a.x0, a.y1 - a.y0); ctx.clip();
+  ctx.beginPath(); ctx.roundRect(a.x0, a.y0, a.x1 - a.x0, a.y1 - a.y0, key.faceRounding); ctx.clip();
+  if (feature) {
+    ctx.fillStyle = inkOf(3);
+    ctx.fillRect(a.x0, a.y0, a.x1 - a.x0, bandHeight);
+  }
+  // The hold's header: centred, or at the left with the left placements.
+  if (holdHead) {
+    ctx.font = fontSpec(holdHead.s, 500);
+    ctx.fillStyle = inkOf(4.5);
+    const w = ctx.measureText(holdHead.t).width;
+    const left = state.cmdPlace === 'Top left' || state.cmdPlace === 'Middle left';
+    ctx.fillText(holdHead.t, left ? box.x0 : (box.x0 + box.x1 - w) / 2, holdHead.y);
+  }
   ctx.fillStyle = colour;
-  let y = centred || middle ? (box.y0 + box.y1 - total) / 2 : box.y0;
+  let y = (centred || middle) && !headerTop ? (box.y0 + box.y1 - total) / 2 : box.y0;
   for (const l of lines) {
     ctx.font = fontSpec(l.s, l.w || 400);
+    ctx.fillStyle = l.ink ? inkOf(4.5, l.ink) : colour;
     const w = ctx.measureText(l.t).width;
     const lh = l.lh || 1.12;
     if (l.arrow)
@@ -736,6 +970,7 @@ function drawLegends(ctx, key, unit, colour) {
     else
       ctx.fillText(l.t, centred ? (box.x0 + box.x1 - w) / 2 : box.x0, y + l.s * (lh - 1) / 2 + opticalShift(ctx, l.t));
     y += l.s * lh;
+    if (headerTop && l === lines[0]) y = (y + box.y1 - (total - headHeight)) / 2;
   }
 
   // A second legend in a bottom corner -- cylindrical only for now: where SA puts the numpad's,
@@ -745,7 +980,8 @@ function drawLegends(ctx, key, unit, colour) {
   // always, where the host layout has one: functional, so nothing to switch off (Rico,
   // 2026-10-03). Plain US has no AltGr level, so a US board is unchanged.
   // Letter weight, a little smaller than the letters.
-  if (key.chars && key.chars.altgr) {
+  ctx.fillStyle = colour;
+  if (key.chars && key.chars.altgr && !key.cmd) {
     const s = 0.8 * SIZES[state.size] * unit;
     ctx.font = fontSpec(s, 400);
     const w = ctx.measureText(key.chars.altgr).width;
@@ -845,6 +1081,9 @@ canvas.addEventListener('mousemove', e => {
   const h = hit(e);
   if (h === state.hovered) return;
   state.hovered = h;
+  // Hover gives a command key's full meaning: QMK's name and what it does.
+  const f = h >= 0 && KEYS[h].feature;
+  canvas.title = f ? `${f.qmk} -- ${f.full}` : '';
   if (h >= 0 && state.scene === 'Matrix view') state.focus = h;   // the focus stays where the mouse left it
   draw();
 });

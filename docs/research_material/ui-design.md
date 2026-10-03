@@ -278,7 +278,8 @@ Or settle some questions first.
   to 60% goes. The chain becomes: the full label on one line, two lines, the short form or an
   icon -- never smaller -- so short forms are designed to fit a 1u key; past that, a cut with
   "…".
-- **Short names for legends that do not fit**: agreed; the names themselves decided later.
+- **Short names for legends that do not fit**: agreed; the names themselves decided later --
+  see "Short forms and command keys" below.
 - **Icons, text, or both**: keycap sets print modifiers as icons, as text, or as icon and text,
   and people prefer each; all three to be tried.
 - **Placement follows the keycap family**: top left on cylindrical keycaps, centred on
@@ -319,9 +320,10 @@ Looked at 2026-10-02, from the makers' own pictures:
   kit uses the **ISO 9995-7** keyboard symbols -- ↖ Home, ↘ End, ⇞ ⇟ the page keys, ⌦ Delete, a
   pause sign, a printer for Print Screen -- most of which Unicode has, in Miscellaneous
   Technical: ⎋ ⌫ ⌦ ⇥ ⇪ ⏎ ⎙ ⎀.
-- **Keyreative KAT Operator** ([its page](https://keyreative.store/products/kat-operator-thickened-double-shot-pbt-keycaps)):
+- **Keyreative KAT Operator**, designed by Biip ([its page](https://keyreative.store/products/kat-operator-thickened-double-shot-pbt-keycaps)):
   spherical, centred letters in a bold geometric face, **every modifier an icon** (⇥, ⇪, ⇧,
-  ⌃, ⌥). And **second legends in another colour**: the function layer printed on the same
+  ⌃, ⌥). And **second legends in another colour** -- a choice of this set, not of KAT keycaps
+  in general: the function layer printed on the same
   caps -- F13 to F20 under F1 to F8, symbols beside the Q row's letters -- and the Mac ⌘ beside
   the GUI icon. Nazg's counterpart would be another layer's keycode as a coloured sublegend;
   the legend slots already have room for it.
@@ -481,6 +483,114 @@ them, as GMK Neue drew its own.
 placement depends on a global setting no section should know, so a key carries its legend with
 its class and the renderer places it by the preset. The twelve explicit slots stay for sections
 whose positions mean something themselves, as the Leyden Jar's level view.
+
+#### Short forms and command keys
+
+Settled 2026-10-03 with Rico, shown in the mockup's *Layer: Features*. Beyond the standard keys,
+some 600 named keycodes remain once steno and MIDI are left out -- too many to write by hand,
+and most of QMK's labels are *system + action* ("RGB Matrix Saturation Down").
+
+**Short forms are generated, with overrides.**
+- A **word table** of a few dozen entries, applied word by word to QMK's label: Brightness Bri,
+  Saturation Sat, Speed Spd, Previous Prev, Volume Vol, Button Btn, Wheel Wh, Acceleration Acc,
+  Bluetooth BT... New QMK keycodes get a short form with no new entry.
+- **Overrides** per keycode where the rule reads badly -- data, as the placement exceptions are.
+- **+ and − for a quantity, Up and Dn for a direction**: Vol +, Hue +, Dwell −, but Pg Dn, Wh Dn.
+- **A toggle prints On/Off under the feature's header**: HF_TOGG is "Haptic / On/Off"; the
+  explicit forms keep their word.
+- **The last resort is QMK's own short name** (SQ_TMPU) -- seven characters at most by QMK's
+  convention, so it always fits 1u -- for what nobody types on a configurator board: joystick,
+  programmable buttons, the sequencer, the AS/400 keys.
+- Spherical sets: the same forms in capitals, plus overrides where capitals need other words.
+- Hover always gives QMK's name and what the key does, so short forms may be terse.
+
+**Command keys look different from character keys.** A command is anything QMK adds that a
+stock keyboard does not have; Enter, F-keys and the navigation keys are on real caps and keep
+the modifier style. Like ZMK Studio's keys, a command has a **header** -- what it acts on --
+over the **main legend**, the action: "Media / Vol +", "Mouse / Btn 1", "Light / Hue +". The
+header is one line, its own short form or cut; the main legend has what room is left.
+
+**Command keys leave the family's rules** (Rico, 2026-10-03): following GMK's or SA's size, case
+and placement constrained them too much, SA's capitals most. So, on both families alike:
+- **the header at 1/2 the letter size** -- every tested header fits 1u that way, "Firmware" and
+  "Toggle" included; only "Caps Word" still needs its short form;
+- **mixed case**, GMK's wording, on spherical sets too;
+- **Header top**: the header pinned to the top under the band, centred; the main legend centred
+  both ways in the room below. The mockup keeps Top left, Middle left and Centred to compare.
+
+The cost to weigh: the board stops shrinking when modifier text reaches 9 px, where a header at
+1/2 the letter size is about 7.5 px. If that reads badly on screen, the 9 px floor moves to the
+header and the board scrolls a little sooner.
+
+- **Layers: the layer large, the operation as the header** -- "Hold / L2" for MO(2), "Toggle",
+  "To", "Once", "Base", "Tap tog". Ready for layer names: "Hold / Nav" once a layer has one.
+  QMK's notation (MO 2) was the alternative: what VIA and Vial users already read, and VIA's app
+  writes MO(1) on its keys (`via-app/src/utils/key.ts`).
+- **Tap-hold keys: the hold is the header**, under the band like every command's, and the tap
+  keeps its own legends below: "Ctrl" over "Esc" for MT(LCTL, Esc), "L1" on the space bar for
+  LT(1, Space), "L1" over "! 1" for LT(1, KC_1). The hold prints plain -- "Ctrl", not "Hold Ctrl"
+  (Rico, 2026-10-03): short, and a pair still fits under it. The bottom of the key stays free for
+  the AltGr character and the numpad's second legends, so French "2" as LT(2, KC_2) carries four
+  legends: L2, 2 over é, ~. A pair fits on 1u because the header is small and the pair packs to
+  line height 1.0 with the top padding gone -- the glyphs never shrink; where even that fails
+  (Large size) the Shift character goes, and hover gives it. Today's "MT LCTL" goes.
+- **The hold's header is coloured by what the hold does**, and the band with it. MT and LT can
+  only hold a modifier or a layer -- a behaviour, magenta -- but a **Vial tap dance** holds any
+  keycode (`on_hold`, via-vial-commands.md), and one with a tap and a hold is drawn as a tap-hold:
+  "Boot" held shows red. A command hold collapses to one line, its main legend. A tap that is a
+  command -- `LT(1, KC_MPLY)`, or the tap dance's tap -- keeps its own small header in its own
+  colour below: "L1" over "Media / Play". So a key can show two categories, and the dangerous
+  case -- Boot behind a harmless tap -- is the most visible. One band per key, the hold's. A tap
+  dance's double tap and tap + hold stay off the board: hover and the tap dance panel.
+- **Lighting** names no system when the board has one -- the header is "Light". With two, it
+  names them: Glow (underglow), Matrix, LEDs, Backlit. The definition says which a board has:
+  VIA V3 menus (`qmk_backlight`, `qmk_rgblight`, `qmk_rgb_matrix`), Vial's `lighting`. The keycode
+  cannot say it reliably: before keycode version 0.0.4 there were no RM_ keycodes, and as far as
+  recalled -- to check against QMK's source -- the RGB_ keycodes drove RGB Matrix too on boards
+  that had it. To test first, in the words above.
+
+**Four categories, each a colour** -- Rico chose **D′** of the variants sketched: a **band**
+along the top of the face and the **header** in the category's colour, the **main legend in the
+legend colour**, so the text read most keeps the best contrast. (D, the main legend coloured too,
+stays in the mockup to compare; a coloured main legend went muddy on accent caps.)
+
+| Category | Hue (OKLCH) | Covers |
+|---|---|---|
+| Behaviour | magenta, 345 | layers, tap-hold holds, one-shot, tap dance, Caps Word |
+| Host | cyan, 195 | media, mouse, system keys, macros -- what goes to the computer |
+| Board | amber, 75 | lighting, haptic, audio, Magic, combos -- the keyboard's own settings |
+| Firmware | red, 27 | Boot, Reboot, Clear EEPROM, Debug -- the keys that can hurt |
+
+Four because the state colours already take most of the wheel -- orange selected, blue
+highlighted, purple second, green checked, red warning -- leaving magenta, cyan and amber; red
+for firmware shares "careful" with the warning, a fitting overlap. More categories would mean
+revisiting the state colours.
+
+**Legible on any theme and keycap colour, by computation.** A theme gives a category only its
+hue. Its lightness is solved per keycap face: from the face's own lightness, darker on a light
+cap and lighter on a dark one, to the first that reaches **4.5:1 for text and 3:1 for the band**
+(WCAG's figures for text and for graphics), so the colour stays as vivid as legibility allows;
+chroma is clamped to sRGB. Where no lightness reaches it -- a mid-tone cap -- the text falls back
+to the legend colour and the band alone carries the category. It is a pure function of (face,
+hue, target), so **a test asserts every theme × keycap class × category**: a new theme, or KLE
+keycap colours once the parser keeps them, cannot make a command illegible without failing the
+build.
+
+Seen in the mockup, to settle:
+- **Hues against each theme's states**: the dark theme's selection is amber, near Board's;
+  Dracula's second highlight is pink and its highlight cyan. Free hues depend on the theme, so a
+  theme may need its own category hues, and the test should check hue distance as well as
+  contrast.
+- **Header words at the smallest size**: at the modifier text's size, "Firmware", "Caps Word",
+  "Tap tog" and spherical "TOGGLE" were cut on 1u -- the reason for the smaller, mixed-case
+  header above. "Caps Word" still uses its short form, "Caps Wd", as "Tap dance" uses "Dance".
+- **The band covers the key's marks** in the mockup: it is drawn with the legends, after the
+  selection and highlight outlines, so it overwrites their top edge (Rico, 2026-10-03). In Nazg
+  the band goes **under** the marks -- drawn with the face, before the outlines, or inset inside
+  them -- so a selected or highlighted command key keeps its whole outline.
+- **Transparent keys** on a layer are drawn faint over the layer below, provisionally -- not
+  discussed yet.
+- **Modified keys** (Ctrl+C) are not placed in a category yet.
 
 ## The common screens
 
