@@ -220,7 +220,26 @@ Still to settle: legends (below); the default keycap style.
 modifier or an accent; **Nazg never renders them** -- the theme colours each class. Most Vial
 definitions carry no colours at all (some of Rico's do: VIA's colours kept in a Vial definition,
 which Vial ignores but parses), so a class must also be found without them, from the keys
-themselves: what to place on which key is still to design.
+themselves.
+
+**The class comes from the base layer's keycode at the key's position** (Rico, 2026-10-03), and
+**classes are on by default** -- every board gets them now, colours in its definition or not:
+- **Layer 0, whichever layer is shown**: a physical cap keeps its colour across layers, so the
+  colours stay put while the legends change.
+- **Alpha**: character keys -- whatever the host layout prints -- numpad digits and `.`, the
+  space bar. **Accent**: Esc, Enter, numpad Enter. **Modifier**: everything else -- modifiers,
+  Tab, Caps Lock, Backspace, F-keys, navigation, arrows, Num Lock, numpad operators, every
+  command.
+- **A tap-hold takes its tap's class** (`MT(Ctrl, Esc)` is an accent); **a remapped key follows
+  its keycode**, as its legend does -- the board shows what a key does.
+- **`KC_NO` on layer 0** has no keycode to go by: wider than 1.25u is a modifier, else an alpha.
+- **With KLE colours, the colours group the keys and the keycodes name the groups**: each distinct
+  cap colour takes the class most of its keys get above. More robust than "the most common colour
+  is the alphas", and the designer's intent survives -- arrows drawn in the Esc colour join the
+  accents. The colour values are never drawn.
+
+**F-keys are modifiers** (Rico), as the arrows are by default, though some sets print the F-row
+as alphas and many make the arrows accents: a definition's KLE colours override both.
 
 ### Legends -- the plan, not yet decided
 

@@ -363,9 +363,24 @@ function applyRemap() {
 // A key left transparent on the feature layer falls through to the base layer's keycode -- the
 // walk down the layers, which is exact while one layer is on at a time -- and draws it faint,
 // tap-hold keys included, with a ▽ at full strength (Rico, 2026-10-03).
+// A keycap's colour class, from the base layer's keycode at its position (2026-10-03) --
+// layer 0 whichever layer is shown, as a physical cap keeps its colour across layers. Character
+// keys, numpad digits and the space bar are alphas; Esc and the Enters accents; the rest --
+// modifiers, Tab, Caps, Backspace, F-keys, navigation, arrows, numpad operators, every command --
+// modifiers. A tap-hold takes its tap's class; a remapped key follows its keycode. KLE colours,
+// where a definition has them, only group the keys: each colour takes the class most of its keys
+// get here (none on the Model F, whose Vial definition carries no colours).
+const classOfCode = code => ['ESC', 'ENT', 'PENT'].includes(code) ? 'x'
+                          : code === 'SPC' || code === 'PDOT' || /^P\d$/.test(code) ? 'a' : 'm';
+function baseClass(key, base) {
+  if (base) return base.tapCmd ? 'm' : base.tap ? classOfCode(base.tap) : 'a';
+  return key.kc ? 'a' : classOfCode(key.code);
+}
+
 function applyLayer() {
   for (const key of KEYS) {
     const base = BASE_HOLDS[key.home] || BASE_HOLDS[key.kc] || null;
+    key.cls = baseClass(key, base);   // before the shown layer changes key.code
     const top = state.layer === 'Features' ? FEATURES[key.home] || FEATURES[key.kc] || null : null;
     // KC_NO draws the key it disables, faint, as a transparent key draws the one it shows --
     // its mark tells them apart (Rico, 2026-10-03: on a layer, one must see what one disables).
@@ -525,7 +540,7 @@ function accentCaps(T) {
 const state = {
   preset: 'Cylindrical', font: 'Arimo', size: 'Medium', modifierSize: '3/5', remap: 'Standard', host: 'US',
   layer: 'Base', commands: 'D′', cmdHeader: '1/2', cmdCase: 'Mixed', cmdPlace: 'Header corner', peekStyle: 'Sublegend', noMark: 'Struck + ✕', selection: 'Neutral', altgrShade: 'Muted', holdPlace: 'Top right', accentCap: 'Slate', darkSlate: 'Lifted',
-  theme: 'Dark', style: 'Outlined', plate: 'Filled', classes: 'Off', scene: 'Keymap',
+  theme: 'Dark', style: 'Outlined', plate: 'Filled', classes: 'On', scene: 'Keymap',
   selected: keyNamed('Q'), focus: keyNamed('Q'), hovered: -1, pressed: keyNamed('G'),
   seen: new Set(KEYS.map((k, i) => (k.row === 0 || ['N', 'A', 'Z', 'G'].includes(k.primary)) ? i : -1).filter(i => i >= 0)),
 };
@@ -535,7 +550,9 @@ const CONTROLS = [
   ['theme', 'Theme', Object.keys(THEMES)],
   ['style', 'Keycap', Object.keys(STYLES)],
   ['plate', 'Plate', ['Off', 'Filled', 'Border']],
-  ['classes', 'Colour classes', ['Off', 'On']],
+  // On by default (Rico, 2026-10-03): every board gets classes, from its base layer's keycodes;
+  // F-keys are modifiers.
+  ['classes', 'Colour classes', ['On', 'Off']],
   ['scene', 'Scene', Object.keys(SCENES)],
   'break',
   ['preset', 'Legends', PRESETS],
@@ -852,7 +869,8 @@ function draw() {
     notes.push('The outlines on the ISO Enter are still drawn per rectangle; Nazg will draw them along the key\'s contour.');
   notes.push('<b>Model F Labs B104</b>, from its real definition, at choice 0 of every layout option. The keymap is a ' +
              'plausible layer 0 on the US host layout, not read off the board. Only ImGui draw-list shapes are used. ' +
-             '<b>Colour classes</b> need the parser to keep KLE colours, which it drops today.');
+             "<b>Colour classes</b> come from the base layer's keycodes -- the Model F's Vial definition has no KLE " +
+             'colours; where a definition has them, they only group the keys.');
   document.getElementById('notes').innerHTML = notes.map(n => `<p>${n}</p>`).join('');
 }
 
