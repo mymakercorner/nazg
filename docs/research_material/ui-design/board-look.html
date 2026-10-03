@@ -229,7 +229,7 @@ const FEATURES = {
   F7:   C('host', 'Screen', 'Bri −', 'KC_BRID', 'Brightness Down'),
   F8:   C('host', 'Screen', 'Bri +', 'KC_BRIU', 'Brightness Up'),
   // One lighting system on the board, so no prefix: the header says Light. With two, it would
-  // name the system -- Glow, Matrix, LEDs, Backlit.
+  // name the system -- UGlow, Matrix, LEDs, Backlit.
   F9:   C('board', 'Light', 'On/Off', 'UG_TOGG', 'Toggle RGB Underglow'),
   F10:  C('board', 'Light', 'Next', 'UG_NEXT', 'RGB Underglow Next'),
   F11:  C('board', 'Light', 'Hue +', 'UG_HUEU', 'RGB Underglow Hue Up'),
@@ -267,25 +267,27 @@ const FEATURES = {
 // The lighting words, to test (2026-10-03). The header names what the key lights on this board,
 // as its definition declares the systems -- never from the keycode alone: QMK's RGB_ keycodes
 // drove RGB Matrix on a board without underglow, and UG_ still drives both underglow and RGB
-// Matrix unless the board opts out. One system: Light. Two: each system's word, and Light for a
-// key that drives them all -- or, the alternative, the word its keycode is named for.
+// Matrix unless the board opts out. One system: Light. Two: each system's word -- UGlow for UG_
+// on any board with underglow, in every firmware state, even where it drives the matrix too
+// (Rico, 2026-10-03: Light was not clear enough; UGlow rather than Glow, which read as any
+// light). Light was tried beside Matrix.
 const LIGHTING = {
   'One system': {},
-  'Backlit + Glow': {
+  'Backlit + UGlow': {
     F9:  C('board', 'Backlit', 'On/Off', 'BL_TOGG', 'Toggle Backlight'),
     F10: C('board', 'Backlit', 'Bri +', 'BL_UP', 'Backlight Up'),
-    F11: C('board', 'Glow', 'On/Off', 'UG_TOGG', 'Toggle RGB Underglow'),
-    F12: C('board', 'Glow', 'Next', 'UG_NEXT', 'RGB Underglow Next'),
+    F11: C('board', 'UGlow', 'On/Off', 'UG_TOGG', 'Toggle RGB Underglow'),
+    F12: C('board', 'UGlow', 'Next', 'UG_NEXT', 'RGB Underglow Next'),
   },
-  'Glow + Matrix: UG is Light': {
+  'UGlow + Matrix: UG as Light (dropped)': {
     F9:  C('board', 'Light', 'On/Off', 'UG_TOGG', 'Toggle RGB Underglow -- and RGB Matrix, unless the firmware opts out'),
     F10: C('board', 'Light', 'Next', 'UG_NEXT', 'RGB Underglow Next -- and RGB Matrix, unless the firmware opts out'),
     F11: C('board', 'Matrix', 'On/Off', 'RM_TOGG', 'Toggle RGB Matrix'),
     F12: C('board', 'Matrix', 'Next', 'RM_NEXT', 'RGB Matrix Next'),
   },
-  'Glow + Matrix: UG is Glow': {
-    F9:  C('board', 'Glow', 'On/Off', 'UG_TOGG', 'Toggle RGB Underglow -- and RGB Matrix, unless the firmware opts out'),
-    F10: C('board', 'Glow', 'Next', 'UG_NEXT', 'RGB Underglow Next -- and RGB Matrix, unless the firmware opts out'),
+  'UGlow + Matrix': {
+    F9:  C('board', 'UGlow', 'On/Off', 'UG_TOGG', 'Toggle RGB Underglow -- and RGB Matrix, unless the firmware opts out'),
+    F10: C('board', 'UGlow', 'Next', 'UG_NEXT', 'RGB Underglow Next -- and RGB Matrix, unless the firmware opts out'),
     F11: C('board', 'Matrix', 'On/Off', 'RM_TOGG', 'Toggle RGB Matrix'),
     F12: C('board', 'Matrix', 'Next', 'RM_NEXT', 'RGB Matrix Next'),
   },

@@ -63,12 +63,13 @@ Ctrl to Ctl and Option to Opt in the Magic swaps' short headers, three modifiers
 initials ("C A S+").
 
 **5. Lighting.** One header for the four systems -- **Light** -- when the board has one; the
-system's word when it has two: **Glow** (underglow), **Matrix** (RGB Matrix), **LEDs** (LED
+system's word when it has two: **UGlow** (underglow), **Matrix** (RGB Matrix), **LEDs** (LED
 Matrix), **Backlit** (backlight). The definition says which a board has (VIA's `keycodes`
 modules and menus, Vial's `lighting`), never the keycode: `RGB_*` drove RGB Matrix on boards
 without underglow, and `UG_*` still drives both by default (ui-design.md, "What a lighting
-keycode drives"). The table notes the system each keycode is named for; a key driving every
-system the board has says Light.
+keycode drives"). The table notes the system each keycode is named for. `RGB_*` / `UG_*` say
+UGlow on any board with underglow, even where they drive the matrix too, and Matrix on a board
+with backlight + RGB Matrix.
 
 **6. Layers** -- the layer large, the operation as the header: Hold (MO), Toggle (TG), To (TO),
 Once (OSL), Base (DF), **Set base** (PDF, which saves it), Tap tog (TT); LM is "Hold / L1 Ctrl".
@@ -348,16 +349,16 @@ Letters, digits, punctuation, F1-F24 and the numpad print their QMK label, or wh
 | `LM_SPDD` | LED Matrix Speed Down | Light -- LEDs | Spd − |
 | `LM_SPDU` | LED Matrix Speed Up | Light -- LEDs | Spd + |
 | `LM_TOGG` | Toggle LED Matrix | Light -- LEDs | On/Off |
-| `RGB_M_B` | -- | Light -- Glow | Breathe |
-| `RGB_M_G` | -- | Light -- Glow | Gradient (Grad) |
-| `RGB_M_K` | -- | Light -- Glow | Knight |
-| `RGB_M_P` | -- | Light -- Glow | Plain |
-| `RGB_M_R` | -- | Light -- Glow | Rainbow (Rainbw) |
-| `RGB_M_SN` | -- | Light -- Glow | Snake |
-| `RGB_M_SW` | -- | Light -- Glow | Swirl |
-| `RGB_M_T` | -- | Light -- Glow | Test |
-| `RGB_M_TW` | -- | Light -- Glow | Twinkle |
-| `RGB_M_X` | -- | Light -- Glow | Xmas |
+| `RGB_M_B` | -- | Light -- UGlow | Breathe |
+| `RGB_M_G` | -- | Light -- UGlow | Gradient (Grad) |
+| `RGB_M_K` | -- | Light -- UGlow | Knight |
+| `RGB_M_P` | -- | Light -- UGlow | Plain |
+| `RGB_M_R` | -- | Light -- UGlow | Rainbow (Rainbw) |
+| `RGB_M_SN` | -- | Light -- UGlow | Snake |
+| `RGB_M_SW` | -- | Light -- UGlow | Swirl |
+| `RGB_M_T` | -- | Light -- UGlow | Test |
+| `RGB_M_TW` | -- | Light -- UGlow | Twinkle |
+| `RGB_M_X` | -- | Light -- UGlow | Xmas |
 | `RM_FLGN` | RGB Matrix Flag Next | Light -- Matrix | Flag next |
 | `RM_FLGP` | RGB Matrix Flag Previous | Light -- Matrix | Flag prev |
 | `RM_HUED` | RGB Matrix Hue Down | Light -- Matrix | Hue − |
@@ -373,17 +374,17 @@ Letters, digits, punctuation, F1-F24 and the numpad print their QMK label, or wh
 | `RM_TOGG` | Toggle RGB Matrix | Light -- Matrix | On/Off |
 | `RM_VALD` | RGB Matrix Value Down | Light -- Matrix | Bri − |
 | `RM_VALU` | RGB Matrix Value Up | Light -- Matrix | Bri + |
-| `UG_HUED` | RGB Underglow Hue Down | Light -- Glow | Hue − |
-| `UG_HUEU` | RGB Underglow Hue Up | Light -- Glow | Hue + |
-| `UG_NEXT` | RGB Underglow Next | Light -- Glow | Next |
-| `UG_PREV` | RGB Underglow Previous | Light -- Glow | Prev |
-| `UG_SATD` | RGB Underglow Saturation Down | Light -- Glow | Sat − |
-| `UG_SATU` | RGB Underglow Saturation Up | Light -- Glow | Sat + |
-| `UG_SPDD` | RGB Underglow Speed Down | Light -- Glow | Spd − |
-| `UG_SPDU` | RGB Underglow Speed Up | Light -- Glow | Spd + |
-| `UG_TOGG` | Toggle RGB Underglow | Light -- Glow | On/Off |
-| `UG_VALD` | RGB Underglow Value Down | Light -- Glow | Bri − |
-| `UG_VALU` | RGB Underglow Value Up | Light -- Glow | Bri + |
+| `UG_HUED` | RGB Underglow Hue Down | Light -- UGlow | Hue − |
+| `UG_HUEU` | RGB Underglow Hue Up | Light -- UGlow | Hue + |
+| `UG_NEXT` | RGB Underglow Next | Light -- UGlow | Next |
+| `UG_PREV` | RGB Underglow Previous | Light -- UGlow | Prev |
+| `UG_SATD` | RGB Underglow Saturation Down | Light -- UGlow | Sat − |
+| `UG_SATU` | RGB Underglow Saturation Up | Light -- UGlow | Sat + |
+| `UG_SPDD` | RGB Underglow Speed Down | Light -- UGlow | Spd − |
+| `UG_SPDU` | RGB Underglow Speed Up | Light -- UGlow | Spd + |
+| `UG_TOGG` | Toggle RGB Underglow | Light -- UGlow | On/Off |
+| `UG_VALD` | RGB Underglow Value Down | Light -- UGlow | Bri − |
+| `UG_VALU` | RGB Underglow Value Up | Light -- UGlow | Bri + |
 | `MU_NEXT` | Music Next | Music | Mode + |
 | `MU_OFF` | Music Off | Music | Off |
 | `MU_ON` | Music On | Music | On |

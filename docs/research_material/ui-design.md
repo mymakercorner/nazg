@@ -627,7 +627,7 @@ header and the board scrolls a little sooner.
   case -- Boot behind a harmless tap -- is the most visible. One band per key, the hold's. A tap
   dance's double tap and tap + hold stay off the board: hover and the tap dance panel.
 - **Lighting** names no system when the board has one -- the header is "Light". With two, it
-  names them: Glow (underglow), Matrix, LEDs, Backlit. **The definition says which a board has,
+  names them: UGlow (underglow), Matrix, LEDs, Backlit. **The definition says which a board has,
   never the keycode** -- checked in QMK's source 2026-10-03, below. The mockup's *Lighting*
   control shows the words on F9-F12 of the feature layer.
 
@@ -690,16 +690,17 @@ None uses the `qmk_lighting` fallback.
   bit 0 Caps Word, bit 1 Layer Lock -- and both features default to on. A Vial 6 board with
   either bit set is new firmware. Bits clear: built before 2025-06, or both disabled.
 
-**The rule, proposed**: the header names what the key lights on this board -- **Light** when that
-is every system the board declares (so always with one), the system's word when it is one of
-several. Backlight + underglow, the common pair, is then exact in every version: Backlit, Glow.
-`RGB_*` / `UG_*` on a board with backlight + RGB Matrix drives the matrix, in every period: Matrix. A
-definition that declares nothing: Light on every lighting key. On *old* and *unknown* firmware
-(below) the one set drives every system, so it says Light. **Open, for Rico**: underglow + RGB
-Matrix on *new* firmware, 44 definitions -- `UG_*` drive both unless the firmware opts out, and in
-QMK's own tree 14 of 22 such boards opt out. *Light* says what a sharing build does; *Glow* says
-what the keycode is named for, what most of QMK's both-system boards do and what QMK is moving to.
-Either way hover gives the whole truth ("and RGB Matrix, unless the firmware opts out").
+**The rule** (Rico, 2026-10-03): **Light** on a board with one system, or none declared; with
+several, the header names the system the key acts on -- Backlit, UGlow, Matrix. Backlight +
+underglow, the common pair, is then exact in every period. `RGB_*` / `UG_*` on a board with
+backlight + RGB Matrix drive the matrix, in every period: Matrix. **On a board with underglow, they
+are UGlow, in every state** -- even where they drive the matrix too: always on *old* firmware, on
+*unknown* perhaps, and on *new* firmware unless it opts out (14 of the 22 such boards in QMK's tree
+do). Light, beside Matrix, did not say clearly enough what the key acts on; UGlow says what the
+keycode is named for, what most of QMK's both-system boards do and what QMK is moving to. Hover
+gives the rest ("and RGB Matrix, unless the firmware opts out"; on old firmware, "and RGB
+Matrix"). **UGlow, not Glow**, wherever underglow is named: the U ties it to underglow and to QMK's
+`UG_` prefix, where Glow alone read as any light.
 
 **Which lighting keycodes a board gets** (decided with Rico, 2026-10-03). Nazg sorts the board's
 firmware into one of three states, *old* (one set of keycodes drives every system: QMK before
