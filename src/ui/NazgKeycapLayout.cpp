@@ -427,6 +427,101 @@ namespace nazg
         return out;
     }
 
+    KeycapPrimitives LayOutTile(const KeycapLegend& legend, const FaceBox& face, float scale, const TextMeasurer& measurer)
+    {
+        KeycapPrimitives out;
+        Placer           placer(measurer, out);
+
+        // The board's sizes at its smallest unit, for words and headers; characters smaller, so a
+        // pair fits the tile's height (the mockup's 15 px, a pair 12 over 14).
+        const float unit       = c_SmallestUnit * scale;
+        const float room       = c_TileTextRoom * scale;
+        const float words      = c_ModifierShare * c_LetterShare * unit;
+        const float header     = c_HeaderShare * c_LetterShare * unit;
+        const float letter     = 15.0f * scale;
+        const float pairTop    = 12.0f * scale;
+        const float pairBottom = 14.0f * scale;
+        const float inset      = 3.0f * scale;
+
+        const float   side = std::max(0.0f, ((face.x1 - face.x0) - room) / 2.0f);
+        const FaceBox box{ face.x0 + side, face.y0 + inset, face.x1 - side, face.y1 - inset };
+        const float   width = box.x1 - box.x0;
+        if (width <= 0.0f || box.y1 <= box.y0)
+            return out;
+
+        // The headers, top right under the band, one line each.
+        const float headerLine = header * c_WordLine;
+        float       top        = face.y0 + c_TileBand * scale + 1.0f * scale;
+        bool        hasHeaders = false;
+        for (const Header* each : { &legend.hold, &legend.header })
+        {
+            if (each->IsEmpty())
+                continue;
+
+            const Line  line      = TextChain(each->words, header, LegendWeight::Bold, width, headerLine, measurer).front();
+            const float lineWidth = placer.Width(line.text, header, LegendWeight::Bold);
+            placer.InRoom(line.text, box.x1 - lineWidth, top, line.Height(), header, LegendWeight::Bold, LegendInk::Legend,
+                          line.cut, each->category);
+            top += headerLine;
+            hasHeaders = true;
+        }
+        if (!hasHeaders)
+            top = box.y0;
+
+        switch (legend.placement)
+        {
+        case PlacementClass::Blank:
+            break;
+
+        // A character top left; a pair, the Shift character above, as the board prints it.
+        case PlacementClass::Character:
+            if (!legend.shifted.empty())
+            {
+                placer.InRoom(legend.shifted, box.x0, top, pairTop * c_PairLine, pairTop, LegendWeight::Bold,
+                              LegendInk::Legend);
+                placer.InRoom(legend.plain, box.x0, top + pairTop * c_PairLine + 1.0f * scale, pairBottom * c_PairLine,
+                              pairBottom, LegendWeight::Bold, LegendInk::Legend);
+            }
+            else if (!legend.plain.empty())
+                placer.InRoom(legend.plain, box.x0, top, letter * c_PairLine, letter, LegendWeight::Bold, LegendInk::Legend);
+            break;
+
+        case PlacementClass::Numpad:
+            if (!legend.cylindrical.full.empty())
+                placer.InRoom(legend.cylindrical.full, box.x0, top, letter * c_PairLine, letter, LegendWeight::Bold,
+                              LegendInk::Legend);
+            break;
+
+        case PlacementClass::Arrow:
+            placer.Arrow((box.x0 + box.x1) / 2.0f, (top + box.y1) / 2.0f, letter, 0.085f, legend.arrow);
+            break;
+
+        // Words centred in the room under the headers.
+        case PlacementClass::FunctionRow:
+        case PlacementClass::Modifier:
+        case PlacementClass::Command:
+        {
+            const std::vector<Line> lines =
+                TextChain(legend.cylindrical, words, LegendWeight::Regular, width, box.y1 - top, measurer);
+            float total = 0.0f;
+            for (const Line& line : lines)
+                total += line.Height();
+
+            float y = std::max(top, (top + box.y1 - total) / 2.0f);
+            for (const Line& line : lines)
+            {
+                const float lineWidth = placer.Width(line.text, line.size, line.weight);
+                placer.InRoom(line.text, (box.x0 + box.x1 - lineWidth) / 2.0f, y, line.Height(), line.size, line.weight,
+                              LegendInk::Legend, line.cut);
+                y += line.Height();
+            }
+            break;
+        }
+        }
+
+        return out;
+    }
+
     KeycapPrimitives LayOutSlots(const SlotLegends& slots, const FaceBox& face, float unit, const TextMeasurer& measurer)
     {
         KeycapPrimitives out;

@@ -16,6 +16,7 @@
 
 #include "adapters/via/NazgKeyboardDefinition.h"
 #include "ui/NazgBoardDescription.h"
+#include "ui/NazgKeycapLayout.h"
 #include "ui/NazgLegendFont.h"
 
 namespace nazg
@@ -34,4 +35,20 @@ namespace nazg
     // candidates tell apart at a glance: ANSI from ISO, ortho from staggered. At most
     // `width` pixels wide and `height` high, keeping the board's proportions.
     void DrawDefinitionPreview(const KeyboardDefinition& definition, float width, float height);
+
+    // One tile of the keycode picker (ui-design.md, "The tiles"), drawn as the board draws a key --
+    // its face in its class's colour, its band, its legends laid out by LayOutTile(), a transparent
+    // or KC_NO key's mark -- into the current window at `box`, screen pixels. Drawing only: the
+    // picker handles the mouse.
+    struct KeycodeTile
+    {
+        KeycapLegend    legend;   // what it prints: a header its group's title says left out
+        CommandCategory band     = CommandCategory::None;   // the legend's own, kept when its header goes
+        KeyFill         fill     = KeyFill::Modifier;
+        Fallthrough     mark     = Fallthrough::None;
+        bool            selected = false;   // the selected key's keycode
+        bool            hovered  = false;
+    };
+
+    void DrawKeycodeTile(const KeycodeTile& tile, const FaceBox& box);
 }

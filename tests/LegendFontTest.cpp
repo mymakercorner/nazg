@@ -314,6 +314,82 @@ namespace
         Check(tally.overlaps == 0, "no two overlap");
     }
 
+    // The keycode picker's tiles (ui-design.md, "The tiles"): every keycode the picker can offer,
+    // with its header and with the header its group's title says left out, at every display
+    // scale -- none cut, none leaving the tile, none overlapping. A tile's text room is a 1u
+    // keycap's at the smallest board, so what fits there fits here.
+    void TestTiles(const nazg::ImGuiTextMeasurer& measurer)
+    {
+        std::printf("keycode picker tiles\n");
+
+        Tally      tally;
+        const auto draw = [&](KeycapLegend legend, const std::string& name)
+        {
+            for (bool dropped : { false, true })
+            {
+                if (dropped)
+                {
+                    if (legend.header.IsEmpty() && legend.hold.IsEmpty())
+                        continue;
+                    legend.header = {};
+                    legend.hold   = {};
+                }
+                for (float scale : { 1.0f, 1.25f, 1.5f, 2.0f })
+                {
+                    const FaceBox face{ 0.0f, 0.0f, nazg::c_TileWidth * scale, nazg::c_TileHeight * scale };
+                    const KeycapPrimitives primitives = nazg::LayOutTile(legend, face, scale, measurer);
+                    const std::vector<Box> boxes      = InkBoxes(primitives, measurer);
+                    const std::string      where      = name + " x" + std::to_string(scale) + ": " + Describe(primitives);
+                    ++tally.draws;
+
+                    for (const nazg::PlacedText& text : primitives.texts)
+                        if (text.cut)
+                        {
+                            ++tally.cut;
+                            tally.Report("cut: " + where, name);
+                        }
+                    for (const Box& box : boxes)
+                        if (!Inside(box, face))
+                        {
+                            ++tally.outside;
+                            tally.Report("leaves the tile: " + where, name);
+                            break;
+                        }
+                    for (size_t i = 0; i < boxes.size(); ++i)
+                        for (size_t j = i + 1; j < boxes.size(); ++j)
+                            if (Overlap(boxes[i], boxes[j]))
+                            {
+                                ++tally.overlaps;
+                                tally.Report("overlap: " + where, name);
+                            }
+                }
+            }
+        };
+
+        for (nazg::ModifierNames names : nazg::AllModifierNames())
+            for (uint8_t lighting : c_Lightings)
+            {
+                const nazg::LegendContext context{ nazg::UsHostLayout(), names, nazg::KeySide::Neither, lighting };
+                for (const nazg::QmkKeycode& row : nazg::QmkKeycodeTable())
+                    if (row.ExistsIn(nazg::c_LatestQmkKeycodeVersion))
+                        draw(nazg::LegendFor(nazg::NamedKey{ row.name }, context), row.name);
+                for (uint8_t layer = 0; layer < 32; ++layer)
+                    for (uint8_t op = 0; op <= static_cast<uint8_t>(nazg::LayerOp::TapToggle); ++op)
+                        draw(nazg::LegendFor(nazg::LayerKey{ static_cast<nazg::LayerOp>(op), layer }, context), "layer key");
+                for (uint8_t mods = 1; mods < 16; ++mods)
+                    for (uint8_t sided : { mods, static_cast<uint8_t>(mods << 4) })
+                        draw(nazg::LegendFor(nazg::OneShotModKey{ sided }, context), "OSM");
+                for (int index = 0; index < 256; ++index)
+                    draw(nazg::LegendFor(nazg::TapDanceKey{ static_cast<uint8_t>(index) }, context), "TD");
+            }
+
+        Summarise(tally);
+        Check(tally.draws > 10000, "every keycode the picker offers, with and without its header, every scale");
+        Check(tally.cut == 0, "no tile's words are cut");
+        Check(tally.outside == 0, "none leaves its tile");
+        Check(tally.overlaps == 0, "no two overlap");
+    }
+
     // Tap-holds whose tap is a command: two headers stacked over the main legend -- "L1 / Media /
     // Play" -- for every basic keycode that is a command, under a layer and the longest holds.
     void TestCommandTaps(const nazg::ImGuiTextMeasurer& measurer)
@@ -420,6 +496,7 @@ int main(int argc, char** argv)
             TestParameterised(measurer);
             TestCommandTaps(measurer);
             TestHostLayouts(measurer);
+            TestTiles(measurer);
         }
     }
     ImGui::EndFrame();

@@ -79,6 +79,11 @@ namespace nazg
         // The panels' named colours.
         PackedColour error, warningText, success;
 
+        // The keycode picker's group titles, in a box (ui-design.md, "The tiles"): a recessed
+        // neutral -- darker than the panel on Light, lighter on Dark, never a key's or a text
+        // field's -- and its text.
+        PackedColour groupLabel, groupLabelText;
+
         CategoryHues categories;
     };
 

@@ -99,6 +99,10 @@ namespace nazg
         [[nodiscard]] ImU32 Lip();       // the Bottom lip's, one for every key
         [[nodiscard]] ImU32 Outline();   // the Outlined keycap's border
 
+        // The keycode picker's group titles: their box, and their text.
+        [[nodiscard]] ImU32 GroupLabel();
+        [[nodiscard]] ImU32 GroupLabelText();
+
         // The states. Overlays are painted over the fill; outlines nest around the face.
         [[nodiscard]] ImU32 Hovered();                 // overlay
         [[nodiscard]] ImU32 Pressed();                 // overlay

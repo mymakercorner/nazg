@@ -150,6 +150,23 @@ namespace nazg
     [[nodiscard]] KeycapPrimitives LayOutKeycap(const KeycapLegend& legend, LegendFamily family, const FaceBox& face,
                                                 float unit, bool oneUnit, const TextMeasurer& measurer);
 
+    // A tile of the keycode picker (ui-design.md, "The tiles"): every one 1u, its text room a 1u
+    // keycap's at the board's smallest unit -- 0.68 of 60 px -- with words and headers at their
+    // sizes there, so a name fits a tile as it fits the board, as legend_font checks. Pixels
+    // before DPI scaling; the band along its top is the board's, a few pixels.
+    inline constexpr float c_TileTextRoom = (1.0f - 2 * c_KeyGap - 2 * c_LegendPad) * c_SmallestUnit;
+    inline constexpr float c_TileWidth    = c_TileTextRoom + 6.0f;
+    inline constexpr float c_TileHeight   = 40.0f;
+    inline constexpr float c_TileBand     = 3.0f;
+
+    // A tile's legends on `face`, at `scale` -- the display's: the headers top right, one line
+    // each; characters top left, smaller than the board's, a pair as the board prints it; words
+    // centred, on one line or two, their short form, then cut. Always as cylindrical sets print
+    // them, whatever the board's family. A header the caller leaves out -- one its group's title
+    // says -- is simply empty in `legend`.
+    [[nodiscard]] KeycapPrimitives LayOutTile(const KeycapLegend& legend, const FaceBox& face, float scale,
+                                              const TextMeasurer& measurer);
+
     // Slot legends, placed where the section put them: four rows -- top, middle, bottom,
     // front -- of three, at the modifier text's size, each cut rather than scaled.
     [[nodiscard]] KeycapPrimitives LayOutSlots(const SlotLegends& slots, const FaceBox& face, float unit,

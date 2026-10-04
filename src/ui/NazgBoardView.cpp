@@ -299,21 +299,22 @@ namespace nazg
         // pair, the same size in the same place: always the face's very corner, bottom right, clear
         // of every legend (Rico, 2026-10-03). No line across a KC_NO key: it ran through the
         // legends, at an angle that changed with the key's shape (Rico, 2026-10-04).
-        void DrawFallthroughMark(ImDrawList* drawList, const BoardKey& key, ImVec2 p1, float unit, bool dimmed)
+        void DrawFallthroughMark(ImDrawList* drawList, Fallthrough fallthrough, KeyFill fill, ImVec2 p1, float unit,
+                                 bool dimmed)
         {
-            if (key.fallthrough == Fallthrough::None)
+            if (fallthrough == Fallthrough::None)
                 return;
 
             const float scale  = ImGui::GetStyle().FontScaleDpi;
             const float corner = 0.035f * unit + 0.3f * c_KeyRounding * unit;
             const float size   = std::max(5.0f * scale, 0.075f * unit);
 
-            ImU32 ink = BoardColours::Legend(LegendInk::Legend, key.fill);
+            ImU32 ink = BoardColours::Legend(LegendInk::Legend, fill);
             if (dimmed)
                 ink = Over(ink, BoardColours::Dimmed());
             const ImU32 mark = Faded(ink, c_MarkStrength);
 
-            if (key.fallthrough == Fallthrough::Transparent)
+            if (fallthrough == Fallthrough::Transparent)
             {
                 const float  height = size * 0.87f;
                 const ImVec2 right(p1.x - corner, p1.y - corner - height);
@@ -380,7 +381,7 @@ namespace nazg
             if (pass == KeyPass::Legends)
             {
                 DrawLegends(drawList, described, p0, p1, unit, isDimmed);
-                DrawFallthroughMark(drawList, described, p1, unit, isDimmed);
+                DrawFallthroughMark(drawList, described.fallthrough, described.fill, p1, unit, isDimmed);
             }
             else if (pass == KeyPass::Lip)
             {
@@ -635,6 +636,62 @@ namespace nazg
         ImGui::Dummy(size);
         ImGui::EndChild();
         return events;
+    }
+
+    void DrawKeycodeTile(const KeycodeTile& tile, const FaceBox& box)
+    {
+        ImDrawList*  drawList = ImGui::GetWindowDrawList();
+        const float  scale    = ImGui::GetStyle().FontScaleDpi;
+        const ImVec2 p0(box.x0, box.y0);
+        const ImVec2 p1(box.x1, box.y1);
+        const float  rounding = 5.0f * scale;
+
+        const BoardColours::Keycap colours = BoardColours::Fill(tile.fill, 0.0f);
+        ImU32                      face    = colours.face;
+        if (tile.hovered)
+            face = Over(face, BoardColours::Hovered());
+        drawList->AddRectFilled(p0, p1, face, rounding);
+
+        const float border = std::max(1.0f, scale);
+        drawList->AddRect(ImVec2(p0.x + border / 2, p0.y + border / 2), ImVec2(p1.x - border / 2, p1.y - border / 2),
+                          BoardColours::Outline(), rounding, 0, border);
+
+        if (tile.band != CommandCategory::None)
+            FillBand(drawList, p0, p1, rounding, c_TileBand * scale,
+                     BoardColours::Category(tile.band, CategoryUse::Band, tile.fill, 0.0f).value_or(colours.legend));
+
+        // The legends as the board draws them: a header in its category's colour, solved for this
+        // face, the rest in the legend's.
+        const ImGuiTextMeasurer measurer(g_LegendFonts, ImGui::GetFont());
+        const KeycapPrimitives  primitives = LayOutTile(tile.legend, box, scale, measurer);
+        const ImVec4            clip(p0.x, p0.y, p1.x, p1.y);
+        const auto              colourOf   = [&](LegendInk ink, CommandCategory category)
+        {
+            return BoardColours::Category(category, CategoryUse::Text, tile.fill, 0.0f)
+                .value_or(BoardColours::Legend(ink, tile.fill));
+        };
+        for (const PlacedText& text : primitives.texts)
+            drawList->AddText(measurer.FontFor(text.weight), measurer.ImGuiSize(text.size), ImVec2(text.x, text.y),
+                              colourOf(text.ink, text.category), text.text.c_str(), nullptr, 0.0f, &clip);
+        for (const PlacedArrow& arrow : primitives.arrows)
+        {
+            const ArrowShape shape  = ShapeOf(arrow);
+            const ImU32      colour = colourOf(arrow.ink, CommandCategory::None);
+            drawList->AddLine(ImVec2(shape.tailX, shape.tailY), ImVec2(shape.shaftEndX, shape.shaftEndY), colour,
+                              arrow.stroke);
+            drawList->AddTriangleFilled(ImVec2(shape.tipX, shape.tipY), ImVec2(shape.baseAX, shape.baseAY),
+                                        ImVec2(shape.baseBX, shape.baseBY), colour);
+        }
+
+        DrawFallthroughMark(drawList, tile.mark, tile.fill, p1, c_SmallestUnit * scale, false);
+
+        if (tile.selected)
+        {
+            const float thickness = 2.0f * scale;
+            drawList->AddRect(ImVec2(p0.x + thickness / 2, p0.y + thickness / 2),
+                              ImVec2(p1.x - thickness / 2, p1.y - thickness / 2), BoardColours::Selected(), rounding, 0,
+                              thickness);
+        }
     }
 
     void DrawDefinitionPreview(const KeyboardDefinition& definition, float width, float height)

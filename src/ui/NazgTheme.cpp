@@ -283,6 +283,8 @@ namespace nazg
         ImU32 Plate() { return Current().plate; }
         ImU32 Lip() { return Current().lip; }
         ImU32 Outline() { return Current().outline; }
+        ImU32 GroupLabel() { return Current().groupLabel; }
+        ImU32 GroupLabelText() { return Current().groupLabelText; }
         ImU32 Hovered() { return Current().hovered; }
         ImU32 Pressed() { return Current().pressed; }
         ImU32 Dimmed() { return Current().dimmed; }

@@ -37,6 +37,8 @@ namespace nazg
             Hex(0x1c64f2, 0.50f), Hex(0x000000, 0.08f), Hex(0xf3f3f5, 0.72f),
 
             Hex(0xe03131), Hex(0xe8590c), Hex(0x2f9e44),
+
+            Hex(0xd1d4da), Hex(0x2f3238),
         };
 
         constexpr Palette c_Dark{
@@ -54,6 +56,8 @@ namespace nazg
             Hex(0x3c6eff, 0.67f), Hex(0xffffff, 0.13f), Hex(0x0c0c10, 0.75f),
 
             Hex(0xff8b7f), Hex(0xffb34d), Hex(0x78dc82),
+
+            Hex(0x1d1e25), Hex(0x9a9daa),
         };
 
         constexpr Palette c_Dracula{
@@ -71,6 +75,8 @@ namespace nazg
             Hex(0xf1fa8c, 0.45f), Hex(0xffffff, 0.10f), Hex(0x282a36, 0.75f),
 
             Hex(0xff5555), Hex(0xffb86c), Hex(0x50fa7b),
+
+            Hex(0x2e303e), Hex(0xa4a9c6),   // provisional: never judged in the mockup
         };
 
         // The chroma the solver asks for before clamping to sRGB: the mockup's.
