@@ -574,7 +574,7 @@ function accentCaps(T) {
 
 const state = {
   preset: 'Cylindrical', font: 'Arimo', size: 'Medium', modifierSize: '3/5', remap: 'Standard', host: 'US',
-  layer: 'Base', commands: 'D′', cmdHeader: '1/2', cmdCase: 'Mixed', cmdPlace: 'Header corner', peekStyle: 'Sublegend', noMark: 'Struck + ✕', selection: 'Neutral', altgrShade: 'Muted', holdPlace: 'Top right', accentCap: 'Slate', darkSlate: 'Lifted',
+  layer: 'Base', commands: 'D′', cmdHeader: '1/2', cmdCase: 'Mixed', cmdPlace: 'Header corner', peekStyle: 'Sublegend', noMark: 'Faint + ✕', selection: 'Neutral', altgrShade: 'Muted', holdPlace: 'Top right', accentCap: 'Slate', darkSlate: 'Lifted',
   theme: 'Dark', style: 'Outlined', plate: 'Filled', classes: 'On', scene: 'Keymap', lighting: 'One system',
   selected: keyNamed('Q'), focus: keyNamed('Q'), hovered: -1, pressed: keyNamed('G'),
   seen: new Set(KEYS.map((k, i) => (k.row === 0 || ['N', 'A', 'Z', 'G'].includes(k.primary)) ? i : -1).filter(i => i >= 0)),
@@ -615,7 +615,8 @@ const CONTROLS = [
   // legend bottom right, the base's bottom legends stepping aside, or the strip tried first --
   // found too busy, and colliding with glyphs (Rico, 2026-10-03).
   ['peekStyle', 'Peek', ['Sublegend', 'Strip']],
-  // Struck + ✕ chosen (Rico, 2026-10-03): a disabled key stands out from a distance.
+  // Struck + ✕ chosen (Rico, 2026-10-03), dropped in the app (2026-10-04): the line ran through the
+  // legends at an angle that changed with the key's shape. Faint + ✕ is what Nazg draws.
   ['noMark', 'KC_NO', ['Struck + ✕', 'Faint + ✕']],
   // The selection outline (Rico, 2026-10-03: orange too loud; Neutral chosen): the theme's text colour -- no hue,
   // so it meets no category, highlight or warning colour and survives colour blindness -- or the

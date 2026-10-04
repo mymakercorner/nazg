@@ -7,7 +7,8 @@
 //
 // Click a key, it is outlined; click a keycode, it is written -- encoded for the board's
 // keycode version, set, and read back, so the board shows what the firmware really stored
-// (adapters/via/NazgViaKeymap.h). The panel is the first-draft picker for now.
+// (adapters/via/NazgViaKeymap.h). The panel is the first-draft picker for now. Hovering a
+// layer in the strip shows it, as choosing it would, until the mouse leaves: a peek.
 //
 // ImGui only, no SDL: compiled into the application, not into nazg_core.
 
@@ -37,6 +38,7 @@ namespace nazg
 
         [[nodiscard]] Strip DescribeStrip() const override;
         void                OnStripChosen(size_t entry) override;
+        void                OnStripHovered(std::optional<size_t> entry) override;
 
         void DescribeBoard(BoardDescription& board) override;
         void OnBoardEvents(const BoardDescription& board, const BoardEvents& events) override;
@@ -62,7 +64,8 @@ namespace nazg
         Keyboard&             m_Keyboard;
         const LegendSettings& m_Legends;
 
-        uint8_t             m_Layer = 0;
+        uint8_t                m_Layer = 0;
+        std::optional<uint8_t> m_Peek;   // a layer hovered in the strip, shown meanwhile
         std::optional<Cell> m_Selected;
         KeycodePickerState  m_Picker;
 

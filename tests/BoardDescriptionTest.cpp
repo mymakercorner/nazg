@@ -12,6 +12,7 @@
 #include "TestSupport.h"
 
 #include <cmath>
+#include <optional>
 #include <variant>
 #include <vector>
 
@@ -233,6 +234,67 @@ namespace
         Check(legendOf(0).header.words.full == "Light", "with underglow alone, Light");
     }
 
+    // ui-design.md, "Transparent keys": the walk down the layers, and what it leaves on the key.
+    void TestResolveKey()
+    {
+        std::printf("resolve key\n");
+
+        using nazg::Fallthrough;
+        using nazg::NamedKey;
+
+        nazg::Keyboard keyboard;
+        keyboard.definition.matrixRows    = 1;
+        keyboard.definition.matrixColumns = 5;
+        for (uint8_t column = 0; column < 5; ++column)
+            keyboard.definition.keys.push_back(Key(column, 0, 0, column));
+        keyboard.keymap = nazg::Keymap(3, 1, 5);
+
+        // Columns, layers 0 / 1 / 2: A / TRNS / TRNS; A / B / TRNS; A / NO / TRNS; A / TRNS / NO;
+        // TRNS / TRNS / TRNS.
+        const char* const c_Columns[5][3] = {
+            { "KC_A", "KC_TRNS", "KC_TRNS" }, { "KC_A", "KC_B", "KC_TRNS" },     { "KC_A", "KC_NO", "KC_TRNS" },
+            { "KC_A", "KC_TRNS", "KC_NO" },   { "KC_TRNS", "KC_TRNS", "KC_TRNS" },
+        };
+        for (uint8_t column = 0; column < 5; ++column)
+            for (uint8_t layer = 0; layer < 3; ++layer)
+                keyboard.keymap.Set(layer, 0, column, NamedKey{ c_Columns[column][layer] });
+
+        const auto resolve = [&](uint8_t column, uint8_t layer)
+        { return nazg::ResolveKey(keyboard, keyboard.definition.keys[column], layer); };
+        const auto is = [](const nazg::ResolvedKey& resolved, Fallthrough fallthrough, const char* name,
+                           std::optional<uint8_t> layer)
+        {
+            return resolved.fallthrough == fallthrough && resolved.keycode == nazg::Keycode{ NamedKey{ name } } &&
+                   resolved.layer == layer;
+        };
+
+        Check(is(resolve(0, 0), Fallthrough::None, "KC_A", 0), "a layer's own keycode");
+        Check(is(resolve(0, 2), Fallthrough::Transparent, "KC_A", 0), "transparent twice, down to layer 0");
+        Check(is(resolve(1, 2), Fallthrough::Transparent, "KC_B", 1), "the first keycode below wins");
+        Check(is(resolve(2, 1), Fallthrough::Disabled, "KC_A", 0), "KC_NO shows the key it disables");
+        Check(is(resolve(2, 2), Fallthrough::Disabled, "KC_A", 0), "a transparent key reaching a KC_NO is disabled");
+        Check(is(resolve(3, 2), Fallthrough::Disabled, "KC_A", 0), "KC_NO looks through the transparent key below");
+        Check(is(resolve(4, 2), Fallthrough::Disabled, "KC_NO", std::nullopt), "transparent down to nothing");
+        Check(is(resolve(4, 0), Fallthrough::Disabled, "KC_NO", std::nullopt), "transparent on the default layer");
+
+        // A key outside the keymap is KC_NO on every layer: nothing below.
+        DefinitionKey outside = Key(6, 0, 0, 9);
+        Check(nazg::ResolveKey(keyboard, outside, 1).fallthrough == Fallthrough::Disabled, "a key outside the matrix");
+
+        // DescribeLegends draws what the walk found, and says why.
+        nazg::BoardDescription board = DescribeKeyboard(keyboard);
+        nazg::DescribeLegends(board, keyboard, 2, nazg::LegendSettings{});
+        const auto& key = board.keys[1];
+        Check(key.fallthrough == Fallthrough::Transparent &&
+                  std::get<nazg::KeycapLegend>(key.legends).plain == "B",
+              "a transparent key wears the keycode below");
+        Check(board.keys[4].fallthrough == Fallthrough::Disabled &&
+                  std::get<nazg::KeycapLegend>(board.keys[4].legends).placement == nazg::PlacementClass::Blank,
+              "nothing below: blank and disabled");
+        nazg::DescribeLegends(board, keyboard, 0, nazg::LegendSettings{});
+        Check(board.keys[1].fallthrough == Fallthrough::None, "and its own again on its own layer");
+    }
+
     // ui-design.md, "Where the definition says it".
     void TestLightingSystems()
     {
@@ -309,6 +371,7 @@ int main()
     TestLegendSlots();
     TestSides();
     TestDescribeLegends();
+    TestResolveKey();
     TestLightingSystems();
     TestKeyCentre();
     TestSpreadApart();

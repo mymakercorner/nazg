@@ -93,6 +93,17 @@ namespace nazg
         inline constexpr uint8_t Checked = 0x80;
     }
 
+    // Rule 1 too: whose keycode a key's legends are (ui-design.md, "Transparent keys"). QMK takes
+    // a key's keycode from the highest active layer down: KC_TRNS says "keep looking", KC_NO
+    // "stop, do nothing". On a partial layer a key wears the keycode below it, and says which of
+    // the two it is.
+    enum class Fallthrough : uint8_t
+    {
+        None,          // the layer's own keycode
+        Transparent,   // KC_TRNS: the keycode it falls through to
+        Disabled,      // KC_NO: the keycode it disables, if any
+    };
+
     struct BoardKey
     {
         // Rule 3: where it is. The definition's key unless the section brings its own
@@ -105,6 +116,7 @@ namespace nazg
         // fills them -- or legends at the twelve slots, placed exactly there, for a section
         // whose positions mean something themselves. Blank keycap legends to start with.
         std::variant<KeycapLegend, SlotLegends> legends;
+        Fallthrough                             fallthrough = Fallthrough::None;
 
         KeyFill fill  = KeyFill::Neutral;
         float   heat  = 0.0f;   // with KeyFill::Heat
@@ -160,9 +172,22 @@ namespace nazg
     // its keycap class, from the base layer.
     [[nodiscard]] BoardDescription DescribeKeyboard(const Keyboard& keyboard);
 
+    // What a key at `layer` comes to: its own keycode, or -- transparent or KC_NO -- the keycode
+    // below it, found by walking down the layer numbers, exact while one layer is on at a time.
+    // A transparent key that reaches a KC_NO is disabled with it; one that reaches nothing, on
+    // the default layer say, is disabled with nothing below.
+    struct ResolvedKey
+    {
+        Fallthrough            fallthrough = Fallthrough::None;
+        Keycode                keycode;   // KC_NO when nothing is below
+        std::optional<uint8_t> layer;     // where `keycode` is; none when nothing is below
+    };
+
+    [[nodiscard]] ResolvedKey ResolveKey(const Keyboard& keyboard, const DefinitionKey& key, uint8_t layer);
+
     // Keymap's legends for every key of `board` but decals: what `layer` of `keyboard` does
-    // there, seen through `settings`, the key's side of the board and the board's lighting. Matrix views fill
-    // layer 0's, to find the keys by.
+    // there -- or below it, for a transparent or KC_NO key -- seen through `settings`, the key's
+    // side of the board and the board's lighting. Matrix views fill layer 0's, to find the keys by.
     void DescribeLegends(BoardDescription& board, const Keyboard& keyboard, uint8_t layer,
                          const LegendSettings& settings);
 

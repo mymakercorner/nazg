@@ -34,6 +34,11 @@ namespace nazg
         constexpr float c_PlateMargin   = 0.35f;   // the plate past the keys, on every side
         constexpr float c_PlateRounding = 0.25f;
 
+        // A transparent or KC_NO key: the keycode below, faint, and its mark in the face's corner
+        // at half strength -- a mark, not a legend (ui-design.md, "Transparent keys").
+        constexpr float c_FaintStrength = 0.28f;
+        constexpr float c_MarkStrength  = 0.55f;
+
         // A key's rotation: a turn by its angle about its origin -- clockwise on screen,
         // since y grows downward. In key units for the board's extent, in pixels for
         // drawing and hit-testing.
@@ -111,6 +116,14 @@ namespace nazg
             const float  a     = over.w;
             return ImGui::ColorConvertFloat4ToU32(ImVec4(under.x + (over.x - under.x) * a, under.y + (over.y - under.y) * a,
                                                          under.z + (over.z - under.z) * a, under.w));
+        }
+
+        // `colour` at `strength` of its opacity.
+        ImU32 Faded(ImU32 colour, float strength)
+        {
+            const auto alpha = static_cast<float>((colour >> IM_COL32_A_SHIFT) & 0xFF);
+            return (colour & ~IM_COL32_A_MASK) |
+                   (static_cast<ImU32>(std::lround(alpha * strength)) << IM_COL32_A_SHIFT);
         }
 
         // A fill with the key's states painted over it, in a fixed order.
@@ -254,11 +267,15 @@ namespace nazg
                     : LayOutSlots(std::get<SlotLegends>(key.legends), face, unit, measurer);
 
             // A header in its category's colour, solved for this face; the rest in the legend's.
-            const auto colourOf = [&](LegendInk ink, CommandCategory category = CommandCategory::None)
+            // Faint on a transparent or KC_NO key.
+            const bool faint    = key.fallthrough != Fallthrough::None;
+            const auto colourOf = [&](LegendInk ink, CommandCategory category)
             {
-                const ImU32 colour = BoardColours::Category(category, CategoryUse::Text, key.fill, key.heat)
-                                         .value_or(BoardColours::Legend(ink, key.fill));
-                return dimmed ? Over(colour, BoardColours::Dimmed()) : colour;
+                ImU32 colour = BoardColours::Category(category, CategoryUse::Text, key.fill, key.heat)
+                                   .value_or(BoardColours::Legend(ink, key.fill));
+                if (dimmed)
+                    colour = Over(colour, BoardColours::Dimmed());
+                return faint ? Faded(colour, c_FaintStrength) : colour;
             };
 
             const ImVec4 clip(p0.x, p0.y, p1.x, p1.y);
@@ -270,12 +287,48 @@ namespace nazg
             for (const PlacedArrow& arrow : primitives.arrows)
             {
                 const ArrowShape shape  = ShapeOf(arrow);
-                const ImU32      colour = colourOf(arrow.ink);
+                const ImU32      colour = colourOf(arrow.ink, CommandCategory::None);
                 drawList->AddLine(ImVec2(shape.tailX, shape.tailY), ImVec2(shape.shaftEndX, shape.shaftEndY), colour,
                                   arrow.stroke);
                 drawList->AddTriangleFilled(ImVec2(shape.tipX, shape.tipY), ImVec2(shape.baseAX, shape.baseAY),
                                             ImVec2(shape.baseBX, shape.baseBY), colour);
             }
+        }
+
+        // A transparent key's ▽, or a KC_NO key's ✕. Drawn, as the arrows are. The marks are a
+        // pair, the same size in the same place: always the face's very corner, bottom right, clear
+        // of every legend (Rico, 2026-10-03). No line across a KC_NO key: it ran through the
+        // legends, at an angle that changed with the key's shape (Rico, 2026-10-04).
+        void DrawFallthroughMark(ImDrawList* drawList, const BoardKey& key, ImVec2 p1, float unit, bool dimmed)
+        {
+            if (key.fallthrough == Fallthrough::None)
+                return;
+
+            const float scale  = ImGui::GetStyle().FontScaleDpi;
+            const float corner = 0.035f * unit + 0.3f * c_KeyRounding * unit;
+            const float size   = std::max(5.0f * scale, 0.075f * unit);
+
+            ImU32 ink = BoardColours::Legend(LegendInk::Legend, key.fill);
+            if (dimmed)
+                ink = Over(ink, BoardColours::Dimmed());
+            const ImU32 mark = Faded(ink, c_MarkStrength);
+
+            if (key.fallthrough == Fallthrough::Transparent)
+            {
+                const float  height = size * 0.87f;
+                const ImVec2 right(p1.x - corner, p1.y - corner - height);
+                const ImVec2 left(right.x - size, right.y);
+                drawList->AddTriangle(left, right, ImVec2((left.x + right.x) / 2, right.y + height), mark,
+                                      std::max(scale, size * 0.14f));
+                return;
+            }
+
+            const float  cross = size * 0.85f;
+            const ImVec2 bottomRight(p1.x - corner, p1.y - corner);
+            const ImVec2 topLeft(bottomRight.x - cross, bottomRight.y - cross);
+            const float  stroke = std::max(scale, cross * 0.16f);
+            drawList->AddLine(topLeft, bottomRight, mark, stroke);
+            drawList->AddLine(ImVec2(bottomRight.x, topLeft.y), ImVec2(topLeft.x, bottomRight.y), mark, stroke);
         }
 
         // A key is drawn in passes, each over every key before the next: the lips first, so an
@@ -327,6 +380,7 @@ namespace nazg
             if (pass == KeyPass::Legends)
             {
                 DrawLegends(drawList, described, p0, p1, unit, isDimmed);
+                DrawFallthroughMark(drawList, described, p1, unit, isDimmed);
             }
             else if (pass == KeyPass::Lip)
             {
@@ -353,7 +407,8 @@ namespace nazg
 
                 // A command's band, with the face and under the marks, so a selected or highlighted
                 // command keeps its whole outline (Rico, 2026-10-03). One per key: the hold's,
-                // coloured by what the hold does, else the command's.
+                // coloured by what the hold does, else the command's. Faint with the legends on a
+                // transparent or KC_NO key.
                 if (const KeycapLegend* legend = std::get_if<KeycapLegend>(&described.legends);
                     legend != nullptr && legend->Band() != CommandCategory::None)
                 {
@@ -361,6 +416,8 @@ namespace nazg
                                      .value_or(colours.legend);
                     if (isDimmed)
                         band = Over(band, BoardColours::Dimmed());
+                    if (described.fallthrough != Fallthrough::None)
+                        band = Faded(band, c_FaintStrength);
                     FillBand(drawList, p0, p1, rounding.outer, BandHeight(unit), band);
                 }
 

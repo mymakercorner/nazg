@@ -998,15 +998,17 @@ transparent, not what it does. Nazg shows both:
   from "this layer says A", which differ when the base changes;
 - **resolved by walking down the layer numbers** to the first keycode -- exact while one layer
   is on at a time, the common case; hover says which layer it fell to;
-- **`KC_NO` shows the key it disables, faint, struck through, with a small ✕** in the ▽'s
-  corner (Rico, 2026-10-03): working on a layer, one must see *what* one is disabling, and an
-  empty key hid it. The marks are a pair -- ▽ "shows the key below", ✕ "disables the key below"
-  -- and the thin line across the face, corner to corner, makes a disabled key stand out from a
-  distance, since ✕ and ▽ alone look alike at a glance. Hover says which. First drawn empty and
-  dimmed, dropped: dimmed is already a state (the matrix view, the Vial unlock). A
-  transparent key on the default layer falls to nothing: drawn as `KC_NO` with nothing below.
+- **`KC_NO` shows the key it disables, faint, with a small ✕** in the ▽'s corner (Rico,
+  2026-10-03): working on a layer, one must see *what* one is disabling, and an empty key hid
+  it. The marks are a pair -- ▽ "shows the key below", ✕ "disables the key below". Hover says
+  which. First drawn empty and dimmed, dropped: dimmed is already a state (the matrix view, the
+  Vial unlock). **Struck through, dropped** (Rico, 2026-10-04, seen in the app): a thin line
+  across the face, corner to corner, was to make a disabled key stand out from a distance, but
+  it ran through the legends, and its angle changed with the key's shape -- steep on 1u, flat
+  on the space bar. A transparent key on the default layer falls to nothing: drawn as `KC_NO`
+  with nothing below.
 
-**The other direction: peek** (Rico, 2026-10-03: to be implemented). From a lower layer, what the layers
+**The other direction: peek** (Rico, 2026-10-03; replaced 2026-10-04, below). From a lower layer, what the layers
 above put on each key -- what laptop Fn legends, side-printed caps and Biip's Operator set show.
 Hovering a layer in the strip lays that layer's own keys over the board until the mouse leaves,
 as **second legends**: the main legend, or the hold, bottom right at the header's size, in the
@@ -1016,6 +1018,18 @@ reprograms stands out. Chosen over a permanent front legend (one layer only, a t
 keycap style) and markers (silent on what is there). **Tried first and dropped: a filled strip**
 along the bottom of each key -- too much at once, and it ran over the glyphs (Rico); the mockup
 keeps it as a switch.
+
+**Second legends, dropped; peek is the layer itself** (Rico, 2026-10-04, seen in the app). Built
+as described above, the second legends collided with the key's own, spherical ones most: a
+centred pair or a command pushed below its headers reaches the bottom right, and a peek there has
+no room left. Hovering a layer in the strip now **shows that layer, as choosing it would**, until
+the mouse leaves -- any layer, below the one chosen too. Nothing is added to a key, so nothing can
+collide, and the code is the layer view's own. What the second legends gave is mostly still there:
+on the hovered layer its own keys are at full strength and the ones it leaves transparent faint,
+so what it reprograms stands out. Lost: the two layers at once on one key. A click or a keycode
+written still goes to the chosen layer -- the mouse is on the strip meanwhile. The strip tells its
+section which entry is hovered: `Section::OnStripHovered()`, every frame, before the board is
+described.
 
 **Stuck-layer warnings: deferred** (Rico, 2026-10-03) -- too complicated for results that cannot
 be sure. A keymap traps you when a sticky layer key -- TG, tapped TT, TO, DF, layer lock, and
@@ -1324,6 +1338,10 @@ look is built** (Rico, 2026-10-03): they are judged on the real thing, not on a 
   - **Deferred** (Rico, 2026-09-26): too soon. It becomes necessary the day the Refresh
     button is removed, so it is built then. Until then an unplugged board is noticed by a
     failed request and the list needs Refresh.
+- **The ▽ and ✕ marks are hard to see** (Rico, 2026-10-04, in the app): small, in the corner, at
+  half strength. Accepted for now; a better way to show transparent and disabled keys is to be
+  found later. The strike through a KC_NO key, which made it visible from afar, was dropped the
+  same day (see "Transparent keys").
 - **Which sections fold the board away**, and whether folding it confuses more than it helps.
 - **Folding the section column to icons in a narrow window** (Rico, 2026-10-03). The column is
   150 px, shown on every board with more than one section -- most Vial boards, once Macros, Tap

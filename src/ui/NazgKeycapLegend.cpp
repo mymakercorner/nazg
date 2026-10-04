@@ -460,7 +460,8 @@ namespace nazg
             if (keycode != nullptr && std::string_view(keycode->group) == "basic")
                 return WordsLegend(PlacementClass::Modifier, { std::string(label), "" }, { Capitals(label), "" });
 
-            // Until transparent keys are drawn as what they fall through to (step 5).
+            // On the board a transparent key shows what it falls through to (ResolveKey()); this
+            // is the word for where there is nothing below to show -- the keycode picker.
             if (key == "KC_TRNS")
                 return CommandLegend({}, { "Trans", "" });
 

@@ -51,6 +51,41 @@ namespace nazg
         return std::get<SlotLegends>(legends)[static_cast<size_t>(slot)];
     }
 
+    ResolvedKey ResolveKey(const Keyboard& keyboard, const DefinitionKey& key, uint8_t layer)
+    {
+        const auto isNamed = [](const Keycode& keycode, std::string_view name)
+        {
+            const auto* named = std::get_if<NamedKey>(&keycode);
+            return named != nullptr && named->name == name;
+        };
+
+        ResolvedKey resolved{ Fallthrough::None, keyboard.KeycodeFor(key, layer), layer };
+        if (isNamed(resolved.keycode, "KC_TRNS"))
+            resolved.fallthrough = Fallthrough::Transparent;
+        else if (isNamed(resolved.keycode, "KC_NO"))
+            resolved.fallthrough = Fallthrough::Disabled;
+        else
+            return resolved;
+
+        for (int below = layer - 1; below >= 0; --below)
+        {
+            Keycode keycode = keyboard.KeycodeFor(key, static_cast<uint8_t>(below));
+            if (isNamed(keycode, "KC_TRNS"))
+                continue;
+            if (isNamed(keycode, "KC_NO"))
+            {
+                resolved.fallthrough = Fallthrough::Disabled;
+                continue;
+            }
+
+            resolved.keycode = std::move(keycode);
+            resolved.layer   = static_cast<uint8_t>(below);
+            return resolved;
+        }
+
+        return { Fallthrough::Disabled, NamedKey{ "KC_NO" }, std::nullopt };
+    }
+
     void DescribeLegends(BoardDescription& board, const Keyboard& keyboard, uint8_t layer,
                          const LegendSettings& settings)
     {
@@ -64,7 +99,9 @@ namespace nazg
 
             const LegendContext context{ settings.Layout(), settings.modifierNames, SideOf(key.geometry, line),
                                          lighting };
-            key.legends = LegendFor(keyboard.KeycodeFor(key.geometry, layer), context);
+            const ResolvedKey   resolved = ResolveKey(keyboard, key.geometry, layer);
+            key.legends     = LegendFor(resolved.keycode, context);
+            key.fallthrough = resolved.fallthrough;
         }
     }
 

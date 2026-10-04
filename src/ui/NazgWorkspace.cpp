@@ -4,6 +4,7 @@
 #include "NazgWorkspace.h"
 
 #include <algorithm>
+#include <optional>
 #include <string>
 
 #include "imgui.h"
@@ -40,7 +41,8 @@ namespace nazg
             ImGui::AlignTextToFramePadding();
             ImGui::TextUnformatted(strip.label.c_str());
 
-            const float minWidth = ImGui::GetFrameHeight() * 1.4f;
+            const float           minWidth = ImGui::GetFrameHeight() * 1.4f;
+            std::optional<size_t> hovered;
             for (size_t index = 0; index < strip.entries.size(); ++index)
             {
                 ImGui::SameLine();
@@ -55,11 +57,14 @@ namespace nazg
                                                            2 * ImGui::GetStyle().FramePadding.x);
                 if (ImGui::Button(entry.c_str(), ImVec2(width, 0.0f)) && !isChosen)
                     section.OnStripChosen(index);
+                if (ImGui::IsItemHovered())
+                    hovered = index;
 
                 if (isChosen)
                     ImGui::PopStyleColor();
                 ImGui::PopID();
             }
+            section.OnStripHovered(hovered);
         }
     }
 

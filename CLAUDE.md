@@ -75,8 +75,13 @@ parser now keeps, LM_* keys). Colours are pure code in `ui/NazgPalette.*` -- the
 out of `NazgTheme.cpp`, and the category solver -- checked by the `palette` test over every theme,
 keycap class and category, and under simulated colour blindness, where Dark's slate accent caps and
 Dracula's alphas fall short (to settle with Rico). `legend_font` lays out every keycode, the
-parameterised ones and long holds on 1u: none cut, none overlapping. Next: step 5 -- transparent,
-`KC_NO`, peek, the lighting policy.
+parameterised ones and long holds on 1u: none cut, none overlapping. Step 5 in part (2026-10-04,
+verified by Rico): a transparent or `KC_NO` key shows the keycode below it, faint, with a small ▽
+or ✕ in the corner -- `ResolveKey()` walks down the layers (`ui/NazgBoardDescription.*`, tested),
+`BoardKey::fallthrough` says which, hover names the layer; the strike line was dropped, and the
+marks are small (an open point). Peek is the layer itself: hovering a layer in the strip shows
+it until the mouse leaves (`Section::OnStripHovered()`); second legends were built and dropped,
+they collided. Nazg remembers its window's place in `imgui.ini`. Next: the lighting policy.
 
 One key can be edited: click it, pick a keycode, and `WriteKeycode()`
 (`adapters/via/NazgViaKeymap.h`) encodes it for the board's version, sets it, reads the cell

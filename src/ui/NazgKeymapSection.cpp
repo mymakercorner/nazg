@@ -41,9 +41,19 @@ namespace nazg
         m_Layer = static_cast<uint8_t>(entry);
     }
 
+    // The board shows the hovered layer as if chosen (Rico, 2026-10-04: simpler than second
+    // legends, and nothing to collide); a click still edits the chosen one -- ui-design.md, "The
+    // other direction: peek".
+    void KeymapSection::OnStripHovered(std::optional<size_t> entry)
+    {
+        m_Peek.reset();
+        if (entry)
+            m_Peek = static_cast<uint8_t>(*entry);
+    }
+
     void KeymapSection::DescribeBoard(BoardDescription& board)
     {
-        DescribeLegends(board, m_Keyboard, m_Layer, m_Legends);
+        DescribeLegends(board, m_Keyboard, m_Peek.value_or(m_Layer), m_Legends);
 
         for (BoardKey& key : board.keys)
         {
@@ -68,14 +78,34 @@ namespace nazg
         }
 
         // QMK's name and label, so a short form on the key may be terse (short-forms.md, rule 10).
-        const Keycode keycode = m_Keyboard.KeycodeFor(key, m_Layer);
-        std::string   name    = FormatKeycode(keycode);
-        if (const auto* named = std::get_if<NamedKey>(&keycode))
-            if (const QmkKeycode* row = FindQmkKeycodeByName(named->name, m_Keyboard.keycodeVersion);
-                row != nullptr && row->label[0] != '\0' && name != row->label)
-                name += std::string(" -- ") + row->label;
+        const auto nameOf = [&](const Keycode& keycode)
+        {
+            std::string name = FormatKeycode(keycode);
+            if (const auto* named = std::get_if<NamedKey>(&keycode))
+                if (const QmkKeycode* row = FindQmkKeycodeByName(named->name, m_Keyboard.keycodeVersion);
+                    row != nullptr && row->label[0] != '\0' && name != row->label)
+                    name += std::string(" -- ") + row->label;
+            return name;
+        };
 
-        ImGui::SetTooltip("%s\nrow %d, column %d", name.c_str(), key.row, key.column);
+        // A transparent or KC_NO key wears the keycode below it: hover says which, and from where.
+        const Keycode     own      = m_Keyboard.KeycodeFor(key, m_Layer);
+        const ResolvedKey resolved = ResolveKey(m_Keyboard, key, m_Layer);
+        std::string       text     = FormatKeycode(own);
+        if (resolved.fallthrough == Fallthrough::None)
+            text = nameOf(own);
+        else if (resolved.fallthrough == Fallthrough::Transparent)
+            text += " -- falls through to layer " + std::to_string(*resolved.layer) + ": " + nameOf(resolved.keycode);
+        else if (std::holds_alternative<NamedKey>(own) && std::get<NamedKey>(own).name == "KC_TRNS")
+            text += " -- falls through, and does nothing";
+        else
+            text += " -- does nothing on this layer";
+
+        if (resolved.fallthrough == Fallthrough::Disabled)
+            text += resolved.layer ? "\ndisables layer " + std::to_string(*resolved.layer) + "'s " + nameOf(resolved.keycode)
+                                   : std::string("\nnothing below to disable");
+
+        ImGui::SetTooltip("%s\nrow %d, column %d", text.c_str(), key.row, key.column);
 
         if (events.clickedKey)
             m_Selected = Cell{ key.row, key.column };

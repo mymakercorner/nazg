@@ -23,6 +23,7 @@
 #pragma once
 
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -48,9 +49,12 @@ namespace nazg
         // Its row in the section column.
         [[nodiscard]] virtual std::string_view Name() const = 0;
 
-        // 1. The strip, and the entry the user picked in it.
+        // 1. The strip, the entry the user picked in it, and the one under the mouse -- told
+        // every frame the strip shows, before DescribeBoard(), none when the mouse is elsewhere:
+        // Keymap peeks at a hovered layer.
         [[nodiscard]] virtual Strip DescribeStrip() const { return {}; }
         virtual void OnStripChosen(size_t /*entry*/) {}
+        virtual void OnStripHovered(std::optional<size_t> /*entry*/) {}
 
         // 2. The board. Every frame, `board` arrives as the board's definition draws it
         // (DescribeKeyboard()); the section fills it in -- or replaces its keys, to draw
