@@ -79,10 +79,10 @@ button:disabled{opacity:.45;cursor:default}
 .card button{padding:2px 8px}
 .pick{flex:1;display:flex;flex-direction:column;min-width:0}
 .tabs{display:flex;align-items:flex-end;gap:2px;padding:8px 10px 0;border-bottom:1px solid var(--border);flex-wrap:wrap}
-.tabs .tab{border:1px solid transparent;border-bottom:none;border-radius:5px 5px 0 0;padding:5px 11px 4px;cursor:pointer;color:var(--muted);position:relative}
+.tabs .tab{border:1px solid transparent;border-bottom:none;border-radius:5px 5px 0 0;padding:5px 9px 4px;cursor:pointer;color:var(--muted);position:relative}
 .tabs .tab.on{background:var(--window);border-color:var(--border);color:var(--text);margin-bottom:-1px}
 .tabs .tab .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;vertical-align:1px}
-.tabs input{margin-left:auto;margin-bottom:5px;width:190px;padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--control);color:var(--text);font:inherit}
+.tabs input{margin-left:auto;margin-bottom:5px;flex:1 1 120px;width:0;min-width:120px;max-width:190px;padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--control);color:var(--text);font:inherit}
 .items{flex:1;overflow-y:auto;padding:8px 12px 12px;background:var(--window)}
 .items h4{margin:10px 0 5px;font-weight:600;color:var(--muted);font-size:12px}
 .items h4:first-child{margin-top:2px}
@@ -203,62 +203,296 @@ const NAMED = {
   KC_P0: ['0'], KC_P1: ['1'], KC_P2: ['2'], KC_P3: ['3'], KC_P4: ['4'], KC_P5: ['5'], KC_P6: ['6'], KC_P7: ['7'],
   KC_P8: ['8'], KC_P9: ['9'], KC_PDOT: ['.'], KC_PSLS: ['/'], KC_PAST: ['*'], KC_PMNS: ['−'], KC_PPLS: ['+'], KC_PENT: ['Enter'],
   KC_INT1: ['Int 1'], KC_INT2: ['Int 2'], KC_INT3: ['Int 3'], KC_INT4: ['Int 4'], KC_INT5: ['Int 5'],
-  KC_LNG1: ['Lang 1'], KC_LNG2: ['Lang 2'],
+  KC_PEQL: ['='], KC_PCMM: [','], KC_KP_EQUAL_AS400: ['='],
+  // The keys HID has and few systems act on, as NazgKeycapLegend.cpp words them.
+  KC_KB_POWER: ['Power'], KC_EXEC: ['Execute', 'Exec'], KC_SLCT: ['Select', 'Sel'], KC_KB_VOLUME_UP: ['Vol +'], KC_KB_VOLUME_DOWN: ['Vol −'],
+  KC_KB_MUTE: ['Mute'], KC_LCAP: ['Lock Caps', 'L Caps'], KC_LNUM: ['Lock Num', 'L Num'], KC_LSCR: ['Lock Scroll', 'L Scr'],
+  KC_ERAS: ['Alt Erase', 'Erase'], KC_SYRQ: ['SysRq'], KC_CNCL: ['Cancel', 'Cncl'], KC_CLR: ['Clear', 'Clr'], KC_RETN: ['Return', 'Ret'],
+  KC_SEPR: ['Separator', 'Sep'], KC_CLAG: ['Clear Again', 'Clr Agn'], KC_CRSL: ['CrSel'], KC_EXSL: ['ExSel'], KC_PRIR: ['Prior'],
+  KC_OUT: ['Out'], KC_OPER: ['Oper'], KC_HELP: ['Help'], KC_MENU: ['Menu'], KC_STOP: ['Stop'], KC_AGIN: ['Again'], KC_UNDO: ['Undo'],
+  KC_CUT: ['Cut'], KC_COPY: ['Copy'], KC_PSTE: ['Paste'], KC_FIND: ['Find'],
 };
+for (let i = 1; i <= 9; i++) { NAMED['KC_INT' + i] = ['Int ' + i]; NAMED['KC_LNG' + i] = ['Lang ' + i]; }
 for (let i = 1; i <= 24; i++) NAMED['KC_F' + i] = ['F' + i];
 const ARROWS = { KC_UP: '↑', KC_DOWN: '↓', KC_LEFT: '←', KC_RGHT: '→' };
 const LABELS = { KC_ESC: 'Escape', KC_ENT: 'Enter', KC_BSPC: 'Backspace', KC_SPC: 'Spacebar', KC_TAB: 'Tab' };
 
-// Commands: [keycode, category, header, main, header short, main short, QMK label].
+// Commands: [keycode, category, header, main, header short, main short, QMK label] -- every one
+// the app's command table has, so each tile says what the board will.
 const C = (kc, cat, head, main, headShort, mainShort, label) => ({ kc, cat, head, main, headShort, mainShort, label });
-const COMMANDS = [
-  C('KC_MPLY', 'host', 'Media', 'Play', 0, 0, 'Play/Pause'), C('KC_MNXT', 'host', 'Media', 'Next'), C('KC_MPRV', 'host', 'Media', 'Prev', 0, 0, 'Previous'),
-  C('KC_MSTP', 'host', 'Media', 'Stop'), C('KC_MUTE', 'host', 'Media', 'Mute'), C('KC_VOLU', 'host', 'Media', 'Vol +', 0, 0, 'Volume Up'),
-  C('KC_VOLD', 'host', 'Media', 'Vol −', 0, 0, 'Volume Down'), C('KC_MFFD', 'host', 'Media', 'Fast Fwd', 0, 'FFwd', 'Fast Forward'),
-  C('KC_MRWD', 'host', 'Media', 'Rewind', 0, 'Rew'), C('KC_EJCT', 'host', 'Media', 'Eject'), C('KC_MSEL', 'host', 'Media', 'Select', 0, 'Sel'),
-  C('KC_PWR', 'host', 'System', 'Power'), C('KC_SLEP', 'host', 'System', 'Sleep'), C('KC_WAKE', 'host', 'System', 'Wake'),
-  C('KC_BRIU', 'host', 'Screen', 'Bri +', 0, 0, 'Brightness Up'), C('KC_BRID', 'host', 'Screen', 'Bri −', 0, 0, 'Brightness Down'),
-  C('KC_CALC', 'host', 'App', 'Calc', 0, 0, 'Calculator'), C('KC_MAIL', 'host', 'App', 'Mail'), C('KC_MYCM', 'host', 'App', 'Computer', 0, 'PC', 'My Computer'),
-  C('KC_CPNL', 'host', 'App', 'Settings', 0, 'Setup', 'Control Panel'), C('KC_ASST', 'host', 'App', 'Assistant', 0, 'Assist'),
-  C('KC_MCTL', 'host', 'App', 'Mission Ctrl', 0, 'Mission', 'Mission Control'), C('KC_LPAD', 'host', 'App', 'Launchpad', 0, 'Launch'),
-  C('KC_WBAK', 'host', 'Web', 'Back'), C('KC_WFWD', 'host', 'Web', 'Forward', 0, 'Fwd'), C('KC_WHOM', 'host', 'Web', 'Home'),
-  C('KC_WREF', 'host', 'Web', 'Refresh', 0, 'Refr'), C('KC_WSCH', 'host', 'Web', 'Search', 0, 'Srch'), C('KC_WSTP', 'host', 'Web', 'Stop'),
-  C('KC_WFAV', 'host', 'Web', 'Favorites', 0, 'Favs'),
-  C('UC_WIN', 'host', 'Unicode', 'Windows', 0, 'Win'), C('UC_MAC', 'host', 'Unicode', 'macOS'), C('UC_LINX', 'host', 'Unicode', 'Linux'),
-  C('UC_NEXT', 'host', 'Unicode', 'Next'),
-  C('OU_AUTO', 'host', 'Output', 'Auto'), C('OU_USB', 'host', 'Output', 'USB'), C('OU_BT', 'host', 'Output', 'BT'),
-  C('MS_UP', 'host', 'Mouse', 'Up'), C('MS_DOWN', 'host', 'Mouse', 'Down'), C('MS_LEFT', 'host', 'Mouse', 'Left'), C('MS_RGHT', 'host', 'Mouse', 'Right'),
-  C('MS_BTN1', 'host', 'Mouse', 'Btn 1'), C('MS_BTN2', 'host', 'Mouse', 'Btn 2'), C('MS_BTN3', 'host', 'Mouse', 'Btn 3'),
-  C('MS_BTN4', 'host', 'Mouse', 'Btn 4'), C('MS_BTN5', 'host', 'Mouse', 'Btn 5'),
-  C('MS_WHLU', 'host', 'Mouse', 'Wh Up'), C('MS_WHLD', 'host', 'Mouse', 'Wh Dn'), C('MS_WHLL', 'host', 'Mouse', 'Wh Left', 0, 'Wh Lt'),
-  C('MS_WHLR', 'host', 'Mouse', 'Wh Right', 0, 'Wh Rt'), C('MS_ACL0', 'host', 'Mouse', 'Acc 0'), C('MS_ACL1', 'host', 'Mouse', 'Acc 1'),
-  C('MS_ACL2', 'host', 'Mouse', 'Acc 2'),
-  C('CW_TOGG', 'beh', 'Caps Word', 'On/Off', 'Caps Wd', 0, 'Toggle Caps Word'), C('QK_REP', 'beh', 'Key', 'Repeat', 0, 'Rep'),
-  C('QK_AREP', 'beh', 'Key', 'Alt Rep', 0, 0, 'Repeat Alternate'), C('QK_GESC', 'beh', 'Key', 'Grv Esc', 0, 0, 'Grave Escape'),
-  C('QK_LEAD', 'beh', 'Key', 'Leader', 0, 'Lead'), C('QK_LOCK', 'beh', 'Key', 'Lock'), C('QK_LLCK', 'beh', 'Layer', 'Lock', 0, 0, 'Layer Lock'),
-  C('TL_LOWR', 'beh', 'Tri layer', 'Lower'), C('TL_UPPR', 'beh', 'Tri layer', 'Upper'),
-  C('AS_TOGG', 'beh', 'Auto Shift', 'On/Off', 'AutoSft'), C('AS_UP', 'beh', 'Auto Shift', 'Time +', 'AutoSft'), C('AS_DOWN', 'beh', 'Auto Shift', 'Time −', 'AutoSft'),
-  C('AC_TOGG', 'beh', 'Autocorrect', 'On/Off', 'AutoCor'), C('CM_TOGG', 'beh', 'Combos', 'On/Off'), C('OS_TOGG', 'beh', 'One shot', 'On/Off'),
-  C('KO_TOGG', 'beh', 'Overrides', 'On/Off', 'Ovrd'), C('SH_TOGG', 'beh', 'Swap hands', 'On/Off', 'Swap'), C('SH_MON', 'beh', 'Swap hands', 'Hold', 'Swap'),
-  C('SH_OS', 'beh', 'Swap hands', 'Once', 'Swap'), C('DT_UP', 'beh', 'Tap term', '+'), C('DT_DOWN', 'beh', 'Tap term', '−'), C('DT_PRNT', 'beh', 'Tap term', 'Print'),
-  C('SC_LSPO', 'beh', 'Shift', '(', 0, 0, 'Left Shift, ( when tapped'), C('SC_RSPC', 'beh', 'Shift', ')', 0, 0, 'Right Shift, ) when tapped'),
-  C('SC_SENT', 'beh', 'Shift', 'Enter', 0, 0, 'Right Shift, Enter when tapped'),
-  C('CL_SWAP', 'board', 'Ctrl↔Caps', 'Swap', 'Ctl/Caps'), C('CL_NORM', 'board', 'Ctrl↔Caps', 'Unswap', 'Ctl/Caps'), C('CL_TOGG', 'board', 'Ctrl↔Caps', 'On/Off', 'Ctl/Caps'),
-  C('CG_SWAP', 'board', 'Ctrl↔Win', 'Swap', 'Ctl/Win'), C('CG_NORM', 'board', 'Ctrl↔Win', 'Unswap', 'Ctl/Win'), C('CG_TOGG', 'board', 'Ctrl↔Win', 'On/Off', 'Ctl/Win'),
-  C('AG_SWAP', 'board', 'Alt↔Win', 'Swap', 'Alt/Win'), C('AG_NORM', 'board', 'Alt↔Win', 'Unswap', 'Alt/Win'), C('AG_TOGG', 'board', 'Alt↔Win', 'On/Off', 'Alt/Win'),
-  C('EC_SWAP', 'board', 'Esc↔Caps', 'Swap', 'Esc/Caps'), C('EC_NORM', 'board', 'Esc↔Caps', 'Unswap', 'Esc/Caps'),
-  C('GU_TOGG', 'board', 'Win key', 'On/Off', 'Win'), C('NK_TOGG', 'board', 'NKRO', 'On/Off'), C('EH_LEFT', 'board', 'EE Hands', 'Left', 'Hands'),
-  C('EH_RGHT', 'board', 'EE Hands', 'Right', 'Hands'),
-  C('QK_BOOT', 'fw', 'Firmware', 'Boot', 0, 0, 'Bootloader'), C('QK_RBT', 'fw', 'Firmware', 'Reboot'), C('EE_CLR', 'fw', 'Firmware', 'Clear EE', 0, 0, 'Clear EEPROM'),
-  C('DB_TOGG', 'fw', 'Firmware', 'Debug', 0, 0, 'Toggle Debug'), C('QK_MAKE', 'fw', 'Firmware', 'Make'),
-  C('DM_REC1', 'host', 'Macro', 'Rec 1', 0, 0, 'Dynamic Macro Record 1'), C('DM_REC2', 'host', 'Macro', 'Rec 2', 0, 0, 'Dynamic Macro Record 2'),
-  C('DM_PLY1', 'host', 'Macro', 'Play 1', 0, 0, 'Dynamic Macro Play 1'), C('DM_PLY2', 'host', 'Macro', 'Play 2', 0, 0, 'Dynamic Macro Play 2'),
-  C('DM_RSTP', 'host', 'Macro', 'Stop', 0, 0, 'Dynamic Macro Stop Recording'),
-  C('MI_ON', null, 'MI_', 'ON'), C('MI_OFF', null, 'MI_', 'OFF'), C('MI_C', null, 'MI_', 'C'), C('MI_CHNU', null, 'MI_', 'CHNU'),
-  C('QK_STENO_BOLT', 'host', 'Steno', 'Bolt'), C('QK_STENO_GEMINI', 'host', 'Steno', 'Gemini'),
-  C('JS_0', 'host', 'Joystick', 'Btn 0', 'Joy'), C('JS_1', 'host', 'Joystick', 'Btn 1', 'Joy'), C('PB_1', 'host', 'Prog btn', '1', 'Prog'),
-  C('PB_2', 'host', 'Prog btn', '2', 'Prog'),
+// Generated from src/ui/NazgCommandTable.cpp ({GUI} as Win), labels from the keycode table.
+const COMMAND_ROWS = [
+  ["AS_DOWN", "beh", "Auto Shift", "Time −", "AutoSft", 0, "Auto Shift Down"],
+  ["AS_OFF", "beh", "Auto Shift", "Off", "AutoSft", 0, "Auto Shift Off"],
+  ["AS_ON", "beh", "Auto Shift", "On", "AutoSft", 0, "Auto Shift On"],
+  ["AS_RPT", "beh", "Auto Shift", "Report", "AutoSft", "Rpt", "Auto Shift Report"],
+  ["AS_TOGG", "beh", "Auto Shift", "On/Off", "AutoSft", 0, "Toggle Auto Shift"],
+  ["AS_UP", "beh", "Auto Shift", "Time +", "AutoSft", 0, "Auto Shift Up"],
+  ["AC_OFF", "beh", "Autocorrect", "Off", "AutoCor", 0, "Autocorrect Off"],
+  ["AC_ON", "beh", "Autocorrect", "On", "AutoCor", 0, "Autocorrect On"],
+  ["AC_TOGG", "beh", "Autocorrect", "On/Off", "AutoCor", 0, "Toggle Autocorrect"],
+  ["CW_TOGG", "beh", "Caps Word", "On/Off", "Caps Wd", 0, "Toggle Caps Word"],
+  ["CM_OFF", "beh", "Combos", "Off", 0, 0, "Combo Off"],
+  ["CM_ON", "beh", "Combos", "On", 0, 0, "Combo On"],
+  ["CM_TOGG", "beh", "Combos", "On/Off", 0, 0, "Toggle Combo"],
+  ["QK_AREP", "beh", "Key", "Alt Rep", 0, 0, "Repeat Alternate"],
+  ["QK_GESC", "beh", "Key", "Grv Esc", 0, 0, "Grave Esc"],
+  ["QK_LEAD", "beh", "Key", "Leader", 0, "Lead", "Leader"],
+  ["QK_LOCK", "beh", "Key", "Lock", 0, 0, "Lock"],
+  ["QK_REP", "beh", "Key", "Repeat", 0, "Rep", "Repeat"],
+  ["QK_LLCK", "beh", "Layer", "Lock", 0, 0, "Layer Lock"],
+  ["OS_OFF", "beh", "One shot", "Off", 0, 0, "One Shot Off"],
+  ["OS_ON", "beh", "One shot", "On", 0, 0, "One Shot On"],
+  ["OS_TOGG", "beh", "One shot", "On/Off", 0, 0, "Toggle One Shot"],
+  ["KO_OFF", "beh", "Overrides", "Off", "Ovrd", 0, "Key Overrides Off"],
+  ["KO_ON", "beh", "Overrides", "On", "Ovrd", 0, "Key Overrides On"],
+  ["KO_TOGG", "beh", "Overrides", "On/Off", "Ovrd", 0, "Toggle Key Overrides"],
+  ["SE_LOCK", "beh", "Secure", "Lock", 0, 0, "Lock"],
+  ["SE_REQ", "beh", "Secure", "Request", 0, "Req", "Request Unlock"],
+  ["SE_TOGG", "beh", "Secure", "On/Off", 0, 0, "Toggle Lock"],
+  ["SE_UNLK", "beh", "Secure", "Unlock", 0, 0, "Unlock"],
+  ["SH_MOFF", "beh", "Swap hands", "Hold off", "Swap", "Hold no", "Swap Hands Momentary Off"],
+  ["SH_MON", "beh", "Swap hands", "Hold", "Swap", 0, "Swap Hands Momentary On"],
+  ["SH_OFF", "beh", "Swap hands", "Off", "Swap", 0, "Unswap Hands"],
+  ["SH_ON", "beh", "Swap hands", "On", "Swap", 0, "Swap Hands"],
+  ["SH_OS", "beh", "Swap hands", "Once", "Swap", 0, "Swap Hands One Shot"],
+  ["SH_TOGG", "beh", "Swap hands", "On/Off", "Swap", 0, "Toggle Swap Hands"],
+  ["SH_TT", "beh", "Swap hands", "Tap tog", "Swap", 0, "Swap Hands Tap Toggle"],
+  ["DT_DOWN", "beh", "Tap term", "−", 0, 0, "Dynamic Tapping Term Down"],
+  ["DT_PRNT", "beh", "Tap term", "Print", 0, 0, "Print Dynamic Tapping Term"],
+  ["DT_UP", "beh", "Tap term", "+", 0, 0, "Dynamic Tapping Term Up"],
+  ["TL_LOWR", "beh", "Tri layer", "Lower", 0, 0, "Lower"],
+  ["TL_UPPR", "beh", "Tri layer", "Upper", 0, 0, "Upper"],
+  ["KC_ASST", "host", "App", "Assistant", 0, "Assist", "Assistant"],
+  ["KC_CALC", "host", "App", "Calc", 0, 0, "Calculator"],
+  ["KC_CPNL", "host", "App", "Settings", 0, "Setup", "Control Panel"],
+  ["KC_LPAD", "host", "App", "Launchpad", 0, "Launch", "Launchpad"],
+  ["KC_MAIL", "host", "App", "Mail", 0, 0, "Mail"],
+  ["KC_MCTL", "host", "App", "Mission Ctrl", 0, "Mission", "Mission Control"],
+  ["KC_MYCM", "host", "App", "Computer", 0, "PC", "My Computer"],
+  ["BT_NEXT", "host", "Bluetooth", "Next", "BT", 0, "Bluetooth Profile Next"],
+  ["BT_PREV", "host", "Bluetooth", "Prev", "BT", 0, "Bluetooth Profile Previous"],
+  ["BT_UNPR", "host", "Bluetooth", "Unpair", "BT", 0, "Unpair"],
+  ["DM_PLY1", "host", "Macro", "Play 1", 0, 0, "Dynamic Macro Play 1"],
+  ["DM_PLY2", "host", "Macro", "Play 2", 0, 0, "Dynamic Macro Play 2"],
+  ["DM_REC1", "host", "Macro", "Rec 1", 0, 0, "Dynamic Macro Record 1"],
+  ["DM_REC2", "host", "Macro", "Rec 2", 0, 0, "Dynamic Macro Record 2"],
+  ["DM_RSTP", "host", "Macro", "Stop", 0, 0, "Dynamic Macro Stop Recording"],
+  ["KC_EJCT", "host", "Media", "Eject", 0, 0, "Eject"],
+  ["KC_MFFD", "host", "Media", "Fast Fwd", 0, "FFwd", "Fast Forward"],
+  ["KC_MNXT", "host", "Media", "Next", 0, 0, "Next"],
+  ["KC_MPLY", "host", "Media", "Play", 0, 0, "Play/Pause"],
+  ["KC_MPRV", "host", "Media", "Prev", 0, 0, "Previous"],
+  ["KC_MRWD", "host", "Media", "Rewind", 0, "Rew", "Rewind"],
+  ["KC_MSEL", "host", "Media", "Select", 0, "Sel", "Media"],
+  ["KC_MSTP", "host", "Media", "Stop", 0, 0, "Stop"],
+  ["KC_MUTE", "host", "Media", "Mute", 0, 0, "Mute"],
+  ["KC_VOLD", "host", "Media", "Vol −", 0, 0, "Volume Down"],
+  ["KC_VOLU", "host", "Media", "Vol +", 0, 0, "Volume Up"],
+  ["MS_ACL0", "host", "Mouse", "Acc 0", 0, 0, "Acceleration 0"],
+  ["MS_ACL1", "host", "Mouse", "Acc 1", 0, 0, "Acceleration 1"],
+  ["MS_ACL2", "host", "Mouse", "Acc 2", 0, 0, "Acceleration 2"],
+  ["MS_BTN1", "host", "Mouse", "Btn 1", 0, 0, "Mouse Button 1"],
+  ["MS_BTN2", "host", "Mouse", "Btn 2", 0, 0, "Mouse Button 2"],
+  ["MS_BTN3", "host", "Mouse", "Btn 3", 0, 0, "Mouse Button 3"],
+  ["MS_BTN4", "host", "Mouse", "Btn 4", 0, 0, "Mouse Button 4"],
+  ["MS_BTN5", "host", "Mouse", "Btn 5", 0, 0, "Mouse Button 5"],
+  ["MS_BTN6", "host", "Mouse", "Btn 6", 0, 0, "Mouse Button 6"],
+  ["MS_BTN7", "host", "Mouse", "Btn 7", 0, 0, "Mouse Button 7"],
+  ["MS_BTN8", "host", "Mouse", "Btn 8", 0, 0, "Mouse Button 8"],
+  ["MS_DOWN", "host", "Mouse", "Down", 0, 0, "Mouse Down"],
+  ["MS_LEFT", "host", "Mouse", "Left", 0, 0, "Mouse Left"],
+  ["MS_RGHT", "host", "Mouse", "Right", 0, 0, "Mouse Right"],
+  ["MS_UP", "host", "Mouse", "Up", 0, 0, "Mouse Up"],
+  ["MS_WHLD", "host", "Mouse", "Wh Dn", 0, 0, "Mouse Wheel Down"],
+  ["MS_WHLL", "host", "Mouse", "Wh Left", 0, "Wh Lt", "Mouse Wheel Left"],
+  ["MS_WHLR", "host", "Mouse", "Wh Right", 0, "Wh Rt", "Mouse Wheel Right"],
+  ["MS_WHLU", "host", "Mouse", "Wh Up", 0, 0, "Mouse Wheel Up"],
+  ["OU_2P4G", "host", "Output", "2.4 GHz", 0, "2.4G", "2.4GHz"],
+  ["OU_AUTO", "host", "Output", "Auto", 0, 0, "Output Auto"],
+  ["OU_BT", "host", "Output", "BT", 0, 0, "Bluetooth"],
+  ["OU_NEXT", "host", "Output", "Next", 0, 0, "Next Output"],
+  ["OU_NONE", "host", "Output", "None", 0, 0, "None"],
+  ["OU_PREV", "host", "Output", "Prev", 0, 0, "Previous Output"],
+  ["OU_USB", "host", "Output", "USB", 0, 0, "USB"],
+  ["KC_BRID", "host", "Screen", "Bri −", 0, 0, "Brightness Down"],
+  ["KC_BRIU", "host", "Screen", "Bri +", 0, 0, "Brightness Up"],
+  ["QK_STENO_BOLT", "host", "Steno", "Bolt", 0, 0, ""],
+  ["QK_STENO_COMB", "host", "Steno", "Comb", 0, 0, ""],
+  ["QK_STENO_COMB_MAX", "host", "Steno", "Comb max", 0, 0, ""],
+  ["QK_STENO_GEMINI", "host", "Steno", "Gemini", 0, 0, ""],
+  ["KC_PWR", "host", "System", "Power", 0, 0, "Power"],
+  ["KC_SLEP", "host", "System", "Sleep", 0, 0, "Sleep"],
+  ["KC_WAKE", "host", "System", "Wake", 0, 0, "Wake"],
+  ["UC_BSD", "host", "Unicode", "BSD", 0, 0, "Unicode Mode BSD"],
+  ["UC_EMAC", "host", "Unicode", "Emacs", 0, 0, "Unicode Mode emacs"],
+  ["UC_LINX", "host", "Unicode", "Linux", 0, 0, "Unicode Mode Linux"],
+  ["UC_MAC", "host", "Unicode", "macOS", 0, 0, "Unicode Mode macOS"],
+  ["UC_NEXT", "host", "Unicode", "Next", 0, 0, "Unicode Mode Next"],
+  ["UC_PREV", "host", "Unicode", "Prev", 0, 0, "Unicode Mode Previous"],
+  ["UC_WIN", "host", "Unicode", "Windows", 0, "Win", "Unicode Mode Windows"],
+  ["UC_WINC", "host", "Unicode", "WinCompose", 0, "WinC", "Unicode Mode WinCompose"],
+  ["KC_WBAK", "host", "Web", "Back", 0, 0, "Back"],
+  ["KC_WFAV", "host", "Web", "Favorites", 0, "Favs", "Favorites"],
+  ["KC_WFWD", "host", "Web", "Forward", 0, "Fwd", "Forward"],
+  ["KC_WHOM", "host", "Web", "Home", 0, 0, "Home"],
+  ["KC_WREF", "host", "Web", "Refresh", 0, "Refr", "Refresh"],
+  ["KC_WSCH", "host", "Web", "Search", 0, "Srch", "Search"],
+  ["KC_WSTP", "host", "Web", "Stop", 0, 0, "Stop"],
+  ["AU_NEXT", "board", "Audio", "Voice +", 0, 0, "Audio Voice Next"],
+  ["AU_OFF", "board", "Audio", "Off", 0, 0, "Audio Off"],
+  ["AU_ON", "board", "Audio", "On", 0, 0, "Audio On"],
+  ["AU_PREV", "board", "Audio", "Voice −", 0, 0, "Audio Voice Previous"],
+  ["AU_TOGG", "board", "Audio", "On/Off", 0, 0, "Toggle Audio"],
+  ["CL_CAPS", "board", "Caps", "Is Caps", 0, 0, "Caps!=LCtl"],
+  ["CL_CTRL", "board", "Caps", "Is Ctrl", 0, 0, "Caps=LCtl"],
+  ["CK_DOWN", "board", "Clicky", "Freq −", 0, 0, "Audio Clicky Down"],
+  ["CK_OFF", "board", "Clicky", "Off", 0, 0, "Audio Clicky Off"],
+  ["CK_ON", "board", "Clicky", "On", 0, 0, "Audio Clicky On"],
+  ["CK_RST", "board", "Clicky", "Reset", 0, 0, "Audio Clicky Reset"],
+  ["CK_TOGG", "board", "Clicky", "On/Off", 0, 0, "Toggle Audio Clicky"],
+  ["CK_UP", "board", "Clicky", "Freq +", 0, 0, "Audio Clicky Up"],
+  ["CL_NORM", "board", "Ctrl↔Caps", "Unswap", "Ctl/Caps", 0, "Unswap LCtl<->Caps"],
+  ["CL_SWAP", "board", "Ctrl↔Caps", "Swap", "Ctl/Caps", 0, "Swap LCtl<->Caps"],
+  ["CL_TOGG", "board", "Ctrl↔Caps", "On/Off", "Ctl/Caps", 0, "Toggle LCtl<->Caps"],
+  ["CG_LNRM", "board", "Ctrl↔Win", "Unswap L", "Ctl/Win", 0, "Unswap LCtl<->LGUI"],
+  ["CG_LSWP", "board", "Ctrl↔Win", "Swap L", "Ctl/Win", 0, "Swap LCtl<->LGUI"],
+  ["CG_NORM", "board", "Ctrl↔Win", "Unswap", "Ctl/Win", 0, "Unswap Ctl<->GUI"],
+  ["CG_RNRM", "board", "Ctrl↔Win", "Unswap R", "Ctl/Win", 0, "Unswap RCtl<->RGUI"],
+  ["CG_RSWP", "board", "Ctrl↔Win", "Swap R", "Ctl/Win", 0, "Swap RCtl<->RGUI"],
+  ["CG_SWAP", "board", "Ctrl↔Win", "Swap", "Ctl/Win", 0, "Swap Ctl<->GUI"],
+  ["CG_TOGG", "board", "Ctrl↔Win", "On/Off", "Ctl/Win", 0, "Toggle Ctl<->GUI"],
+  ["EH_LEFT", "board", "EE Hands", "Left", "Hands", 0, "EE Hands Left"],
+  ["EH_RGHT", "board", "EE Hands", "Right", "Hands", 0, "EE Hands Right"],
+  ["EC_NORM", "board", "Esc↔Caps", "Unswap", "Esc/Caps", 0, "Unswap Esc<->Caps"],
+  ["EC_SWAP", "board", "Esc↔Caps", "Swap", "Esc/Caps", 0, "Swap Esc<->Caps"],
+  ["EC_TOGG", "board", "Esc↔Caps", "On/Off", "Esc/Caps", 0, "Toggle Esc<->Caps"],
+  ["HF_BUZZ", "board", "Haptic", "Buzz", 0, 0, "Toggle Haptic Buzz"],
+  ["HF_COND", "board", "Haptic", "Cont −", 0, 0, "Haptic Continuous Down"],
+  ["HF_CONT", "board", "Haptic", "Cont", 0, 0, "Toggle Haptic Continuous"],
+  ["HF_CONU", "board", "Haptic", "Cont +", 0, 0, "Haptic Continuous Up"],
+  ["HF_DWLD", "board", "Haptic", "Dwell −", 0, 0, "Haptic Dwell Down"],
+  ["HF_DWLU", "board", "Haptic", "Dwell +", 0, 0, "Haptic Dwell Up"],
+  ["HF_FDBK", "board", "Haptic", "Fdbk", 0, 0, "Toggle Haptic Feedback"],
+  ["HF_NEXT", "board", "Haptic", "Next", 0, 0, "Haptic Mode Next"],
+  ["HF_OFF", "board", "Haptic", "Off", 0, 0, "Haptic Off"],
+  ["HF_ON", "board", "Haptic", "On", 0, 0, "Haptic On"],
+  ["HF_PREV", "board", "Haptic", "Prev", 0, 0, "Haptic Mode Previous"],
+  ["HF_RST", "board", "Haptic", "Reset", 0, 0, "Haptic Reset"],
+  ["HF_TOGG", "board", "Haptic", "On/Off", 0, 0, "Toggle Haptic"],
+  ["BL_BRTG", "board", "Light", "Breathe", 0, 0, "Toggle Breathing"],
+  ["BL_DOWN", "board", "Light", "Bri −", 0, 0, "Backlight Down"],
+  ["BL_OFF", "board", "Light", "Off", 0, 0, "Backlight Off"],
+  ["BL_ON", "board", "Light", "On", 0, 0, "Backlight On"],
+  ["BL_STEP", "board", "Light", "Step", 0, 0, "Backlight Step"],
+  ["BL_TOGG", "board", "Light", "On/Off", 0, 0, "Toggle Backlight"],
+  ["BL_UP", "board", "Light", "Bri +", 0, 0, "Backlight Up"],
+  ["LM_BRID", "board", "Light", "Bri −", 0, 0, "LED Matrix Brightness Down"],
+  ["LM_BRIU", "board", "Light", "Bri +", 0, 0, "LED Matrix Brightness Up"],
+  ["LM_FLGN", "board", "Light", "Flag next", 0, 0, "LED Matrix Flag Next"],
+  ["LM_FLGP", "board", "Light", "Flag prev", 0, 0, "LED Matrix Flag Previous"],
+  ["LM_NEXT", "board", "Light", "Next", 0, 0, "LED Matrix Next"],
+  ["LM_OFF", "board", "Light", "Off", 0, 0, "LED Matrix Off"],
+  ["LM_ON", "board", "Light", "On", 0, 0, "LED Matrix On"],
+  ["LM_PREV", "board", "Light", "Prev", 0, 0, "LED Matrix Previous"],
+  ["LM_SPDD", "board", "Light", "Spd −", 0, 0, "LED Matrix Speed Down"],
+  ["LM_SPDU", "board", "Light", "Spd +", 0, 0, "LED Matrix Speed Up"],
+  ["LM_TOGG", "board", "Light", "On/Off", 0, 0, "Toggle LED Matrix"],
+  ["RGB_M_B", "board", "Light", "Breathe", 0, 0, ""],
+  ["RGB_M_G", "board", "Light", "Gradient", 0, "Grad", ""],
+  ["RGB_M_K", "board", "Light", "Knight", 0, 0, ""],
+  ["RGB_M_P", "board", "Light", "Plain", 0, 0, ""],
+  ["RGB_M_R", "board", "Light", "Rainbow", 0, "Rainbw", ""],
+  ["RGB_M_SN", "board", "Light", "Snake", 0, 0, ""],
+  ["RGB_M_SW", "board", "Light", "Swirl", 0, 0, ""],
+  ["RGB_M_T", "board", "Light", "Test", 0, 0, ""],
+  ["RGB_M_TW", "board", "Light", "Twinkle", 0, 0, ""],
+  ["RGB_M_X", "board", "Light", "Xmas", 0, 0, ""],
+  ["RM_FLGN", "board", "Light", "Flag next", 0, 0, "RGB Matrix Flag Next"],
+  ["RM_FLGP", "board", "Light", "Flag prev", 0, 0, "RGB Matrix Flag Previous"],
+  ["RM_HUED", "board", "Light", "Hue −", 0, 0, "RGB Matrix Hue Down"],
+  ["RM_HUEU", "board", "Light", "Hue +", 0, 0, "RGB Matrix Hue Up"],
+  ["RM_NEXT", "board", "Light", "Next", 0, 0, "RGB Matrix Next"],
+  ["RM_OFF", "board", "Light", "Off", 0, 0, "RGB Matrix Off"],
+  ["RM_ON", "board", "Light", "On", 0, 0, "RGB Matrix On"],
+  ["RM_PREV", "board", "Light", "Prev", 0, 0, "RGB Matrix Previous"],
+  ["RM_SATD", "board", "Light", "Sat −", 0, 0, "RGB Matrix Saturation Down"],
+  ["RM_SATU", "board", "Light", "Sat +", 0, 0, "RGB Matrix Saturation Up"],
+  ["RM_SPDD", "board", "Light", "Spd −", 0, 0, "RGB Matrix Speed Down"],
+  ["RM_SPDU", "board", "Light", "Spd +", 0, 0, "RGB Matrix Speed Up"],
+  ["RM_TOGG", "board", "Light", "On/Off", 0, 0, "Toggle RGB Matrix"],
+  ["RM_VALD", "board", "Light", "Bri −", 0, 0, "RGB Matrix Value Down"],
+  ["RM_VALU", "board", "Light", "Bri +", 0, 0, "RGB Matrix Value Up"],
+  ["UG_HUED", "board", "Light", "Hue −", 0, 0, "RGB Underglow Hue Down"],
+  ["UG_HUEU", "board", "Light", "Hue +", 0, 0, "RGB Underglow Hue Up"],
+  ["UG_NEXT", "board", "Light", "Next", 0, 0, "RGB Underglow Next"],
+  ["UG_PREV", "board", "Light", "Prev", 0, 0, "RGB Underglow Previous"],
+  ["UG_SATD", "board", "Light", "Sat −", 0, 0, "RGB Underglow Saturation Down"],
+  ["UG_SATU", "board", "Light", "Sat +", 0, 0, "RGB Underglow Saturation Up"],
+  ["UG_SPDD", "board", "Light", "Spd −", 0, 0, "RGB Underglow Speed Down"],
+  ["UG_SPDU", "board", "Light", "Spd +", 0, 0, "RGB Underglow Speed Up"],
+  ["UG_TOGG", "board", "Light", "On/Off", 0, 0, "Toggle RGB Underglow"],
+  ["UG_VALD", "board", "Light", "Bri −", 0, 0, "RGB Underglow Value Down"],
+  ["UG_VALU", "board", "Light", "Bri +", 0, 0, "RGB Underglow Value Up"],
+  ["MU_NEXT", "board", "Music", "Mode +", 0, 0, "Music Next"],
+  ["MU_OFF", "board", "Music", "Off", 0, 0, "Music Off"],
+  ["MU_ON", "board", "Music", "On", 0, 0, "Music On"],
+  ["MU_TOGG", "board", "Music", "On/Off", 0, 0, "Toggle Music"],
+  ["NK_OFF", "board", "NKRO", "Off", 0, 0, "NKRO Off"],
+  ["NK_ON", "board", "NKRO", "On", 0, 0, "NKRO On"],
+  ["NK_TOGG", "board", "NKRO", "On/Off", 0, 0, "Toggle NKRO"],
+  ["SQ_OFF", "board", "Seq", "Off", 0, 0, "Sequencer Off"],
+  ["SQ_ON", "board", "Seq", "On", 0, 0, "Sequencer On"],
+  ["SQ_RESD", "board", "Seq", "Res −", 0, 0, "Resolution Down"],
+  ["SQ_RESU", "board", "Seq", "Res +", 0, 0, "Resolution Up"],
+  ["SQ_SALL", "board", "Seq", "All", 0, 0, "All Steps"],
+  ["SQ_SCLR", "board", "Seq", "Clear", 0, 0, "Clear Steps"],
+  ["SQ_TMPD", "board", "Seq", "Tempo −", 0, "BPM −", "Tempo Down"],
+  ["SQ_TMPU", "board", "Seq", "Tempo +", 0, "BPM +", "Tempo Up"],
+  ["SQ_TOGG", "board", "Seq", "On/Off", 0, 0, "Toggle Sequencer"],
+  ["VK_TOGG", "board", "Velocikey", "On/Off", "VelKey", 0, ""],
+  ["BS_NORM", "board", "\\↔Bksp", "Unswap", "\\/Bksp", 0, "Unswap \\<->Bspc"],
+  ["BS_SWAP", "board", "\\↔Bksp", "Swap", "\\/Bksp", 0, "Swap \\<->Bspc"],
+  ["BS_TOGG", "board", "\\↔Bksp", "On/Off", "\\/Bksp", 0, "Toggle \\<->Bspc"],
+  ["GE_NORM", "board", "`↔Esc", "Unswap", "`/Esc", 0, "Unswap `<->Esc"],
+  ["GE_SWAP", "board", "`↔Esc", "Swap", "`/Esc", 0, "Swap `<->Esc"],
+  ["AG_LNRM", "board", "Alt↔Win", "Unswap L", "Alt/Win", 0, "Unswap LAlt<->LGUI"],
+  ["AG_LSWP", "board", "Alt↔Win", "Swap L", "Alt/Win", 0, "Swap LAlt<->LGUI"],
+  ["AG_NORM", "board", "Alt↔Win", "Unswap", "Alt/Win", 0, "Unswap Alt<->GUI"],
+  ["AG_RNRM", "board", "Alt↔Win", "Unswap R", "Alt/Win", 0, "Unswap RAlt<->RGUI"],
+  ["AG_RSWP", "board", "Alt↔Win", "Swap R", "Alt/Win", 0, "Swap RAlt<->RGUI"],
+  ["AG_SWAP", "board", "Alt↔Win", "Swap", "Alt/Win", 0, "Swap Alt<->GUI"],
+  ["AG_TOGG", "board", "Alt↔Win", "On/Off", "Alt/Win", 0, "Toggle Alt<->GUI"],
+  ["GU_OFF", "board", "Win key", "Off", "Win", 0, "GUI Off"],
+  ["GU_ON", "board", "Win key", "On", "Win", 0, "GUI On"],
+  ["GU_TOGG", "board", "Win key", "On/Off", "Win", 0, "Toggle GUI"],
+  ["DB_TOGG", "fw", "Firmware", "Debug", 0, 0, "Toggle Debug"],
+  ["EE_CLR", "fw", "Firmware", "Clear EE", 0, 0, "Clear EEPROM"],
+  ["QK_BOOT", "fw", "Firmware", "Boot", 0, 0, "Bootloader"],
+  ["QK_MAKE", "fw", "Firmware", "Make", 0, 0, "Make"],
+  ["QK_RBT", "fw", "Firmware", "Reboot", 0, 0, "Reboot"],
 ];
+const QMK_LABELS = {"KC_NO": "N/A", "KC_TRNS": "Transparent", "KC_A": "A", "KC_B": "B", "KC_C": "C", "KC_D": "D", "KC_E": "E", "KC_F": "F", "KC_G": "G", "KC_H": "H", "KC_I": "I", "KC_J": "J", "KC_K": "K", "KC_L": "L", "KC_M": "M", "KC_N": "N", "KC_O": "O", "KC_P": "P", "KC_Q": "Q", "KC_R": "R", "KC_S": "S", "KC_T": "T", "KC_U": "U", "KC_V": "V", "KC_W": "W", "KC_X": "X", "KC_Y": "Y", "KC_Z": "Z", "KC_1": "1", "KC_2": "2", "KC_3": "3", "KC_4": "4", "KC_5": "5", "KC_6": "6", "KC_7": "7", "KC_8": "8", "KC_9": "9", "KC_0": "0", "KC_ENT": "Enter", "KC_ESC": "Esc", "KC_BSPC": "Backspace", "KC_TAB": "Tab", "KC_SPC": "Spacebar", "KC_MINS": "-", "KC_EQL": "=", "KC_LBRC": "[", "KC_RBRC": "]", "KC_BSLS": "\\", "KC_NUHS": "#", "KC_SCLN": ";", "KC_QUOT": "'", "KC_GRV": "`", "KC_COMM": ",", "KC_DOT": ".", "KC_SLSH": "/", "KC_CAPS": "Caps Lock", "KC_F1": "F1", "KC_F2": "F2", "KC_F3": "F3", "KC_F4": "F4", "KC_F5": "F5", "KC_F6": "F6", "KC_F7": "F7", "KC_F8": "F8", "KC_F9": "F9", "KC_F10": "F10", "KC_F11": "F11", "KC_F12": "F12", "KC_PSCR": "Print Screen", "KC_SCRL": "Scroll Lock", "KC_PAUS": "Pause", "KC_INS": "Insert", "KC_HOME": "Home", "KC_PGUP": "Page Up", "KC_DEL": "Delete", "KC_END": "End", "KC_PGDN": "Page Down", "KC_RGHT": "Right", "KC_LEFT": "Left", "KC_DOWN": "Down", "KC_UP": "Up", "KC_NUM": "Num Lock", "KC_PSLS": "/", "KC_PAST": "*", "KC_PMNS": "-", "KC_PPLS": "+", "KC_PENT": "Enter", "KC_P1": "1", "KC_P2": "2", "KC_P3": "3", "KC_P4": "4", "KC_P5": "5", "KC_P6": "6", "KC_P7": "7", "KC_P8": "8", "KC_P9": "9", "KC_P0": "0", "KC_PDOT": ".", "KC_NUBS": "\\", "KC_APP": "App", "KC_KB_POWER": "Power", "KC_PEQL": "=", "KC_F13": "F13", "KC_F14": "F14", "KC_F15": "F15", "KC_F16": "F16", "KC_F17": "F17", "KC_F18": "F18", "KC_F19": "F19", "KC_F20": "F20", "KC_F21": "F21", "KC_F22": "F22", "KC_F23": "F23", "KC_F24": "F24", "KC_EXEC": "Execute", "KC_HELP": "Help", "KC_MENU": "Menu", "KC_SLCT": "Select", "KC_STOP": "Stop", "KC_AGIN": "Again", "KC_UNDO": "Undo", "KC_CUT": "Cut", "KC_COPY": "Copy", "KC_PSTE": "Paste", "KC_FIND": "Find", "KC_KB_MUTE": "Mute", "KC_KB_VOLUME_UP": "Volume Up", "KC_KB_VOLUME_DOWN": "Volume Down", "KC_LCAP": "Caps Lock", "KC_LNUM": "Num Lock", "KC_LSCR": "Scroll Lock", "KC_PCMM": ",", "KC_KP_EQUAL_AS400": "=", "KC_INT1": "INT 1", "KC_INT2": "INT 2", "KC_INT3": "INT 3", "KC_INT4": "INT 4", "KC_INT5": "INT 5", "KC_INT6": "INT 6", "KC_INT7": "INT 7", "KC_INT8": "INT 8", "KC_INT9": "INT 9", "KC_LNG1": "LANG 1", "KC_LNG2": "LANG 2", "KC_LNG3": "LANG 3", "KC_LNG4": "LANG 4", "KC_LNG5": "LANG 5", "KC_LNG6": "LANG 6", "KC_LNG7": "LANG 7", "KC_LNG8": "LANG 8", "KC_LNG9": "LANG 9", "KC_ERAS": "Alternate Erase", "KC_SYRQ": "SysReq/Attention", "KC_CNCL": "Cancel", "KC_CLR": "Clear", "KC_PRIR": "Prior", "KC_RETN": "Return", "KC_SEPR": "Separator", "KC_OUT": "Out", "KC_OPER": "Oper", "KC_CLAG": "Clear/Again", "KC_CRSL": "CrSel/Props", "KC_EXSL": "ExSel", "KC_PWR": "Power", "KC_SLEP": "Sleep", "KC_WAKE": "Wake", "KC_MUTE": "Mute", "KC_VOLU": "Volume Up", "KC_VOLD": "Volume Down", "KC_MNXT": "Next", "KC_MPRV": "Previous", "KC_MSTP": "Stop", "KC_MPLY": "Play/Pause", "KC_MSEL": "Media", "KC_EJCT": "Eject", "KC_MAIL": "Mail", "KC_CALC": "Calculator", "KC_MYCM": "My Computer", "KC_WSCH": "Search", "KC_WHOM": "Home", "KC_WBAK": "Back", "KC_WFWD": "Forward", "KC_WSTP": "Stop", "KC_WREF": "Refresh", "KC_WFAV": "Favorites", "KC_MFFD": "Fast Forward", "KC_MRWD": "Rewind", "KC_BRIU": "Brightness Up", "KC_BRID": "Brightness Down", "KC_CPNL": "Control Panel", "KC_ASST": "Assistant", "KC_MCTL": "Mission Control", "KC_LPAD": "Launchpad", "KC_LCTL": "Left Control", "KC_LSFT": "Left Shift", "KC_LALT": "Left Alt", "KC_LGUI": "Left GUI", "KC_RCTL": "Right Control", "KC_RSFT": "Right Shift", "KC_RALT": "Right Alt", "KC_RGUI": "Right GUI", "MI_ON": "MIDI On", "MI_OFF": "MIDI Off", "MI_TOGG": "Toggle MIDI", "MI_C": "C0", "MI_Cs": "C#0", "MI_D": "D0", "MI_Ds": "D#0", "MI_E": "E0", "MI_F": "F0", "MI_Fs": "F#0", "MI_G": "G0", "MI_Gs": "G#0", "MI_A": "A0", "MI_As": "A#0", "MI_B": "B0", "MI_C1": "C1", "MI_Cs1": "C#1", "MI_D1": "D1", "MI_Ds1": "D#1", "MI_E1": "E1", "MI_F1": "F1", "MI_Fs1": "F#1", "MI_G1": "G1", "MI_Gs1": "G#1", "MI_A1": "A1", "MI_As1": "A#1", "MI_B1": "B1", "MI_C2": "C2", "MI_Cs2": "C#2", "MI_D2": "D2", "MI_Ds2": "D#2", "MI_E2": "E2", "MI_F2": "F2", "MI_Fs2": "F#2", "MI_G2": "G2", "MI_Gs2": "G#2", "MI_A2": "A2", "MI_As2": "A#2", "MI_B2": "B2", "MI_C3": "C3", "MI_Cs3": "C#3", "MI_D3": "D3", "MI_Ds3": "D#3", "MI_E3": "E3", "MI_F3": "F3", "MI_Fs3": "F#3", "MI_G3": "G3", "MI_Gs3": "G#3", "MI_A3": "A3", "MI_As3": "A#3", "MI_B3": "B3", "MI_C4": "C4", "MI_Cs4": "C#4", "MI_D4": "D4", "MI_Ds4": "D#4", "MI_E4": "E4", "MI_F4": "F4", "MI_Fs4": "F#4", "MI_G4": "G4", "MI_Gs4": "G#4", "MI_A4": "A4", "MI_As4": "A#4", "MI_B4": "B4", "MI_C5": "C5", "MI_Cs5": "C#5", "MI_D5": "D5", "MI_Ds5": "D#5", "MI_E5": "E5", "MI_F5": "F5", "MI_Fs5": "F#5", "MI_G5": "G5", "MI_Gs5": "G#5", "MI_A5": "A5", "MI_As5": "A#5", "MI_B5": "B5", "MI_OCN2": "Octave -2", "MI_OCN1": "Octave -1", "MI_OC0": "Octave 0", "MI_OC1": "Octave 1", "MI_OC2": "Octave 2", "MI_OC3": "Octave 3", "MI_OC4": "Octave 4", "MI_OC5": "Octave 5", "MI_OC6": "Octave 6", "MI_OC7": "Octave 7", "MI_OCTD": "Octave Down", "MI_OCTU": "Octave Up", "MI_TRN6": "Transpose -6", "MI_TRN5": "Transpose -5", "MI_TRN4": "Transpose -4", "MI_TRN3": "Transpose -3", "MI_TRN2": "Transpose -2", "MI_TRN1": "Transpose -1", "MI_TR0": "Transpose 0", "MI_TR1": "Transpose +1", "MI_TR2": "Transpose +2", "MI_TR3": "Transpose +3", "MI_TR4": "Transpose +4", "MI_TR5": "Transpose +5", "MI_TR6": "Transpose +6", "MI_TRSD": "Transpose Down", "MI_TRSU": "Transpose Up", "MI_VL0": "Velocity 0", "MI_VL1": "Velocity 1", "MI_VL2": "Velocity 2", "MI_VL3": "Velocity 3", "MI_VL4": "Velocity 4", "MI_VL5": "Velocity 5", "MI_VL6": "Velocity 6", "MI_VL7": "Velocity 7", "MI_VL8": "Velocity 8", "MI_VL9": "Velocity 9", "MI_VL10": "Velocity 10", "MI_VELD": "Velocity Down", "MI_VELU": "Velocity Up", "MI_CH1": "Channel 1", "MI_CH2": "Channel 2", "MI_CH3": "Channel 3", "MI_CH4": "Channel 4", "MI_CH5": "Channel 5", "MI_CH6": "Channel 6", "MI_CH7": "Channel 7", "MI_CH8": "Channel 8", "MI_CH9": "Channel 9", "MI_CH10": "Channel 10", "MI_CH11": "Channel 11", "MI_CH12": "Channel 12", "MI_CH13": "Channel 13", "MI_CH14": "Channel 14", "MI_CH15": "Channel 15", "MI_CH16": "Channel 16", "MI_CHND": "Channel Down", "MI_CHNU": "Channel Up", "MI_AOFF": "All Notes Off", "MI_SUST": "Sustain", "MI_PORT": "Portamento", "MI_SOST": "Sostenuto", "MI_SOFT": "Soft Pedal", "MI_LEG": "Legato", "MI_MOD": "Modulation", "MI_MODD": "Modulation Speed Down", "MI_MODU": "Modulation Speed Up", "MI_BNDD": "Pitch Bend Down", "MI_BNDU": "Pitch Bend Up"};
+const COMMANDS = COMMAND_ROWS.map(r => C(...r));
+// The numbered families, built from their parts as NazgKeycapLegend.cpp does.
+for (let n = 0; n < 32; n++) {
+  COMMANDS.push(C('JS_' + n, 'host', 'Joystick', 'Btn ' + n, 'Joy', 0, 'Joystick Button ' + n));
+  COMMANDS.push(C('PB_' + (n + 1), 'host', 'Prog btn', String(n + 1), 'Prog', 0, 'Programmable Button ' + (n + 1)));
+  COMMANDS.push(C('QK_USER_' + n, 'host', 'User', 'U' + n, 0, 0, 'User ' + n));
+  COMMANDS.push(C('QK_KB_' + n, 'board', 'Custom', 'KB ' + n, 0, 0, 'Keyboard ' + n));
+}
+for (let n = 1; n <= 5; n++) COMMANDS.push(C('BT_PRF' + n, 'host', 'Bluetooth', 'Prof ' + n, 'BT', 0, 'Bluetooth Profile ' + n));
+// MIDI and steno print QMK's own name (short-forms.md).
+const MIDI_BASIC = ['MI_ON', 'MI_OFF', 'MI_TOGG', 'MI_C', 'MI_Cs', 'MI_D', 'MI_Ds', 'MI_E', 'MI_F', 'MI_Fs', 'MI_G', 'MI_Gs', 'MI_A', 'MI_As',
+  'MI_B', 'MI_OCTD', 'MI_OCTU', 'MI_TRSD', 'MI_TRSU', 'MI_VELD', 'MI_VELU', 'MI_CHND', 'MI_CHNU', 'MI_AOFF', 'MI_SUST'];
+const STENO = 'ST_FN ST_N1 ST_N2 ST_N3 ST_N4 ST_N5 ST_N6 ST_N7 ST_N8 ST_N9 ST_NA ST_NB ST_NC ST_S1 ST_S2 ST_S3 ST_TL ST_KL ST_PL ST_WL ST_HL ST_RL ST_A ST_O ST_ST1 ST_ST2 ST_ST3 ST_ST4 ST_E ST_U ST_FR ST_RR ST_PR ST_BR ST_LR ST_GR ST_TR ST_SR ST_DR ST_ZR'.split(' ');
+for (const kc of [...MIDI_BASIC, ...STENO]) COMMANDS.push(C(kc, null, 'MI_', kc, 0, 0, QMK_LABELS[kc] || ''));
+// Space Cadet, which the app draws as a tap-hold key: the hold as the header, the tap below.
+for (const [kc, hold, tap, label] of [['SC_LSPO', 'Shift', '(', 'Left Shift, ( when tapped'], ['SC_RSPC', 'Shift', ')', 'Right Shift, ) when tapped'],
+    ['SC_LCPO', 'Ctrl', '(', 'Left Control, ( when tapped'], ['SC_RCPC', 'Ctrl', ')', 'Right Control, ) when tapped'],
+    ['SC_LAPO', 'Alt', '(', 'Left Alt, ( when tapped'], ['SC_RAPC', 'Alt Gr', ')', 'Right Alt, ) when tapped'],
+    ['SC_SENT', 'Shift', 'Enter', 'Right Shift, Enter when tapped']])
+  COMMANDS.push(C(kc, 'beh', hold, tap, 0, 0, label));
 const COMMAND = Object.fromEntries(COMMANDS.map(c => [c.kc, c]));
 
 // Lighting, by the firmware state and the systems the definition declares (ui-design.md, "Which
@@ -271,10 +505,11 @@ const LIGHT_SETS = {
           ['RGB_M_K', 'Knight'], ['RGB_M_X', 'Xmas'], ['RGB_M_G', 'Gradient', 'Grad'], ['RGB_M_T', 'Test']],
 };
 LIGHT_SETS.rm = LIGHT_SETS.ug.map(([kc, main]) => ['RM_' + kc.slice(3), main]);
-const SYSTEMS = { 'Underglow': ['ug'], 'Underglow + RGB Matrix': ['ug', 'rm'], 'Backlight + Underglow': ['bl', 'ug'] };
+const SYSTEMS = { 'None': [], 'Underglow': ['ug'], 'Underglow + RGB Matrix': ['ug', 'rm'], 'Backlight + Underglow': ['bl', 'ug'] };
 const SYSTEM_WORDS = { bl: 'Backlit', ug: 'UGlow', rm: 'Matrix' };
 function lightingGroups() {
   const systems = SYSTEMS[state.lighting], several = systems.length > 1, fw = state.firmware;
+  if (!systems.length) return [];
   const head = s => several ? SYSTEM_WORDS[s] : 'Light';
   const groups = [];
   const add = (title, set, system, note) => groups.push({ title, items: set.map(([kc, main, short]) => {
@@ -308,7 +543,8 @@ const MOD_INIT = { ctrl: 'C', shift: 'S', alt: 'A', gui: 'W' };
 const MOD_QMK = { ctrl: 'CTL', shift: 'SFT', alt: 'ALT', gui: 'GUI' };
 const LAYER_OPS = [['MO', 'Hold', 'Hold the layer while the key is down'], ['TG', 'Toggle', 'Turn the layer on or off'],
                    ['TO', 'To', 'Go to the layer, turning the others off'], ['TT', 'Tap tog', 'Hold, or tap several times to toggle'],
-                   ['OSL', 'Once', 'The layer for the next key only'], ['DF', 'Base', 'Make it the default layer, until unplugged']];
+                   ['OSL', 'Once', 'The layer for the next key only'], ['DF', 'Base', 'Make it the default layer, until unplugged'],
+                   ['PDF', 'Set base', 'Make it the default layer, kept after unplugging']];
 const opWord = op => LAYER_OPS.find(o => o[0] === op)[1];
 const modsList = m => MOD_NAMES.filter(n => m[n]);
 function modsWords(m, compact) {
@@ -333,6 +569,7 @@ function format(k) {
     case 'lm': return `LM(${k.layer},${modsQmk(k.mods)})`;
     case 'osm': return `OSM(${modsQmk(k.mods)})`;
     case 'macro': return `MC_${k.n}`;
+    case 'own': return `QK_KB_${k.n}`;
     case 'td': return `TD(${k.n})`;
     case 'trns': return 'KC_TRNS';
     case 'no': return 'KC_NO';
@@ -347,7 +584,7 @@ function parse(text) {
   if (s === 'KC_NO' || s === 'XXXXXXX') return { kind: 'no' };
   const basic = kc => NAMED[kc] || ARROWS[kc] || hostLegend(kc) || /^KC_[A-Z0-9]$/.test(kc);
   let m;
-  if ((m = /^(MO|TG|TO|TT|OSL|DF)\((\d+)\)$/.exec(s))) return { kind: 'layer', op: m[1], layer: +m[2] };
+  if ((m = /^(MO|TG|TO|TT|OSL|DF|PDF)\((\d+)\)$/.exec(s))) return { kind: 'layer', op: m[1], layer: +m[2] };
   if ((m = /^LT\((\d+),(KC_\w+)\)$/.exec(s)) && basic(m[2])) return { kind: 'lt', layer: +m[1], kc: m[2] };
   const mods = t => { const r = { right: /MOD_R/.test(t) };
     for (const [n, q] of Object.entries(MOD_QMK)) if (new RegExp('MOD_[LR]' + q).test(t)) r[n] = true;
@@ -386,7 +623,9 @@ function describe(k, where) {
   switch (k.kind) {
     case 'basic': tap(k.kc); break;
     case 'cmd': { const c = COMMAND[k.kc]; d.command = true; d.full = c.main; d.short = c.mainShort || '';
-      if (c.head === 'MI_' || c.cat === null) { d.full = c.kc; d.command = false; break; }
+      // QMK's own name; in the picker without the MI_ or ST_ its group's title says, as a header
+      // the title says is left out -- "MI_TOGG" does not fit a tile, "TOGG" does.
+      if (c.head === 'MI_' || c.cat === null) { d.full = where === 'picker' ? c.kc.replace(/^(MI|ST)_/, '') : c.kc; d.command = false; break; }
       d.header = { full: c.head, short: c.headShort || '', cat: c.cat }; break; }
     case 'mods': tap(k.kc); d.header = { full: modsWords(k.mods) + '+', short: modsWords(k.mods, true) + '+', cat: 'host' }; break;
     case 'mt': tap(k.kc); d.hold = { full: modsWords(k.mods), short: modsWords(k.mods, true), cat: 'beh' }; break;
@@ -396,6 +635,8 @@ function describe(k, where) {
     case 'osm': d.command = true; d.full = modsWords(k.mods); d.short = modsWords(k.mods, true); d.header = { full: 'Once', cat: 'beh' }; break;
     case 'macro': d.command = true; d.full = 'M' + k.n; d.header = { full: 'Macro', cat: 'host' }; break;
     case 'td': d.command = true; d.full = 'TD ' + k.n; d.header = { full: 'Dance', cat: 'beh' }; break;
+    // A key the definition names (customKeycodes): its name, its short name, no category.
+    case 'own': { const o = OWN_KEYS[k.n]; d.command = true; d.full = o.name; d.short = o.shortName; break; }
     case 'trns': d.full = 'Trans'; d.mark = '▽'; break;
     case 'no': d.full = 'None'; d.mark = '✕'; break;
   }
@@ -403,7 +644,9 @@ function describe(k, where) {
 }
 function labelOf(k) {
   if (k.kind === 'cmd') return COMMAND[k.kc].label || '';
+  if (k.kind === 'own') return OWN_KEYS[k.n].title;
   if (k.kind === 'basic') return LABELS[k.kc] || '';
+  if (k.kind === 'osm') return 'Held for the next key only';
   if (k.kind === 'layer') return LAYER_OPS.find(o => o[0] === k.op)[2];
   if (k.kind === 'trns') return 'Transparent: the layer below decides';
   if (k.kind === 'no') return 'Does nothing';
@@ -563,60 +806,136 @@ function fallsTo(i, layer) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The picker's contents, as tabs of groups.
+// The picker's contents, as tabs of groups. Every keycode of the board's version is in one tab --
+// rare ones in More -- and search finds them all. A group is left out when the board says it
+// cannot work: its lighting systems (the definition), its macro and tap dance counts, and on Vial
+// the feature bits -- Caps Word, Layer Lock -- and the alt repeat count, which Repeat needs. What
+// the board cannot tell -- audio, haptic, Unicode, steno -- is offered, as Vial and VIA do, and
+// hover says what it needs. A tab left with no group is not shown.
 const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(c => B('KC_' + c));
 const digits = '1234567890'.split('').map(c => B('KC_' + c));
-const punct = ['KC_MINS', 'KC_EQL', 'KC_LBRC', 'KC_RBRC', 'KC_BSLS', 'KC_SCLN', 'KC_QUOT', 'KC_GRV', 'KC_COMM', 'KC_DOT', 'KC_SLSH', 'KC_NUBS', 'KC_NUHS'].map(B);
-const cmdsWhere = test => COMMANDS.filter(test).map(c => CMD(c.kc));
+const PUNCT = ['KC_GRV', 'KC_MINS', 'KC_EQL', 'KC_LBRC', 'KC_RBRC', 'KC_BSLS', 'KC_SCLN', 'KC_QUOT', 'KC_COMM', 'KC_DOT', 'KC_SLSH'];
+const punct = [...PUNCT, 'KC_NUBS', 'KC_NUHS'].map(B);
+// VIA's shifted symbols: S(KC_1) is "!" in one click, for a symbol layer.
+const shifted = ['KC_1', 'KC_2', 'KC_3', 'KC_4', 'KC_5', 'KC_6', 'KC_7', 'KC_8', 'KC_9', 'KC_0', ...PUNCT]
+  .map(kc => ({ kind: 'mods', mods: { shift: true }, kc }));
+const cmds = list => list.split(' ').filter(kc => COMMAND[kc]).map(CMD);
+const range = (n, f) => Array.from({ length: n }, (_, i) => f(i));
+// A Keychron board's own keys, as its VIA definition names them (customKeycodes, on QK_KB_0 on).
+const OWN_SETS = {
+  Keychron: [['Mission Control', 'Mission Control in macOS', 'MCtrl'], ['Launch Pad', 'Launch Pad in macOS', 'LPad'],
+    ['Left Option', 'Left Option in macOS', 'LOpt'], ['Right Option', 'Right Option in macOS', 'ROpt'], ['Left Cmd', 'Left Command in macOS', 'LCmd'],
+    ['Right Cmd', 'Right Command in macOS', 'RCmd'], ['Siri', 'Siri in macOS', 'Siri'], ['Task View', 'Task View in windows', 'Task'],
+    ['File Explorer', 'File Explorer in windows', 'File'], ['Screen shot', 'Screenshot in macOS', 'SShot'], ['Cortana', 'Cortana in windows', 'Cortana']],
+};
+let OWN_KEYS = [];
+// What the mock board reports. Vial 6: 16 macros, 8 tap dances, Caps Word, no Layer Lock, no alt
+// repeat entries -- so no Repeat keys. VIA 12: 16 macros; VIA tells nothing more.
+const BOARDS = {
+  'Vial 6': { macros: 16, tapDances: 8, absent: ['QK_LLCK', 'QK_REP', 'QK_AREP'] },
+  'VIA 12': { macros: 16, tapDances: 0, absent: [] },
+};
 function tabs() {
-  const L = [0, 1, 2, 3];
-  return [
+  const L = KEYMAP.map((_, n) => n), board = BOARDS[state.protocol];
+  OWN_KEYS = (OWN_SETS[state.ownKeys] || []).map(([name, title, shortName]) => ({ name, title, shortName }));
+  const has = k => !(k.kind === 'cmd' && board.absent.includes(k.kc));
+  const g = (title, items) => ({ title, items: items.filter(has) });
+  const byHeader = (list, more) => {
+    const groups = new Map();
+    for (const k of cmds(list)) { const h = COMMAND[k.kc].head; if (!groups.has(h)) groups.set(h, []); groups.get(h).push(k); }
+    return [...groups].map(([h, items]) => g(h + (more ? ' -- ' + more : ''), items));
+  };
+  const all = [
     { id: 'keys', name: 'Keys', groups: [
-      { title: 'Letters', items: letters }, { title: 'Digits', items: digits }, { title: 'Punctuation', items: punct },
-      { title: 'Editing and spaces', items: ['KC_ESC', 'KC_TAB', 'KC_ENT', 'KC_BSPC', 'KC_SPC', 'KC_DEL', 'KC_INS', 'KC_CAPS'].map(B) },
-      { title: 'Modifiers', items: ['KC_LSFT', 'KC_LCTL', 'KC_LALT', 'KC_LGUI', 'KC_RSFT', 'KC_RCTL', 'KC_RALT', 'KC_RGUI', 'KC_APP'].map(B) },
-      { title: 'Navigation', items: ['KC_HOME', 'KC_END', 'KC_PGUP', 'KC_PGDN', 'KC_UP', 'KC_DOWN', 'KC_LEFT', 'KC_RGHT', 'KC_PSCR', 'KC_SCRL', 'KC_PAUS'].map(B) },
-      { title: 'Function keys', items: Array.from({ length: 24 }, (_, i) => B('KC_F' + (i + 1))) },
-      { title: 'Numpad', items: ['KC_NUM', 'KC_PSLS', 'KC_PAST', 'KC_PMNS', 'KC_PPLS', 'KC_PENT', 'KC_P1', 'KC_P2', 'KC_P3', 'KC_P4', 'KC_P5', 'KC_P6', 'KC_P7', 'KC_P8', 'KC_P9', 'KC_P0', 'KC_PDOT'].map(B) },
-      { title: 'International', items: ['KC_INT1', 'KC_INT2', 'KC_INT3', 'KC_INT4', 'KC_INT5', 'KC_LNG1', 'KC_LNG2'].map(B) },
-      { title: 'Nothing', items: [TRNS, NO] },
+      g('Letters', letters), g('Digits', digits), g('Punctuation -- the last two are ISO\'s', punct),
+      g('Shifted -- Shift and the key, in one', shifted),
+      g('Editing and spaces', ['KC_ESC', 'KC_TAB', 'KC_ENT', 'KC_BSPC', 'KC_SPC', 'KC_DEL', 'KC_INS', 'KC_CAPS'].map(B)),
+      g('Modifiers', ['KC_LSFT', 'KC_LCTL', 'KC_LALT', 'KC_LGUI', 'KC_RSFT', 'KC_RCTL', 'KC_RALT', 'KC_RGUI', 'KC_APP'].map(B)),
+      g('Navigation', ['KC_HOME', 'KC_END', 'KC_PGUP', 'KC_PGDN', 'KC_UP', 'KC_DOWN', 'KC_LEFT', 'KC_RGHT', 'KC_PSCR', 'KC_SCRL', 'KC_PAUS'].map(B)),
+      g('Function keys', range(24, i => B('KC_F' + (i + 1)))),
+      g('Numpad', ['KC_NUM', 'KC_PSLS', 'KC_PAST', 'KC_PMNS', 'KC_PPLS', 'KC_PENT', 'KC_P1', 'KC_P2', 'KC_P3', 'KC_P4', 'KC_P5', 'KC_P6',
+                   'KC_P7', 'KC_P8', 'KC_P9', 'KC_P0', 'KC_PDOT', 'KC_PEQL', 'KC_PCMM'].map(B)),
+      g('International -- Japanese and Korean keys first', [...range(9, i => B('KC_INT' + (i + 1))), ...range(9, i => B('KC_LNG' + (i + 1)))]),
+      // Keys a stock keyboard has too, whatever the system makes of them: last, out of the way.
+      g('Rarer keys -- HID keys few systems act on', ['KC_UNDO', 'KC_CUT', 'KC_COPY', 'KC_PSTE', 'KC_FIND', 'KC_AGIN', 'KC_STOP', 'KC_SLCT', 'KC_MENU',
+        'KC_EXEC', 'KC_HELP', 'KC_KB_POWER', 'KC_KB_MUTE', 'KC_KB_VOLUME_UP', 'KC_KB_VOLUME_DOWN', 'KC_LCAP', 'KC_LNUM', 'KC_LSCR', 'KC_SYRQ',
+        'KC_ERAS', 'KC_CNCL', 'KC_CLR', 'KC_PRIR', 'KC_RETN', 'KC_SEPR', 'KC_OUT', 'KC_OPER', 'KC_CLAG', 'KC_CRSL', 'KC_EXSL', 'KC_KP_EQUAL_AS400'].map(B)),
+      g('Nothing', [TRNS, NO]),
     ] },
     { id: 'layers', name: 'Layers', cat: 'beh', layers: true, groups: [
-      ...LAYER_OPS.map(([op, word, label]) => ({ title: word + ' -- ' + label.toLowerCase(), items: L.map(n => ({ kind: 'layer', op, layer: n })) })),
-      { title: 'One-shot modifiers', items: [{ ctrl: true }, { shift: true }, { alt: true }, { gui: true }, { ctrl: true, shift: true }, { ctrl: true, shift: true, alt: true, gui: true }].map(mods => ({ kind: 'osm', mods })) },
-      { title: 'More', items: cmdsWhere(c => ['QK_LLCK', 'TL_LOWR', 'TL_UPPR'].includes(c.kc)) },
+      ...LAYER_OPS.map(([op, word, label]) => g(word + ' -- ' + label.toLowerCase(), L.map(n => ({ kind: 'layer', op, layer: n })))),
+      g('One-shot modifiers -- held for the next key only', [{ ctrl: true }, { shift: true }, { alt: true }, { gui: true },
+        { ctrl: true, right: true }, { shift: true, right: true }, { alt: true, right: true }, { gui: true, right: true },
+        { ctrl: true, shift: true, alt: true }, { ctrl: true, shift: true, alt: true, gui: true }].map(mods => ({ kind: 'osm', mods }))),
+      g('Layer lock and tri layer', cmds('QK_LLCK TL_LOWR TL_UPPR')),
     ] },
-    { id: 'media', name: 'Media', cat: 'host', groups: ['Media', 'System', 'Screen', 'App', 'Web', 'Unicode', 'Output']
-        .map(h => ({ title: h, items: cmdsWhere(c => c.head === h && c.cat === 'host') })) },
-    { id: 'mouse', name: 'Mouse', cat: 'host', groups: [{ title: 'Mouse keys', items: cmdsWhere(c => c.head === 'Mouse') }] },
+    { id: 'media', name: 'Media', cat: 'host', groups: [
+      g('Media', cmds('KC_MPLY KC_MSTP KC_MPRV KC_MNXT KC_MRWD KC_MFFD KC_EJCT KC_MSEL')),
+      g('Volume', cmds('KC_MUTE KC_VOLD KC_VOLU')),
+      g('Screen', cmds('KC_BRID KC_BRIU')), g('System', cmds('KC_PWR KC_SLEP KC_WAKE')),
+      g('Apps', cmds('KC_CALC KC_MAIL KC_MYCM KC_CPNL KC_ASST KC_MCTL KC_LPAD')),
+      g('Web', cmds('KC_WBAK KC_WFWD KC_WREF KC_WSTP KC_WHOM KC_WSCH KC_WFAV')),
+    ] },
+    { id: 'mouse', name: 'Mouse', cat: 'host', groups: [
+      g('Move', cmds('MS_UP MS_DOWN MS_LEFT MS_RGHT')), g('Buttons', cmds('MS_BTN1 MS_BTN2 MS_BTN3 MS_BTN4 MS_BTN5 MS_BTN6 MS_BTN7 MS_BTN8')),
+      g('Wheel', cmds('MS_WHLU MS_WHLD MS_WHLL MS_WHLR')), g('Speed -- while held', cmds('MS_ACL0 MS_ACL1 MS_ACL2')),
+    ] },
     { id: 'light', name: 'Lighting', cat: 'board', lighting: true, groups: lightingGroups() },
     { id: 'features', name: 'Features', cat: 'beh', groups: [
-      { title: 'Keys that behave', items: cmdsWhere(c => ['CW_TOGG', 'QK_REP', 'QK_AREP', 'QK_GESC', 'QK_LEAD', 'QK_LOCK'].includes(c.kc)) },
-      { title: 'Space Cadet', items: cmdsWhere(c => /^SC_/.test(c.kc)) },
-      { title: 'Turn a feature on or off', items: cmdsWhere(c => /^(AS|AC|CM|OS|KO|SH|DT)_/.test(c.kc)) },
-    ] },
-    { id: 'board', name: 'Board', cat: 'board', groups: [
-      { title: 'Swaps', items: cmdsWhere(c => /^(CL|CG|AG|EC)_/.test(c.kc)) },
-      { title: 'Settings', items: cmdsWhere(c => /^(GU|NK|EH)_/.test(c.kc)) },
+      g('Keys that behave', cmds('CW_TOGG QK_REP QK_AREP QK_GESC QK_LEAD QK_LOCK')),
+      g('Space Cadet -- a modifier held, a bracket tapped', cmds('SC_LSPO SC_RSPC SC_LCPO SC_RCPC SC_LAPO SC_RAPC SC_SENT')),
+      g('Auto Shift', cmds('AS_TOGG AS_ON AS_OFF AS_UP AS_DOWN AS_RPT')), g('Autocorrect', cmds('AC_TOGG AC_ON AC_OFF')),
+      g('Combos', cmds('CM_TOGG CM_ON CM_OFF')), g('Key overrides', cmds('KO_TOGG KO_ON KO_OFF')), g('One shot keys', cmds('OS_TOGG OS_ON OS_OFF')),
+      g('Tap term', cmds('DT_UP DT_DOWN DT_PRNT')), g('Swap hands', cmds('SH_TOGG SH_ON SH_OFF SH_MON SH_MOFF SH_TT SH_OS')),
+      g('Secure -- unlocking the board for its configurator', cmds('SE_LOCK SE_UNLK SE_TOGG SE_REQ')),
     ] },
     { id: 'macros', name: 'Macros', cat: 'host', groups: [
-      { title: 'Macros -- recorded in the Macros section', items: Array.from({ length: 16 }, (_, n) => ({ kind: 'macro', n })) },
-      { title: 'Tap dances -- set in the Tap dance section', items: Array.from({ length: 8 }, (_, n) => ({ kind: 'td', n })) },
-      { title: 'Dynamic macros -- recorded on the keyboard', items: cmdsWhere(c => /^DM_/.test(c.kc)) },
+      g(`Macros -- the board has ${board.macros}, recorded in the Macros section`, range(board.macros, n => ({ kind: 'macro', n }))),
+      g(`Tap dances -- the board has ${board.tapDances}, set in the Tap dance section`, range(board.tapDances, n => ({ kind: 'td', n }))),
+      g('Dynamic macros -- recorded on the keyboard', cmds('DM_REC1 DM_REC2 DM_RSTP DM_PLY1 DM_PLY2')),
     ] },
-    { id: 'fw', name: 'Firmware', cat: 'fw', groups: [{ title: 'Keys that can hurt: rebooting, erasing settings', items: cmdsWhere(c => c.cat === 'fw') }] },
-    { id: 'more', name: 'More', groups: [
-      { title: 'MIDI -- 140 more', items: cmdsWhere(c => /^MI_/.test(c.kc)) },
-      { title: 'Steno, joystick, programmable buttons', items: cmdsWhere(c => /^(QK_STENO|JS_|PB_)/.test(c.kc)) },
+    // The board's own settings, kept on it: QMK's Magic keycodes, the Unicode input mode, the
+    // output and Bluetooth profile, audio, haptic. Special, VIA's word (Rico, 2026-10-04).
+    { id: 'special', name: 'Special', cat: 'board', groups: [
+      // A group per header, so its label says it once and the tiles read Swap, Unswap, On/Off.
+      ...byHeader('CL_SWAP CL_NORM CL_TOGG CG_SWAP CG_NORM CG_TOGG CG_LSWP CG_LNRM CG_RSWP CG_RNRM AG_SWAP AG_NORM AG_TOGG AG_LSWP AG_LNRM ' +
+        'AG_RSWP AG_RNRM EC_SWAP EC_NORM EC_TOGG GE_SWAP GE_NORM BS_SWAP BS_NORM BS_TOGG CL_CAPS CL_CTRL GU_TOGG GU_ON GU_OFF NK_TOGG NK_ON NK_OFF EH_LEFT EH_RGHT',
+        'kept on the board until changed again'),
+      g('Audio', cmds('AU_TOGG AU_ON AU_OFF AU_NEXT AU_PREV')), g('Clicky', cmds('CK_TOGG CK_ON CK_OFF CK_UP CK_DOWN CK_RST')),
+      g('Music mode', cmds('MU_TOGG MU_ON MU_OFF MU_NEXT')),
+      g('Haptic', cmds('HF_TOGG HF_ON HF_OFF HF_NEXT HF_PREV HF_FDBK HF_BUZZ HF_CONT HF_CONU HF_COND HF_DWLU HF_DWLD HF_RST')),
+      g('Unicode -- the input mode the computer uses', cmds('UC_NEXT UC_PREV UC_WIN UC_WINC UC_MAC UC_LINX UC_BSD UC_EMAC')),
+      g('Output -- USB or wireless', cmds('OU_AUTO OU_USB OU_BT OU_2P4G OU_NONE OU_NEXT OU_PREV')),
+      g('Bluetooth', [...cmds('BT_NEXT BT_PREV BT_UNPR'), ...range(5, n => CMD('BT_PRF' + (n + 1)))]),
     ] },
+    // The keys the firmware's own code handles: the board's (QK_KB_n -- VIA's Custom, Vial's
+    // User), by the names its definition gives them or numbered, and the keymap's (QK_USER_n).
+    // Board's colour, as the app draws QK_KB_n ("Custom" header, NazgKeycapLegend.cpp).
+    { id: 'custom', name: 'Custom', cat: 'board', groups: [
+      OWN_KEYS.length ? g('This board\'s own keys -- named by its definition', OWN_KEYS.map((_, n) => ({ kind: 'own', n })))
+                      : g('Board -- what the board\'s firmware code makes of them', range(32, n => CMD('QK_KB_' + n))),
+      g('User -- what a keymap\'s own code makes of them', range(32, n => CMD('QK_USER_' + n))),
+    ] },
+    // The board acting as another device: an instrument, a steno machine, a game controller.
+    // Host's colour: notes, chords and buttons all go to the computer.
+    { id: 'devices', name: 'Devices', cat: 'host', groups: [
+      g('MIDI -- the basic set; 140 more by search or the expression box', MIDI_BASIC.map(CMD)),
+      g('Sequencer', cmds('SQ_ON SQ_OFF SQ_TOGG SQ_TMPD SQ_TMPU SQ_RESD SQ_RESU SQ_SALL SQ_SCLR')),
+      g('Steno -- the protocol, then the chord keys', [...cmds('QK_STENO_BOLT QK_STENO_GEMINI QK_STENO_COMB'), ...STENO.map(CMD)]),
+      g('Joystick', range(32, n => CMD('JS_' + n))), g('Programmable buttons', range(32, n => CMD('PB_' + (n + 1)))),
+    ] },
+    // Last and apart: the keys that can hurt.
+    { id: 'fw', name: 'Firmware', cat: 'fw', groups: [g('Keys that can hurt: rebooting, erasing settings', cmds('QK_BOOT QK_RBT EE_CLR DB_TOGG QK_MAKE'))] },
   ];
+  for (const t of all) t.groups = t.groups.filter(gr => gr.items.length);
+  return all.filter(t => t.groups.length);
 }
 
 // ---------------------------------------------------------------------------------------------
 // State and controls.
 const state = {
   theme: 'Light', structure: 'Tabs', items: 'Compact', labelStyle: 'Box', labelFill: 'Recessed', cardSide: 'Strip', panelWidth: "Board's", split: 0.62, popup: null, unit: 56, composer: 'On', hoverPreview: 'With the tooltip', advance: 'Stay', flash: null, justPicked: null,
-  host: 'US', firmware: 'Unknown', lighting: 'Underglow + RGB Matrix',
+  host: 'US', firmware: 'Unknown', lighting: 'Underglow + RGB Matrix', protocol: 'Vial 6', ownKeys: 'None',
   layer: 0, selected: null, tab: 'keys', search: '', preview: null, message: '', warning: false, kindTab: 'key',
   exprDraft: null,
 };
@@ -651,6 +970,10 @@ const CONTROLS = [
   ['host', 'Host layout', Object.keys(HOSTS)],
   ['firmware', 'Firmware', ['Old', 'New', 'Unknown']],
   ['lighting', 'Board lighting', Object.keys(SYSTEMS)],
+  // What the board reports beyond its lighting: Vial its counts and feature bits, VIA little.
+  ['protocol', 'Protocol', Object.keys(BOARDS)],
+  // A board whose definition names keycodes of its own (customKeycodes) -- 416 of VIA's 3513.
+  ['ownKeys', 'Own keys', ['None', ...Object.keys(OWN_SETS)]],
 ];
 function buildControls() {
   const root = document.getElementById('controls');
@@ -717,6 +1040,9 @@ const current = () => state.selected === null ? null : KEYMAP[state.layer][state
 function render() {
   const T = THEMES[state.theme];
   for (const [n, v] of Object.entries(T.css)) document.documentElement.style.setProperty('--' + n, v);
+  document.querySelector('.menubar .proto').textContent = state.protocol;
+  // A tab the board no longer has -- Lighting with none declared -- gives way to Keys.
+  if (!tabs().some(t => t.id === state.tab)) state.tab = 'keys';
   renderStrip(); layout(); renderBoard(); renderPanel(); renderNotes(); reopenPopup();
 }
 // The window below the controls is the app's: the strip, the board's area, the splitter and the
@@ -816,6 +1142,8 @@ const CELL = TILE.w + TILE.gap, HALF = CELL / 2;
 function compactTile(k, opts, selected) {
   const T = THEMES[state.theme], cls = classOf(k, 1), face = T[cls], legend = cls === 'accent' ? T.accentLegend : T.legend;
   const d = describe(k, 'picker');
+  // Shift and a key types its Shift character: the tile shows that one alone, as VIA's does.
+  if (k.kind === 'mods' && modsList(k.mods).join() === 'shift' && d.shifted) { d.plain = d.shifted; d.shifted = undefined; }
   const el = document.createElement('div'); el.className = 'tile';
   const header = !opts.dropHeader && (d.hold || d.header);
   const bandCat = d.hold ? d.hold.cat : d.header ? d.header.cat : null;
@@ -1248,7 +1576,7 @@ function renderKinds() {
   const modsRow = () => chips(row('Modifiers'), MOD_NAMES.map(n => [MOD_WORD[n], n]), n => params.mods[n], n => { params.mods = { ...params.mods, [n]: !params.mods[n] }; if (!modsList(params.mods).length) params.mods[n] = true; renderPanel(); });
   const layerRow = () => chips(row('Layer'), KEYMAP.map((_, n) => ['L' + n, n]), n => params.layer === n, n => { params.layer = n; renderPanel(); });
   const keyGrid = build => { const h = document.createElement('h4'); h.textContent = 'Then the key -- click it to write'; ed.appendChild(h);
-    renderGroups(ed, tabs()[0].groups.slice(0, 8).map(g => ({ title: g.title, items: g.items.map(build) }))); };
+    renderGroups(ed, tabs()[0].groups.filter(g => g.items.every(isBasic)).slice(0, 8).map(g => ({ title: g.title, items: g.items.map(build) }))); };
   switch (state.kindTab) {
     case 'key': renderGroups(ed, tabs()[0].groups); break;
     case 'mods': modsRow(); keyGrid(k => ({ kind: 'mods', mods: params.mods, kc: k.kc })); break;
@@ -1259,8 +1587,8 @@ function renderKinds() {
     case 'lm': layerRow(); modsRow(); renderGroups(ed, [{ title: 'Write it', items: [{ kind: 'lm', layer: params.layer, mods: params.mods }] }]); break;
     case 'osm': modsRow(); renderGroups(ed, [{ title: 'Write it', items: [{ kind: 'osm', mods: params.mods }] }]); break;
     case 'cmd': renderGroups(ed, tabs().slice(2).flatMap(t => t.groups.map(g => ({ title: t.name + ' -- ' + g.title, items: g.items })))); break;
-    case 'macro': renderGroups(ed, [tabs()[7].groups[0], tabs()[7].groups[2]]); break;
-    case 'td': renderGroups(ed, [tabs()[7].groups[1]]); break;
+    case 'macro': renderGroups(ed, tabs().find(t => t.id === 'macros').groups.filter(g => !/^Tap/.test(g.title))); break;
+    case 'td': renderGroups(ed, tabs().find(t => t.id === 'macros').groups.filter(g => /^Tap/.test(g.title))); break;
     case 'special': renderGroups(ed, [{ title: 'Nothing', items: [TRNS, NO] }]); break;
   }
   wrap.appendChild(ed);
@@ -1274,8 +1602,9 @@ function renderNotes() {
     '<p><b>Items</b>: <b>Compact</b> tiles, 38 px tall -- the keycap\'s face, band and colours, as wide as their words, a header left out where the group\'s title says it, the title beside the row -- or keycaps drawn exactly as the board draws them, or text buttons as today. <b>Key card</b>: on the right, as an inspector -- the palette starts under the board\'s left edge, where the eye starts -- or on the left. Its "When held" and "Sent with" rows show only where they apply: with a plain key, or one already holding or modified.</p>',
     '<p><b>Hover preview</b>: the selected key on the board shows the keycode under the mouse, outlined in blue, before the click -- what the click will write, composer included, which the tile alone does not show; its tooltip says it too. <b>With the tooltip</b>, decided (Rico, 2026-10-04), it waits for ImGui\'s tooltip timing -- the mouse resting 0.15 s, then none while moving on to the next tile -- so sweeping across the panel to reach a tile leaves the board still; <b>at once</b> shows how much the board then flickers, in the corner of the eye. <b>After a pick</b>, decided (Rico, 2026-10-04): the selection <b>stays</b> on the key, as ZMK Studio\'s; <b>moving to the next key</b>, as Vial always does and VIA by default (its Fast Key Mapping; turned off, VIA deselects), is only a user preference in Settings, off by default. Next key fills a row in one click a key instead of two -- but the writes are live and there is no undo, so a second click meant to correct the pick lands, written, on the key after. With the setting on, the next key is in board order, and past the last key the selection clears rather than wrapping round to the first; the key just written flashes, and the message names it. Try it: Next key, then pick twice in a row.</p>',
     '<p><b>Height</b>: every pixel the panel takes comes out of the board, which grows until its area\'s width or height stops it. So the key\'s line sits in the strip row, beside the layers -- no height of its own -- its choices in small popups so the row never wraps; and a <b>splitter</b> under the board shares the height: drag it, and Nazg would remember where. It stops where the board would fall below 60 px a unit, its legibility floor; the panel keeps at least 200 px -- three rows of tiles under the tabs.</p>',
+    '<p><b>Tabs</b>, a draft of names and contents. <b>Keys</b>: what a stock keyboard has, plus Shift and a key in one click -- VIA\'s symbols, for a symbol layer -- and Transparent and None. <b>Layers</b>: the seven operations for each layer the board has, one-shot modifiers, layer lock and tri layer. <b>Media</b> and <b>Mouse</b>: what goes to the computer. <b>Lighting</b>: by the lighting policy, and absent when the definition declares none. <b>Features</b>: QMK features that change how keys behave. <b>Macros</b>: keys that play what is set elsewhere, as many as the board has. <b>Special</b> (Rico, 2026-10-04; VIA\'s word): the settings kept on the board -- QMK\'s Magic keycodes, a group per swap so each reads Swap, Unswap, On/Off, then Win key, NKRO, EE Hands, audio, clicky, music mode, haptic, the Unicode input mode, the output and Bluetooth. <b>Custom</b>: the keys the firmware\'s own code handles -- the board\'s, QK_KB_n, by the names its definition gives them (416 of VIA\'s 3513 definitions name some, Keychron\'s macOS keys the commonest) or else numbered -- VIA\'s Custom, and what Vial calls User -- then the keymap\'s, QMK\'s real user range, which neither app offers. <b>Devices</b>: the board acting as another device -- MIDI, the sequencer, steno, joystick, programmable buttons; MIDI and steno tiles drop the MI_ and ST_ their group says. <b>Firmware</b>, last and apart: the keys that can hurt. No catch-all: the rarer HID keys and the rest of International went to the end of Keys, where a key is looked for. Every keycode of the board\'s version is in a tab -- the commands with the app\'s own words, from NazgCommandTable.cpp -- and search finds them all. <b>A group is left out when the board says it cannot work</b>: lighting by the definition, the macro and tap dance counts, Vial\'s feature bits -- switch Protocol: the mock Vial board has no Layer Lock and no Repeat. What nothing tells -- audio, haptic, Unicode, steno -- is offered, as Vial and VIA do. A tab left empty goes: Board lighting None.</p>',
     '<p><b>Lighting</b>: switch Firmware and Board lighting to see what the Lighting tab offers -- one set on old and unknown firmware, a set per system on new, the RGB_M modes on old only; hover tells what a key drives where it is not obvious (ui-design.md, "Which lighting keycodes a board gets").</p>',
-    '<p><b>To decide</b>: the structure; keycaps or text; whether the key card\'s composer and its expression box replace the Any dialog; and what the tabs are called and hold.</p>',
+    '<p><b>To decide</b>: the structure; keycaps or text; whether the key card\'s composer and its expression box replace the Any dialog; and the tabs\' names and contents, drafted above.</p>',
   ].join('');
 }
 
