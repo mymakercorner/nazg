@@ -168,10 +168,17 @@ namespace nazg
     {
         const double faceLuminance = Luminance(ToLinear(face));
         const bool   darker        = faceLuminance > 0.18;
+        const double faceL         = ToOkLab(ToLinear(face)).L;
 
         for (int step = 0; step <= c_Steps; ++step)
         {
-            const double       L      = darker ? 1.0 - double(step) / c_Steps : double(step) / c_Steps;
+            // Only past the face, in the direction chosen: on a mid-tone cap, black already reaches
+            // a band's 3:1 against it, and a walk from black stopped there -- every band on Dark's
+            // slate Esc and Enter came out black.
+            const double L = darker ? 1.0 - double(step) / c_Steps : double(step) / c_Steps;
+            if (darker ? L > faceL : L < faceL)
+                continue;
+
             const uint32_t     rgb    = Pack(ClampChroma(L, c_Chroma, hue));
             const PackedColour colour = Hex(rgb);
             if (Contrast(colour, face) >= target)

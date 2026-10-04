@@ -109,6 +109,16 @@ namespace
         bool bandsSolve  = true;
         bool textOnMain  = true;
         bool meetTargets = true;
+        bool awayFromCap = true;
+
+        // A colour on the far side of its face: darker than a light cap, lighter than a dark one --
+        // never black on a mid-tone cap, which a walk from black once stopped at.
+        const auto away = [](PackedColour colour, PackedColour face)
+        {
+            const double cap = nazg::Luminance(nazg::ToLinear(face));
+            const double ink = nazg::Luminance(nazg::ToLinear(colour));
+            return cap > 0.18 ? ink < cap : ink > cap;
+        };
 
         for (const NamedTheme& theme : c_Themes)
         {
@@ -121,10 +131,16 @@ namespace
 
                     bandsSolve &= band.has_value();
                     if (band)
+                    {
                         meetTargets &= nazg::Contrast(*band, face.face) >= nazg::TargetOf(category, CategoryUse::Band);
+                        awayFromCap &= away(*band, face.face);
+                    }
 
                     if (text)
+                    {
                         meetTargets &= nazg::Contrast(*text, face.face) >= nazg::TargetOf(category, CategoryUse::Text);
+                        awayFromCap &= away(*text, face.face);
+                    }
                     else
                     {
                         ++fallbacks;
@@ -138,6 +154,7 @@ namespace
         Check(bandsSolve, "every category's band is legible on every face of every theme");
         Check(textOnMain, "every category's header is legible on every alpha and modifier face");
         Check(meetTargets, "every solved colour reaches its contrast, as packed");
+        Check(awayFromCap, "every solved colour lies past its face: darker on a light cap, lighter on a dark one");
         Check(!nazg::CategoryColour(nazg::PaletteOf(ThemeId::Light), nazg::Hex(0xffffff), CommandCategory::None,
                                     CategoryUse::Text),
               "no category, no colour");

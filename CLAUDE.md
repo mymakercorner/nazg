@@ -74,7 +74,8 @@ with its category, the band the hold's else the header's; lighting headers by th
 parser now keeps, LM_* keys). Colours are pure code in `ui/NazgPalette.*` -- the theme tables, moved
 out of `NazgTheme.cpp`, and the category solver -- checked by the `palette` test over every theme,
 keycap class and category, and under simulated colour blindness, where Dark's slate accent caps and
-Dracula's alphas fall short (to settle with Rico). `legend_font` lays out every keycode, the
+Dracula's alphas fall short -- accepted by Rico 2026-10-04: the header's words carry the category,
+colour is a second cue (ui-design.md, "Settled: accepted as they are"). `legend_font` lays out every keycode, the
 parameterised ones and long holds on 1u: none cut, none overlapping. Step 5 in part (2026-10-04,
 verified by Rico): a transparent or `KC_NO` key shows the keycode below it, faint, with a small ▽
 or ✕ in the corner -- `ResolveKey()` walks down the layers (`ui/NazgBoardDescription.*`, tested),

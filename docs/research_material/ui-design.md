@@ -176,8 +176,22 @@ their main legend, a band along the top of the face, both in the category's colo
   asserts 0.08 there. **Two places fall short, both Behaviour against Host under deuteranopia**:
   Dracula's alphas, 0.057, and **Dark's lifted slate accent, 0.016** -- on Dark's Esc and Enter
   caps a violet and a cyan header look the same to a deuteranope; there the headers are near
-  white, to reach 4.5:1 on a mid-tone face, and little hue is left. The band still differs; the
-  test prints these and does not assert them. **To settle (Rico).**
+  white, to reach 4.5:1 on a mid-tone face, and little hue is left. The test prints these and
+  does not assert them.
+- **Settled: accepted as they are** (Rico, 2026-10-04). Colour is a second cue: every command
+  key prints its header in words -- "Media", "Layer", "Boot" -- so a colour-blind user loses the
+  grouping at a glance, never what a key does; colour is never the only carrier of meaning. The
+  fixes measured would have changed the look for everyone: a pale slate on Dark (`#889ab1` with a
+  dark legend, 0.065; `#b5cde7`, 0.080 but Esc and Enter very light on a dark board), or hues
+  of Dracula's own (only 0.074 at best, one category at 15° beside Firmware's red). So the bar,
+  0.08, holds on Light's and Dark's alphas and modifiers, as the test asserts; on accent caps and
+  on Dracula the header's words tell the categories apart. Dracula's hues can be searched again
+  with a theme palette tool, once a theme of one's own is designed.
+- **The solver walked from black or white, not from the face** -- fixed 2026-10-04. Its walk
+  started at pure white on a light cap and pure black on a dark one. On the extreme caps that is
+  the same, but on Dark's mid-tone slate black already reaches a band's 3:1, so every band there
+  but Firmware's came out black. It now skips the lightnesses on the face's own side; nothing
+  else moved, and the palette test checks every solved colour lies past its face.
 - **Choices the build made**, one constant or rule each:
   - **Command main legends are Regular on both families**: in Bold, Arimo's nearest to the
     mockup's 500, spherical "Unswap" no longer fitted 1u. Command keys leave the family's rules
