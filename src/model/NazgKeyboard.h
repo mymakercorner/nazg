@@ -75,10 +75,27 @@ namespace nazg
         size_t Count() const noexcept { return options.empty() ? 2 : options.size(); }
     };
 
+    // What the board says about itself beyond its keymap: what the keycode picker offers
+    // (ui-design.md, "The keycode picker") and which lighting keycodes work on its firmware
+    // ("Which lighting keycodes a board gets"). Zero or false where the board does not say.
+    struct BoardReport
+    {
+        uint16_t viaProtocol  = 0;   // vial-qmk always reports 9 (keycodes.md)
+        bool     isVial       = false;
+        uint32_t vialProtocol = 0;   // Vial's own numbering, 0 to 6 so far
+
+        uint8_t macroCount        = 0;
+        uint8_t tapDanceCount     = 0;   // Vial only, as the next three
+        uint8_t altRepeatKeyCount = 0;   // the Repeat keys need one
+        bool    capsWord          = false;
+        bool    layerLock         = false;
+    };
+
     struct Keyboard
     {
         KeyboardDefinition definition;
         Keymap             keymap;
+        BoardReport        report;
 
         // The raw value from id_layout_options, and the per-group selection decoded
         // from it. Both are kept: the raw one is what goes back to the device.

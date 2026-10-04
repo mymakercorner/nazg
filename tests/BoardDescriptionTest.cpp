@@ -326,6 +326,37 @@ namespace
               "LED Matrix, which nothing declares, from an LM_ key on any layer");
     }
 
+    // ui-design.md, "Which lighting keycodes a board gets": the first rule that answers.
+    void TestLightingFirmware()
+    {
+        std::printf("lighting firmware\n");
+
+        using nazg::LightingFirmware;
+
+        nazg::Keyboard keyboard;
+        keyboard.keymap = nazg::Keymap(2, 1, 1);
+
+        keyboard.report.viaProtocol = 13;
+        Check(nazg::LightingFirmwareOf(keyboard) == LightingFirmware::New, "VIA 13: new");
+        keyboard.report.viaProtocol = 11;
+        Check(nazg::LightingFirmwareOf(keyboard) == LightingFirmware::Old, "VIA 11: old");
+        keyboard.report.viaProtocol = 12;
+        Check(nazg::LightingFirmwareOf(keyboard) == LightingFirmware::Unknown, "VIA 12 with no RM_ key: unknown");
+        keyboard.keymap.Set(1, 0, 0, nazg::NamedKey{ "RM_TOGG" });
+        Check(nazg::LightingFirmwareOf(keyboard) == LightingFirmware::New, "VIA 12 with an RM_ key on any layer: new");
+
+        // Vial by its own protocol; vial-qmk reports VIA 9 whatever it is.
+        keyboard.report.viaProtocol  = 9;
+        keyboard.report.isVial       = true;
+        keyboard.report.vialProtocol = 5;
+        Check(nazg::LightingFirmwareOf(keyboard) == LightingFirmware::Old, "Vial 5: old");
+        keyboard.report.vialProtocol = 6;
+        Check(nazg::LightingFirmwareOf(keyboard) == LightingFirmware::Unknown,
+              "Vial 6, no feature bit: unknown, an RM_ key proving nothing there");
+        keyboard.report.layerLock = true;
+        Check(nazg::LightingFirmwareOf(keyboard) == LightingFirmware::New, "Vial 6 with Layer Lock: new");
+    }
+
     void TestKeyCentre()
     {
         std::printf("key centre\n");
@@ -373,6 +404,7 @@ int main()
     TestDescribeLegends();
     TestResolveKey();
     TestLightingSystems();
+    TestLightingFirmware();
     TestKeyCentre();
     TestSpreadApart();
 

@@ -54,4 +54,10 @@ namespace nazg
     // `definitionJson`, when given, receives the definition as the board serves it, inflated
     // -- the JSON document, for exporting. It must outlive the load.
     [[nodiscard]] Task<Keyboard> LoadVialKeyboard(VialProtocol& protocol, std::vector<uint8_t>* definitionJson = nullptr);
+
+    // What a board -- Vial or VIA -- says about itself beyond its keymap (BoardReport, in
+    // model/NazgKeyboard.h), read after either load: a few round trips more. A query the firmware
+    // refuses -- macros compiled out, a Vial build older than its entry counts -- leaves its
+    // field at zero.
+    [[nodiscard]] Task<BoardReport> ReadBoardReport(VialProtocol& protocol);
 }

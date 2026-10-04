@@ -923,6 +923,10 @@ namespace
                 }
             }
 
+            // What the keycode picker offers, and which lighting keycodes work on this firmware.
+            if (state.keyboard)
+                state.keyboard->report = co_await nazg::ReadBoardReport(protocol);
+
             state.activeSection = 0;
             state.exportMessage.clear();
         }

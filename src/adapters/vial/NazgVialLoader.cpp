@@ -69,4 +69,39 @@ namespace nazg
 
         co_return BuildKeyboard(std::move(definition), std::move(keymap), layoutOptions, keycodeVersion);
     }
+
+    Task<BoardReport> ReadBoardReport(VialProtocol& protocol)
+    {
+        BoardReport report;
+        report.viaProtocol = co_await protocol.GetProtocolVersion();
+
+        if (const std::optional<VialIdentity> identity = co_await protocol.Detect())
+        {
+            report.isVial       = true;
+            report.vialProtocol = identity->protocolVersion;
+
+            // From Vial protocol 4; an older build echoes the request, which reads as a refusal.
+            try
+            {
+                const VialEntryCounts counts = co_await protocol.GetEntryCounts();
+                report.tapDanceCount     = counts.tapDance;
+                report.altRepeatKeyCount = counts.altRepeatKey;
+                report.capsWord          = counts.capsWord;
+                report.layerLock         = counts.layerLock;
+            }
+            catch (const ProtocolError&)
+            {
+            }
+        }
+
+        try
+        {
+            report.macroCount = co_await protocol.GetMacroCount();
+        }
+        catch (const ProtocolError&)
+        {
+        }
+
+        co_return report;
+    }
 }

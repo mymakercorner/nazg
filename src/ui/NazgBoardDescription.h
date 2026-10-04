@@ -197,6 +197,22 @@ namespace nazg
     // which no definition can declare, from an LM_* key anywhere on the keymap.
     [[nodiscard]] uint8_t LightingSystemsOf(const Keyboard& keyboard);
 
+    // Which lighting keycodes work on a board's firmware (ui-design.md, "Which lighting keycodes a
+    // board gets"): Old -- one set drives every system, the RGB_M modes too -- New -- UG_* and RM_*
+    // apart -- or Unknown, the common state, where only what works on both is offered.
+    enum class LightingFirmware : uint8_t
+    {
+        Old,
+        New,
+        Unknown,
+    };
+
+    // By the first rule that answers: VIA 13 or later, new; VIA 9 to 11 or Vial 5, old; Vial 6
+    // with Caps Word or Layer Lock, new; VIA 12 with an RM_* key on the keymap, new -- never on
+    // Vial, whose app offers RM_* on old firmware too; otherwise unknown. Found again at every
+    // load, never stored: a board can be reflashed.
+    [[nodiscard]] LightingFirmware LightingFirmwareOf(const Keyboard& keyboard);
+
     // Where a board's left half ends, in key units along x: the space bar's centre -- its
     // widest key, 3u or more -- or the board's own where there is none, on splits and
     // orthos. A full-size board's own centre falls near Backspace, because of the numpad, and

@@ -303,6 +303,64 @@ namespace
               "protocol 5 is pre-renumbering, with TO's ON_PRESS bit as vial-gui's v5 table has it");
         Check(QmkKeycodeVersionForVial(0) == QmkKeycodeVersion::Legacy, "and so is anything older");
     }
+
+    // What the keycode picker and the lighting policy read after a load: VIA's protocol, Vial's
+    // and its entry counts, the macro count -- each refusal leaving its field at zero.
+    void TestBoardReport()
+    {
+        std::printf("board report\n");
+
+        {
+            FakeDeviceChannel channel;
+            VialProtocol      vial(channel);
+
+            channel.Reply({ 0x01, 0x00, 0x09 });   // VIA protocol 9, as vial-qmk always says
+            channel.Reply({ 0x06, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x00 });
+            std::vector<uint8_t> counts(nazg::c_ViaReportSize, 0x00);
+            counts[0]  = 8;      // tap dance
+            counts[3]  = 2;      // alt repeat key
+            counts[31] = 0x01;   // Caps Word, no Layer Lock
+            channel.ReplyRaw(counts);
+            channel.Reply({ 0x0C, 16 });   // macros
+
+            const nazg::BoardReport report = Run(nazg::ReadBoardReport(vial));
+            Check(report.viaProtocol == 9 && report.isVial && report.vialProtocol == 6, "a Vial 6 board");
+            Check(report.tapDanceCount == 8 && report.altRepeatKeyCount == 2, "its entry counts");
+            Check(report.capsWord && !report.layerLock, "its feature bits");
+            Check(report.macroCount == 16, "and its macro count");
+        }
+
+        {
+            FakeDeviceChannel channel;
+            VialProtocol      vial(channel);
+
+            channel.Reply({ 0x01, 0x00, 0x05 });   // Vial 5 on VIA 9's numbering
+            channel.Reply({ 0x05, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x00 });
+            std::vector<uint8_t> echo(nazg::c_ViaReportSize, 0x00);   // no dynamic entries in this build
+            echo[0] = 0xFE;
+            echo[1] = 0x0D;
+            channel.ReplyRaw(echo);
+            channel.Reply({ 0x0C, 4 });
+
+            const nazg::BoardReport report = Run(nazg::ReadBoardReport(vial));
+            Check(report.isVial && report.vialProtocol == 5 && report.tapDanceCount == 0 && !report.capsWord,
+                  "a build without entry counts reports none, not an error");
+            Check(report.macroCount == 4, "and the rest is still read");
+        }
+
+        {
+            FakeDeviceChannel channel;
+            VialProtocol      vial(channel);
+
+            channel.Reply({ 0x01, 0x00, 0x0C });   // VIA 12
+            channel.ReplyUnhandled();              // not Vial
+            channel.ReplyUnhandled();              // macros compiled out
+
+            const nazg::BoardReport report = Run(nazg::ReadBoardReport(vial));
+            Check(report.viaProtocol == 12 && !report.isVial, "a VIA 12 board");
+            Check(report.macroCount == 0, "macros compiled out: none");
+        }
+    }
 }
 
 int main()
@@ -321,6 +379,7 @@ int main()
     TestEncoderReturnsBothDirections();
     TestInheritedViaCommands();
     TestKeycodeVersionFollowsVialProtocol();
+    TestBoardReport();
 
     return TestResult();
 }

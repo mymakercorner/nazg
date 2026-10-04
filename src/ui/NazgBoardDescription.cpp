@@ -153,6 +153,37 @@ namespace nazg
         return systems;
     }
 
+    LightingFirmware LightingFirmwareOf(const Keyboard& keyboard)
+    {
+        const BoardReport& report = keyboard.report;
+
+        // A Vial board by its Vial protocol only: vial-qmk always reports VIA 9.
+        if (report.isVial)
+        {
+            if (report.vialProtocol <= 5)
+                return LightingFirmware::Old;
+            return report.capsWord || report.layerLock ? LightingFirmware::New : LightingFirmware::Unknown;
+        }
+
+        if (report.viaProtocol >= 13)
+            return LightingFirmware::New;
+        if (report.viaProtocol >= 9 && report.viaProtocol <= 11)
+            return LightingFirmware::Old;
+
+        if (report.viaProtocol == 12)
+        {
+            const Keymap& keymap = keyboard.keymap;
+            for (uint8_t layer = 0; layer < keymap.Layers(); ++layer)
+                for (uint8_t row = 0; row < keymap.Rows(); ++row)
+                    for (uint8_t column = 0; column < keymap.Columns(); ++column)
+                        if (const auto* named = std::get_if<NamedKey>(&keymap.At(layer, row, column));
+                            named != nullptr && named->name.substr(0, 3) == "RM_")
+                            return LightingFirmware::New;
+        }
+
+        return LightingFirmware::Unknown;
+    }
+
     float SideLine(const std::vector<BoardKey>& keys)
     {
         const BoardKey* widest = nullptr;
