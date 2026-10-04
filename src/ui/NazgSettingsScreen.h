@@ -49,13 +49,14 @@ namespace nazg
         bool                    appearanceChanged    = false;   // to be saved and applied
         bool                    legendsChanged       = false;   // host layout or modifier names: to be saved
         bool                    advancedToolsChanged = false;   // likewise
+        bool                    keymapChanged        = false;   // likewise
         bool                    import               = false;
         std::optional<uint32_t> reimport;                    // library entry ids
         std::optional<uint32_t> restore;
         std::optional<uint32_t> remove;
     };
 
-    // `legends`, `style` and `advancedTools` are the settings, changed here.
+    // `legends`, `style`, `moveToNextKey` and `advancedTools` are the settings, changed here.
     [[nodiscard]] SettingsAction DrawSettings(const SettingsView& view, LegendSettings& legends, BoardStyle& style,
-                                              bool& advancedTools);
+                                              bool& moveToNextKey, bool& advancedTools);
 }

@@ -32,7 +32,8 @@ namespace nazg
         // The board at `path`, loaded into `keyboard`; writes update it. `legends` is the
         // legends' settings, read every frame so a change shows at once. All three outlive the
         // section -- see ui/NazgSection.h.
-        KeymapSection(HidTransport& transport, std::string path, Keyboard& keyboard, const LegendSettings& legends);
+        KeymapSection(HidTransport& transport, std::string path, Keyboard& keyboard, const LegendSettings& legends,
+                      const bool& moveToNextKey);
 
         [[nodiscard]] std::string_view Name() const override { return "Keymap"; }
 
@@ -63,6 +64,15 @@ namespace nazg
         std::string           m_Path;
         Keyboard&             m_Keyboard;
         const LegendSettings& m_Legends;
+        const bool&           m_MoveToNextKey;   // the setting, read at every pick
+
+        // The board's cells in its order -- top to bottom, then left to right -- for "next key",
+        // from the keys drawn this frame.
+        std::vector<Cell> m_Order;
+
+        // The key just written, flashing a moment so a write is seen where it landed.
+        std::optional<Cell> m_Flash;
+        double              m_FlashUntil = 0.0;
 
         // What the picker offers this board, built again when the legends' settings change: its
         // group titles are words in the host's modifier names.
@@ -74,8 +84,10 @@ namespace nazg
         void DrawKeyLine(const Keycode& current);
         void DrawComposer(const Keycode& current);
 
-        // Writes `keycode` to the selected key, unless a write is still running.
-        void Write(const Keycode& keycode);
+        // Writes `keycode` to the selected key, unless a write is still running. `advance`: a pick
+        // or an expression entered, after which the next key is selected if the setting asks --
+        // never a composer button, which shapes the key in place.
+        void Write(const Keycode& keycode, bool advance = false);
 
         uint8_t                m_Layer = 0;
         std::optional<uint8_t> m_Peek;   // a layer hovered in the strip, shown meanwhile

@@ -174,7 +174,7 @@ namespace nazg
     }
 
     SettingsAction DrawSettings(const SettingsView& view, LegendSettings& legends, BoardStyle& style,
-                                bool& advancedTools)
+                                bool& moveToNextKey, bool& advancedTools)
     {
         SettingsAction action;
 
@@ -186,6 +186,14 @@ namespace nazg
         DrawLegendFamily(style, action);
         DrawHostLayout(legends, action);
         DrawModifierNames(legends, action);
+
+        // Off by default (Rico, 2026-10-04): the writes are live and there is no undo, so a
+        // second click meant to correct a pick would land, written, on the key after.
+        ImGui::SeparatorText("Keymap");
+        action.keymapChanged = ImGui::Checkbox("Move to the next key after a pick", &moveToNextKey);
+        ImGui::SetItemTooltip("Fills a row in one click a key, as Vial does: after a keycode is picked or\n"
+                              "typed, the next key -- top to bottom, then left to right -- is selected.\n"
+                              "Every pick is written at once, and a pick cannot be undone.");
 
         ImGui::SeparatorText("Definitions");
         DrawOfficial(view.official);

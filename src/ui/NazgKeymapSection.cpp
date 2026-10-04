@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdio>
 #include <exception>
 #include <string>
@@ -28,8 +29,9 @@
 namespace nazg
 {
     KeymapSection::KeymapSection(HidTransport& transport, std::string path, Keyboard& keyboard,
-                                 const LegendSettings& legends)
-        : m_Transport(transport), m_Path(std::move(path)), m_Keyboard(keyboard), m_Legends(legends)
+                                 const LegendSettings& legends, const bool& moveToNextKey)
+        : m_Transport(transport), m_Path(std::move(path)), m_Keyboard(keyboard), m_Legends(legends),
+          m_MoveToNextKey(moveToNextKey)
     {
     }
 
@@ -68,8 +70,36 @@ namespace nazg
         const float              line       = previewing ? SideLine(board.keys) : 0.0f;
         const std::vector<Words> custom     = previewing ? CustomKeycodeWordsOf(m_Keyboard) : std::vector<Words>{};
 
+        // The board's order, for "next key": by rows of keys -- centres within a third of a unit
+        // of each other's height are one row -- then left to right; a cell once, at its first key.
+        std::vector<const DefinitionKey*> ordered;
+        for (const BoardKey& key : board.keys)
+            if (!key.geometry.decal && m_Keyboard.keymap.Contains(m_Layer, key.geometry.row, key.geometry.column))
+                ordered.push_back(&key.geometry);
+        std::stable_sort(ordered.begin(), ordered.end(), [](const DefinitionKey* a, const DefinitionKey* b)
+        {
+            const auto [ax, ay] = KeyCentre(*a);
+            const auto [bx, by] = KeyCentre(*b);
+            if (std::abs(ay - by) > 1.0f / 3.0f)
+                return ay < by;
+            return ax < bx;
+        });
+        m_Order.clear();
+        for (const DefinitionKey* key : ordered)
+        {
+            const Cell cell{ static_cast<uint8_t>(key->row), static_cast<uint8_t>(key->column) };
+            if (std::none_of(m_Order.begin(), m_Order.end(),
+                             [&](const Cell& seen) { return seen.row == cell.row && seen.column == cell.column; }))
+                m_Order.push_back(cell);
+        }
+
+        const bool flashing = m_Flash && ImGui::GetTime() < m_FlashUntil;
+
         for (BoardKey& key : board.keys)
         {
+            if (flashing && m_Flash->row == key.geometry.row && m_Flash->column == key.geometry.column)
+                key.marks |= Mark::Checked;
+
             if (!m_Selected || m_Selected->row != key.geometry.row || m_Selected->column != key.geometry.column)
                 continue;
 
@@ -175,15 +205,29 @@ namespace nazg
 
         // A pick keeps the key's hold or modifiers.
         if (events.picked && current)
-            Write(ComposeWithKey(*events.picked, *current, m_Keyboard.keycodeVersion));
+            Write(ComposeWithKey(*events.picked, *current, m_Keyboard.keycodeVersion), true);
     }
 
-    void KeymapSection::Write(const Keycode& keycode)
+    void KeymapSection::Write(const Keycode& keycode, bool advance)
     {
         // Never replace a Task still running: destroying it would free a coroutine frame the
         // transport still holds a handle to.
-        if (m_Selected && !IsBusy())
-            m_Write = WriteKey(m_Layer, *m_Selected, keycode, m_Keyboard.keycodeVersion);
+        if (!m_Selected || IsBusy())
+            return;
+
+        m_Write = WriteKey(m_Layer, *m_Selected, keycode, m_Keyboard.keycodeVersion);
+
+        // The next key in the board's order, at once; past the last one the selection clears,
+        // as VIA's does, rather than wrapping round to the first, as Vial's.
+        if (advance && m_MoveToNextKey)
+        {
+            const auto here = std::find_if(m_Order.begin(), m_Order.end(), [&](const Cell& cell)
+                                           { return cell.row == m_Selected->row && cell.column == m_Selected->column; });
+            if (here != m_Order.end() && here + 1 != m_Order.end())
+                m_Selected = *(here + 1);
+            else
+                m_Selected.reset();
+        }
     }
 
     namespace
@@ -331,7 +375,7 @@ namespace nazg
             else if (!EncodeQmkKeycode(*typed, version))
                 m_ExpressionError = "this board cannot store it";
             else
-                Write(*typed);
+                Write(*typed, true);
         }
 
         DrawComposer(current);
@@ -467,6 +511,10 @@ namespace nazg
             if (EncodeQmkKeycode(stored, version) == EncodeQmkKeycode(keycode, version))
             {
                 m_Message = "stored " + FormatKeycode(stored);
+
+                // Once the selection has moved on, the message names the key written.
+                if (!m_Selected || m_Selected->row != cell.row || m_Selected->column != cell.column || m_Layer != layer)
+                    m_Message += " on row " + std::to_string(cell.row) + ", column " + std::to_string(cell.column);
             }
             else
             {
@@ -474,6 +522,10 @@ namespace nazg
                             " -- a locked Vial board filters some keycodes";
                 m_IsWarning = true;
             }
+
+            // The key flashes where the write landed, whatever the board stored.
+            m_Flash      = cell;
+            m_FlashUntil = ImGui::GetTime() + 0.9;
         }
         catch (const std::exception& failure)
         {

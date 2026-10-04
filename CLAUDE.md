@@ -87,13 +87,16 @@ they collided. Nazg remembers its window's place in `imgui.ini`. Next: the light
 One key can be edited: click it, pick a keycode, and `WriteKeycode()`
 (`adapters/via/NazgViaKeymap.h`) encodes it for the board's version, sets it, reads the cell
 back and returns what the board really stored -- the read-back is what exposes Vial's keycode
-firewall. The picker (`ui/NazgKeycodePicker.*`) is a first draft like the board's look: it
-lists the whole QMK table for the board's version, grouped, plus layer keys. **Its replacement is
-designed** (Rico, 2026-10-04): ui-design.md, "The keycode picker", and the mockup
-`docs/research_material/ui-design/picker-look.html` -- a key line with the Any entry and a
-composer, category tabs with one search, 1u tiles, a splitter; next, to build. Done with it:
-MIDI, steno and the sequencer in Host's colour, user keys in Board's, and Shift alone drawn as
-any modifier, "Shift+" over "! 1".
+firewall. **The keycode picker is built** (2026-10-04, seen working by Rico) from ui-design.md,
+"The keycode picker", and its mockup `docs/research_material/ui-design/picker-look.html`: a key
+line (the Any entry, read by `adapters/qmk/NazgQmkExpression.*`, and the When held / Sent with
+composer), category tabs with one search, 1u tiles drawn as the board's keys (`LayOutTile()`,
+checked in `legend_font`), what each tab holds in `ui/NazgKeycodeCatalogue.*` (pure, tested --
+from what the board can store and reports: `BoardReport`, read by `ReadBoardReport()` after a
+load, and `LightingFirmwareOf()`, the lighting policy's state), a remembered splitter
+(`WorkspaceLayout`), and the "move to the next key" preference in Settings, off by default.
+A definition's `customKeycodes` now name QK_KB_n keys. With it: MIDI, steno and the sequencer
+in Host's colour, user keys in Board's, and Shift alone drawn as any modifier, "Shift+" over "! 1".
 
 **Sections** -- ui-design.md's contract, begun 2026-09-26. A board's screen is filled by
 sections (`ui/NazgSection.h`): each gives its strip entries, what the board shows, its panel,

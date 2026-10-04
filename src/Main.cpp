@@ -145,6 +145,10 @@ namespace
         // The board's share of the height under the strip, as the splitter under it was left.
         nazg::WorkspaceLayout workspace;
 
+        // The keycode picker selects the next key after a pick -- off by default (ui-design.md,
+        // "Hover, and after a pick").
+        bool moveToNextKey = false;
+
         // Where the window was left: its place when not maximized, in SDL's window
         // coordinates, and whether it was maximized. A width of 0: never saved.
         struct WindowPlace
@@ -205,6 +209,7 @@ namespace
             constexpr char c_Window[]        = "Window=";
             constexpr char c_Maximized[]     = "Maximized=";
             constexpr char c_BoardShare[]    = "BoardShare=";
+            constexpr char c_MoveToNextKey[] = "MoveToNextKey=";
 
             if (std::strncmp(line, c_HostLayout, sizeof(c_HostLayout) - 1) == 0)
                 loaded.legends.hostLayout = line + sizeof(c_HostLayout) - 1;
@@ -240,6 +245,8 @@ namespace
                 if (std::sscanf(line + sizeof(c_BoardShare) - 1, "%f", &share) == 1 && share > 0.0f && share < 1.0f)
                     loaded.workspace.boardShare = share;
             }
+            else if (std::strncmp(line, c_MoveToNextKey, sizeof(c_MoveToNextKey) - 1) == 0)
+                loaded.moveToNextKey = std::strcmp(line + sizeof(c_MoveToNextKey) - 1, "1") == 0;
         };
 
         handler.WriteAllFn = [](ImGuiContext*, ImGuiSettingsHandler* self, ImGuiTextBuffer* out)
@@ -257,7 +264,7 @@ namespace
             if (saved.window.width > 0)
                 out->appendf("Window=%d,%d,%d,%d\nMaximized=%d\n", saved.window.x, saved.window.y,
                              saved.window.width, saved.window.height, saved.window.maximized ? 1 : 0);
-            out->appendf("BoardShare=%.3f\n", saved.workspace.boardShare);
+            out->appendf("BoardShare=%.3f\nMoveToNextKey=%d\n", saved.workspace.boardShare, saved.moveToNextKey ? 1 : 0);
             out->append("\n");
         };
 
@@ -1506,7 +1513,7 @@ int main(int, char**)
 
                 nazg::BoardStyle           chosen = look;
                 const nazg::SettingsAction action =
-                    nazg::DrawSettings(view, settings.legends, chosen, settings.advancedTools);
+                    nazg::DrawSettings(view, settings.legends, chosen, settings.moveToNextKey, settings.advancedTools);
 
                 if (action.appearanceChanged)
                 {
@@ -1516,7 +1523,7 @@ int main(int, char**)
                 }
                 if (action.back)
                     showSettings = false;
-                if (action.appearanceChanged || action.legendsChanged || action.advancedToolsChanged)
+                if (action.appearanceChanged || action.legendsChanged || action.advancedToolsChanged || action.keymapChanged)
                     ImGui::MarkIniSettingsDirty();
                 if (action.import && library.library)
                     showImportDialog();
@@ -1627,7 +1634,7 @@ int main(int, char**)
                     // no match rule to ask yet -- it comes with the first section that is not.
                     if (boardState.sections.empty())
                         boardState.sections.push_back(std::make_unique<nazg::KeymapSection>(
-                            transport, boardState.path, *boardState.keyboard, settings.legends));
+                            transport, boardState.path, *boardState.keyboard, settings.legends, settings.moveToNextKey));
 
                     if (!boardState.exportMessage.empty())
                         nazg::ColouredText(nazg::PanelColour::Muted, "%s", boardState.exportMessage.c_str());
