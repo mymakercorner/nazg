@@ -1122,12 +1122,13 @@ that category, Macros' tap dances aside.
 | **Lighting** | Board | by the lighting policy ("Which lighting keycodes a board gets", above); **absent** when the definition declares no lighting |
 | **Features** | Behaviour | Caps Word, Repeat, Grave Esc, Leader, Key Lock; Space Cadet; Auto Shift, Autocorrect, Combos, Key overrides, One shot, Tap term, Swap hands; Secure |
 | **Macros** | Host | keys that play what is set elsewhere, as many as the board has: macros, **tap dances** (Rico: here, by the macros, though drawn in Behaviour's violet), dynamic macros |
-| **Special** | Board | the settings kept on the board (Rico: VIA's word): QMK's Magic keycodes, a group per swap so each reads Swap, Unswap, On/Off; Win key, NKRO, EE Hands; audio, clicky, music mode, haptic; the Unicode input mode; output and Bluetooth |
+| **Special** | Board | the settings kept on the board (Rico: VIA's word): QMK's Magic keycodes, a group per swap so each reads Swap, Unswap, On/Off; Win key, NKRO, EE Hands; audio, clicky, music mode, Velocikey, haptic; the Unicode input mode; output and Bluetooth |
 | **Custom** | Board | on every board (Rico): the keys the firmware's own code handles -- the board's, `QK_KB_n`, by the names its definition gives them (`customKeycodes`: 416 of VIA's 3513 definitions name some, Keychron's macOS keys the commonest) or else numbered -- VIA's "Custom", what Vial calls "User" -- then the keymap's, QMK's user range `QK_USER_n`, which neither app offers |
 | **Devices** | Host | the board acting as another device: MIDI, the sequencer, steno, joystick, programmable buttons |
 | **Firmware** | Firmware | last and apart: Boot, Reboot, Clear EEPROM, Debug, Make |
 
-**Every keycode of the board's keycode version is in a tab, and search finds it.** There is no
+**Every keycode of the board's keycode version is in a tab, and search finds it** -- but MIDI past
+its basic set and steno's extra chord keys, which take the expression box. There is no
 catch-all: the rare keys went where they are looked for -- the HID ones to the end of Keys -- and
 the rest made Special, Custom and Devices.
 
