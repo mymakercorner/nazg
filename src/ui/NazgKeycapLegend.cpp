@@ -366,7 +366,8 @@ namespace nazg
                 { "JS_", CommandCategory::Host, "Joystick", "Joy", "Btn " },
                 { "PB_", CommandCategory::Host, "Prog btn", "Prog", "" },
                 { "BT_PRF", CommandCategory::Host, "Bluetooth", "BT", "Prof " },
-                { "QK_USER_", CommandCategory::Host, "User", "", "U" },
+                // Board, as QK_KB_: what both do is up to code on the keyboard (Rico, 2026-10-04).
+                { "QK_USER_", CommandCategory::Board, "User", "", "U" },
                 { "QK_KB_", CommandCategory::Board, "Custom", "", "KB " },
             };
 
@@ -465,9 +466,19 @@ namespace nazg
             if (key == "KC_TRNS")
                 return CommandLegend({}, { "Trans", "" });
 
-            // MIDI and steno, which nobody types on a configurator board, and anything this
-            // build has no words for: QMK's own name, split after its prefix where it must be
-            // (short-forms.md, rule 9). Hover gives the label.
+            // MIDI and steno, which nobody types on a configurator board: what they go to as the
+            // header, in Host's colour, over QMK's own name past its prefix -- "MIDI / CHND",
+            // "Steno / ST1" (short-forms.md, rule 9). Hover gives the label.
+            if (keycode != nullptr)
+            {
+                const std::string_view group = keycode->group;
+                if (group == "midi" || group == "steno")
+                    return CommandLegend({ { group == "midi" ? "MIDI" : "Steno", "" }, CommandCategory::Host },
+                                         { std::string(key.substr(key.find('_') + 1)), "" });
+            }
+
+            // Anything this build has no words for: QMK's own name, split after its prefix where
+            // it must be.
             return CommandLegend({}, { std::string(key), "" });
         }
 

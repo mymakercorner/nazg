@@ -933,8 +933,8 @@ stays in the mockup to compare; a coloured main legend went muddy on accent caps
 | Category | Hue (OKLCH) | Covers |
 |---|---|---|
 | Behaviour | violet, 300 | layers, tap-hold holds, one-shot, tap dance, Caps Word |
-| Host | cyan, 200 | media, mouse, system keys, macros -- what goes to the computer |
-| Board | amber, 80 | lighting, haptic, audio, Magic, combos -- the keyboard's own settings |
+| Host | cyan, 200 | media, mouse, system keys, macros, MIDI, the sequencer, steno, joystick -- what goes to the computer |
+| Board | amber, 80 | lighting, haptic, audio, Magic, combos -- the keyboard's own settings -- and the custom and user keys, which code on the keyboard decides |
 | Firmware | red, 30 | Boot, Reboot, Clear EEPROM, Debug -- the keys that can hurt |
 
 Four because the state colours already take much of the wheel -- orange selected, blue

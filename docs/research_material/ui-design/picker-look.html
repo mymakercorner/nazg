@@ -405,15 +405,15 @@ const COMMAND_ROWS = [
   ["NK_OFF", "board", "NKRO", "Off", 0, 0, "NKRO Off"],
   ["NK_ON", "board", "NKRO", "On", 0, 0, "NKRO On"],
   ["NK_TOGG", "board", "NKRO", "On/Off", 0, 0, "Toggle NKRO"],
-  ["SQ_OFF", "board", "Seq", "Off", 0, 0, "Sequencer Off"],
-  ["SQ_ON", "board", "Seq", "On", 0, 0, "Sequencer On"],
-  ["SQ_RESD", "board", "Seq", "Res −", 0, 0, "Resolution Down"],
-  ["SQ_RESU", "board", "Seq", "Res +", 0, 0, "Resolution Up"],
-  ["SQ_SALL", "board", "Seq", "All", 0, 0, "All Steps"],
-  ["SQ_SCLR", "board", "Seq", "Clear", 0, 0, "Clear Steps"],
-  ["SQ_TMPD", "board", "Seq", "Tempo −", 0, "BPM −", "Tempo Down"],
-  ["SQ_TMPU", "board", "Seq", "Tempo +", 0, "BPM +", "Tempo Up"],
-  ["SQ_TOGG", "board", "Seq", "On/Off", 0, 0, "Toggle Sequencer"],
+  ["SQ_OFF", "host", "Seq", "Off", 0, 0, "Sequencer Off"],
+  ["SQ_ON", "host", "Seq", "On", 0, 0, "Sequencer On"],
+  ["SQ_RESD", "host", "Seq", "Res −", 0, 0, "Resolution Down"],
+  ["SQ_RESU", "host", "Seq", "Res +", 0, 0, "Resolution Up"],
+  ["SQ_SALL", "host", "Seq", "All", 0, 0, "All Steps"],
+  ["SQ_SCLR", "host", "Seq", "Clear", 0, 0, "Clear Steps"],
+  ["SQ_TMPD", "host", "Seq", "Tempo −", 0, "BPM −", "Tempo Down"],
+  ["SQ_TMPU", "host", "Seq", "Tempo +", 0, "BPM +", "Tempo Up"],
+  ["SQ_TOGG", "host", "Seq", "On/Off", 0, 0, "Toggle Sequencer"],
   ["VK_TOGG", "board", "Velocikey", "On/Off", "VelKey", 0, ""],
   ["BS_NORM", "board", "\\↔Bksp", "Unswap", "\\/Bksp", 0, "Unswap \\<->Bspc"],
   ["BS_SWAP", "board", "\\↔Bksp", "Swap", "\\/Bksp", 0, "Swap \\<->Bspc"],
@@ -442,15 +442,17 @@ const COMMANDS = COMMAND_ROWS.map(r => C(...r));
 for (let n = 0; n < 32; n++) {
   COMMANDS.push(C('JS_' + n, 'host', 'Joystick', 'Btn ' + n, 'Joy', 0, 'Joystick Button ' + n));
   COMMANDS.push(C('PB_' + (n + 1), 'host', 'Prog btn', String(n + 1), 'Prog', 0, 'Programmable Button ' + (n + 1)));
-  COMMANDS.push(C('QK_USER_' + n, 'host', 'User', 'U' + n, 0, 0, 'User ' + n));
+  COMMANDS.push(C('QK_USER_' + n, 'board', 'User', 'U' + n, 0, 0, 'User ' + n));
   COMMANDS.push(C('QK_KB_' + n, 'board', 'Custom', 'KB ' + n, 0, 0, 'Keyboard ' + n));
 }
 for (let n = 1; n <= 5; n++) COMMANDS.push(C('BT_PRF' + n, 'host', 'Bluetooth', 'Prof ' + n, 'BT', 0, 'Bluetooth Profile ' + n));
-// MIDI and steno print QMK's own name (short-forms.md).
+// MIDI and steno: what they go to as the header, in Host's colour, over QMK's own name past its
+// prefix -- "MIDI / CHND" (short-forms.md, rule 9; Rico, 2026-10-04).
 const MIDI_BASIC = ['MI_ON', 'MI_OFF', 'MI_TOGG', 'MI_C', 'MI_Cs', 'MI_D', 'MI_Ds', 'MI_E', 'MI_F', 'MI_Fs', 'MI_G', 'MI_Gs', 'MI_A', 'MI_As',
   'MI_B', 'MI_OCTD', 'MI_OCTU', 'MI_TRSD', 'MI_TRSU', 'MI_VELD', 'MI_VELU', 'MI_CHND', 'MI_CHNU', 'MI_AOFF', 'MI_SUST'];
 const STENO = 'ST_FN ST_N1 ST_N2 ST_N3 ST_N4 ST_N5 ST_N6 ST_N7 ST_N8 ST_N9 ST_NA ST_NB ST_NC ST_S1 ST_S2 ST_S3 ST_TL ST_KL ST_PL ST_WL ST_HL ST_RL ST_A ST_O ST_ST1 ST_ST2 ST_ST3 ST_ST4 ST_E ST_U ST_FR ST_RR ST_PR ST_BR ST_LR ST_GR ST_TR ST_SR ST_DR ST_ZR'.split(' ');
-for (const kc of [...MIDI_BASIC, ...STENO]) COMMANDS.push(C(kc, null, 'MI_', kc, 0, 0, QMK_LABELS[kc] || ''));
+for (const kc of [...MIDI_BASIC, ...STENO])
+  COMMANDS.push(C(kc, 'host', kc.startsWith('MI_') ? 'MIDI' : 'Steno', kc.replace(/^(MI|ST)_/, ''), 0, 0, QMK_LABELS[kc] || ''));
 // Space Cadet, which the app draws as a tap-hold key: the hold as the header, the tap below.
 for (const [kc, hold, tap, label] of [['SC_LSPO', 'Shift', '(', 'Left Shift, ( when tapped'], ['SC_RSPC', 'Shift', ')', 'Right Shift, ) when tapped'],
     ['SC_LCPO', 'Ctrl', '(', 'Left Control, ( when tapped'], ['SC_RCPC', 'Ctrl', ')', 'Right Control, ) when tapped'],
@@ -587,9 +589,8 @@ function describe(k, where) {
   switch (k.kind) {
     case 'basic': tap(k.kc); break;
     case 'cmd': { const c = COMMAND[k.kc]; d.command = true; d.full = c.main; d.short = c.mainShort || '';
-      // QMK's own name; in the picker without the MI_ or ST_ its group's title says, as a header
-      // the title says is left out -- "MI_TOGG" does not fit a tile, "TOGG" does.
-      if (c.head === 'MI_' || c.cat === null) { d.full = where === 'picker' ? c.kc.replace(/^(MI|ST)_/, '') : c.kc; d.command = false; break; }
+      // A keycode with no words: QMK's own name.
+      if (c.cat === null) { d.full = c.kc; d.command = false; break; }
       d.header = { full: c.head, short: c.headShort || '', cat: c.cat }; break; }
     case 'mods': tap(k.kc); d.header = { full: modsWords(k.mods) + '+', short: modsWords(k.mods, true) + '+', cat: 'host' }; break;
     case 'mt': tap(k.kc); d.hold = { full: modsWords(k.mods), short: modsWords(k.mods, true), cat: 'beh' }; break;
@@ -600,7 +601,8 @@ function describe(k, where) {
     case 'macro': d.command = true; d.full = 'M' + k.n; d.header = { full: 'Macro', cat: 'host' }; break;
     case 'td': d.command = true; d.full = 'TD ' + k.n; d.header = { full: 'Dance', cat: 'beh' }; break;
     // A key the definition names (customKeycodes): its name, its short name, no category.
-    case 'own': { const o = OWN_KEYS[k.n]; d.command = true; d.full = o.name; d.short = o.shortName; break; }
+    case 'own': { const o = OWN_KEYS[k.n]; d.command = true; d.full = o.name; d.short = o.shortName;
+      d.header = { full: 'Custom', cat: 'board' }; break; }
     case 'trns': d.full = 'Trans'; d.mark = '▽'; break;
     case 'no': d.full = 'None'; d.mark = '✕'; break;
   }
@@ -1347,7 +1349,7 @@ function renderNotes() {
     '<p><b>The key line</b>, over the tabs, next to the keycodes it shapes: where the key is, its keycode in QMK\'s words -- editable, the Any entry -- and the composer. "When held" Nothing, Modifiers or Layer, and "Sent with" -- None first -- open in small popups, so the line never wraps; they show only where they apply, with a plain key or one already holding or modified. A tile picked keeps the key\'s hold or modifiers, and its tooltip says what the click writes.</p>',
     '<p><b>Hover preview</b>: once a tile\'s tooltip shows -- ImGui\'s timing, the mouse resting 0.15 s, then none while moving on to the next tile -- the selected key on the board shows what the click would write, outlined in blue; sweeping across the panel to reach a tile leaves the board still. <b>After a pick</b> the selection stays on the key, as ZMK Studio\'s; moving to the next key, as Vial always does and VIA by default, is only a user preference in Settings, off by default: the writes are live and there is no undo, so a second click meant to correct a pick would land, written, on the key after. With it on, the next key is in board order, the selection clears past the last key, the key just written flashes and the message names it.</p>',
     '<p><b>Height and width</b>: every pixel the panel takes comes out of the board, which grows until its area\'s width or height stops it. A <b>splitter</b> under the board shares the height -- drag it, and Nazg would remember where; it stops where the board would fall below 60 px a unit, its legibility floor, and the panel keeps the key line and three rows of tiles. The panel is as wide as the board, at least 980 px, so board and picker read as one column, with room kept for a section column on the left.</p>',
-    '<p><b>Tabs</b>. <b>Keys</b>: what a stock keyboard has, plus Shift and a key in one click -- VIA\'s symbols, for a symbol layer -- the rarer HID keys last, and Transparent and None. <b>Layers</b>: the seven operations for each layer the board has, one-shot modifiers, layer lock and tri layer. <b>Media &amp; mouse</b>, as Vial\'s App, Media and Mouse. <b>Lighting</b>: by the lighting policy, and absent when the definition declares none. <b>Features</b>: QMK features that change how keys behave. <b>Macros</b>: keys that play what is set elsewhere, as many as the board has -- macros, tap dances, dynamic macros. <b>Special</b>, VIA\'s word: the settings kept on the board -- QMK\'s Magic keycodes, a group per swap, Win key, NKRO, EE Hands, audio, clicky, music mode, haptic, the Unicode input mode, the output and Bluetooth. <b>Custom</b>, on every board: the keys the firmware\'s own code handles -- the board\'s, QK_KB_n, by the names its definition gives them (416 of VIA\'s 3513 definitions name some; Own keys: Keychron) or else numbered -- VIA\'s Custom, and what Vial calls User -- then the keymap\'s, QMK\'s user range. <b>Devices</b>: the board acting as another device -- MIDI, the sequencer, steno, joystick, programmable buttons; MIDI and steno tiles drop the MI_ and ST_ their group says. <b>Firmware</b>, last and apart: the keys that can hurt. Every keycode of the board\'s version is in a tab -- the commands with the app\'s own words, from NazgCommandTable.cpp -- and search finds them all. <b>A group is left out when the board says it cannot work</b>: lighting by the definition, the macro and tap dance counts, Vial\'s feature bits -- switch Protocol: the mock Vial board has no Layer Lock and no Repeat. What nothing tells -- audio, haptic, Unicode, steno -- is offered, as Vial and VIA do.</p>',
+    '<p><b>Tabs</b>. <b>Keys</b>: what a stock keyboard has, plus Shift and a key in one click -- VIA\'s symbols, for a symbol layer -- the rarer HID keys last, and Transparent and None. <b>Layers</b>: the seven operations for each layer the board has, one-shot modifiers, layer lock and tri layer. <b>Media &amp; mouse</b>, as Vial\'s App, Media and Mouse. <b>Lighting</b>: by the lighting policy, and absent when the definition declares none. <b>Features</b>: QMK features that change how keys behave. <b>Macros</b>: keys that play what is set elsewhere, as many as the board has -- macros, tap dances, dynamic macros. <b>Special</b>, VIA\'s word: the settings kept on the board -- QMK\'s Magic keycodes, a group per swap, Win key, NKRO, EE Hands, audio, clicky, music mode, haptic, the Unicode input mode, the output and Bluetooth. <b>Custom</b>, on every board: the keys the firmware\'s own code handles -- the board\'s, QK_KB_n, by the names its definition gives them (416 of VIA\'s 3513 definitions name some; Own keys: Keychron) or else numbered -- VIA\'s Custom, and what Vial calls User -- then the keymap\'s, QMK\'s user range. <b>Devices</b>: the board acting as another device -- MIDI, the sequencer, steno, joystick, programmable buttons -- all in Host\'s colour (Rico, 2026-10-04), as Custom is all in Board\'s: MIDI and steno keys print what they go to over QMK\'s name past its prefix, MIDI / CHND. <b>Firmware</b>, last and apart: the keys that can hurt. Every keycode of the board\'s version is in a tab -- the commands with the app\'s own words, from NazgCommandTable.cpp -- and search finds them all. <b>A group is left out when the board says it cannot work</b>: lighting by the definition, the macro and tap dance counts, Vial\'s feature bits -- switch Protocol: the mock Vial board has no Layer Lock and no Repeat. What nothing tells -- audio, haptic, Unicode, steno -- is offered, as Vial and VIA do.</p>',
     '<p><b>Lighting</b>: switch Firmware and Board lighting to see what the Lighting tab offers -- one set on old and unknown firmware, a set per system on new, the RGB_M modes on old only; hover tells what a key drives where it is not obvious (ui-design.md, "Which lighting keycodes a board gets").</p>',
   ].join('');
 }

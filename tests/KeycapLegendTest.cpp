@@ -352,7 +352,8 @@ namespace
               "JS_3: Joystick / Btn 3");
         Check(Says(Of(nazg::NamedKey{ "PB_12" }), "12"), "PB_12: Prog btn / 12");
         Check(Says(Of(nazg::NamedKey{ "BT_PRF2" }), "Prof 2"), "BT_PRF2: Bluetooth / Prof 2");
-        Check(Says(Of(nazg::NamedKey{ "QK_USER_4" }), "U4"), "QK_USER_4: User / U4");
+        const KeycapLegend user = Of(nazg::NamedKey{ "QK_USER_4" });
+        Check(Says(user, "U4") && user.header == Header{ { "User", "" }, Category::Board }, "QK_USER_4: User / U4, Board as QK_KB_");
         const KeycapLegend custom = Of(nazg::NamedKey{ "QK_KB_7" });
         Check(Says(custom, "KB 7") && custom.header == Header{ { "Custom", "" }, Category::Board }, "QK_KB_7: Custom / KB 7");
 
@@ -366,9 +367,13 @@ namespace
         Check(Of(nazg::NamedKey{ "SC_RAPC" }, UsHostLayout(), ModifierNames::Mac).hold.words.full == "Option",
               "SC_RAPC: Option held on a Mac");
 
-        // MIDI and steno print QMK's own name.
+        // MIDI and steno: what they go to, in Host's colour, over QMK's own name past its prefix.
         const KeycapLegend midi = Of(nazg::NamedKey{ "MI_CHND" });
-        Check(Says(midi, "MI_CHND") && midi.Band() == Category::None, "MIDI: QMK's own name, no band");
+        Check(Says(midi, "CHND") && midi.header == Header{ { "MIDI", "" }, Category::Host }, "MI_CHND: MIDI / CHND");
+        const KeycapLegend steno = Of(nazg::NamedKey{ "ST_ST1" });
+        Check(Says(steno, "ST1") && steno.header == Header{ { "Steno", "" }, Category::Host }, "ST_ST1: Steno / ST1");
+        Check(HeaderOf(Of(nazg::NamedKey{ "SQ_TMPU" })) == "Seq" && Of(nazg::NamedKey{ "SQ_TMPU" }).Band() == Category::Host,
+              "SQ_TMPU: the sequencer plays notes to the computer, Host");
         Check(Says(Of(nazg::NamedKey{ "QK_STENO_BOLT" }), "Bolt"), "a keycode QMK has since removed still has its words");
     }
 

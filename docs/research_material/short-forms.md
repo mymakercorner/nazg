@@ -30,7 +30,7 @@ Bold was too wide) and Mac's two too-wide pairs shorten to "Ctl ⌘+" and "Opt �
 | **Standard key** | one legend, the keycap's own words; a short form where needed | Backspace (Bksp), Page Down (Pg Dn) |
 | **Command** | a **header** -- what it acts on -- over a **main legend** -- the action | Media / Vol +, Light / Hue +, Hold / L2 |
 | **Tap-hold** | the hold as header, over the tap's own legend | Ctrl / Esc, L1 / ! 1, Shift / ( |
-| **Fallback** | QMK's own name, split after its prefix | MI_ / CHND -- MIDI and steno only |
+| **Fallback** | QMK's own name, split after its prefix | anything a build has no words for |
 
 Categories and colours are in ui-design.md: Behaviour, Host, Board, Firmware.
 
@@ -93,8 +93,12 @@ shortest words where they do not fit ("Ctl ⌘+").
 definition's `customKeycodes` name wins), Joystick / Btn 3, Prog btn / 3, Bluetooth / Prof 3,
 Dance / TD 3.
 
-**9. Fallback.** MIDI and steno -- nobody types them on a configurator board -- print QMK's own
-name, split after its prefix where it does not fit ("MI_" / "CHND"). Hover gives the label.
+**9. MIDI and steno** -- nobody types them on a configurator board -- take what they go to as
+the header, in Host's colour, over QMK's own name past its prefix: "MIDI / CHND", "Steno / ST1"
+(Rico, 2026-10-04: the picker's Devices tab was four colours; before, they printed the bare
+name with no band). The name past its prefix is five characters at most, so it fits 1u. Hover
+gives the label. A keycode a build has no words for at all prints QMK's own name, split after
+its prefix where it must be.
 
 **10. Hover always gives QMK's name and label**, so a short form may be terse.
 
@@ -268,6 +272,15 @@ Letters, digits, punctuation, F1-F24 and the numpad print their QMK label, or wh
 | `OU_USB` | USB | Output | USB |
 | `KC_BRID` | Brightness Down | Screen | Bri − |
 | `KC_BRIU` | Brightness Up | Screen | Bri + |
+| `SQ_OFF` | Sequencer Off | Seq | Off |
+| `SQ_ON` | Sequencer On | Seq | On |
+| `SQ_RESD` | Resolution Down | Seq | Res − |
+| `SQ_RESU` | Resolution Up | Seq | Res + |
+| `SQ_SALL` | All Steps | Seq | All |
+| `SQ_SCLR` | Clear Steps | Seq | Clear |
+| `SQ_TMPD` | Tempo Down | Seq | Tempo − (BPM −) |
+| `SQ_TMPU` | Tempo Up | Seq | Tempo + (BPM +) |
+| `SQ_TOGG` | Toggle Sequencer | Seq | On/Off |
 | `QK_STENO_BOLT` | -- | Steno | Bolt |
 | `QK_STENO_COMB` | -- | Steno | Comb |
 | `QK_STENO_COMB_MAX` | -- | Steno | Comb max |
@@ -294,7 +307,6 @@ Letters, digits, punctuation, F1-F24 and the numpad print their QMK label, or wh
 | `JS_n` (`JS_0`-`JS_31`) | Button n | Joystick (Joy) | Btn n |
 | `PB_n` (`PB_1`-`PB_32`) | Button n | Prog btn (Prog) | n |
 | `BT_PRFn` (`BT_PRF1`-`BT_PRF5`) | Bluetooth Profile n | Bluetooth (BT) | Prof n |
-| `QK_USER_n` (`QK_USER_0`-`QK_USER_31`) | User n | User | Un |
 
 ### Board
 
@@ -402,15 +414,6 @@ Letters, digits, punctuation, F1-F24 and the numpad print their QMK label, or wh
 | `NK_OFF` | NKRO Off | NKRO | Off |
 | `NK_ON` | NKRO On | NKRO | On |
 | `NK_TOGG` | Toggle NKRO | NKRO | On/Off |
-| `SQ_OFF` | Sequencer Off | Seq | Off |
-| `SQ_ON` | Sequencer On | Seq | On |
-| `SQ_RESD` | Resolution Down | Seq | Res − |
-| `SQ_RESU` | Resolution Up | Seq | Res + |
-| `SQ_SALL` | All Steps | Seq | All |
-| `SQ_SCLR` | Clear Steps | Seq | Clear |
-| `SQ_TMPD` | Tempo Down | Seq | Tempo − (BPM −) |
-| `SQ_TMPU` | Tempo Up | Seq | Tempo + (BPM +) |
-| `SQ_TOGG` | Toggle Sequencer | Seq | On/Off |
 | `VK_TOGG` | -- | Velocikey (VelKey) | On/Off |
 | `BS_NORM` | Unswap \<->Bspc | \↔Bksp (\/Bksp) | Unswap |
 | `BS_SWAP` | Swap \<->Bspc | \↔Bksp (\/Bksp) | Swap |
@@ -428,6 +431,7 @@ Letters, digits, punctuation, F1-F24 and the numpad print their QMK label, or wh
 | `GU_ON` | GUI On | {GUI} key ({GUI}) | On |
 | `GU_TOGG` | Toggle GUI | {GUI} key ({GUI}) | On/Off |
 | `QK_KB_n` (`QK_KB_0`-`QK_KB_31`) | Keyboard n | Custom | KB n |
+| `QK_USER_n` (`QK_USER_0`-`QK_USER_31`) | User n | User | Un |
 
 ### Firmware
 
