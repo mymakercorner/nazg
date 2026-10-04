@@ -89,8 +89,9 @@ namespace nazg
     void DescribeLegends(BoardDescription& board, const Keyboard& keyboard, uint8_t layer,
                          const LegendSettings& settings)
     {
-        const float   line     = SideLine(board.keys);
-        const uint8_t lighting = LightingSystemsOf(keyboard);
+        const float              line     = SideLine(board.keys);
+        const uint8_t            lighting = LightingSystemsOf(keyboard);
+        const std::vector<Words> custom   = CustomKeycodeWordsOf(keyboard);
 
         for (BoardKey& key : board.keys)
         {
@@ -98,7 +99,7 @@ namespace nazg
                 continue;
 
             const LegendContext context{ settings.Layout(), settings.modifierNames, SideOf(key.geometry, line),
-                                         lighting };
+                                         lighting, custom };
             const ResolvedKey   resolved = ResolveKey(keyboard, key.geometry, layer);
             key.legends     = LegendFor(resolved.keycode, context);
             key.fallthrough = resolved.fallthrough;
@@ -151,6 +152,20 @@ namespace nazg
                         systems |= LedMatrix;
 
         return systems;
+    }
+
+    std::vector<Words> CustomKeycodeWordsOf(const Keyboard& keyboard)
+    {
+        const auto oneLine = [](std::string text)
+        {
+            std::replace(text.begin(), text.end(), '\n', ' ');
+            return text;
+        };
+
+        std::vector<Words> words;
+        for (const KeyboardDefinition::CustomKeycode& custom : keyboard.definition.customKeycodes)
+            words.push_back({ oneLine(custom.name), oneLine(custom.shortName) });
+        return words;
     }
 
     LightingFirmware LightingFirmwareOf(const Keyboard& keyboard)

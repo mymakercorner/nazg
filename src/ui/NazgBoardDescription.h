@@ -197,6 +197,11 @@ namespace nazg
     // which no definition can declare, from an LM_* key anywhere on the keymap.
     [[nodiscard]] uint8_t LightingSystemsOf(const Keyboard& keyboard);
 
+    // The board's own keycodes as its definition names them (`customKeycodes`), as legend words:
+    // the name, its short name as the short form -- a line break in either read as a space, the
+    // keycap breaking its lines itself.
+    [[nodiscard]] std::vector<Words> CustomKeycodeWordsOf(const Keyboard& keyboard);
+
     // Which lighting keycodes work on a board's firmware (ui-design.md, "Which lighting keycodes a
     // board gets"): Old -- one set drives every system, the RGB_M modes too -- New -- UG_* and RM_*
     // apart -- or Unknown, the common state, where only what works on both is offered.

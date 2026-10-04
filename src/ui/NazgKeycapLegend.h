@@ -232,6 +232,10 @@ namespace nazg
         ModifierNames     names    = ModifierNames::Windows;
         KeySide           side     = KeySide::Neither;
         uint8_t           lighting = 0;   // LightingSystem bits: the board's, computed once per load
+
+        // The board's own keycodes as its definition names them, the first QK_KB_0's: a name
+        // and its short form. An empty name, or a QK_KB_n past the end, prints its number.
+        std::span<const Words> customKeycodes = {};
     };
 
     [[nodiscard]] KeycapLegend LegendFor(const Keycode& keycode, const LegendContext& context);

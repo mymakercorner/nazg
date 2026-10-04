@@ -324,6 +324,26 @@ namespace
               "the standard menus' ids, a custom menu left to the board");
     }
 
+    // The board's own keycodes, in order: the first is QK_KB_0.
+    void TestCustomKeycodes()
+    {
+        std::printf("custom keycodes\n");
+
+        const char text[] = R"({"matrix":{"rows":1,"cols":1},"layouts":{"keymap":[["0,0"]]},
+                               "customKeycodes":[{"name":"Mission Control","title":"Mission Control in macOS","shortName":"MCtrl"},
+                                                 {"name":"Siri"}, 7]})";
+        const KeyboardDefinition definition =
+            ParseDefinition(std::vector<uint8_t>(text, text + std::char_traits<char>::length(text)));
+
+        Check(definition.customKeycodes.size() == 3, "every entry keeps its place, a broken one too");
+        Check(definition.customKeycodes[0].name == "Mission Control" && definition.customKeycodes[0].shortName == "MCtrl" &&
+                  definition.customKeycodes[0].title == "Mission Control in macOS",
+              "name, title and short name");
+        Check(definition.customKeycodes[1].name == "Siri" && definition.customKeycodes[1].shortName.empty(),
+              "a field left out is empty");
+        Check(definition.customKeycodes[2].name.empty(), "a broken entry is empty");
+    }
+
     void TestConvertedForm()
     {
         std::printf("converted form\n");
@@ -399,6 +419,7 @@ int main()
     TestKleDetails();
     TestUsbIdStrings();
     TestLightingFields();
+    TestCustomKeycodes();
     TestConvertedForm();
     TestConvertedEdgeCases();
 

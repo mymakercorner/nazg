@@ -5,6 +5,8 @@
 
 #include <algorithm>
 #include <array>
+#include <charconv>
+#include <system_error>
 #include <variant>
 
 #include "adapters/qmk/NazgQmkKeycodes.h"
@@ -386,6 +388,24 @@ namespace nazg
             return std::nullopt;
         }
 
+        // A board's own keycode by the name its definition gives it, which wins over its number
+        // (short-forms.md, rule 8): "Custom / Mission Control", in Board's colour.
+        std::optional<KeycapLegend> CustomLegend(std::string_view key, const LegendContext& context)
+        {
+            constexpr std::string_view c_Prefix = "QK_KB_";
+            if (key.substr(0, c_Prefix.size()) != c_Prefix)
+                return std::nullopt;
+
+            const std::string_view number = key.substr(c_Prefix.size());
+            size_t                 index  = 0;
+            const auto [end, error] = std::from_chars(number.data(), number.data() + number.size(), index);
+            if (error != std::errc{} || end != number.data() + number.size() || index >= context.customKeycodes.size() ||
+                context.customKeycodes[index].full.empty())
+                return std::nullopt;
+
+            return CommandLegend({ { "Custom", "" }, CommandCategory::Board }, context.customKeycodes[index]);
+        }
+
         KeycapLegend NamedLegend(std::string_view key, const LegendContext& context);
 
         // Space Cadet keys are drawn as tap-hold keys: the modifier held, what a tap types
@@ -450,6 +470,8 @@ namespace nazg
             // Anything QMK adds is a command: from the table, a numbered family, or Space Cadet.
             if (const CommandEntry* command = FindCommand(key))
                 return CommandFromTable(*command, context);
+            if (std::optional<KeycapLegend> custom = CustomLegend(key, context))
+                return *custom;
             if (std::optional<KeycapLegend> numbered = NumberedLegend(key))
                 return *numbered;
             if (std::optional<KeycapLegend> spaceCadet = SpaceCadetLegend(key, context))

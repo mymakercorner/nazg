@@ -456,6 +456,20 @@ namespace nazg
                         ids->push_back(id.get<std::string>());
         }
 
+        // An entry that is not an object still takes its place: the order is the numbering.
+        if (const auto custom = document.find("customKeycodes"); custom != document.end() && custom->is_array())
+            for (const nlohmann::json& entry : *custom)
+            {
+                KeyboardDefinition::CustomKeycode keycode;
+                if (entry.is_object())
+                    for (const auto& [field, text] : { std::pair{ "name", &keycode.name },
+                                                       std::pair{ "title", &keycode.title },
+                                                       std::pair{ "shortName", &keycode.shortName } })
+                        if (const auto value = entry.find(field); value != entry.end() && value->is_string())
+                            *text = value->get<std::string>();
+                definition.customKeycodes.push_back(std::move(keycode));
+            }
+
         const auto matrix = document.find("matrix");
         if (matrix == document.end() || !matrix->is_object())
             throw ProtocolError("the definition has no matrix section");

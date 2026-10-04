@@ -362,6 +362,16 @@ namespace
         const KeycapLegend custom = Of(nazg::NamedKey{ "QK_KB_7" });
         Check(Says(custom, "KB 7") && custom.header == Header{ { "Custom", "" }, Category::Board }, "QK_KB_7: Custom / KB 7");
 
+        // A name from the definition wins over the number (short-forms.md, rule 8).
+        const nazg::Words           names[] = { { "Mission Control", "MCtrl" }, { "", "" } };
+        const nazg::LegendContext   named{ UsHostLayout(), ModifierNames::Windows, nazg::KeySide::Neither, 0, names };
+        const KeycapLegend          mctrl = nazg::LegendFor(nazg::NamedKey{ "QK_KB_0" }, named);
+        Check(mctrl.cylindrical == nazg::Words{ "Mission Control", "MCtrl" } &&
+                  mctrl.header == Header{ { "Custom", "" }, Category::Board },
+              "QK_KB_0 named by the definition: Custom / Mission Control");
+        Check(Says(nazg::LegendFor(nazg::NamedKey{ "QK_KB_1" }, named), "KB 1"), "an empty name keeps the number");
+        Check(Says(nazg::LegendFor(nazg::NamedKey{ "QK_KB_5" }, named), "KB 5"), "and so does one past the names");
+
         // Space Cadet is drawn as a tap-hold key, its parenthesis what Shift+9 types on the host.
         const KeycapLegend cadet = Of(nazg::NamedKey{ "SC_LSPO" });
         Check(Pair(cadet, "(", "") && cadet.hold == Header{ { "Shift", "" }, Category::Behaviour },

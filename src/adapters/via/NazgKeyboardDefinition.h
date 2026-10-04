@@ -90,6 +90,17 @@ namespace nazg
         std::vector<std::string> keycodeModules;
         std::vector<std::string> menuIds;
 
+        // The board's own keycodes, named: `customKeycodes`, the first on QK_KB_0, the next on
+        // QK_KB_1... -- VIA's CUSTOM(n), what Vial calls USER(n). Kept verbatim; a field the
+        // author left out is empty.
+        struct CustomKeycode
+        {
+            std::string name;        // "Mission Control"
+            std::string title;       // what it does, for hover: "Mission Control in macOS"
+            std::string shortName;   // for a small key: "MCtrl"
+        };
+        std::vector<CustomKeycode> customKeycodes;
+
         uint8_t matrixRows    = 0;
         uint8_t matrixColumns = 0;
 
