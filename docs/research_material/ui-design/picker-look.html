@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- Mockup of the keycode picker -- the Keymap section's panel -- on a 60% board. Open it in a
+     browser. Keycaps are drawn as the board draws them (ui-design.md, "The board's look"), with
+     what ImGui can draw: rounded rectangles, lines and text. The controls switch between the
+     variants to compare. Arimo comes from Google Fonts, so it needs a network connection. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keycode picker mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Arimo:wght@400;700&family=Noto+Sans+Math&family=Noto+Sans+Symbols+2&display=swap">
+<style>
+:root{--window:#f3f3f5;--menubar:#e3e4e9;--text:#1d1e22;--muted:#6b6e78;--control:#ffffff;--border:#c8cad2;--ui-accent:#3b82f6;--ui-accent-text:#fff;--panel:#f8f8fa;--warning:#e8590c;--success:#2f9e44;--error:#e03131}
+*{box-sizing:border-box}
+body{margin:0;background:var(--window);color:var(--text);font-family:"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+.menubar{display:flex;gap:18px;align-items:center;background:var(--menubar);padding:5px 16px}
+.menubar .right{margin-left:auto;color:var(--muted)}
+.menubar .proto{color:var(--muted)}
+.controls{display:flex;flex-wrap:wrap;gap:8px 22px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.controls .break{flex-basis:100%;height:0}
+.group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.group .name{color:var(--muted);margin-right:4px}
+button{font:inherit;padding:3px 10px;border-radius:4px;border:1px solid var(--border);background:var(--control);color:var(--text);cursor:pointer}
+button.on{background:var(--ui-accent);border-color:var(--ui-accent);color:var(--ui-accent-text)}
+button:disabled{opacity:.45;cursor:default}
+.app{padding:4px 16px 0;display:flex;flex-direction:column}
+.strip{display:flex;align-items:center;gap:4px;margin:4px 0 6px;flex:none;min-height:30px;flex-wrap:wrap}
+.strip .label{color:var(--muted);margin-right:6px}
+.strip button{min-width:34px}
+.plate{position:relative;margin:0 auto;border-radius:14px}
+.boardarea{display:flex;align-items:center;justify-content:center;overflow:hidden;flex:none}
+.splitter{height:12px;flex:none;cursor:row-resize;display:flex;align-items:center;justify-content:center}
+.splitter::after{content:'';width:56px;height:4px;border-radius:2px;background:var(--border)}
+.splitter:hover::after,.splitter.drag::after{background:var(--ui-accent)}
+.keystrip{display:flex;align-items:center;gap:6px 12px;margin-left:28px;padding-left:16px;border-left:1px solid var(--border);flex-wrap:wrap}
+.keystrip .where{color:var(--muted)}
+.keystrip input.expr{width:320px;font:13px Consolas,"Cascadia Mono",monospace;padding:4px 7px;border:1px solid var(--border);border-radius:4px;background:var(--control);color:var(--text)}
+.keystrip input.expr.bad{border-color:var(--error)}
+.keystrip .msg{font-size:12px}
+.keystrip .name{color:var(--muted)}
+.keystrip .seg{display:inline-flex;gap:3px;align-items:center}
+.keystrip button{min-width:0;padding:2px 8px}
+.popup{position:absolute;z-index:8;background:var(--control);border:1px solid var(--border);border-radius:6px;padding:8px;box-shadow:0 4px 16px rgba(0,0,0,.18);display:flex;flex-direction:column;gap:6px}
+.popup .prow{display:flex;gap:3px}
+.key{position:absolute;overflow:hidden;cursor:pointer}
+.t{position:absolute;white-space:nowrap;line-height:1;font-family:Arimo,"Noto Sans Math","Noto Sans Symbols 2",sans-serif}
+.panel{display:flex;gap:0;border:1px solid var(--border);border-radius:6px;background:var(--panel);overflow:hidden;flex:none}
+.card{width:260px;flex:none;padding:12px;border-right:1px solid var(--border);overflow-y:auto}
+.card.right{border-right:none;border-left:1px solid var(--border)}
+.keybar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:8px 12px;border-bottom:1px solid var(--border)}
+.keybar .where{color:var(--muted)}
+.keybar input.expr{width:340px;font:13px Consolas,"Cascadia Mono",monospace;padding:4px 7px;border:1px solid var(--border);border-radius:4px;background:var(--control);color:var(--text)}
+.keybar input.expr.bad{border-color:var(--error)}
+.keybar .msg{font-size:12px}
+.keybar .row{display:inline-flex;align-items:center;gap:3px}
+.keybar .row .name{color:var(--muted);margin-right:3px}
+.keybar .row .name:empty{display:none}
+.keybar .note{color:var(--muted);font-size:12px}
+.keybar button{padding:2px 8px}
+.tile{position:relative;border-radius:5px;overflow:hidden;cursor:pointer;flex:none}
+.flow{display:grid;grid-auto-rows:40px;column-gap:4px;row-gap:6px;align-items:start}
+.grouprow{display:flex;gap:6px;align-items:flex-start;max-width:100%;min-width:0}
+.grouprow .grid{min-width:0}
+.flow .glabel{color:var(--muted);font-size:12px;line-height:1.2;overflow:hidden;align-self:stretch;display:flex;align-items:center}
+.flow.boxed .glabel{border:1px solid var(--border);border-radius:5px;padding:0 8px;background:var(--label-fill);color:var(--label-text)}
+.card .where{color:var(--muted);margin-bottom:8px}
+.card .preview{position:relative;height:110px;margin-bottom:8px}
+.card input.expr{width:100%;font:13px Consolas,"Cascadia Mono",monospace;padding:5px 7px;border:1px solid var(--border);border-radius:4px;background:var(--control);color:var(--text)}
+.card input.expr.bad{border-color:var(--error)}
+.card .msg{min-height:18px;margin:4px 0 8px;font-size:12px}
+.card .row{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin:6px 0}
+.card .row .name{flex-basis:100%;color:var(--muted)}
+.card .row .name:empty{display:none}
+.card .note{color:var(--muted);font-size:12px;line-height:1.4;margin:4px 0}
+.card button{padding:2px 8px}
+.pick{flex:1;display:flex;flex-direction:column;min-width:0}
+.tabs{display:flex;align-items:flex-end;gap:2px;padding:8px 10px 0;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.tabs .tab{border:1px solid transparent;border-bottom:none;border-radius:5px 5px 0 0;padding:5px 11px 4px;cursor:pointer;color:var(--muted);position:relative}
+.tabs .tab.on{background:var(--window);border-color:var(--border);color:var(--text);margin-bottom:-1px}
+.tabs .tab .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.tabs input{margin-left:auto;margin-bottom:5px;width:190px;padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--control);color:var(--text);font:inherit}
+.items{flex:1;overflow-y:auto;padding:8px 12px 12px;background:var(--window)}
+.items h4{margin:10px 0 5px;font-weight:600;color:var(--muted);font-size:12px}
+.items h4:first-child{margin-top:2px}
+.items .grid{display:flex;flex-wrap:wrap;gap:4px}
+.items .itemkey{position:relative;cursor:pointer}
+.items .textbtn{padding:4px 8px;min-width:46px}
+.items .info{color:var(--muted);font-size:12px;margin:2px 0 8px;line-height:1.4}
+.layers-table{border-collapse:collapse}
+.layers-table td{padding:2px 4px 2px 0;vertical-align:middle}
+.layers-table td.op{color:var(--muted);padding-right:10px;white-space:nowrap}
+.kinds{width:170px;flex:none;border-right:1px solid var(--border);padding:8px 0;overflow-y:auto}
+.kinds div{padding:5px 12px;cursor:pointer}
+.kinds div.on{background:var(--ui-accent);color:var(--ui-accent-text)}
+.kinds .sep{height:1px;background:var(--border);margin:6px 0;padding:0}
+.notes{max-width:1000px;margin:0 auto;padding:14px 16px 30px;color:var(--muted);line-height:1.5}
+.notes b{color:var(--text);font-weight:600}
+.notes p{margin:0 0 8px}
+.tip{position:fixed;pointer-events:none;background:var(--control);border:1px solid var(--border);border-radius:4px;padding:5px 8px;font-size:12px;white-space:pre;z-index:9;display:none;color:var(--text)}
+</style>
+</head>
+<body>
+<div class="menubar"><span>Mock 60 &#9662;</span><span class="proto">Vial 6</span><span class="right">Settings</span></div>
+<div class="controls" id="controls"></div>
+<div class="app" id="app">
+  <div class="strip" id="strip"></div>
+  <div class="boardarea" id="boardarea"><div class="plate" id="board"></div></div>
+  <div class="splitter" id="splitter" title="Drag to share the height between the board and the picker"></div>
+  <div class="panel" id="panel"></div>
+</div>
+<div class="notes" id="notes"></div>
+<div class="tip" id="tip"></div>
+<script>
+'use strict';
+
+// ---------------------------------------------------------------------------------------------
+// Themes: the app's Light and Dark (src/ui/NazgPalette.cpp), board colours only.
+const THEMES = {
+  Light: {
+    css: { window: '#f3f3f5', menubar: '#e3e4e9', text: '#1d1e22', muted: '#6b6e78', control: '#ffffff', border: '#c8cad2',
+           'ui-accent': '#3b82f6', 'ui-accent-text': '#ffffff', panel: '#f8f8fa', warning: '#e8590c', success: '#2f9e44', error: '#e03131' },
+    labelFill: '#d1d4da', labelText: '#2f3238', sage: '#e8efd8', plate: '#d3d4d8', outline: '#b4b7c2', legend: '#24262b', hovered: 'rgba(0,0,0,0.08)', selected: '#1d1e22',
+    alpha: '#ffffff', mod: '#e4e5ea', accent: '#afbfd5', accentLegend: '#18222f', preview: '#1c7ed6',
+  },
+  Dark: {
+    css: { window: '#0f0f11', menubar: '#24252b', text: '#ececf1', muted: '#80838f', control: '#20232b', border: '#3a3d48',
+           'ui-accent': '#4296fa', 'ui-accent-text': '#ffffff', panel: '#16171b', warning: '#ffb34d', success: '#78dc82', error: '#ff8b7f' },
+    labelFill: '#1d1e25', labelText: '#9a9daa', sage: '#1d2419', plate: '#1c1d23', outline: '#4b4e5c', legend: '#ebebf0', hovered: 'rgba(255,255,255,0.13)', selected: '#ececf1',
+    alpha: '#3a3c48', mod: '#2c2e38', accent: '#5a6a80', accentLegend: '#e8eff9', preview: '#71b6ff',
+  },
+};
+
+// The category solver, as NazgPalette.cpp has it: a hue per category, its lightness walked from
+// the face away from it to the first reaching the target contrast.
+const HUES = { beh: 300, host: 200, board: 80, fw: 30 };
+const s2l = c => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+const l2s = c => c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
+const hexLin = h => [1, 3, 5].map(i => s2l(parseInt(h.slice(i, i + 2), 16) / 255));
+const lum = v => 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+const contrast = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+function oklchLin(L, C, h) {
+  const r = h * Math.PI / 180, a = C * Math.cos(r), b = C * Math.sin(r);
+  const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3, m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3,
+        s = (L - 0.0894841775 * a - 1.2914855480 * b) ** 3;
+  return [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s, -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+          -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s];
+}
+const okL = v => { const l = Math.cbrt(0.4122214708 * v[0] + 0.5363325363 * v[1] + 0.0514459929 * v[2]),
+  m = Math.cbrt(0.2119034982 * v[0] + 0.6806995451 * v[1] + 0.1073969566 * v[2]),
+  s = Math.cbrt(0.0883024619 * v[0] + 0.2817188376 * v[1] + 0.6299787005 * v[2]);
+  return 0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s; };
+const inGamut = v => v.every(x => x >= 0 && x <= 1);
+function clampChroma(L, C, h) {
+  if (inGamut(oklchLin(L, C, h))) return oklchLin(L, C, h);
+  let lo = 0, hi = C;
+  for (let i = 0; i < 20; i++) { const mid = (lo + hi) / 2; if (inGamut(oklchLin(L, mid, h))) lo = mid; else hi = mid; }
+  return oklchLin(L, lo, h);
+}
+const toHex = v => '#' + v.map(c => Math.round(255 * l2s(Math.min(Math.max(c, 0), 1))).toString(16).padStart(2, '0')).join('');
+const inkCache = new Map();
+function categoryInk(face, cat, use) {
+  const target = cat === 'fw' ? (use === 'text' ? 7 : 4.5) : (use === 'text' ? 4.5 : 3);
+  const key = face + cat + use;
+  if (inkCache.has(key)) return inkCache.get(key);
+  const f = hexLin(face), darker = lum(f) > 0.18, L0 = okL(f);
+  let out = null;
+  for (let step = 0; step <= 200; step++) {
+    const L = darker ? 1 - step / 200 : step / 200;
+    if (darker ? L > L0 : L < L0) continue;
+    const c = toHex(clampChroma(L, 0.16, HUES[cat]));
+    if (contrast(hexLin(c), f) >= target) { out = c; break; }
+  }
+  inkCache.set(key, out);
+  return out;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Host layouts: the board mockup's, US and French. [plain, shifted, AltGr].
+const HOSTS = {"US":{"KC_0":["0",")",""],"KC_1":["1","!",""],"KC_2":["2","@",""],"KC_3":["3","#",""],"KC_4":["4","$",""],"KC_5":["5","%",""],"KC_6":["6","^",""],"KC_7":["7","&",""],"KC_8":["8","*",""],"KC_9":["9","(",""],"KC_BSLS":["\\","|",""],"KC_COMM":[",","<",""],"KC_DOT":[".",">",""],"KC_EQL":["=","+",""],"KC_GRV":["`","~",""],"KC_LBRC":["[","{",""],"KC_MINS":["-","_",""],"KC_NUBS":["\\","|",""],"KC_NUHS":["\\","|",""],"KC_QUOT":["'","\"",""],"KC_RBRC":["]","}",""],"KC_SCLN":[";",":",""],"KC_SLSH":["/","?",""]},"French":{"KC_0":["à","0","@"],"KC_1":["&","1",""],"KC_2":["é","2","~"],"KC_3":["\"","3","#"],"KC_4":["'","4","{"],"KC_5":["(","5","["],"KC_6":["-","6","|"],"KC_7":["è","7","`"],"KC_8":["_","8","\\"],"KC_9":["ç","9",""],"KC_A":["Q","",""],"KC_B":["B","",""],"KC_BSLS":["*","µ",""],"KC_C":["C","",""],"KC_COMM":[";",".",""],"KC_D":["D","",""],"KC_DOT":[":","/",""],"KC_E":["E","","€"],"KC_EQL":["=","+","}"],"KC_F":["F","",""],"KC_G":["G","",""],"KC_GRV":["²","",""],"KC_H":["H","",""],"KC_I":["I","",""],"KC_J":["J","",""],"KC_K":["K","",""],"KC_L":["L","",""],"KC_LBRC":["^","¨",""],"KC_M":[",","?",""],"KC_MINS":[")","°","]"],"KC_N":["N","",""],"KC_NUBS":["<",">",""],"KC_NUHS":["*","µ",""],"KC_O":["O","",""],"KC_P":["P","",""],"KC_Q":["A","",""],"KC_QUOT":["ù","%",""],"KC_R":["R","",""],"KC_RBRC":["$","£","¤"],"KC_S":["S","",""],"KC_SCLN":["M","",""],"KC_SLSH":["!","§",""],"KC_T":["T","",""],"KC_U":["U","",""],"KC_V":["V","",""],"KC_W":["Z","",""],"KC_X":["X","",""],"KC_Y":["Y","",""],"KC_Z":["W","",""]}};
+function hostLegend(kc) {
+  const h = HOSTS[state.host][kc] || HOSTS.US[kc];
+  if (HOSTS[state.host][kc]) return { plain: h[0], shifted: h[1] };
+  if (/^KC_[A-Z]$/.test(kc)) return { plain: kc[3] };
+  return h ? { plain: h[0], shifted: h[1] } : null;
+}
+
+// The standard keys in words: [full, short]. Modifiers name their side: in the picker no key has
+// a side of the board.
+const NAMED = {
+  KC_ESC: ['Esc'], KC_TAB: ['Tab'], KC_CAPS: ['Caps Lock', 'Caps'], KC_ENT: ['Enter'], KC_BSPC: ['Backspace', 'Bksp'],
+  KC_SPC: ['Space'], KC_INS: ['Insert', 'Ins'], KC_DEL: ['Delete', 'Del'], KC_HOME: ['Home'], KC_END: ['End'],
+  KC_PGUP: ['Page Up', 'Pg Up'], KC_PGDN: ['Page Down', 'Pg Dn'], KC_PSCR: ['Print Screen', 'PrtSc'],
+  KC_SCRL: ['Scroll Lock', 'Scr Lk'], KC_PAUS: ['Pause'], KC_APP: ['Menu'], KC_NUM: ['Num Lock', 'Num Lk'],
+  KC_LSFT: ['Left Shift', 'L Shift'], KC_RSFT: ['Right Shift', 'R Shift'], KC_LCTL: ['Left Control', 'L Ctrl'],
+  KC_RCTL: ['Right Control', 'R Ctrl'], KC_LALT: ['Left Alt', 'L Alt'], KC_RALT: ['Alt Gr'], KC_LGUI: ['Left Win', 'L Win'],
+  KC_RGUI: ['Right Win', 'R Win'],
+  KC_P0: ['0'], KC_P1: ['1'], KC_P2: ['2'], KC_P3: ['3'], KC_P4: ['4'], KC_P5: ['5'], KC_P6: ['6'], KC_P7: ['7'],
+  KC_P8: ['8'], KC_P9: ['9'], KC_PDOT: ['.'], KC_PSLS: ['/'], KC_PAST: ['*'], KC_PMNS: ['−'], KC_PPLS: ['+'], KC_PENT: ['Enter'],
+  KC_INT1: ['Int 1'], KC_INT2: ['Int 2'], KC_INT3: ['Int 3'], KC_INT4: ['Int 4'], KC_INT5: ['Int 5'],
+  KC_LNG1: ['Lang 1'], KC_LNG2: ['Lang 2'],
+};
+for (let i = 1; i <= 24; i++) NAMED['KC_F' + i] = ['F' + i];
+const ARROWS = { KC_UP: '↑', KC_DOWN: '↓', KC_LEFT: '←', KC_RGHT: '→' };
+const LABELS = { KC_ESC: 'Escape', KC_ENT: 'Enter', KC_BSPC: 'Backspace', KC_SPC: 'Spacebar', KC_TAB: 'Tab' };
+
+// Commands: [keycode, category, header, main, header short, main short, QMK label].
+const C = (kc, cat, head, main, headShort, mainShort, label) => ({ kc, cat, head, main, headShort, mainShort, label });
+const COMMANDS = [
+  C('KC_MPLY', 'host', 'Media', 'Play', 0, 0, 'Play/Pause'), C('KC_MNXT', 'host', 'Media', 'Next'), C('KC_MPRV', 'host', 'Media', 'Prev', 0, 0, 'Previous'),
+  C('KC_MSTP', 'host', 'Media', 'Stop'), C('KC_MUTE', 'host', 'Media', 'Mute'), C('KC_VOLU', 'host', 'Media', 'Vol +', 0, 0, 'Volume Up'),
+  C('KC_VOLD', 'host', 'Media', 'Vol −', 0, 0, 'Volume Down'), C('KC_MFFD', 'host', 'Media', 'Fast Fwd', 0, 'FFwd', 'Fast Forward'),
+  C('KC_MRWD', 'host', 'Media', 'Rewind', 0, 'Rew'), C('KC_EJCT', 'host', 'Media', 'Eject'), C('KC_MSEL', 'host', 'Media', 'Select', 0, 'Sel'),
+  C('KC_PWR', 'host', 'System', 'Power'), C('KC_SLEP', 'host', 'System', 'Sleep'), C('KC_WAKE', 'host', 'System', 'Wake'),
+  C('KC_BRIU', 'host', 'Screen', 'Bri +', 0, 0, 'Brightness Up'), C('KC_BRID', 'host', 'Screen', 'Bri −', 0, 0, 'Brightness Down'),
+  C('KC_CALC', 'host', 'App', 'Calc', 0, 0, 'Calculator'), C('KC_MAIL', 'host', 'App', 'Mail'), C('KC_MYCM', 'host', 'App', 'Computer', 0, 'PC', 'My Computer'),
+  C('KC_CPNL', 'host', 'App', 'Settings', 0, 'Setup', 'Control Panel'), C('KC_ASST', 'host', 'App', 'Assistant', 0, 'Assist'),
+  C('KC_MCTL', 'host', 'App', 'Mission Ctrl', 0, 'Mission', 'Mission Control'), C('KC_LPAD', 'host', 'App', 'Launchpad', 0, 'Launch'),
+  C('KC_WBAK', 'host', 'Web', 'Back'), C('KC_WFWD', 'host', 'Web', 'Forward', 0, 'Fwd'), C('KC_WHOM', 'host', 'Web', 'Home'),
+  C('KC_WREF', 'host', 'Web', 'Refresh', 0, 'Refr'), C('KC_WSCH', 'host', 'Web', 'Search', 0, 'Srch'), C('KC_WSTP', 'host', 'Web', 'Stop'),
+  C('KC_WFAV', 'host', 'Web', 'Favorites', 0, 'Favs'),
+  C('UC_WIN', 'host', 'Unicode', 'Windows', 0, 'Win'), C('UC_MAC', 'host', 'Unicode', 'macOS'), C('UC_LINX', 'host', 'Unicode', 'Linux'),
+  C('UC_NEXT', 'host', 'Unicode', 'Next'),
+  C('OU_AUTO', 'host', 'Output', 'Auto'), C('OU_USB', 'host', 'Output', 'USB'), C('OU_BT', 'host', 'Output', 'BT'),
+  C('MS_UP', 'host', 'Mouse', 'Up'), C('MS_DOWN', 'host', 'Mouse', 'Down'), C('MS_LEFT', 'host', 'Mouse', 'Left'), C('MS_RGHT', 'host', 'Mouse', 'Right'),
+  C('MS_BTN1', 'host', 'Mouse', 'Btn 1'), C('MS_BTN2', 'host', 'Mouse', 'Btn 2'), C('MS_BTN3', 'host', 'Mouse', 'Btn 3'),
+  C('MS_BTN4', 'host', 'Mouse', 'Btn 4'), C('MS_BTN5', 'host', 'Mouse', 'Btn 5'),
+  C('MS_WHLU', 'host', 'Mouse', 'Wh Up'), C('MS_WHLD', 'host', 'Mouse', 'Wh Dn'), C('MS_WHLL', 'host', 'Mouse', 'Wh Left', 0, 'Wh Lt'),
+  C('MS_WHLR', 'host', 'Mouse', 'Wh Right', 0, 'Wh Rt'), C('MS_ACL0', 'host', 'Mouse', 'Acc 0'), C('MS_ACL1', 'host', 'Mouse', 'Acc 1'),
+  C('MS_ACL2', 'host', 'Mouse', 'Acc 2'),
+  C('CW_TOGG', 'beh', 'Caps Word', 'On/Off', 'Caps Wd', 0, 'Toggle Caps Word'), C('QK_REP', 'beh', 'Key', 'Repeat', 0, 'Rep'),
+  C('QK_AREP', 'beh', 'Key', 'Alt Rep', 0, 0, 'Repeat Alternate'), C('QK_GESC', 'beh', 'Key', 'Grv Esc', 0, 0, 'Grave Escape'),
+  C('QK_LEAD', 'beh', 'Key', 'Leader', 0, 'Lead'), C('QK_LOCK', 'beh', 'Key', 'Lock'), C('QK_LLCK', 'beh', 'Layer', 'Lock', 0, 0, 'Layer Lock'),
+  C('TL_LOWR', 'beh', 'Tri layer', 'Lower'), C('TL_UPPR', 'beh', 'Tri layer', 'Upper'),
+  C('AS_TOGG', 'beh', 'Auto Shift', 'On/Off', 'AutoSft'), C('AS_UP', 'beh', 'Auto Shift', 'Time +', 'AutoSft'), C('AS_DOWN', 'beh', 'Auto Shift', 'Time −', 'AutoSft'),
+  C('AC_TOGG', 'beh', 'Autocorrect', 'On/Off', 'AutoCor'), C('CM_TOGG', 'beh', 'Combos', 'On/Off'), C('OS_TOGG', 'beh', 'One shot', 'On/Off'),
+  C('KO_TOGG', 'beh', 'Overrides', 'On/Off', 'Ovrd'), C('SH_TOGG', 'beh', 'Swap hands', 'On/Off', 'Swap'), C('SH_MON', 'beh', 'Swap hands', 'Hold', 'Swap'),
+  C('SH_OS', 'beh', 'Swap hands', 'Once', 'Swap'), C('DT_UP', 'beh', 'Tap term', '+'), C('DT_DOWN', 'beh', 'Tap term', '−'), C('DT_PRNT', 'beh', 'Tap term', 'Print'),
+  C('SC_LSPO', 'beh', 'Shift', '(', 0, 0, 'Left Shift, ( when tapped'), C('SC_RSPC', 'beh', 'Shift', ')', 0, 0, 'Right Shift, ) when tapped'),
+  C('SC_SENT', 'beh', 'Shift', 'Enter', 0, 0, 'Right Shift, Enter when tapped'),
+  C('CL_SWAP', 'board', 'Ctrl↔Caps', 'Swap', 'Ctl/Caps'), C('CL_NORM', 'board', 'Ctrl↔Caps', 'Unswap', 'Ctl/Caps'), C('CL_TOGG', 'board', 'Ctrl↔Caps', 'On/Off', 'Ctl/Caps'),
+  C('CG_SWAP', 'board', 'Ctrl↔Win', 'Swap', 'Ctl/Win'), C('CG_NORM', 'board', 'Ctrl↔Win', 'Unswap', 'Ctl/Win'), C('CG_TOGG', 'board', 'Ctrl↔Win', 'On/Off', 'Ctl/Win'),
+  C('AG_SWAP', 'board', 'Alt↔Win', 'Swap', 'Alt/Win'), C('AG_NORM', 'board', 'Alt↔Win', 'Unswap', 'Alt/Win'), C('AG_TOGG', 'board', 'Alt↔Win', 'On/Off', 'Alt/Win'),
+  C('EC_SWAP', 'board', 'Esc↔Caps', 'Swap', 'Esc/Caps'), C('EC_NORM', 'board', 'Esc↔Caps', 'Unswap', 'Esc/Caps'),
+  C('GU_TOGG', 'board', 'Win key', 'On/Off', 'Win'), C('NK_TOGG', 'board', 'NKRO', 'On/Off'), C('EH_LEFT', 'board', 'EE Hands', 'Left', 'Hands'),
+  C('EH_RGHT', 'board', 'EE Hands', 'Right', 'Hands'),
+  C('QK_BOOT', 'fw', 'Firmware', 'Boot', 0, 0, 'Bootloader'), C('QK_RBT', 'fw', 'Firmware', 'Reboot'), C('EE_CLR', 'fw', 'Firmware', 'Clear EE', 0, 0, 'Clear EEPROM'),
+  C('DB_TOGG', 'fw', 'Firmware', 'Debug', 0, 0, 'Toggle Debug'), C('QK_MAKE', 'fw', 'Firmware', 'Make'),
+  C('DM_REC1', 'host', 'Macro', 'Rec 1', 0, 0, 'Dynamic Macro Record 1'), C('DM_REC2', 'host', 'Macro', 'Rec 2', 0, 0, 'Dynamic Macro Record 2'),
+  C('DM_PLY1', 'host', 'Macro', 'Play 1', 0, 0, 'Dynamic Macro Play 1'), C('DM_PLY2', 'host', 'Macro', 'Play 2', 0, 0, 'Dynamic Macro Play 2'),
+  C('DM_RSTP', 'host', 'Macro', 'Stop', 0, 0, 'Dynamic Macro Stop Recording'),
+  C('MI_ON', null, 'MI_', 'ON'), C('MI_OFF', null, 'MI_', 'OFF'), C('MI_C', null, 'MI_', 'C'), C('MI_CHNU', null, 'MI_', 'CHNU'),
+  C('QK_STENO_BOLT', 'host', 'Steno', 'Bolt'), C('QK_STENO_GEMINI', 'host', 'Steno', 'Gemini'),
+  C('JS_0', 'host', 'Joystick', 'Btn 0', 'Joy'), C('JS_1', 'host', 'Joystick', 'Btn 1', 'Joy'), C('PB_1', 'host', 'Prog btn', '1', 'Prog'),
+  C('PB_2', 'host', 'Prog btn', '2', 'Prog'),
+];
+const COMMAND = Object.fromEntries(COMMANDS.map(c => [c.kc, c]));
+
+// Lighting, by the firmware state and the systems the definition declares (ui-design.md, "Which
+// lighting keycodes a board gets"). One system: the header says Light; several: which one.
+const LIGHT_SETS = {
+  bl: [['BL_TOGG', 'On/Off'], ['BL_STEP', 'Step'], ['BL_UP', 'Bri +'], ['BL_DOWN', 'Bri −'], ['BL_BRTG', 'Breathe']],
+  ug: [['UG_TOGG', 'On/Off'], ['UG_NEXT', 'Next'], ['UG_PREV', 'Prev'], ['UG_HUEU', 'Hue +'], ['UG_HUED', 'Hue −'], ['UG_SATU', 'Sat +'],
+       ['UG_SATD', 'Sat −'], ['UG_VALU', 'Bri +'], ['UG_VALD', 'Bri −'], ['UG_SPDU', 'Spd +'], ['UG_SPDD', 'Spd −']],
+  modes: [['RGB_M_P', 'Plain'], ['RGB_M_B', 'Breathe'], ['RGB_M_R', 'Rainbow', 'Rainbw'], ['RGB_M_SW', 'Swirl'], ['RGB_M_SN', 'Snake'],
+          ['RGB_M_K', 'Knight'], ['RGB_M_X', 'Xmas'], ['RGB_M_G', 'Gradient', 'Grad'], ['RGB_M_T', 'Test']],
+};
+LIGHT_SETS.rm = LIGHT_SETS.ug.map(([kc, main]) => ['RM_' + kc.slice(3), main]);
+const SYSTEMS = { 'Underglow': ['ug'], 'Underglow + RGB Matrix': ['ug', 'rm'], 'Backlight + Underglow': ['bl', 'ug'] };
+const SYSTEM_WORDS = { bl: 'Backlit', ug: 'UGlow', rm: 'Matrix' };
+function lightingGroups() {
+  const systems = SYSTEMS[state.lighting], several = systems.length > 1, fw = state.firmware;
+  const head = s => several ? SYSTEM_WORDS[s] : 'Light';
+  const groups = [];
+  const add = (title, set, system, note) => groups.push({ title, items: set.map(([kc, main, short]) => {
+    COMMAND[kc] = COMMAND[kc] || C(kc, 'board', head(system), main, 0, short);
+    COMMAND[kc].head = head(system); COMMAND[kc].note = note;
+    return { kind: 'cmd', kc };
+  }) });
+  if (systems.includes('bl')) add('Backlight', LIGHT_SETS.bl, 'bl');
+  const matrix = systems.includes('rm');
+  if (fw === 'New') {
+    add('Underglow', LIGHT_SETS.ug, 'ug');
+    if (matrix) add('RGB Matrix', LIGHT_SETS.rm, 'rm');
+  } else {
+    const note = !matrix ? null : fw === 'Old' ? 'drives the RGB Matrix too, on this firmware' : 'and the RGB Matrix, unless the firmware opts out';
+    add(matrix ? 'Underglow and RGB Matrix: one set on this firmware' : 'Underglow', LIGHT_SETS.ug, 'ug', note);
+    if (fw === 'Old') add('Underglow modes', LIGHT_SETS.modes, 'ug', matrix ? 'Plain, Breathe, Rainbow and Swirl reach the matrix too' : null);
+  }
+  return groups;
+}
+const FIRMWARE_LINES = {
+  Old: 'Firmware: <b>old</b> -- Vial 5. One set of keycodes drives every lighting system; the RGB_M modes work.',
+  New: 'Firmware: <b>new</b> -- Vial 6 reporting Caps Word. Underglow and RGB Matrix have keycodes of their own.',
+  Unknown: 'Firmware: <b>unknown</b> -- Vial 6, no feature bit. Only what works on old and new firmware alike is offered.',
+};
+
+// ---------------------------------------------------------------------------------------------
+// Keycodes, as Nazg's Keycode variant: { kind, ... }.
+const MOD_NAMES = ['ctrl', 'shift', 'alt', 'gui'];
+const MOD_WORD = { ctrl: 'Ctrl', shift: 'Shift', alt: 'Alt', gui: 'Win' };
+const MOD_INIT = { ctrl: 'C', shift: 'S', alt: 'A', gui: 'W' };
+const MOD_QMK = { ctrl: 'CTL', shift: 'SFT', alt: 'ALT', gui: 'GUI' };
+const LAYER_OPS = [['MO', 'Hold', 'Hold the layer while the key is down'], ['TG', 'Toggle', 'Turn the layer on or off'],
+                   ['TO', 'To', 'Go to the layer, turning the others off'], ['TT', 'Tap tog', 'Hold, or tap several times to toggle'],
+                   ['OSL', 'Once', 'The layer for the next key only'], ['DF', 'Base', 'Make it the default layer, until unplugged']];
+const opWord = op => LAYER_OPS.find(o => o[0] === op)[1];
+const modsList = m => MOD_NAMES.filter(n => m[n]);
+function modsWords(m, compact) {
+  const l = modsList(m);
+  if (l.length === 4) return 'Hyper';
+  if (l.length === 3 && !m.gui) return 'Meh';
+  if (l.length === 1) return (m.right ? (l[0] === 'alt' ? '' : 'R ') : '') + (m.right && l[0] === 'alt' ? 'Alt Gr' : MOD_WORD[l[0]]);
+  if (l.length === 2 && !compact) return l.map(n => n === 'shift' ? 'Sft' : n === 'ctrl' ? 'Ctl' : MOD_WORD[n]).join(' ');
+  return l.map(n => MOD_INIT[n]).join(' ');
+}
+const modsQmk = m => modsList(m).map(n => 'MOD_' + (m.right ? 'R' : 'L') + MOD_QMK[n]).join('|');
+const isBasic = k => k.kind === 'basic';
+const tapOf = k => ['basic', 'mods', 'mt', 'lt'].includes(k.kind) ? k.kc : null;
+
+function format(k) {
+  switch (k.kind) {
+    case 'basic': case 'cmd': return k.kc;
+    case 'mods': return modsList(k.mods).reduceRight((inner, n) => (k.mods.right ? 'R' : 'L') + { ctrl: 'CTL', shift: 'SFT', alt: 'ALT', gui: 'GUI' }[n] + '(' + inner + ')', k.kc);
+    case 'mt': return `MT(${modsQmk(k.mods)},${k.kc})`;
+    case 'lt': return `LT(${k.layer},${k.kc})`;
+    case 'layer': return `${k.op}(${k.layer})`;
+    case 'lm': return `LM(${k.layer},${modsQmk(k.mods)})`;
+    case 'osm': return `OSM(${modsQmk(k.mods)})`;
+    case 'macro': return `MC_${k.n}`;
+    case 'td': return `TD(${k.n})`;
+    case 'trns': return 'KC_TRNS';
+    case 'no': return 'KC_NO';
+  }
+  return '?';
+}
+
+// The Any entry: QMK's expressions, the reverse of format().
+function parse(text) {
+  const s = text.replace(/\s+/g, '').toUpperCase();
+  if (s === 'KC_TRNS' || s === '_______' || s === 'KC_TRANSPARENT') return { kind: 'trns' };
+  if (s === 'KC_NO' || s === 'XXXXXXX') return { kind: 'no' };
+  const basic = kc => NAMED[kc] || ARROWS[kc] || hostLegend(kc) || /^KC_[A-Z0-9]$/.test(kc);
+  let m;
+  if ((m = /^(MO|TG|TO|TT|OSL|DF)\((\d+)\)$/.exec(s))) return { kind: 'layer', op: m[1], layer: +m[2] };
+  if ((m = /^LT\((\d+),(KC_\w+)\)$/.exec(s)) && basic(m[2])) return { kind: 'lt', layer: +m[1], kc: m[2] };
+  const mods = t => { const r = { right: /MOD_R/.test(t) };
+    for (const [n, q] of Object.entries(MOD_QMK)) if (new RegExp('MOD_[LR]' + q).test(t)) r[n] = true;
+    if (/MOD_HYPR/.test(t)) Object.assign(r, { ctrl: true, shift: true, alt: true, gui: true });
+    if (/MOD_MEH/.test(t)) Object.assign(r, { ctrl: true, shift: true, alt: true });
+    return modsList(r).length ? r : null; };
+  if ((m = /^MT\(([\w|]+),(KC_\w+)\)$/.exec(s)) && mods(m[1]) && basic(m[2])) return { kind: 'mt', mods: mods(m[1]), kc: m[2] };
+  if ((m = /^LM\((\d+),([\w|]+)\)$/.exec(s)) && mods(m[2])) return { kind: 'lm', layer: +m[1], mods: mods(m[2]) };
+  if ((m = /^OSM\(([\w|]+)\)$/.exec(s)) && mods(m[1])) return { kind: 'osm', mods: mods(m[1]) };
+  if ((m = /^TD\((\d+)\)$/.exec(s))) return { kind: 'td', n: +m[1] };
+  if ((m = /^MC?_?(\d+)$/.exec(s))) return { kind: 'macro', n: +m[1] };
+  // Modifier wrappers, nested: LCTL(LSFT(KC_A)), C(S(KC_A)).
+  const wrap = { LCTL: 'ctrl', RCTL: 'ctrl', C: 'ctrl', LSFT: 'shift', RSFT: 'shift', S: 'shift', LALT: 'alt', RALT: 'alt', A: 'alt',
+                 LGUI: 'gui', RGUI: 'gui', G: 'gui', LCMD: 'gui', LWIN: 'gui' };
+  let inner = s, mm = {}, right = false, any = false;
+  while ((m = /^([A-Z]+)\((.*)\)$/.exec(inner)) && wrap[m[1]]) { mm[wrap[m[1]]] = true; right ||= m[1][0] === 'R'; inner = m[2]; any = true; }
+  if (any && basic(inner)) return { kind: 'mods', mods: { ...mm, right }, kc: inner };
+  if (COMMAND[s]) return { kind: 'cmd', kc: s };
+  if (/^KC_\w+$/.test(s) && basic(s)) return { kind: 'basic', kc: s };
+  return null;
+}
+
+// What a keycap says: the content layer of NazgKeycapLegend, cut down to what the mockup draws.
+function wordsOf(kc) {
+  if (ARROWS[kc]) return { arrow: ARROWS[kc] };
+  const h = hostLegend(kc);
+  if (h) return { plain: h.plain, shifted: h.shifted };
+  if (NAMED[kc]) return { full: NAMED[kc][0], short: NAMED[kc][1], numpad: /^KC_P/.test(kc) && kc !== 'KC_PENT' };
+  return { full: kc.replace(/^KC_/, ''), short: '' };
+}
+function describe(k, where) {
+  const d = { header: null, hold: null };
+  const tap = kc => { Object.assign(d, wordsOf(kc), kc === 'KC_SPC' && where === 'spacebar' ? { full: '' } : {});
+    // On the board a modifier sits on its own side, so it names none, as the app's SideLine() decides.
+    if (where === 'board' && d.full && /^(Left|Right) /.test(d.full)) { d.full = d.full.replace(/^(Left|Right) /, ''); d.short = d.full === 'Control' ? 'Ctrl' : ''; } };
+  switch (k.kind) {
+    case 'basic': tap(k.kc); break;
+    case 'cmd': { const c = COMMAND[k.kc]; d.command = true; d.full = c.main; d.short = c.mainShort || '';
+      if (c.head === 'MI_' || c.cat === null) { d.full = c.kc; d.command = false; break; }
+      d.header = { full: c.head, short: c.headShort || '', cat: c.cat }; break; }
+    case 'mods': tap(k.kc); d.header = { full: modsWords(k.mods) + '+', short: modsWords(k.mods, true) + '+', cat: 'host' }; break;
+    case 'mt': tap(k.kc); d.hold = { full: modsWords(k.mods), short: modsWords(k.mods, true), cat: 'beh' }; break;
+    case 'lt': tap(k.kc); d.hold = { full: 'L' + k.layer, cat: 'beh' }; break;
+    case 'layer': d.command = true; d.full = 'L' + k.layer; d.header = { full: opWord(k.op), cat: 'beh' }; break;
+    case 'lm': d.command = true; d.full = 'L' + k.layer + ' ' + modsWords(k.mods, true); d.header = { full: 'Hold', cat: 'beh' }; break;
+    case 'osm': d.command = true; d.full = modsWords(k.mods); d.short = modsWords(k.mods, true); d.header = { full: 'Once', cat: 'beh' }; break;
+    case 'macro': d.command = true; d.full = 'M' + k.n; d.header = { full: 'Macro', cat: 'host' }; break;
+    case 'td': d.command = true; d.full = 'TD ' + k.n; d.header = { full: 'Dance', cat: 'beh' }; break;
+    case 'trns': d.full = 'Trans'; d.mark = '▽'; break;
+    case 'no': d.full = 'None'; d.mark = '✕'; break;
+  }
+  return d;
+}
+function labelOf(k) {
+  if (k.kind === 'cmd') return COMMAND[k.kc].label || '';
+  if (k.kind === 'basic') return LABELS[k.kc] || '';
+  if (k.kind === 'layer') return LAYER_OPS.find(o => o[0] === k.op)[2];
+  if (k.kind === 'trns') return 'Transparent: the layer below decides';
+  if (k.kind === 'no') return 'Does nothing';
+  return '';
+}
+// A keycap's colour class from what the key does on the base layer (KeycapClassOf).
+function classOf(k, width) {
+  const t = tapOf(k);
+  // A character key is one whatever the host layout makes of it.
+  if (t) return ['KC_ESC', 'KC_ENT', 'KC_PENT'].includes(t) ? 'accent'
+              : HOSTS.US[t] || /^KC_[A-Z0-9]$|^KC_P\d$|^KC_PDOT$|^KC_SPC$/.test(t) ? 'alpha' : 'mod';
+  if (k.kind === 'trns' || k.kind === 'no') return width > 1.25 ? 'mod' : 'alpha';
+  return 'mod';
+}
+
+// ---------------------------------------------------------------------------------------------
+// Drawing one keycap: a positioned div, every legend placed in key units as the layout layer does.
+const measureCtx = document.createElement('canvas').getContext('2d');
+const FONT = 'Arimo, "Noto Sans Math", "Noto Sans Symbols 2", sans-serif';
+const textWidth = (text, size, bold) => { measureCtx.font = `${bold ? 700 : 400} ${size}px ${FONT}`; return measureCtx.measureText(text).width; };
+// Never scaled: one line, two, the short form, then cut.
+function fitWords(full, short, size, width, lines) {
+  if (!full) return [];
+  if (textWidth(full, size) <= width) return [full];
+  const split = t => { let best = null;
+    for (let i = t.indexOf(' '); i > 0; i = t.indexOf(' ', i + 1)) {
+      const a = t.slice(0, i), b = t.slice(i + 1), w = Math.max(textWidth(a, size), textWidth(b, size));
+      if (w <= width && (!best || w < best.w)) best = { w, lines: [a, b] };
+    } return best && best.lines; };
+  if (lines > 1) { const two = split(full); if (two) return two; }
+  if (short && textWidth(short, size) <= width) return [short];
+  let cut = short || full;
+  while (cut.length > 1 && textWidth(cut + '…', size) > width) cut = cut.slice(0, -1);
+  return [cut + '…'];
+}
+function fitHeader(h, size, width) {
+  if (textWidth(h.full, size, true) <= width) return h.full;
+  if (h.short && textWidth(h.short, size, true) <= width) return h.short;
+  let cut = h.short || h.full;
+  while (cut.length > 1 && textWidth(cut + '…', size, true) > width) cut = cut.slice(0, -1);
+  return cut + '…';
+}
+function span(parent, text, x, y, size, colour, bold, extra) {
+  const s = document.createElement('span');
+  s.className = 't'; s.textContent = text;
+  Object.assign(s.style, { left: x + 'px', top: y + 'px', fontSize: size + 'px', color: colour, fontWeight: bold ? 700 : 400 }, extra || {});
+  parent.appendChild(s);
+  return s;
+}
+// `fallsTo`: a transparent key's keycode below, drawn faint with a ▽, or a KC_NO's with a ✕.
+function drawKeycap(el, k, opts) {
+  const T = THEMES[state.theme], u = opts.unit, w = opts.w * u - 2 * opts.gap, h = (opts.h || 1) * u - 2 * opts.gap;
+  const cls = opts.cls || classOf(k, opts.w);
+  const face = T[cls], legend = cls === 'accent' ? T.accentLegend : T.legend;
+  el.innerHTML = '';
+  Object.assign(el.style, { overflow: 'hidden', width: w + 'px', height: h + 'px', background: face, borderRadius: 0.12 * u + 'px',
+                            border: `1px solid ${T.outline}` });
+  let shown = k, faint = false, mark = null;
+  if (opts.fallsTo !== undefined && (k.kind === 'trns' || k.kind === 'no')) {
+    mark = k.kind === 'trns' ? '▽' : '✕'; shown = opts.fallsTo; faint = true;
+  }
+  const d = shown ? describe(shown, opts.where) : {};
+  const pad = 0.10 * u, letter = 0.30 * u, words = 0.18 * u, head = 0.15 * u;
+  const layer = document.createElement('div');
+  Object.assign(layer.style, { position: 'absolute', inset: 0, opacity: faint ? 0.28 : 1 });
+  el.appendChild(layer);
+  const bandCat = d.hold ? d.hold.cat : d.header ? d.header.cat : null;
+  if (bandCat) {
+    const b = document.createElement('div');
+    Object.assign(b.style, { position: 'absolute', left: 0, top: 0, right: 0, height: Math.max(2, 0.055 * u) + 'px',
+                             background: categoryInk(face, bandCat, 'band') || legend });
+    layer.appendChild(b);
+  }
+  // Headers top right: the hold, then the command's or the modifiers'.
+  let headerBottom = Math.max(2, 0.055 * u) + 0.02 * u + pad * 0.3;
+  let headerLeft = w;
+  for (const hd of [d.hold, d.header]) {
+    if (!hd) continue;
+    const text = fitHeader(hd, head, w - 2 * pad);
+    const tw = textWidth(text, head, true);
+    span(layer, text, w - pad - tw, headerBottom, head, categoryInk(face, hd.cat, 'text') || legend, true);
+    headerLeft = Math.min(headerLeft, w - pad - tw);
+    headerBottom += head * 1.05;
+  }
+  const hasHeaders = !!(d.hold || d.header);
+  if (d.arrow) {
+    span(layer, d.arrow, pad, pad + (hasHeaders ? headerBottom - pad : 0), letter, legend, true);
+  } else if (d.plain !== undefined) {
+    // Cylindrical: the Shift character over the plain one, top left.
+    const lines = d.shifted ? [d.shifted, d.plain] : [d.plain];
+    let y = pad - 0.08 * u;
+    const reach = textWidth(lines[0], letter, true);
+    if (hasHeaders && pad + reach > headerLeft - 0.04 * u) y = headerBottom - 0.04 * u;
+    for (const t of lines) { span(layer, t, pad, y, letter, legend, true); y += letter * 1.12; }
+  } else if (d.full) {
+    const centred = d.command || opts.w <= 1;
+    const room = h - (d.command && hasHeaders ? headerBottom : 0) - pad;
+    const lines = d.numpad ? [d.full] : fitWords(d.full, d.short, d.numpad ? letter : words, w - 2 * pad, room >= 2 * words ? 2 : 1);
+    const size = d.numpad ? letter : words, total = lines.length * size;
+    let y = centred ? (h - total) / 2 : (h - total) / 2;
+    if (d.numpad) y = pad - 0.06 * u;
+    if (hasHeaders) {
+      const widest = Math.max(...lines.map(t => textWidth(t, size)));
+      if (y < headerBottom && (w - widest) / 2 < w - headerLeft + 0.04 * u) y = headerBottom;
+    }
+    for (const t of lines) {
+      const tw = textWidth(t, size, d.numpad);
+      span(layer, t, centred ? (w - tw) / 2 : pad, y, size, legend, !!d.numpad);
+      y += size * 1.05;
+    }
+  }
+  const m = mark || d.mark;
+  if (m) {
+    const s = Math.max(6, 0.12 * u);
+    span(el, m, w - 0.06 * u - s, h - 0.06 * u - s * 1.05, s, legend, false, { opacity: 0.55 });
+  }
+  if (opts.selected) el.style.boxShadow = `inset 0 0 0 ${Math.max(2, 0.04 * u)}px ${T.selected}`;
+  if (opts.previewing) el.style.boxShadow = `inset 0 0 0 ${Math.max(2, 0.04 * u)}px ${T.preview}`;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The board: a 60% ANSI, four layers.
+const ROWS = [
+  [[1, 'KC_ESC'], ...'1234567890'.split('').map(c => [1, 'KC_' + c]), [1, 'KC_MINS'], [1, 'KC_EQL'], [2, 'KC_BSPC']],
+  [[1.5, 'KC_TAB'], ...'QWERTYUIOP'.split('').map(c => [1, 'KC_' + c]), [1, 'KC_LBRC'], [1, 'KC_RBRC'], [1.5, 'KC_BSLS']],
+  [[1.75, 'KC_CAPS'], ...'ASDFGHJKL'.split('').map(c => [1, 'KC_' + c]), [1, 'KC_SCLN'], [1, 'KC_QUOT'], [2.25, 'KC_ENT']],
+  [[2.25, 'KC_LSFT'], ...'ZXCVBNM'.split('').map(c => [1, 'KC_' + c]), [1, 'KC_COMM'], [1, 'KC_DOT'], [1, 'KC_SLSH'], [2.75, 'KC_RSFT']],
+  [[1.25, 'KC_LCTL'], [1.25, 'KC_LGUI'], [1.25, 'KC_LALT'], [6.25, 'KC_SPC'], [1.25, 'KC_RALT'], [1.25, 'KC_RGUI'], [1.25, 'KC_APP'], [1.25, 'KC_RCTL']],
+];
+const KEYS = [];
+ROWS.forEach((row, r) => { let x = 0; row.forEach(([w, kc], c) => { KEYS.push({ x, y: r, w, row: r, col: c, home: kc }); x += w; }); });
+const B = kc => ({ kind: 'basic', kc }), CMD = kc => ({ kind: 'cmd', kc });
+const TRNS = { kind: 'trns' }, NO = { kind: 'no' };
+const at = name => KEYS.findIndex(k => k.home === name);
+function layerFrom(base, overrides) { const l = KEYS.map(() => base); for (const [kc, v] of Object.entries(overrides)) l[at(kc)] = v; return l; }
+const KEYMAP = [
+  KEYS.map(k => B(k.home)),
+  layerFrom(TRNS, { KC_1: B('KC_F1'), KC_2: B('KC_F2'), KC_3: B('KC_F3'), KC_4: B('KC_F4'), KC_5: B('KC_F5'), KC_6: B('KC_F6'),
+    KC_7: B('KC_F7'), KC_8: B('KC_F8'), KC_9: B('KC_F9'), KC_0: B('KC_F10'), KC_MINS: B('KC_F11'), KC_EQL: B('KC_F12'),
+    KC_BSPC: B('KC_DEL'), KC_I: B('KC_UP'), KC_J: B('KC_LEFT'), KC_K: B('KC_DOWN'), KC_L: B('KC_RGHT'), KC_U: B('KC_HOME'),
+    KC_O: B('KC_END'), KC_Y: B('KC_PGUP'), KC_H: B('KC_PGDN'), KC_Z: CMD('KC_MPRV'), KC_X: CMD('KC_MPLY'), KC_C: CMD('KC_MNXT'),
+    KC_V: CMD('KC_VOLD'), KC_B: CMD('KC_VOLU'), KC_M: CMD('KC_MUTE'), KC_P: B('KC_PSCR') }),
+  layerFrom(TRNS, { KC_ESC: CMD('QK_BOOT'), KC_BSPC: CMD('EE_CLR'), KC_Q: CMD('UG_TOGG'), KC_W: CMD('UG_NEXT'), KC_E: CMD('UG_HUEU'),
+    KC_R: CMD('UG_SATU'), KC_T: CMD('UG_VALU'), KC_A: CMD('UG_PREV'), KC_S: CMD('UG_HUED'), KC_D: CMD('UG_SATD'), KC_F: CMD('UG_VALD'),
+    KC_G: NO, KC_N: CMD('NK_TOGG'), KC_C: CMD('CW_TOGG') }),
+  layerFrom(TRNS, { KC_Q: NO, KC_W: NO }),
+];
+KEYMAP[0][at('KC_CAPS')] = { kind: 'mt', mods: { ctrl: true }, kc: 'KC_ESC' };
+KEYMAP[0][at('KC_RGUI')] = { kind: 'layer', op: 'MO', layer: 1 };
+KEYMAP[0][at('KC_APP')] = { kind: 'layer', op: 'TT', layer: 2 };
+KEYMAP[0][at('KC_SPC')] = B('KC_SPC');
+// The keycap's class comes from layer 0, whichever layer is shown.
+const CLASSES = KEYS.map((k, i) => classOf(KEYMAP[0][i], k.w));
+function fallsTo(i, layer) {
+  for (let l = layer - 1; l >= 0; l--) { const k = KEYMAP[l][i]; if (k.kind === 'trns') continue; if (k.kind === 'no') continue; return k; }
+  return null;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The picker's contents, as tabs of groups.
+const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(c => B('KC_' + c));
+const digits = '1234567890'.split('').map(c => B('KC_' + c));
+const punct = ['KC_MINS', 'KC_EQL', 'KC_LBRC', 'KC_RBRC', 'KC_BSLS', 'KC_SCLN', 'KC_QUOT', 'KC_GRV', 'KC_COMM', 'KC_DOT', 'KC_SLSH', 'KC_NUBS', 'KC_NUHS'].map(B);
+const cmdsWhere = test => COMMANDS.filter(test).map(c => CMD(c.kc));
+function tabs() {
+  const L = [0, 1, 2, 3];
+  return [
+    { id: 'keys', name: 'Keys', groups: [
+      { title: 'Letters', items: letters }, { title: 'Digits', items: digits }, { title: 'Punctuation', items: punct },
+      { title: 'Editing and spaces', items: ['KC_ESC', 'KC_TAB', 'KC_ENT', 'KC_BSPC', 'KC_SPC', 'KC_DEL', 'KC_INS', 'KC_CAPS'].map(B) },
+      { title: 'Modifiers', items: ['KC_LSFT', 'KC_LCTL', 'KC_LALT', 'KC_LGUI', 'KC_RSFT', 'KC_RCTL', 'KC_RALT', 'KC_RGUI', 'KC_APP'].map(B) },
+      { title: 'Navigation', items: ['KC_HOME', 'KC_END', 'KC_PGUP', 'KC_PGDN', 'KC_UP', 'KC_DOWN', 'KC_LEFT', 'KC_RGHT', 'KC_PSCR', 'KC_SCRL', 'KC_PAUS'].map(B) },
+      { title: 'Function keys', items: Array.from({ length: 24 }, (_, i) => B('KC_F' + (i + 1))) },
+      { title: 'Numpad', items: ['KC_NUM', 'KC_PSLS', 'KC_PAST', 'KC_PMNS', 'KC_PPLS', 'KC_PENT', 'KC_P1', 'KC_P2', 'KC_P3', 'KC_P4', 'KC_P5', 'KC_P6', 'KC_P7', 'KC_P8', 'KC_P9', 'KC_P0', 'KC_PDOT'].map(B) },
+      { title: 'International', items: ['KC_INT1', 'KC_INT2', 'KC_INT3', 'KC_INT4', 'KC_INT5', 'KC_LNG1', 'KC_LNG2'].map(B) },
+      { title: 'Nothing', items: [TRNS, NO] },
+    ] },
+    { id: 'layers', name: 'Layers', cat: 'beh', layers: true, groups: [
+      ...LAYER_OPS.map(([op, word, label]) => ({ title: word + ' -- ' + label.toLowerCase(), items: L.map(n => ({ kind: 'layer', op, layer: n })) })),
+      { title: 'One-shot modifiers', items: [{ ctrl: true }, { shift: true }, { alt: true }, { gui: true }, { ctrl: true, shift: true }, { ctrl: true, shift: true, alt: true, gui: true }].map(mods => ({ kind: 'osm', mods })) },
+      { title: 'More', items: cmdsWhere(c => ['QK_LLCK', 'TL_LOWR', 'TL_UPPR'].includes(c.kc)) },
+    ] },
+    { id: 'media', name: 'Media', cat: 'host', groups: ['Media', 'System', 'Screen', 'App', 'Web', 'Unicode', 'Output']
+        .map(h => ({ title: h, items: cmdsWhere(c => c.head === h && c.cat === 'host') })) },
+    { id: 'mouse', name: 'Mouse', cat: 'host', groups: [{ title: 'Mouse keys', items: cmdsWhere(c => c.head === 'Mouse') }] },
+    { id: 'light', name: 'Lighting', cat: 'board', lighting: true, groups: lightingGroups() },
+    { id: 'features', name: 'Features', cat: 'beh', groups: [
+      { title: 'Keys that behave', items: cmdsWhere(c => ['CW_TOGG', 'QK_REP', 'QK_AREP', 'QK_GESC', 'QK_LEAD', 'QK_LOCK'].includes(c.kc)) },
+      { title: 'Space Cadet', items: cmdsWhere(c => /^SC_/.test(c.kc)) },
+      { title: 'Turn a feature on or off', items: cmdsWhere(c => /^(AS|AC|CM|OS|KO|SH|DT)_/.test(c.kc)) },
+    ] },
+    { id: 'board', name: 'Board', cat: 'board', groups: [
+      { title: 'Swaps', items: cmdsWhere(c => /^(CL|CG|AG|EC)_/.test(c.kc)) },
+      { title: 'Settings', items: cmdsWhere(c => /^(GU|NK|EH)_/.test(c.kc)) },
+    ] },
+    { id: 'macros', name: 'Macros', cat: 'host', groups: [
+      { title: 'Macros -- recorded in the Macros section', items: Array.from({ length: 16 }, (_, n) => ({ kind: 'macro', n })) },
+      { title: 'Tap dances -- set in the Tap dance section', items: Array.from({ length: 8 }, (_, n) => ({ kind: 'td', n })) },
+      { title: 'Dynamic macros -- recorded on the keyboard', items: cmdsWhere(c => /^DM_/.test(c.kc)) },
+    ] },
+    { id: 'fw', name: 'Firmware', cat: 'fw', groups: [{ title: 'Keys that can hurt: rebooting, erasing settings', items: cmdsWhere(c => c.cat === 'fw') }] },
+    { id: 'more', name: 'More', groups: [
+      { title: 'MIDI -- 140 more', items: cmdsWhere(c => /^MI_/.test(c.kc)) },
+      { title: 'Steno, joystick, programmable buttons', items: cmdsWhere(c => /^(QK_STENO|JS_|PB_)/.test(c.kc)) },
+    ] },
+  ];
+}
+
+// ---------------------------------------------------------------------------------------------
+// State and controls.
+const state = {
+  theme: 'Light', structure: 'Tabs', items: 'Compact', labelStyle: 'Box', labelFill: 'Recessed', cardSide: 'Strip', panelWidth: "Board's", split: 0.62, popup: null, unit: 56, composer: 'On', hoverPreview: 'On', advance: 'Stay',
+  host: 'US', firmware: 'Unknown', lighting: 'Underglow + RGB Matrix',
+  layer: 0, selected: null, tab: 'keys', search: '', preview: null, message: '', warning: false, kindTab: 'key',
+  exprDraft: null,
+};
+const CONTROLS = [
+  ['theme', 'Theme', Object.keys(THEMES)],
+  // Tabs: VIA's and Vial's category tabs; Keyboard: Vial's Basic tab drawn as a keyboard; Kind +
+  // parameters: ZMK Studio's behaviour, then its typed parameters.
+  ['structure', 'Structure', ['Tabs', 'Keyboard tab', 'Kind + parameters']],
+  // Compact (Rico, 2026-10-04: keys too big): tiles 38 px tall, a header left out where the
+  // group's title already says it, the group's title beside its row.
+  ['items', 'Items', ['Compact', 'Keycaps', 'Text']],
+  // The key as a bar over the tabs (Rico, 2026-10-04): the expression box wide, no preview -- the
+  // board's key is one. Or a card on the right, as an inspector, or on the left as first drawn.
+  // In the strip row (Rico, 2026-10-04): beside the layers, so it costs the board no height.
+  ['cardSide', 'Key card', ['Strip', 'Bar', 'Right', 'Left']],
+  // Group labels: an outlined box two cells wide, spanning its group's rows -- or plain text.
+  ['labelStyle', 'Group labels', ['Box', 'Plain']],
+  // The box's fill: a recessed neutral -- darker than the panel on Light, lighter on Dark, never a
+  // key's or a text field's -- the tab's category colour at 10%, or none.
+  ['labelFill', 'Label fill', ['Recessed', 'Sage', 'Category tint', 'None']],
+  ['panelWidth', 'Panel width', ["Board's", "Window's"]],
+  // The key card's hold and modifier rows: LT, MT and Ctrl+C in one step.
+  ['composer', 'Composer', ['On', 'Off']],
+  ['hoverPreview', 'Hover preview', ['On', 'Off']],
+  // Vial advances to the next key after a pick; VIA has it as a setting; ZMK Studio does not.
+  ['advance', 'After a pick', ['Stay', 'Next key']],
+  'break',
+  ['host', 'Host layout', Object.keys(HOSTS)],
+  ['firmware', 'Firmware', ['Old', 'New', 'Unknown']],
+  ['lighting', 'Board lighting', Object.keys(SYSTEMS)],
+];
+function buildControls() {
+  const root = document.getElementById('controls');
+  root.innerHTML = '';
+  for (const control of CONTROLS) {
+    if (control === 'break') { root.appendChild(Object.assign(document.createElement('div'), { className: 'break' })); continue; }
+    const [key, name, values] = control;
+    const g = document.createElement('div'); g.className = 'group';
+    g.innerHTML = `<span class="name">${name}</span>`;
+    for (const v of values) {
+      const b = document.createElement('button'); b.textContent = v; if (state[key] === v) b.className = 'on';
+      b.onclick = () => { state[key] = v; buildControls(); render(); };
+      g.appendChild(b);
+    }
+    root.appendChild(g);
+  }
+}
+
+// The tooltip, as ImGui's.
+const tip = document.getElementById('tip');
+function showTip(e, text) { if (!text) return hideTip(); tip.textContent = text; tip.style.display = 'block'; tip.style.left = e.clientX + 14 + 'px'; tip.style.top = e.clientY + 16 + 'px'; }
+function hideTip() { tip.style.display = 'none'; }
+function tipFor(k) {
+  const label = labelOf(k), note = k.kind === 'cmd' && COMMAND[k.kc].note;
+  return format(k) + (label ? ' -- ' + label : '') + (note ? '\n' + note : '');
+}
+
+// ---------------------------------------------------------------------------------------------
+// Writing: every pick is written at once, as the app does, and read back.
+function write(k) {
+  if (state.selected === null) { state.message = 'Click a key on the board first.'; state.warning = true; render(); return; }
+  KEYMAP[state.layer][state.selected] = k;
+  state.message = 'stored ' + format(k); state.warning = false; state.exprDraft = null;
+  if (state.advance === 'Next key') state.selected = (state.selected + 1) % KEYS.length;
+  render();
+}
+const current = () => state.selected === null ? null : KEYMAP[state.layer][state.selected];
+
+function render() {
+  const T = THEMES[state.theme];
+  for (const [n, v] of Object.entries(T.css)) document.documentElement.style.setProperty('--' + n, v);
+  renderStrip(); layout(); renderBoard(); renderPanel(); renderNotes(); reopenPopup();
+}
+// The window below the controls is the app's: the strip, the board's area, the splitter and the
+// panel. The board grows until its area's width or height stops it, at most 96 px a unit, as in
+// NazgBoardView; the panel keeps at least three rows of tiles under its tabs.
+// The splitter stops where the board would fall below its legibility floor -- 60 px a unit, the
+// 9 px header (c_SmallestUnit) -- so the board is never squeezed to give the picker room (Rico,
+// 2026-10-04); a window too small for both gives the panel its minimum first.
+const PANEL_MIN = 200, SMALLEST_UNIT = 60, BOARD_MIN = Math.ceil(5.7 * SMALLEST_UNIT) + 4;
+function layout() {
+  const app = document.getElementById('app'), strip = document.getElementById('strip');
+  const top = app.getBoundingClientRect().top + window.scrollY;
+  const height = Math.max(560, window.innerHeight - top);
+  app.style.height = height + 'px';
+  const avail = height - strip.offsetHeight - 10 - 12 - 8;
+  const boardH = Math.round(Math.min(Math.max(state.split * avail, BOARD_MIN), avail - PANEL_MIN));
+  document.getElementById('boardarea').style.height = boardH + 'px';
+  const width = app.clientWidth - 32;
+  state.unit = Math.max(24, Math.min(96, width / 15.7, (boardH - 4) / 5.7));
+  document.getElementById('panel').style.height = avail - boardH + 'px';
+}
+// Dragging the splitter moves the share; Nazg would keep it in imgui.ini.
+(() => {
+  const splitter = document.getElementById('splitter');
+  splitter.onmousedown = e => {
+    e.preventDefault(); splitter.classList.add('drag');
+    const area = document.getElementById('boardarea'), top = area.getBoundingClientRect().top, strip = document.getElementById('strip');
+    const avail = document.getElementById('app').clientHeight - strip.offsetHeight - 30;
+    const move = m => { state.split = (m.clientY - top) / avail; layout(); renderBoard(); renderPanel(); };
+    const up = () => { splitter.classList.remove('drag'); removeEventListener('mousemove', move); removeEventListener('mouseup', up); };
+    addEventListener('mousemove', move); addEventListener('mouseup', up);
+  };
+  addEventListener('resize', () => render());
+})();
+function renderStrip() {
+  const s = document.getElementById('strip');
+  s.innerHTML = '<span class="label">Layer</span>';
+  KEYMAP.forEach((_, n) => {
+    const b = document.createElement('button'); b.textContent = n; if (n === state.layer) b.className = 'on';
+    b.onclick = () => { state.layer = n; state.message = ''; render(); };
+    s.appendChild(b);
+  });
+  if (state.cardSide === 'Strip') s.appendChild(renderKeyStrip());
+}
+const boardWidth = () => 15.7 * state.unit;
+function renderBoard() {
+  const T = THEMES[state.theme], u = state.unit, gap = 0.06 * u, margin = 0.35 * u;
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  Object.assign(board.style, { width: 15 * u + 2 * margin + 'px', height: 5 * u + 2 * margin + 'px', background: T.plate });
+  KEYS.forEach((key, i) => {
+    const el = document.createElement('div'); el.className = 'key';
+    Object.assign(el.style, { left: margin + key.x * u + gap + 'px', top: margin + key.y * u + gap + 'px' });
+    const previewing = state.preview && i === state.selected;
+    const k = previewing ? state.preview : KEYMAP[state.layer][i];
+    drawKeycap(el, k, { unit: u, gap, w: key.w, cls: CLASSES[i], where: key.w >= 3 ? 'spacebar' : 'board', selected: i === state.selected && !previewing,
+                        previewing, fallsTo: fallsTo(i, state.layer) });
+    el.onclick = () => { state.selected = i; state.message = ''; state.exprDraft = null; render(); };
+    el.onmousemove = e => showTip(e, tipFor(k) + `\nrow ${key.row}, column ${key.col}`);
+    el.onmouseleave = hideTip;
+    board.appendChild(el);
+  });
+}
+
+// An item of the picker: a keycap drawn as the board draws it, or today's text button.
+function itemEl(k, opts = {}) {
+  const sel = current();
+  if (state.items === 'Text') {
+    const b = document.createElement('button'); b.className = 'textbtn';
+    const d = describe(k, 'picker');
+    b.textContent = [d.hold && d.hold.full, d.header && d.header.full, d.shifted ? d.shifted + ' ' + d.plain : d.plain || d.arrow || d.full].filter(Boolean).join(' ');
+    hook(b, k); return b;
+  }
+  if (state.items === 'Compact' && !opts.unit) { const t = compactTile(k, opts, sel && format(sel) === format(k)); hook(t, k); return t; }
+  const u = opts.unit || 60, w = opts.w || 1;
+  const el = document.createElement('div'); el.className = 'itemkey';
+  Object.assign(el.style, { width: w * u - 2 + 'px', height: u - 2 + 'px' });
+  const cap = document.createElement('div'); cap.style.position = 'absolute'; el.appendChild(cap);
+  drawKeycap(cap, k, { unit: u, gap: 1, w, where: 'picker', selected: sel && format(sel) === format(k) });
+  hook(el, k);
+  return el;
+}
+// A compact tile: every one 1u, 46 x 40 px (Rico, 2026-10-04: one size, short forms where needed).
+// Its text area is the legend area of a 1u keycap at the board's smallest unit -- 60 px, padded
+// to about 40 px wide, words at 11 px -- so a name fits as it does there: on one line, on two, its
+// short form, then cut; legend_font checks every keycode fits a 1u keycap. The keycap's face,
+// band and colours stay; a header the group's title says is left out (`dropHeader`).
+const TILE = { w: 46, h: 40, pad: 3, letter: 15, pair: 12, words: 11, header: 9, gap: 4 };
+const CELL = TILE.w + TILE.gap, HALF = CELL / 2;
+function compactTile(k, opts, selected) {
+  const T = THEMES[state.theme], cls = classOf(k, 1), face = T[cls], legend = cls === 'accent' ? T.accentLegend : T.legend;
+  const d = describe(k, 'picker');
+  const el = document.createElement('div'); el.className = 'tile';
+  const header = !opts.dropHeader && (d.hold || d.header);
+  const bandCat = d.hold ? d.hold.cat : d.header ? d.header.cat : null;
+  const w = TILE.w, h = TILE.h, room = w - 2 * TILE.pad;
+  el.dataset.span = 2;
+  Object.assign(el.style, { width: w + 'px', height: h + 'px', background: face, border: `1px solid ${T.outline}` });
+  if (bandCat) {
+    const b = document.createElement('div');
+    Object.assign(b.style, { position: 'absolute', left: 0, top: 0, right: 0, height: '3px', background: categoryInk(face, bandCat, 'band') || legend });
+    el.appendChild(b);
+  }
+  let top = 0;
+  if (header) {
+    const text = fitHeader(header, TILE.header, room);
+    span(el, text, w - TILE.pad - textWidth(text, TILE.header, true) - 1, 5, TILE.header, categoryInk(face, header.cat, 'text') || legend, true);
+    top = 15;
+  }
+  if (d.arrow) {
+    span(el, d.arrow, (w - textWidth(d.arrow, TILE.letter, true)) / 2 - 1, top + (h - top - TILE.letter) / 2 - 2, TILE.letter, legend, true);
+  } else if (d.plain !== undefined) {
+    // A character as on the board: top left, the Shift one above.
+    if (d.shifted) { span(el, d.shifted, TILE.pad + 2, 4, TILE.pair, legend, true); span(el, d.plain, TILE.pad + 2, 20, TILE.pair + 2, legend, true); }
+    else span(el, d.plain, TILE.pad + 3, top ? top : 10, TILE.letter, legend, true);
+  } else if (d.full) {
+    const lines = fitWords(d.full, d.short, TILE.words, room, header ? 1 : 2);
+    const lh = TILE.words + 1, total = lines.length * lh;
+    let y = top + (h - top - total) / 2 - 1;
+    for (const t of lines) { span(el, t, (w - textWidth(t, TILE.words)) / 2 - 1, y, TILE.words, legend, false); y += lh; }
+  }
+  if (d.mark) span(el, d.mark, w - 13, h - 15, 10, legend, false, { opacity: 0.55 });
+  if (selected) el.style.boxShadow = `inset 0 0 0 2px ${T.selected}`;
+  return el;
+}
+function hook(el, k) {
+  el.onclick = () => pick(k);
+  el.onmousemove = e => showTip(e, tipFor(k));
+  el.onmouseenter = () => { if (state.hoverPreview === 'On' && state.selected !== null) { state.preview = composeWithCard(k); renderBoard(); } };
+  el.onmouseleave = () => { hideTip(); if (state.preview) { state.preview = null; renderBoard(); } };
+}
+// A plain key picked while the key card holds a hold or modifiers keeps them: pick A with "Hold:
+// L1" set and the key becomes LT(1, KC_A).
+function composeWithCard(k) {
+  if (state.composer !== 'On' || state.structure === 'Kind + parameters' || !isBasic(k)) return k;
+  const cur = current();
+  if (!cur) return k;
+  if (cur.kind === 'mt') return { kind: 'mt', mods: cur.mods, kc: k.kc };
+  if (cur.kind === 'lt') return { kind: 'lt', layer: cur.layer, kc: k.kc };
+  if (cur.kind === 'mods') return { kind: 'mods', mods: cur.mods, kc: k.kc };
+  return k;
+}
+function pick(k) { state.preview = null; state.popup = null; write(composeWithCard(k)); }
+
+// ---------------------------------------------------------------------------------------------
+// The panel: the key card, then the picker in the chosen structure.
+function renderPanel() {
+  const panel = document.getElementById('panel');
+  panel.innerHTML = '';
+  // The board's width (Rico, 2026-10-04: a panel wider than the board unbalanced the screen), with
+  // a floor so a small board's tabs still fit on one line.
+  panel.style.maxWidth = state.panelWidth === "Board's" ? Math.max(980, boardWidth()) + 'px' : 'none';
+  panel.style.margin = '0 auto';
+  panel.style.width = '100%';
+  const picker = state.structure === 'Kind + parameters' ? renderKinds() : renderTabs();
+  panel.style.flexDirection = state.cardSide === 'Bar' ? 'column' : 'row';
+  if (state.cardSide === 'Strip') { panel.append(picker); return; }
+  const card = renderCard();
+  if (state.cardSide === 'Bar') panel.append(card, picker);
+  else if (state.cardSide === 'Right') { card.classList.add('right'); panel.append(picker, card); }
+  else panel.append(card, picker);
+}
+function chips(row, values, isOn, onClick, disabled) {
+  for (const [label, value] of values) {
+    const b = document.createElement('button'); b.textContent = label; if (isOn(value)) b.className = 'on';
+    b.disabled = !!disabled; b.onclick = () => onClick(value); row.appendChild(b);
+  }
+}
+function cardRow(card, name) {
+  const r = document.createElement(state.cardSide === 'Bar' ? 'span' : 'div'); r.className = 'row';
+  r.innerHTML = `<span class="name">${name}</span>`; card.appendChild(r); return r;
+}
+function renderCard() {
+  const bar = state.cardSide === 'Bar';
+  const card = document.createElement('div'); card.className = bar ? 'keybar' : 'card';
+  const cur = current();
+  if (state.selected === null) {
+    card.innerHTML = '<span class="where">No key selected.</span><span class="note">Click a key on the board, then a keycode below -- or type one as QMK writes it.</span>';
+    return card;
+  }
+  const key = KEYS[state.selected];
+  card.innerHTML = `<span class="where">Layer ${state.layer} · row ${key.row}, column ${key.col}</span>`;
+  // The side card shows the key larger; the bar does not -- the board's own key is the preview,
+  // and hover preview shows a keycode there before the click.
+  if (!bar) {
+    const preview = document.createElement('div'); preview.className = 'preview';
+    const cap = document.createElement('div'); cap.style.position = 'absolute';
+    drawKeycap(cap, state.preview || cur, { unit: 96, gap: 0, w: Math.min(key.w, 2.25), cls: CLASSES[state.selected], where: 'board',
+                                           fallsTo: fallsTo(state.selected, state.layer) });
+    preview.appendChild(cap); card.appendChild(preview);
+  }
+
+  // The Any entry: the keycode in QMK's words, editable.
+  const input = document.createElement('input'); input.className = 'expr'; input.spellcheck = false;
+  input.value = state.exprDraft !== null ? state.exprDraft : format(cur);
+  input.title = 'Type a keycode as QMK writes it -- LT(1,KC_SPC), MT(MOD_LCTL,KC_A), LCTL(KC_C), MO(2) -- and press Enter';
+  const msg = document.createElement('div'); msg.className = 'msg';
+  const apply = () => { const k = parse(input.value); if (k) write(k); else { input.classList.add('bad'); msg.style.color = 'var(--error)'; msg.textContent = 'not a keycode Nazg knows: ' + input.value; } };
+  input.onkeydown = e => { if (e.key === 'Enter') apply(); };
+  input.oninput = () => { state.exprDraft = input.value; input.classList.remove('bad'); };
+  card.appendChild(input);
+  msg.style.color = state.warning ? 'var(--warning)' : 'var(--success)'; msg.textContent = state.message;
+  card.appendChild(msg);
+  if (state.composer !== 'On' || state.structure === 'Kind + parameters') return card;
+
+  // The composer: what happens when held, and the modifiers sent with the key -- shown only where
+  // they apply (Rico, 2026-10-04): with a plain key, or one already holding or modified. A
+  // tap-hold key taps a plain key, so "Sent with" goes while a hold is set.
+  const tapKc = tapOf(cur);
+  if (!tapKc) return card;
+  const hold = cur.kind === 'mt' ? 'mods' : cur.kind === 'lt' ? 'layer' : 'none';
+  const set = k => write(k);
+  const r1 = cardRow(card, 'When held');
+  chips(r1, [['Nothing', 'none'], ['Modifiers', 'mods'], ['Layer', 'layer']], v => v === hold, v => {
+    if (v === 'none') set(B(tapKc));
+    if (v === 'mods') set({ kind: 'mt', mods: { ctrl: true }, kc: tapKc });
+    if (v === 'layer') set({ kind: 'lt', layer: 1, kc: tapKc });
+  });
+  if (hold === 'mods') {
+    const r = cardRow(card, '');
+    chips(r, MOD_NAMES.map(n => [MOD_WORD[n], n]), n => cur.mods[n], n => {
+      const mods = { ...cur.mods, [n]: !cur.mods[n] }; if (modsList(mods).length) set({ ...cur, mods });
+    });
+    const r2 = cardRow(card, '');
+    chips(r2, [['Left', false], ['Right', true]], v => !!cur.mods.right === v, v => set({ ...cur, mods: { ...cur.mods, right: v } }));
+  }
+  if (hold === 'layer') {
+    const r = cardRow(card, '');
+    chips(r, KEYMAP.map((_, n) => ['L' + n, n]), n => cur.layer === n, n => set({ ...cur, layer: n }));
+  }
+  if (hold === 'none') {
+    const sentWith = cur.kind === 'mods' ? cur.mods : {};
+    const r3 = cardRow(card, 'Sent with');
+    chips(r3, MOD_NAMES.map(n => [MOD_WORD[n], n]), n => !!sentWith[n], n => {
+      const mods = { ...sentWith, [n]: !sentWith[n] };
+      set(modsList(mods).length ? { kind: 'mods', mods, kc: tapKc } : B(tapKc));
+    });
+  }
+  // Once something is set, what the next pick does with it.
+  if (cur.kind !== 'basic') {
+    const note = document.createElement('div'); note.className = 'note';
+    note.textContent = hold !== 'none' ? 'Another key picked keeps this hold.' : 'Another key picked keeps these modifiers.';
+    card.appendChild(note);
+  }
+  return card;
+}
+
+function renderKeyStrip() {
+  const bar = document.createElement('div'); bar.className = 'keystrip';
+  const cur = current();
+  if (state.selected === null) { bar.innerHTML = '<span class="where">Click a key to change it.</span>'; return bar; }
+  const key = KEYS[state.selected];
+  bar.innerHTML = `<span class="where">Row ${key.row}, column ${key.col}</span>`;
+  const input = document.createElement('input'); input.className = 'expr'; input.spellcheck = false;
+  input.value = state.exprDraft !== null ? state.exprDraft : format(cur);
+  input.title = 'Type a keycode as QMK writes it -- LT(1,KC_SPC), MT(MOD_LCTL,KC_A), LCTL(KC_C), MO(2) -- and press Enter';
+  const msg = document.createElement('span'); msg.className = 'msg';
+  input.onkeydown = e => { if (e.key !== 'Enter') return; const k = parse(input.value);
+    if (k) write(k); else { input.classList.add('bad'); msg.style.color = 'var(--error)'; msg.textContent = 'not a keycode Nazg knows'; } };
+  input.oninput = () => { state.exprDraft = input.value; input.classList.remove('bad'); };
+  bar.appendChild(input);
+  const tapKc = tapOf(cur);
+  if (state.composer === 'On' && state.structure !== 'Kind + parameters' && tapKc) {
+    const hold = cur.kind === 'mt' ? 'mods' : cur.kind === 'lt' ? 'layer' : 'none';
+    const seg = document.createElement('span'); seg.className = 'seg';
+    seg.innerHTML = '<span class="name">When held</span>';
+    const button = (label, on, onClick, popupId) => { const b = document.createElement('button'); b.textContent = label;
+      if (on) b.className = 'on'; if (popupId) b.dataset.popup = popupId; b.onclick = onClick; seg.appendChild(b); return b; };
+    button('Nothing', hold === 'none', () => write(B(tapKc)));
+    button(hold === 'mods' ? modsWords(cur.mods) + ' ▾' : 'Modifiers', hold === 'mods',
+           () => { if (hold !== 'mods') write({ kind: 'mt', mods: { ctrl: true }, kc: tapKc }); state.popup = 'hold-mods'; reopenPopup(); }, 'hold-mods');
+    button(hold === 'layer' ? 'Layer ' + cur.layer + ' ▾' : 'Layer', hold === 'layer',
+           () => { if (hold !== 'layer') write({ kind: 'lt', layer: 1, kc: tapKc }); state.popup = 'hold-layer'; reopenPopup(); }, 'hold-layer');
+    bar.appendChild(seg);
+    if (hold === 'none') {
+      const sent = document.createElement('span'); sent.className = 'seg';
+      sent.innerHTML = '<span class="name">Sent with</span>';
+      const b = document.createElement('button'); b.dataset.popup = 'sent';
+      b.textContent = (cur.kind === 'mods' ? modsWords(cur.mods) : 'nothing') + ' ▾'; if (cur.kind === 'mods') b.className = 'on';
+      b.onclick = () => { state.popup = 'sent'; reopenPopup(); };
+      sent.appendChild(b); bar.appendChild(sent);
+    }
+  }
+  msg.style.color = state.warning ? 'var(--warning)' : 'var(--success)'; msg.textContent = state.message;
+  bar.appendChild(msg);
+  return bar;
+}
+// The composer's choices, in a popup under their button; it stays open while they are toggled.
+function reopenPopup() {
+  document.querySelectorAll('.popup').forEach(p => p.remove());
+  if (!state.popup) return;
+  const anchor = document.querySelector(`[data-popup="${state.popup}"]`), cur = current();
+  if (!anchor || !cur) { state.popup = null; return; }
+  const pop = document.createElement('div'); pop.className = 'popup';
+  const row = () => { const r = document.createElement('div'); r.className = 'prow'; pop.appendChild(r); return r; };
+  const tapKc = tapOf(cur);
+  if (state.popup === 'hold-mods' && cur.kind === 'mt') {
+    chips(row(), MOD_NAMES.map(n => [MOD_WORD[n], n]), n => cur.mods[n], n => {
+      const mods = { ...cur.mods, [n]: !cur.mods[n] }; if (modsList(mods).length) write({ ...cur, mods }); });
+    chips(row(), [['Left', false], ['Right', true]], v => !!cur.mods.right === v, v => write({ ...cur, mods: { ...cur.mods, right: v } }));
+  } else if (state.popup === 'hold-layer' && cur.kind === 'lt') {
+    chips(row(), KEYMAP.map((_, n) => ['L' + n, n]), n => cur.layer === n, n => write({ ...cur, layer: n }));
+  } else if (state.popup === 'sent' && tapKc) {
+    const mods = cur.kind === 'mods' ? cur.mods : {};
+    chips(row(), MOD_NAMES.map(n => [MOD_WORD[n], n]), n => !!mods[n], n => {
+      const next = { ...mods, [n]: !mods[n] }; write(modsList(next).length ? { kind: 'mods', mods: next, kc: tapKc } : B(tapKc)); });
+    chips(row(), [['Left', false], ['Right', true]], v => !!mods.right === v, v => { if (cur.kind === 'mods') write({ ...cur, mods: { ...mods, right: v } }); });
+  } else { state.popup = null; return; }
+  const r = anchor.getBoundingClientRect();
+  Object.assign(pop.style, { left: r.left + window.scrollX + 'px', top: r.bottom + window.scrollY + 4 + 'px' });
+  document.body.appendChild(pop);
+}
+addEventListener('mousedown', e => {
+  if (state.popup && !e.target.closest('.popup') && !e.target.closest('[data-popup]')) { state.popup = null; reopenPopup(); }
+});
+
+function renderTabs() {
+  const pickEl = document.createElement('div'); pickEl.className = 'pick';
+  const bar = document.createElement('div'); bar.className = 'tabs';
+  const all = tabs();
+  for (const t of all) {
+    const el = document.createElement('div'); el.className = 'tab' + (t.id === state.tab && !state.search ? ' on' : '');
+    const dot = t.cat ? `<span class="dot" style="background:${categoryInk(THEMES[state.theme].mod, t.cat, 'band')}"></span>` : '';
+    el.innerHTML = dot + t.name;
+    el.onclick = () => { state.tab = t.id; state.search = ''; renderPanel(); };
+    bar.appendChild(el);
+  }
+  const search = document.createElement('input'); search.placeholder = 'Search: name, QMK name or label'; search.value = state.search;
+  search.oninput = () => { state.search = search.value; const pos = search.selectionStart; renderPanel();
+    const again = document.querySelector('.tabs input'); again.focus(); again.setSelectionRange(pos, pos); };
+  bar.appendChild(search);
+  pickEl.appendChild(bar);
+  const items = document.createElement('div'); items.className = 'items';
+  if (state.search) renderSearch(items, all);
+  else {
+    const tab = all.find(t => t.id === state.tab);
+    if (tab.lighting) { const i = document.createElement('div'); i.className = 'info'; i.innerHTML = FIRMWARE_LINES[state.firmware] + ' Board lighting: ' + state.lighting + '.'; items.appendChild(i); }
+    if (tab.id === 'keys' && state.structure === 'Keyboard tab') renderKeyboard(items);
+    else if (tab.layers && state.items === 'Keycaps') renderLayerTable(items, tab);
+    else renderGroups(items, tab.groups);
+  }
+  pickEl.appendChild(items);
+  return pickEl;
+}
+// The label boxes' fill. The tint is the tab's category band colour at 10%; a tab with none, and
+// search results, which mix tabs, take the recessed shade.
+function labelFill() {
+  const T = THEMES[state.theme];
+  if (state.labelFill === 'None') return 'transparent';
+  if (state.labelFill === 'Sage') return T.sage;
+  const tab = !state.search && tabs().find(t => t.id === state.tab);
+  if (state.labelFill === 'Category tint' && tab && tab.cat && state.structure !== 'Kind + parameters') {
+    const c = categoryInk(T.mod, tab.cat, 'band');
+    return `rgba(${[1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16)).join(',')},0.10)`;
+  }
+  return T.labelFill;
+}
+// The header every item of a group shares -- Media, L1 -- which the group's title stands for.
+function sharedHeader(items) {
+  const heads = items.map(k => { const d = describe(k, 'picker'); const h = d.hold || d.header; return h ? h.full : null; });
+  return heads.length > 1 && heads[0] && heads.every(h => h === heads[0]);
+}
+function renderGroups(parent, groups) {
+  const compact = state.items === 'Compact';
+  // Compact groups flow side by side where they fit (Rico, 2026-10-04: Digits beside
+  // Punctuation), each its label then its tiles; a long one takes the width and wraps.
+  let flow = null;
+  if (compact) {
+    flow = document.createElement('div'); flow.className = 'flow' + (state.labelStyle === 'Box' ? ' boxed' : ''); flow.groups = [];
+    flow.style.setProperty('--label-fill', labelFill());
+    flow.style.setProperty('--label-text', state.labelFill === 'Recessed' ? THEMES[state.theme].labelText : 'var(--muted)');
+    parent.appendChild(flow);
+  }
+  for (const g of groups) {
+    if (!g.items.length) continue;
+    const dropHeader = compact && sharedHeader(g.items);
+    if (compact) {
+      // The title beside the row, its first words; the rest on hover. Placed by layoutFlow().
+      const label = document.createElement('div'); label.className = 'glabel';
+      const [title, more] = g.title.split(' -- ');
+      label.textContent = title; if (more) label.title = more;
+      const tiles = g.items.map(k => itemEl(k, { dropHeader }));
+      flow.append(label, ...tiles);
+      flow.groups.push({ label, tiles, spans: tiles.map(t => +t.dataset.span || 1) });
+    } else {
+      const grid = document.createElement('div'); grid.className = 'grid';
+      for (const k of g.items) grid.appendChild(itemEl(k, { dropHeader }));
+      const h = document.createElement('h4'); h.textContent = g.title; parent.appendChild(h);
+      parent.appendChild(grid);
+    }
+  }
+  if (flow) new ResizeObserver(() => layoutFlow(flow)).observe(flow);
+}
+// The groups on one grid of cells: a label takes two, a tile its span, and one empty cell parts two
+// groups on a row. A group that does not fit the rest of a row starts the next; one longer than a
+// row wraps, its next rows starting under its first tile.
+function layoutFlow(flow) {
+  // In half cells: a label takes four, and a group starts on an even one.
+  const n = 2 * Math.max(6, Math.floor((flow.clientWidth + TILE.gap) / CELL));
+  flow.style.gridTemplateColumns = `repeat(${n}, ${HALF - TILE.gap}px)`;
+  const place = (el, row, col, span) => { el.style.gridRow = row; el.style.gridColumn = `${col + 1} / span ${span}`; };
+  let row = 1, col = 0;
+  for (const g of flow.groups) {
+    const cells = 4 + g.spans.reduce((a, b) => a + b, 0);
+    // No empty cell between two groups on a row: the label parts them.
+    let start = col === 0 ? 0 : col + (col % 2);
+    if (col > 0 && start + Math.min(cells, n) > n) { row++; start = 0; }
+    const first = row;
+    let c = start + 4;
+    g.tiles.forEach((t, i) => {
+      const s = g.spans[i];
+      if (c + s > n) { row++; c = start + 4; }
+      place(t, row, c, s); c += s;
+    });
+    // The label: two cells, a tile's height -- or, boxed, every row of its group (Rico, 2026-10-04).
+    place(g.label, first, start, 4);
+    if (state.labelStyle === 'Box') g.label.style.gridRow = `${first} / span ${row - first + 1}`;
+    g.label.style.paddingLeft = state.labelStyle === 'Box' || start === 0 ? '' : '10px';
+    col = c;
+  }
+}
+// Layers as a table: an operation per row, a layer per column.
+function renderLayerTable(parent, tab) {
+  const h = document.createElement('h4'); h.textContent = 'Layer keys -- and a layer under a key: "When held: Layer" in the key card'; parent.appendChild(h);
+  const table = document.createElement('table'); table.className = 'layers-table';
+  for (const [op, word, label] of LAYER_OPS) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="op" title="${label}">${word}</td>`;
+    KEYMAP.forEach((_, n) => { const td = document.createElement('td'); td.appendChild(itemEl({ kind: 'layer', op, layer: n })); tr.appendChild(td); });
+    const note = document.createElement('td'); note.className = 'op'; note.textContent = label; tr.appendChild(note);
+    table.appendChild(tr);
+  }
+  parent.appendChild(table);
+  renderGroups(parent, tab.groups.slice(LAYER_OPS.length));
+}
+function searchText(k) {
+  const d = describe(k, 'picker');
+  return [format(k), labelOf(k), d.full, d.short, d.plain, d.shifted, d.header && d.header.full, d.hold && d.hold.full].filter(Boolean).join(' ').toLowerCase();
+}
+function renderSearch(parent, all) {
+  const q = state.search.toLowerCase().trim();
+  let found = 0;
+  for (const t of all) {
+    const items = t.groups.flatMap(g => g.items).filter(k => searchText(k).includes(q));
+    if (!items.length) continue;
+    found += items.length;
+    renderGroups(parent, [{ title: t.name, items }]);
+  }
+  if (!found) parent.innerHTML = `<div class="info">Nothing matches "${state.search}". Type a QMK expression in the key card for anything not listed.</div>`;
+}
+// Vial's Basic tab: the keys drawn as a full-size keyboard, in the host layout.
+function renderKeyboard(parent) {
+  const rows = [
+    [['KC_ESC', 1], [null, 1], ...[1, 2, 3, 4].map(i => ['KC_F' + i, 1]), [null, 0.5], ...[5, 6, 7, 8].map(i => ['KC_F' + i, 1]), [null, 0.5],
+     ...[9, 10, 11, 12].map(i => ['KC_F' + i, 1]), [null, 0.25], ['KC_PSCR', 1], ['KC_SCRL', 1], ['KC_PAUS', 1]],
+    [['KC_GRV', 1], ...'1234567890'.split('').map(c => ['KC_' + c, 1]), ['KC_MINS', 1], ['KC_EQL', 1], ['KC_BSPC', 2], [null, 0.25],
+     ['KC_INS', 1], ['KC_HOME', 1], ['KC_PGUP', 1], [null, 0.25], ['KC_NUM', 1], ['KC_PSLS', 1], ['KC_PAST', 1], ['KC_PMNS', 1]],
+    [['KC_TAB', 1.5], ...'QWERTYUIOP'.split('').map(c => ['KC_' + c, 1]), ['KC_LBRC', 1], ['KC_RBRC', 1], ['KC_BSLS', 1.5], [null, 0.25],
+     ['KC_DEL', 1], ['KC_END', 1], ['KC_PGDN', 1], [null, 0.25], ['KC_P7', 1], ['KC_P8', 1], ['KC_P9', 1], ['KC_PPLS', 1]],
+    [['KC_CAPS', 1.75], ...'ASDFGHJKL'.split('').map(c => ['KC_' + c, 1]), ['KC_SCLN', 1], ['KC_QUOT', 1], ['KC_ENT', 2.25], [null, 3.5],
+     ['KC_P4', 1], ['KC_P5', 1], ['KC_P6', 1], ['KC_PENT', 1]],
+    [['KC_LSFT', 2.25], ...'ZXCVBNM'.split('').map(c => ['KC_' + c, 1]), ['KC_COMM', 1], ['KC_DOT', 1], ['KC_SLSH', 1], ['KC_RSFT', 2.75],
+     [null, 1.25], ['KC_UP', 1], [null, 1.25], ['KC_P1', 1], ['KC_P2', 1], ['KC_P3', 1], ['KC_PDOT', 1]],
+    [['KC_LCTL', 1.25], ['KC_LGUI', 1.25], ['KC_LALT', 1.25], ['KC_SPC', 6.25], ['KC_RALT', 1.25], ['KC_RGUI', 1.25], ['KC_APP', 1.25],
+     ['KC_RCTL', 1.25], [null, 0.25], ['KC_LEFT', 1], ['KC_DOWN', 1], ['KC_RGHT', 1], [null, 0.25], ['KC_P0', 2], ['KC_NUBS', 1], ['KC_NUHS', 1]],
+  ];
+  const width = parent.clientWidth || 1100;
+  const u = state.items === 'Compact' ? 40 : Math.max(40, Math.min(56, Math.floor((width - 40) / 22.75)));
+  const wrap = document.createElement('div'); wrap.style.cssText = `position:relative;height:${6 * u + 0.25 * u}px;margin:4px 0 6px`;
+  rows.forEach((row, r) => {
+    let x = 0;
+    for (const [kc, w] of row) {
+      if (kc) { const el = itemEl(B(kc), { unit: u, w }); el.style.position = 'absolute'; el.style.left = x * u + 'px'; el.style.top = (r * u + (r ? 0.25 * u : 0)) + 'px'; wrap.appendChild(el); }
+      x += w;
+    }
+  });
+  parent.appendChild(wrap);
+  renderGroups(parent, [{ title: 'F13 to F24', items: Array.from({ length: 12 }, (_, i) => B('KC_F' + (i + 13))) },
+                        { title: 'International', items: ['KC_INT1', 'KC_INT2', 'KC_INT3', 'KC_INT4', 'KC_INT5', 'KC_LNG1', 'KC_LNG2'].map(B) },
+                        { title: 'Nothing', items: [TRNS, NO] }]);
+}
+
+// ZMK Studio's way: a kind, then its parameters, each with an editor of its own type.
+const KINDS = [
+  ['key', 'Key'], ['mods', 'Key with modifiers'], ['mt', 'Modifiers when held'], ['lt', 'Layer when held'], 'sep',
+  ['layer', 'Layer key'], ['lm', 'Layer with modifiers'], ['osm', 'One-shot modifiers'], 'sep',
+  ['cmd', 'Command'], ['macro', 'Macro'], ['td', 'Tap dance'], ['special', 'Transparent or none'],
+];
+function renderKinds() {
+  const wrap = document.createElement('div'); wrap.style.cssText = 'flex:1;display:flex;min-width:0';
+  const list = document.createElement('div'); list.className = 'kinds';
+  for (const k of KINDS) {
+    if (k === 'sep') { list.appendChild(Object.assign(document.createElement('div'), { className: 'sep' })); continue; }
+    const el = document.createElement('div'); el.textContent = k[1]; if (k[0] === state.kindTab) el.className = 'on';
+    el.onclick = () => { state.kindTab = k[0]; renderPanel(); };
+    list.appendChild(el);
+  }
+  wrap.appendChild(list);
+  const ed = document.createElement('div'); ed.className = 'items'; ed.style.background = 'var(--window)';
+  const cur = current() || B('KC_A');
+  const params = state.kindParams = state.kindParams || { mods: { ctrl: true }, layer: 1, op: 'MO' };
+  const row = name => { const r = document.createElement('div'); r.className = 'row'; r.style.cssText = 'display:flex;gap:4px;align-items:center;margin:4px 0 8px';
+    r.innerHTML = `<span style="width:90px;color:var(--muted)">${name}</span>`; ed.appendChild(r); return r; };
+  const modsRow = () => chips(row('Modifiers'), MOD_NAMES.map(n => [MOD_WORD[n], n]), n => params.mods[n], n => { params.mods = { ...params.mods, [n]: !params.mods[n] }; if (!modsList(params.mods).length) params.mods[n] = true; renderPanel(); });
+  const layerRow = () => chips(row('Layer'), KEYMAP.map((_, n) => ['L' + n, n]), n => params.layer === n, n => { params.layer = n; renderPanel(); });
+  const keyGrid = build => { const h = document.createElement('h4'); h.textContent = 'Then the key -- click it to write'; ed.appendChild(h);
+    renderGroups(ed, tabs()[0].groups.slice(0, 8).map(g => ({ title: g.title, items: g.items.map(build) }))); };
+  switch (state.kindTab) {
+    case 'key': renderGroups(ed, tabs()[0].groups); break;
+    case 'mods': modsRow(); keyGrid(k => ({ kind: 'mods', mods: params.mods, kc: k.kc })); break;
+    case 'mt': modsRow(); keyGrid(k => ({ kind: 'mt', mods: params.mods, kc: k.kc })); break;
+    case 'lt': layerRow(); keyGrid(k => ({ kind: 'lt', layer: params.layer, kc: k.kc })); break;
+    case 'layer': chips(row('Operation'), LAYER_OPS.map(o => [o[1], o[0]]), op => params.op === op, op => { params.op = op; renderPanel(); });
+      layerRow(); renderGroups(ed, [{ title: 'Write it', items: [{ kind: 'layer', op: params.op, layer: params.layer }] }]); break;
+    case 'lm': layerRow(); modsRow(); renderGroups(ed, [{ title: 'Write it', items: [{ kind: 'lm', layer: params.layer, mods: params.mods }] }]); break;
+    case 'osm': modsRow(); renderGroups(ed, [{ title: 'Write it', items: [{ kind: 'osm', mods: params.mods }] }]); break;
+    case 'cmd': renderGroups(ed, tabs().slice(2).flatMap(t => t.groups.map(g => ({ title: t.name + ' -- ' + g.title, items: g.items })))); break;
+    case 'macro': renderGroups(ed, [tabs()[7].groups[0], tabs()[7].groups[2]]); break;
+    case 'td': renderGroups(ed, [tabs()[7].groups[1]]); break;
+    case 'special': renderGroups(ed, [{ title: 'Nothing', items: [TRNS, NO] }]); break;
+  }
+  wrap.appendChild(ed);
+  return wrap;
+}
+
+function renderNotes() {
+  document.getElementById('notes').innerHTML = [
+    '<p><b>Try</b>: click a key on the board, then a keycode -- it is written at once, as Nazg does. With the composer, click Caps Lock: it holds Ctrl, taps Esc. Pick another key and the hold stays: the key card shapes every pick, so LT(1, KC_SPC) is "When held: Layer, L1", then Space -- one step, where Vial takes two. Type in the expression box -- <code>LT(2,KC_A)</code>, <code>C(S(KC_T))</code>, <code>OSM(MOD_LSFT)</code> -- and press Enter.</p>',
+    '<p><b>Structure</b>. <b>Tabs</b>: categories as VIA and Vial have them, each with its colour; the search box looks through every tab. <b>Keyboard tab</b>: the Keys tab drawn as a full-size keyboard in the host layout, as Vial\'s Basic tab -- quick to find a key by its place, but it takes the panel\'s whole height. <b>Kind + parameters</b>: ZMK Studio\'s model -- the kind first, then its parameters; every keycode is reachable without an expression, at the cost of a click more for the common ones.</p>',
+    '<p><b>Items</b>: <b>Compact</b> tiles, 38 px tall -- the keycap\'s face, band and colours, as wide as their words, a header left out where the group\'s title says it, the title beside the row -- or keycaps drawn exactly as the board draws them, or text buttons as today. <b>Key card</b>: on the right, as an inspector -- the palette starts under the board\'s left edge, where the eye starts -- or on the left. Its "When held" and "Sent with" rows show only where they apply: with a plain key, or one already holding or modified. <b>Hover preview</b>: the selected key on the board shows the keycode under the mouse, outlined in blue, before the click. <b>After a pick</b>: stay, or move to the next key, as Vial does.</p>',
+    '<p><b>Height</b>: every pixel the panel takes comes out of the board, which grows until its area\'s width or height stops it. So the key\'s line sits in the strip row, beside the layers -- no height of its own -- its choices in small popups so the row never wraps; and a <b>splitter</b> under the board shares the height: drag it, and Nazg would remember where. It stops where the board would fall below 60 px a unit, its legibility floor; the panel keeps at least 200 px -- three rows of tiles under the tabs.</p>',
+    '<p><b>Lighting</b>: switch Firmware and Board lighting to see what the Lighting tab offers -- one set on old and unknown firmware, a set per system on new, the RGB_M modes on old only; hover tells what a key drives where it is not obvious (ui-design.md, "Which lighting keycodes a board gets").</p>',
+    '<p><b>To decide</b>: the structure; keycaps or text; whether the key card\'s composer and its expression box replace the Any dialog; hover preview; advance after a pick; and what the tabs are called and hold.</p>',
+  ].join('');
+}
+
+buildControls();
+render();
+</script>
+</body>
+</html>
