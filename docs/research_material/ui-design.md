@@ -20,7 +20,7 @@ was not taken: a feature-rich board shows eleven tabs before anything is done.
 | Region | What it holds |
 |---|---|
 | **Header** | The board's name, which is a menu (see "Getting back to the keyboard list"); the protocol; the lock state on boards that have one; the **settings button** |
-| **Section column** | Keymap, Layout, Macros... — about 150 px wide, an icon and a label per row. **Only the sections the board has**, and **hidden when there is only one** |
+| **Section column** | Keymap, Layout, Macros... — about 150 px wide, an icon and a label per row. **Only the sections the board has**, and **hidden when there is only one**. Open: **icons only**, to keep the width contained beside a board and a picker both as wide as the board (Rico, 2026-10-04) |
 | **Strip** | A row of choices owned by the section: layers in Keymap, slots in Macros (see below). Absent when the section has nothing to choose |
 | **Board** | Drawn by Nazg; what each key shows is the section's |
 | **Panel** | The section's editor — the keycode picker in Keymap. **Always visible**, not only while a key is selected |
