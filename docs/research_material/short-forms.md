@@ -85,7 +85,9 @@ A layer name, once layers have them, replaces "L1".
 
 **7. Modified keys** -- `LCTL(KC_C)`: the modifiers as a header ending in "+", in the Host colour,
 over the key's own legend: "Ctrl+ / C". The "+" and the colour set it apart from a tap-hold's
-"Ctrl / C". Shift alone prints the shifted character instead ("!"); Hyper and Meh print their
+"Ctrl / C". Shift alone is no exception: "Shift+ / ! 1" for `S(KC_1)`, one rule for every
+modifier (Rico, 2026-10-04 -- it printed "!" alone before; only the keycode picker's tile still
+does, its Shifted group reading as symbols); Hyper and Meh print their
 names ("Hyper+", "Meh+"); three modifiers shorten to initials ("C A S+"), and two to their
 shortest words where they do not fit ("Ctl ⌘+").
 
@@ -472,5 +474,4 @@ Letters, digits, punctuation, F1-F24 and the numpad print their QMK label, or wh
 | `MT(mods, kc)` | hold: *mods* | the tap's own legend | Behaviour |
 | `SH_T(kc)` | hold: Swap | the tap's own legend | Behaviour |
 | `mods(kc)`, e.g. `LCTL(KC_C)` | *mods*+ -- "Ctrl+", "Ctrl Sft+" (C S+), "Hyper+", "Meh+" | the key's own legend | Host |
-| `S(kc)` | -- | the shifted character the host layout gives | -- |
 | Unknown value | -- | its hex value, "0x7E40" | -- |

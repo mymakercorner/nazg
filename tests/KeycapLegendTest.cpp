@@ -130,7 +130,9 @@ namespace
         Check(Pair(Of(nazg::NamedKey{ "KC_NUHS" }, french), "*", "µ"), "the ISO hash key");
         Check(Pair(Of(nazg::NamedKey{ "KC_NUBS" }, french), "<", ">"), "the extra ISO key");
         Check(Says(Of(nazg::NamedKey{ "KC_ENT" }, french), "Enter"), "layout-independent keys are unchanged");
-        Check(Pair(Of(nazg::ModifiedKey{ Mod::LeftShift, "KC_1" }, french), "1", ""), "LSFT(KC_1) types 1 on AZERTY");
+        Check(Pair(Of(nazg::ModifiedKey{ Mod::LeftShift, "KC_1" }, french), "&", "1") &&
+                  HeaderOf(Of(nazg::ModifiedKey{ Mod::LeftShift, "KC_1" }, french)) == "Shift+",
+              "LSFT(KC_1) on AZERTY: Shift+ over the key's own 1 and &");
 
         // The AltGr character, printed always where the layout has one (ui-design.md, "Host
         // layouts in the mockup").
@@ -247,9 +249,12 @@ namespace
     {
         std::printf("composed keys\n");
 
-        Check(Pair(Of(nazg::ModifiedKey{ Mod::LeftShift, "KC_1" }), "!", ""),
-              "LSFT(KC_1) is shown as the character it types");
-        Check(Pair(Of(nazg::ModifiedKey{ Mod::RightShift, "KC_SLSH" }), "?", ""), "on either Shift");
+        // Shift alone is no exception: "Shift+" over the key's own pair, as any modifier.
+        const KeycapLegend shifted1 = Of(nazg::ModifiedKey{ Mod::LeftShift, "KC_1" });
+        Check(Pair(shifted1, "1", "!") && shifted1.header == Header{ { "Shift+", "" }, Category::Host },
+              "LSFT(KC_1): Shift+ over ! 1, one rule for every modifier");
+        const KeycapLegend rightShifted = Of(nazg::ModifiedKey{ Mod::RightShift, "KC_SLSH" });
+        Check(Pair(rightShifted, "/", "?") && rightShifted.Band() == Category::Host, "on either Shift");
 
         // A modified key: the modifiers as a header ending in "+", in the Host colour.
         const KeycapLegend shiftedA = Of(nazg::ModifiedKey{ Mod::LeftShift, "KC_A" });

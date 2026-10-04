@@ -592,12 +592,7 @@ function describe(k, where) {
       // A keycode with no words: QMK's own name.
       if (c.cat === null) { d.full = c.kc; d.command = false; break; }
       d.header = { full: c.head, short: c.headShort || '', cat: c.cat }; break; }
-    // Shift alone with a character key types its Shift character: that one alone, on the board as
-    // in the picker -- "!" for S(KC_1) (short-forms.md, rule 1; NazgKeycapLegend.cpp). Other
-    // modifiers are a header ending in "+" over the key: "Ctrl+" over C.
-    case 'mods': tap(k.kc);
-      if (modsList(k.mods).join() === 'shift' && d.shifted) { d.plain = d.shifted; d.shifted = undefined; break; }
-      d.header = { full: modsWords(k.mods) + '+', short: modsWords(k.mods, true) + '+', cat: 'host' }; break;
+    case 'mods': tap(k.kc); d.header = { full: modsWords(k.mods) + '+', short: modsWords(k.mods, true) + '+', cat: 'host' }; break;
     case 'mt': tap(k.kc); d.hold = { full: modsWords(k.mods), short: modsWords(k.mods, true), cat: 'beh' }; break;
     case 'lt': tap(k.kc); d.hold = { full: 'L' + k.layer, cat: 'beh' }; break;
     case 'layer': d.command = true; d.full = 'L' + k.layer; d.header = { full: opWord(k.op), cat: 'beh' }; break;
@@ -1079,6 +1074,10 @@ function tileEl(k, opts = {}) {
   const sel = current(), selected = sel && format(sel) === format(k);
   const T = THEMES[state.theme], cls = classOf(k, 1), face = T[cls], legend = cls === 'accent' ? T.accentLegend : T.legend;
   const d = describe(k, 'picker');
+  // Shift and a key types its Shift character: the tile shows that one alone, as VIA's does. The
+  // board keeps the general rule -- "Shift+" over the pair, one rule for every modifier, as the app
+  // now draws it too (Rico, 2026-10-04: "!" alone on the board was not uniform).
+  if (k.kind === 'mods' && modsList(k.mods).join() === 'shift' && d.shifted) { d.plain = d.shifted; d.shifted = undefined; }
   const el = document.createElement('div'); el.className = 'tile';
   const header = !opts.dropHeader && (d.hold || d.header);
   const bandCat = d.hold ? d.hold.cat : d.header ? d.header.cat : null;

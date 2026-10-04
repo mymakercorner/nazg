@@ -592,19 +592,10 @@ namespace nazg
 
             KeycapLegend operator()(const ModifiedKey& k) const
             {
-                // LSFT(KC_1) is simply "!" -- the character Shift gives on this host.
-                const bool        shiftOnly = k.mods == Mod::LeftShift || k.mods == Mod::RightShift;
-                const HostLegend* host      = context.layout.Find(k.key);
-                if (shiftOnly && host != nullptr && !host->shifted.empty())
-                {
-                    KeycapLegend legend;
-                    legend.placement = PlacementClass::Character;
-                    legend.plain     = Printable(host->shifted);
-                    return legend;
-                }
-
                 // The modifiers as a header ending in "+", in the Host colour: "Ctrl+" over C --
                 // the "+" and the colour tell it from a tap-hold's "Ctrl" (short-forms.md, rule 7).
+                // Shift alone too: "Shift+" over "! 1" for LSFT(KC_1), one rule for every modifier
+                // (Rico, 2026-10-04); only the picker's tile shows the "!" alone.
                 KeycapLegend legend = NamedLegend(k.key, context);
                 legend.header       = { ModsWords(k.mods, context.names, "", "+"), CommandCategory::Host };
                 return legend;
