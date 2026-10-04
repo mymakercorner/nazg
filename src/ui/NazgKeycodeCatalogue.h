@@ -44,6 +44,12 @@ namespace nazg
     // "Ctrl↔Win" or "Ctrl↔Cmd" by the modifier names.
     [[nodiscard]] std::vector<CatalogueTab> BuildKeycodeCatalogue(const Keyboard& keyboard, const LegendSettings& legends);
 
+    // What a pick writes, the key's line keeping what it set (ui-design.md, "The key line"): a
+    // plain key picked onto a key that holds -- MT, LT -- or is sent with modifiers keeps that:
+    // Space onto LT(1, KC_A) is LT(1, KC_SPC). Anything else, or a key the hold cannot take --
+    // only basic keycodes, QMK's bottom byte -- is written as picked.
+    [[nodiscard]] Keycode ComposeWithKey(const Keycode& picked, const Keycode& current, QmkKeycodeVersion version);
+
     // What a search looks through for one keycode, lower case: QMK's name and label, and the
     // words its keycap prints.
     [[nodiscard]] std::string SearchTextOf(const Keycode& keycode, QmkKeycodeVersion version, const LegendContext& context);

@@ -183,9 +183,41 @@ namespace
     }
 }
 
+namespace
+{
+    // The key line keeps what it set: a hold, or the modifiers a key is sent with.
+    void TestCompose()
+    {
+        std::printf("compose with the key\n");
+
+        using nazg::ComposeWithKey;
+        constexpr QmkKeycodeVersion version = QmkKeycodeVersion::V0_0_8;
+        const Keycode               space   = nazg::NamedKey{ "KC_SPC" };
+
+        Check(nazg::FormatKeycode(ComposeWithKey(space, nazg::LayerTapKey{ 1, "KC_A" }, version)) == "LT(1,KC_SPC)",
+              "a hold is kept");
+        Check(nazg::FormatKeycode(ComposeWithKey(space, nazg::ModTapKey{ nazg::Mod::LeftCtrl, "KC_ESC" }, version)) ==
+                  "MT(MOD_LCTL,KC_SPC)",
+              "and modifiers when held");
+        Check(nazg::FormatKeycode(ComposeWithKey(nazg::NamedKey{ "KC_2" }, nazg::ModifiedKey{ nazg::Mod::LeftShift, "KC_1" },
+                                                 version)) == "LSFT(KC_2)",
+              "and the modifiers sent with the key");
+        Check(ComposeWithKey(nazg::NamedKey{ "UG_TOGG" }, nazg::LayerTapKey{ 1, "KC_A" }, version) == Keycode{ nazg::NamedKey{ "UG_TOGG" } },
+              "a keycode past the basic byte cannot be a tap: written as picked");
+        Check(nazg::FormatKeycode(ComposeWithKey(nazg::NamedKey{ "KC_MPLY" }, nazg::LayerTapKey{ 1, "KC_A" }, version)) ==
+                  "LT(1,KC_MPLY)",
+              "a media key can, being in it");
+        Check(ComposeWithKey(nazg::NamedKey{ "KC_TRNS" }, nazg::LayerTapKey{ 1, "KC_A" }, version) == Keycode{ nazg::NamedKey{ "KC_TRNS" } },
+              "Transparent replaces the key");
+        Check(ComposeWithKey(space, nazg::NamedKey{ "KC_A" }, version) == space, "a plain key: as picked");
+    }
+}
+
 int main()
 {
     ConfigureCrtReporting();
+
+    TestCompose();
 
     TestEveryKeycodeHasATab();
     TestNothingTheBoardRefuses();

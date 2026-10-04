@@ -15,7 +15,9 @@
 #include "adapters/via/NazgViaKeymap.h"
 #include "adapters/via/NazgViaProtocol.h"
 #include "transport/NazgDeviceChannel.h"
+#include "ui/NazgBoardDescription.h"
 #include "ui/NazgKeycapLegend.h"
+#include "ui/NazgKeycodeCatalogue.h"
 #include "ui/NazgTheme.h"
 
 namespace nazg
@@ -55,11 +57,39 @@ namespace nazg
     {
         DescribeLegends(board, m_Keyboard, m_Peek.value_or(m_Layer), m_Legends);
 
+        // The hover preview: the selected key shows what a click on the tile under the mouse
+        // would write, outlined in the highlight's colour rather than the selection's.
+        const bool               previewing = m_Preview && !m_Peek;
+        const float              line       = previewing ? SideLine(board.keys) : 0.0f;
+        const std::vector<Words> custom     = previewing ? CustomKeycodeWordsOf(m_Keyboard) : std::vector<Words>{};
+
         for (BoardKey& key : board.keys)
         {
-            if (m_Selected && m_Selected->row == key.geometry.row && m_Selected->column == key.geometry.column)
+            if (!m_Selected || m_Selected->row != key.geometry.row || m_Selected->column != key.geometry.column)
+                continue;
+
+            if (previewing)
+            {
+                const LegendContext context{ m_Legends.Layout(), m_Legends.modifierNames, SideOf(key.geometry, line),
+                                             LightingSystemsOf(m_Keyboard), custom };
+                key.legends     = LegendFor(*m_Preview, context);
+                key.fallthrough = Fallthrough::None;
+                key.marks |= Mark::Highlighted;
+            }
+            else
                 key.marks |= Mark::Selected;
         }
+    }
+
+    const std::vector<CatalogueTab>& KeymapSection::Catalogue()
+    {
+        const std::string settings = m_Legends.hostLayout + "/" + std::string(IdOf(m_Legends.modifierNames));
+        if (m_Catalogue.empty() || settings != m_CatalogueFor)
+        {
+            m_Catalogue    = BuildKeycodeCatalogue(m_Keyboard, m_Legends);
+            m_CatalogueFor = settings;
+        }
+        return m_Catalogue;
     }
 
     void KeymapSection::OnBoardEvents(const BoardDescription& board, const BoardEvents& events)
@@ -129,15 +159,25 @@ namespace nazg
         }
 
         // Always shown, as the design has it; a keycode clicked with no key selected does nothing.
+        std::optional<Keycode> current;
+        if (m_Selected)
+            current = m_Keyboard.keymap.At(m_Layer, m_Selected->row, m_Selected->column);
+
+        const std::vector<Words> custom = CustomKeycodeWordsOf(m_Keyboard);
+        const LegendContext      context{ m_Legends.Layout(), m_Legends.modifierNames, KeySide::Neither,
+                                          LightingSystemsOf(m_Keyboard), custom };
+
         ImGui::BeginDisabled(IsBusy());
-        const std::optional<Keycode> picked =
-            DrawKeycodePicker(m_Picker, m_Keyboard.keycodeVersion, m_Keyboard.keymap.Layers(), m_Legends);
+        const KeycodePickerEvents events =
+            DrawKeycodePicker(m_Picker, { Catalogue(), context, m_Keyboard.keycodeVersion, current });
         ImGui::EndDisabled();
+        m_Preview = events.preview;
 
         // Never replace a Task still running: destroying it would free a coroutine frame the
-        // transport still holds a handle to.
-        if (picked && m_Selected && !IsBusy())
-            m_Write = WriteKey(m_Layer, *m_Selected, *picked, m_Keyboard.keycodeVersion);
+        // transport still holds a handle to. A pick keeps the key's hold or modifiers.
+        if (events.picked && m_Selected && !IsBusy())
+            m_Write = WriteKey(m_Layer, *m_Selected, ComposeWithKey(*events.picked, *current, m_Keyboard.keycodeVersion),
+                               m_Keyboard.keycodeVersion);
     }
 
     bool KeymapSection::IsBusy() const

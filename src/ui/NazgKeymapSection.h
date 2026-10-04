@@ -64,10 +64,20 @@ namespace nazg
         Keyboard&             m_Keyboard;
         const LegendSettings& m_Legends;
 
+        // What the picker offers this board, built again when the legends' settings change: its
+        // group titles are words in the host's modifier names.
+        const std::vector<CatalogueTab>& Catalogue();
+
         uint8_t                m_Layer = 0;
         std::optional<uint8_t> m_Peek;   // a layer hovered in the strip, shown meanwhile
         std::optional<Cell> m_Selected;
         KeycodePickerState  m_Picker;
+
+        std::vector<CatalogueTab> m_Catalogue;
+        std::string               m_CatalogueFor;   // the settings it was built with
+
+        // What a click on the tile under the mouse would write, shown on the selected key meanwhile.
+        std::optional<Keycode> m_Preview;
 
         Task<void>  m_Write;
         bool        m_IsWriting = false;

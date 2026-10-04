@@ -434,6 +434,29 @@ namespace nazg
         return tabs;
     }
 
+    Keycode ComposeWithKey(const Keycode& picked, const Keycode& current, QmkKeycodeVersion version)
+    {
+        const auto* named = std::get_if<NamedKey>(&picked);
+        if (named == nullptr)
+            return picked;
+
+        const QmkKeycode* row = FindQmkKeycodeByName(named->name, version);
+        // From KC_A: KC_NO and KC_TRNS replace a key, they do not become its tap.
+        if (row == nullptr || row->value > 0xFF || row->value < 0x04)
+            return picked;
+
+        Keycode composed = picked;
+        if (const auto* modTap = std::get_if<ModTapKey>(&current))
+            composed = ModTapKey{ modTap->mods, row->name };
+        else if (const auto* layerTap = std::get_if<LayerTapKey>(&current))
+            composed = LayerTapKey{ layerTap->layer, row->name };
+        else if (const auto* modified = std::get_if<ModifiedKey>(&current))
+            composed = ModifiedKey{ modified->mods, row->name };
+
+        // Only what the board can store: an LT past layer 15, say, stays as picked.
+        return EncodeQmkKeycode(composed, version) ? composed : picked;
+    }
+
     std::string SearchTextOf(const Keycode& keycode, QmkKeycodeVersion version, const LegendContext& context)
     {
         std::string text = FormatKeycode(keycode);
