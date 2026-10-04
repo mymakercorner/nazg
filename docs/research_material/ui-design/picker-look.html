@@ -612,7 +612,7 @@ function wordsOf(kc) {
   if (ARROWS[kc]) return { arrow: ARROWS[kc] };
   const h = hostLegend(kc);
   if (h) return { plain: h.plain, shifted: h.shifted };
-  if (NAMED[kc]) return { full: NAMED[kc][0], short: NAMED[kc][1], numpad: /^KC_P/.test(kc) && kc !== 'KC_PENT' };
+  if (NAMED[kc]) return { full: NAMED[kc][0], short: NAMED[kc][1], numpad: /^KC_P(\d|DOT|SLS|AST|MNS|PLS|EQL|CMM)$/.test(kc) };
   return { full: kc.replace(/^KC_/, ''), short: '' };
 }
 function describe(k, where) {
