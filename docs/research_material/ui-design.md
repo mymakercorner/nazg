@@ -1484,7 +1484,10 @@ look is built** (Rico, 2026-10-03): they are judged on the real thing, not on a 
 - **The ▽ and ✕ marks are hard to see** (Rico, 2026-10-04, in the app): small, in the corner, at
   half strength. Accepted for now; a better way to show transparent and disabled keys is to be
   found later. The strike through a KC_NO key, which made it visible from afar, was dropped the
-  same day (see "Transparent keys").
+  same day (see "Transparent keys"). **And the ✕ can be mistaken for a legend** (Rico, 2026-10-04):
+  on US ANSI International the `=+` key prints its AltGr character, ×, bottom right -- the mark's
+  corner, at a similar size. The better way must not look like any character a host layout prints
+  there.
 - **Which sections fold the board away**, and whether folding it confuses more than it helps.
 - **MIDI in the picker's Devices tab**: the basic set is offered on every board. A Vial definition
   says `"midi": "basic"` or `"advanced"` (vial-gui shows MIDI keys only then); whether Nazg
