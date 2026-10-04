@@ -142,6 +142,9 @@ namespace
         // ordinary user's way until asked for (ui-design.md, screen 6).
         bool advancedTools = false;
 
+        // The board's share of the height under the strip, as the splitter under it was left.
+        nazg::WorkspaceLayout workspace;
+
         // Where the window was left: its place when not maximized, in SDL's window
         // coordinates, and whether it was maximized. A width of 0: never saved.
         struct WindowPlace
@@ -201,6 +204,7 @@ namespace
             constexpr char c_ViaDefinition[] = "ViaDefinition=";
             constexpr char c_Window[]        = "Window=";
             constexpr char c_Maximized[]     = "Maximized=";
+            constexpr char c_BoardShare[]    = "BoardShare=";
 
             if (std::strncmp(line, c_HostLayout, sizeof(c_HostLayout) - 1) == 0)
                 loaded.legends.hostLayout = line + sizeof(c_HostLayout) - 1;
@@ -230,6 +234,12 @@ namespace
             }
             else if (std::strncmp(line, c_Maximized, sizeof(c_Maximized) - 1) == 0)
                 loaded.window.maximized = std::strcmp(line + sizeof(c_Maximized) - 1, "1") == 0;
+            else if (std::strncmp(line, c_BoardShare, sizeof(c_BoardShare) - 1) == 0)
+            {
+                float share = 0.0f;
+                if (std::sscanf(line + sizeof(c_BoardShare) - 1, "%f", &share) == 1 && share > 0.0f && share < 1.0f)
+                    loaded.workspace.boardShare = share;
+            }
         };
 
         handler.WriteAllFn = [](ImGuiContext*, ImGuiSettingsHandler* self, ImGuiTextBuffer* out)
@@ -247,6 +257,7 @@ namespace
             if (saved.window.width > 0)
                 out->appendf("Window=%d,%d,%d,%d\nMaximized=%d\n", saved.window.x, saved.window.y,
                              saved.window.width, saved.window.height, saved.window.maximized ? 1 : 0);
+            out->appendf("BoardShare=%.3f\n", saved.workspace.boardShare);
             out->append("\n");
         };
 
@@ -1623,13 +1634,21 @@ int main(int, char**)
 
                     if (boardState.matrix)
                     {
-                        nazg::DrawView(*boardState.matrix, *boardState.keyboard);
+                        nazg::DrawView(*boardState.matrix, *boardState.keyboard, settings.workspace);
                         if (boardState.matrix->IsClosed() && !boardState.matrix->IsBusy())
                             boardState.matrix.reset();
                     }
                     else
                     {
-                        nazg::DrawSections(boardState.sections, boardState.activeSection, *boardState.keyboard);
+                        nazg::DrawSections(boardState.sections, boardState.activeSection, *boardState.keyboard,
+                                           settings.workspace);
+                    }
+
+                    // A splitter dragged: kept for the next run.
+                    if (settings.workspace.changed)
+                    {
+                        settings.workspace.changed = false;
+                        ImGui::MarkIniSettingsDirty();
                     }
                 }
             }

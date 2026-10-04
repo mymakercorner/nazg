@@ -16,8 +16,43 @@ namespace nazg
 {
     namespace
     {
-        constexpr float c_ColumnWidth   = 150.0f;   // pixels, before DPI scaling
-        constexpr float c_BoardMaxShare = 0.6f;     // of the height left under the strip
+        // Pixels, before DPI scaling.
+        constexpr float c_ColumnWidth   = 150.0f;
+        constexpr float c_SplitterSize  = 10.0f;    // the splitter's height, its grip in the middle
+        constexpr float c_PanelMin      = 240.0f;   // the key line, the tabs and three rows of tiles
+        constexpr float c_PanelMinWidth = 980.0f;   // so a small board's tabs still fit on one line
+
+        // The splitter under the board: dragged, it moves the board's share of `total`, the
+        // height under the strip -- from the height the board really took, so dragging past
+        // where the board stops growing, or below its legibility floor, moves nothing.
+        void DrawSplitter(WorkspaceLayout& layout, float boardHeight, float total)
+        {
+            const float scale = ImGui::GetStyle().FontScaleDpi;
+            const float width = ImGui::GetContentRegionAvail().x;
+
+            ImGui::InvisibleButton("##splitter", ImVec2(width, c_SplitterSize * scale));
+            const bool active  = ImGui::IsItemActive();
+            const bool hovered = ImGui::IsItemHovered();
+            if (active || hovered)
+                ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+
+            const ImVec2 min    = ImGui::GetItemRectMin();
+            const ImVec2 max    = ImGui::GetItemRectMax();
+            const float  grip   = 56.0f * scale;
+            const float  middle = (min.y + max.y) / 2.0f;
+            ImGui::GetWindowDrawList()->AddRectFilled(
+                ImVec2((min.x + max.x - grip) / 2.0f, middle - 2.0f * scale),
+                ImVec2((min.x + max.x + grip) / 2.0f, middle + 2.0f * scale),
+                ImGui::GetColorU32(active || hovered ? ImGuiCol_SeparatorActive : ImGuiCol_Separator), 2.0f * scale);
+
+            if (active && ImGui::GetIO().MouseDelta.y != 0.0f && total > 0.0f)
+            {
+                const float most  = (total - (c_SplitterSize + c_PanelMin) * scale) / total;
+                layout.boardShare = std::clamp((boardHeight + ImGui::GetIO().MouseDelta.y) / total, 0.05f,
+                                               std::max(0.05f, most));
+                layout.changed    = true;
+            }
+        }
 
         void DrawColumn(const std::vector<std::unique_ptr<Section>>& sections, size_t& active)
         {
@@ -166,7 +201,8 @@ namespace nazg
         return action;
     }
 
-    void DrawSections(const std::vector<std::unique_ptr<Section>>& sections, size_t& active, const Keyboard& keyboard)
+    void DrawSections(const std::vector<std::unique_ptr<Section>>& sections, size_t& active, const Keyboard& keyboard,
+                      WorkspaceLayout& layout)
     {
         if (sections.empty())
             return;
@@ -179,23 +215,34 @@ namespace nazg
             ImGui::SameLine();
         }
 
-        DrawView(*sections[active], keyboard);
+        DrawView(*sections[active], keyboard, layout);
     }
 
-    void DrawView(Section& section, const Keyboard& keyboard)
+    void DrawView(Section& section, const Keyboard& keyboard, WorkspaceLayout& layout)
     {
         ImGui::BeginGroup();
         ImGui::PushID(&section);
 
         DrawStrip(section);
 
+        // The board takes its share of the height under the strip -- never so much that the
+        // panel falls below its minimum, never less than its legibility floor allows.
+        const float scale    = ImGui::GetStyle().FontScaleDpi;
+        const float total    = ImGui::GetContentRegionAvail().y;
+        const float boardMax = std::clamp(layout.boardShare * total, 0.0f,
+                                          std::max(0.0f, total - (c_SplitterSize + c_PanelMin) * scale));
+
         BoardDescription board = DescribeKeyboard(keyboard);
         section.DescribeBoard(board);
-        const BoardEvents events = DrawBoard(board, ImGui::GetContentRegionAvail().y * c_BoardMaxShare);
+        const BoardEvents events = DrawBoard(board, boardMax);
         section.OnBoardEvents(board, events);
 
-        // The panel: always there, taking what the board leaves.
-        ImGui::BeginChild("panel", ImVec2(0.0f, 0.0f), ImGuiChildFlags_Borders);
+        DrawSplitter(layout, events.height, total);
+
+        // The panel: always there, taking what the board leaves, as wide as the board -- so the
+        // two read as one column (Rico, 2026-10-04) -- and wide enough for the picker's tabs.
+        const float width = std::min(ImGui::GetContentRegionAvail().x, std::max(c_PanelMinWidth * scale, events.width));
+        ImGui::BeginChild("panel", ImVec2(width, 0.0f), ImGuiChildFlags_Borders);
         section.DrawPanel();
         ImGui::EndChild();
 

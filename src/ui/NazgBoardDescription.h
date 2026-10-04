@@ -165,6 +165,11 @@ namespace nazg
         std::optional<size_t> clickedKey;
         std::optional<size_t> hoveredLabel;   // indices into BoardDescription::labels
         std::optional<size_t> clickedLabel;
+
+        // What the board took, plate and edge labels included, in pixels: the panel under it is
+        // as wide, and a splitter under it moves from there.
+        float width  = 0.0f;
+        float height = 0.0f;
     };
 
     // What a section starts from: the board as its definition draws it, at its layout

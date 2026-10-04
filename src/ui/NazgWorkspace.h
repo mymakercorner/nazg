@@ -68,12 +68,23 @@ namespace nazg
     // Into the current window's menu bar -- the window needs ImGuiWindowFlags_MenuBar.
     [[nodiscard]] HeaderAction DrawHeader(const HeaderView& view);
 
+    // How the height under the strip is shared between the board and the panel: a splitter
+    // between them, dragged, and remembered in imgui.ini (ui-design.md, "The keycode picker",
+    // "Its size"). The board's share is what it may take at most; it never goes below its
+    // legibility floor, and it takes less where the window's width stops it first.
+    struct WorkspaceLayout
+    {
+        float boardShare = 0.6f;
+        bool  changed    = false;   // dragged this frame: the caller saves it
+    };
+
     // `sections` are the open board's -- the column lists them, and is hidden when there is
     // only one -- and `active` the one shown, which the column changes. `keyboard` gives the
     // board the sections start from.
-    void DrawSections(const std::vector<std::unique_ptr<Section>>& sections, size_t& active, const Keyboard& keyboard);
+    void DrawSections(const std::vector<std::unique_ptr<Section>>& sections, size_t& active, const Keyboard& keyboard,
+                      WorkspaceLayout& layout);
 
     // One section's strip, board and panel with no column -- a view that takes the sections'
     // place, such as the matrix view (ui/NazgMatrixView.h).
-    void DrawView(Section& section, const Keyboard& keyboard);
+    void DrawView(Section& section, const Keyboard& keyboard, WorkspaceLayout& layout);
 }

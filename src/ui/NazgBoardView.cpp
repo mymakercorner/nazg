@@ -635,6 +635,9 @@ namespace nazg
         // Claim the space drawn into, so the child scrolls around the board.
         ImGui::Dummy(size);
         ImGui::EndChild();
+
+        events.width  = std::min(size.x, avail);
+        events.height = ImGui::GetItemRectSize().y;
         return events;
     }
 
