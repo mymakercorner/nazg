@@ -913,7 +913,8 @@ function tabs() {
     ] },
     // The keys the firmware's own code handles: the board's (QK_KB_n -- VIA's Custom, Vial's
     // User), by the names its definition gives them or numbered, and the keymap's (QK_USER_n).
-    // Board's colour, as the app draws QK_KB_n ("Custom" header, NazgKeycapLegend.cpp).
+    // Board's colour, as the app draws QK_KB_n ("Custom" header, NazgKeycapLegend.cpp). Always
+    // shown, every board having the ranges (Rico, 2026-10-04).
     { id: 'custom', name: 'Custom', cat: 'board', groups: [
       OWN_KEYS.length ? g('This board\'s own keys -- named by its definition', OWN_KEYS.map((_, n) => ({ kind: 'own', n })))
                       : g('Board -- what the board\'s firmware code makes of them', range(32, n => CMD('QK_KB_' + n))),
