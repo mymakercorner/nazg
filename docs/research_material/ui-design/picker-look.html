@@ -82,7 +82,7 @@ button:disabled{opacity:.45;cursor:default}
 .tabs .tab{border:1px solid transparent;border-bottom:none;border-radius:5px 5px 0 0;padding:5px 9px 4px;cursor:pointer;color:var(--muted);position:relative}
 .tabs .tab.on{background:var(--window);border-color:var(--border);color:var(--text);margin-bottom:-1px}
 .tabs .tab .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;vertical-align:1px}
-.tabs input{margin-left:auto;margin-bottom:5px;flex:1 1 120px;width:0;min-width:120px;max-width:190px;padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--control);color:var(--text);font:inherit}
+.tabs input{margin-left:auto;margin-bottom:5px;flex:1 1 100px;width:0;min-width:100px;max-width:220px;padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--control);color:var(--text);font:inherit}
 .items{flex:1;overflow-y:auto;padding:8px 12px 12px;background:var(--window)}
 .items h4{margin:10px 0 5px;font-weight:600;color:var(--muted);font-size:12px}
 .items h4:first-child{margin-top:2px}
@@ -1401,6 +1401,14 @@ function renderTabs() {
   search.oninput = () => { state.search = search.value; const pos = search.selectionStart; renderPanel();
     const again = document.querySelector('.tabs input'); again.focus(); again.setSelectionRange(pos, pos); };
   bar.appendChild(search);
+  // The box takes what the tabs leave, up to its hint's width; narrower, the hint is cut down to
+  // one word rather than cut off.
+  const HINT = search.placeholder;
+  new ResizeObserver(() => {
+    measureCtx.font = getComputedStyle(search).font;
+    const fits = measureCtx.measureText(HINT).width + 16 <= search.clientWidth;
+    search.placeholder = fits ? HINT : 'Search';
+  }).observe(search);
   pickEl.appendChild(bar);
   const items = document.createElement('div'); items.className = 'items';
   if (state.search) renderSearch(items, all);
