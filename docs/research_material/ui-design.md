@@ -20,10 +20,10 @@ was not taken: a feature-rich board shows eleven tabs before anything is done.
 | Region | What it holds |
 |---|---|
 | **Header** | The board's name, which is a menu (see "Getting back to the keyboard list"); the protocol; the lock state on boards that have one; the **settings button** |
-| **Section column** | Keymap, Layout, Macros... — about 150 px wide, an icon and a label per row. **Only the sections the board has**, and **hidden when there is only one**. Open: **icons only**, to keep the width contained beside a board and a picker both as wide as the board (Rico, 2026-10-04) |
+| **Section column** | Keymap, Layout, Macros... — about 150 px wide, an icon and a label per row. **Only the sections the board has**, and **hidden when there is only one**. Possibly **icons only**, to keep the width contained beside a board and a picker both as wide as the board (Rico, 2026-10-04; see "Open points") |
 | **Strip** | A row of choices owned by the section: layers in Keymap, slots in Macros (see below). Absent when the section has nothing to choose |
 | **Board** | Drawn by Nazg; what each key shows is the section's |
-| **Panel** | The section's editor — the keycode picker in Keymap. **Always visible**, not only while a key is selected |
+| **Panel** | The section's editor — the keycode picker in Keymap (see "The keycode picker"). **Always visible**, not only while a key is selected |
 
 Decided: **layers as a strip** (not ZMK's named column: VIA and Vial layers are numbers),
 **the panel always visible**, **a settings button** rather than top-level panes like VIA's.
@@ -1058,6 +1058,133 @@ demand and words what it finds as possibilities, not a live warning on the board
 - **Modified keys** (Ctrl+C) are Host: "Ctrl+ / C", the header in Host's colour (short-forms.md,
   rule 7).
 
+## The keycode picker
+
+*Designed with Rico 2026-10-04, through the mockup
+[ui-design/picker-look.html](ui-design/picker-look.html) -- open it in a browser; it draws the
+picker under a 60% board, every keycode with the app's own words. It replaces the first draft
+(`ui/NazgKeycodePicker.*`), which lists QMK's whole table grouped. The alternatives weighed --
+Vial's Basic tab drawn as a keyboard, ZMK Studio's kind then parameters, keycaps or text buttons
+as items, the key's line beside the layers or as a card at the side, plain group titles -- are
+in the mockup's history before commit 5bbebb1.*
+
+The picker is the Keymap section's panel: **a key line on top, then the tabs and their search
+box, then the keycodes as tiles.** Click a key on the board, then a tile: it is written at once
+and read back, as today.
+
+### Its size
+
+- **As wide as the board**, centred under it, at least 980 px so a small board's tabs still fit
+  on one line (Rico: a panel wider than the board unbalanced the screen; and the section column
+  will come on the left). Board and picker read as one column.
+- **A splitter between board and panel**, dragged to share the height and remembered in
+  `imgui.ini`. It replaces today's fixed 60% (`c_BoardMaxShare`, `NazgWorkspace.cpp`). It stops
+  where the board would fall below its legibility floor, 60 px a unit ("The floor is on the
+  header") -- the board is never squeezed to give the picker room; the panel keeps at least the
+  key line, the tabs and three rows of tiles, about 240 px. A window too small for both gives
+  the panel its minimum first.
+
+### The key line
+
+One line over the tabs, next to the keycodes it shapes (Rico: it sat beside the layer buttons
+for a while, at no height of its own; with the tiles compact the height became affordable).
+
+- **Where the key is**: row and column.
+- **The keycode in QMK's words, editable** -- the Any entry, as Vial's "Any" dialog (Rico,
+  2026-10-03): type `LT(1,KC_SPC)`, `MT(MOD_LCTL,KC_A)`, `C(S(KC_T))`, `OSM(MOD_LSFT)`, `MO(2)`
+  or a hex value and press Enter, and it is written. What does not parse is outlined red, "not a keycode Nazg
+  knows". It is `FormatKeycode()` in reverse.
+- **The composer**: **When held** -- Nothing, Modifiers ▾, Layer ▾ -- and **Sent with ▾**. Their
+  choices open in small popups that stay open while toggled, so the line never wraps; each change
+  is written at once. Sent with lists **None first** -- back to the plain key in one click --
+  then Ctrl, Shift, Alt, Win, and Left / Right, greyed while no modifier is on. They show only
+  where they apply: on a plain key, or one already holding (MT, LT) or modified; Sent with goes
+  while a hold is set, a tap-hold's tap being a plain key.
+- **A tile picked keeps the key's hold or modifiers.** With "When held: Layer 1" on a key,
+  picking Space writes `LT(1,KC_SPC)` -- one step, where Vial takes two (its placeholder, then
+  the key). With Shift sent, every pick is sent with Shift. A tile's tooltip says what the click
+  writes when that is not the tile's own keycode.
+- **The message**: what the board stored, read back; a write the board changed or refused is a
+  warning, as today.
+
+### The tabs
+
+**Category tabs and one search box through all of them** -- the search takes a name, QMK's name
+or its label. The box takes what the tabs leave, up to 220 px; where that is too little for its
+hint, the hint is just "Search". Each tab carries its category's colour as a dot; its keys are of
+that category, Macros' tap dances aside.
+
+| Tab | Dot | Holds |
+|---|---|---|
+| **Keys** | -- | letters, digits, punctuation (the two ISO keys last), **Shifted** -- Shift and a key in one click, VIA's symbols for a symbol layer -- editing keys, modifiers, navigation, F1 to F24, numpad, international (INT 1-9, Lang 1-9), the rarer HID keys (Undo, Copy, SysRq, the locking keys...), Transparent and None |
+| **Layers** | Behaviour | the seven operations -- Hold, Toggle, To, Tap tog, Once, Base, Set base -- for each layer the board has; one-shot modifiers (eight, Meh, Hyper); layer lock and tri layer |
+| **Media & mouse** | Host | media, volume, screen, system, apps, web; then the mouse -- move, buttons, wheel, speed (Rico: one tab, as Vial's "App, Media and Mouse") |
+| **Lighting** | Board | by the lighting policy ("Which lighting keycodes a board gets", above); **absent** when the definition declares no lighting |
+| **Features** | Behaviour | Caps Word, Repeat, Grave Esc, Leader, Key Lock; Space Cadet; Auto Shift, Autocorrect, Combos, Key overrides, One shot, Tap term, Swap hands; Secure |
+| **Macros** | Host | keys that play what is set elsewhere, as many as the board has: macros, **tap dances** (Rico: here, by the macros, though drawn in Behaviour's violet), dynamic macros |
+| **Special** | Board | the settings kept on the board (Rico: VIA's word): QMK's Magic keycodes, a group per swap so each reads Swap, Unswap, On/Off; Win key, NKRO, EE Hands; audio, clicky, music mode, haptic; the Unicode input mode; output and Bluetooth |
+| **Custom** | Board | on every board (Rico): the keys the firmware's own code handles -- the board's, `QK_KB_n`, by the names its definition gives them (`customKeycodes`: 416 of VIA's 3513 definitions name some, Keychron's macOS keys the commonest) or else numbered -- VIA's "Custom", what Vial calls "User" -- then the keymap's, QMK's user range `QK_USER_n`, which neither app offers |
+| **Devices** | Host | the board acting as another device: MIDI, the sequencer, steno, joystick, programmable buttons |
+| **Firmware** | Firmware | last and apart: Boot, Reboot, Clear EEPROM, Debug, Make |
+
+**Every keycode of the board's keycode version is in a tab, and search finds it.** There is no
+catch-all: the rare keys went where they are looked for -- the HID ones to the end of Keys -- and
+the rest made Special, Custom and Devices.
+
+**A group is left out only when the board says it cannot work**: the lighting the definition
+declares, the macro count (VIA and Vial), the tap dance count (Vial), Vial's feature bits --
+Caps Word, Layer Lock -- and its alt repeat count, which the Repeat keys need; `PDF` exists from
+keycode version 0.0.6. What nothing tells -- audio, haptic, Unicode, steno -- is offered, as Vial
+and VIA do, hover saying what it needs. A tab left with no group is not shown.
+
+### The tiles
+
+- **Every tile 1u, 46 x 40 px.** Its text area is a 1u keycap's legend box at the board's
+  smallest unit -- 60 px, padded to about 40 px wide, words at 11 px -- so every name fits as
+  `legend_font` checks it does on the board: one line, two, the short form, then cut. The words
+  are the board's own (`NazgKeycapLegend`), with the keycap's face, band and colours.
+- **A header the group's title says is left out**: "Media" over Play in the Media group,
+  "Ctrl↔Caps" over Swap in its group, "MIDI" over CHND. The Shifted group's tiles show the Shift
+  character alone ("!") -- on the board `S(KC_1)` is "Shift+" over "! 1", one rule for every
+  modifier (Rico, short-forms.md rule 7).
+- **One grid**: cells 50 px; groups packed side by side where they fit, no empty cell between
+  them; a group longer than the row wraps under its first tile. The group's title sits in a box
+  two cells wide spanning all its rows -- its first words; the rest on hover. The box is a
+  recessed neutral, darker than the panel on Light, lighter on Dark, never a key's or a text
+  field's: Light `#d1d4da`, text `#2f3238`; Dark `#1d1e25`, text `#9a9daa`.
+- **The selected key's keycode is outlined** among the tiles.
+
+### Hover, and after a pick
+
+- **Tooltips** give QMK's name and label, with ImGui's tooltip timing
+  (`ImGuiHoveredFlags_ForTooltip`): the mouse resting about 0.15 s, then no wait while moving on
+  to the next tile.
+- **Hover preview** (Rico: with the tooltip): once a tile's tooltip shows, the selected key on
+  the board shows what the click would write, outlined in blue -- composer included, which the
+  tile alone does not show. Sweeping across the panel to reach a tile leaves the board still.
+  After a pick, the tile under the mouse previews nothing until the mouse leaves it.
+- **After a pick the selection stays on the key** (Rico), as ZMK Studio's. Moving to the next
+  key -- what Vial always does, VIA by default (its Fast Key Mapping) -- is **only a preference in
+  Settings, off by default**: the writes are live and there is no undo, so a second click meant to
+  correct a pick would land, written, on the key after. With it on: the next key in board order,
+  top to bottom then left to right; past the last key the selection clears, as VIA's, rather
+  than wrapping to the first, as Vial's; only a pick or Enter in the expression box advances, never
+  the composer's buttons, which shape the key in place.
+- **The key just written flashes** briefly, and once the selection has moved the message names
+  it -- a write is seen where it landed.
+
+### What the app needs for it
+
+- **The definition parser keeps `customKeycodes`** (name, title, short name) for Custom's names,
+  and Vial's `midi` field, should MIDI come to be gated on it (see "Open points").
+- **What the board reports reaches the picker**: Vial's entry counts and feature bits
+  (`VialEntryCounts`, already read), the macro count (`GetMacroCount()`), the layer count, the
+  keycode version, the lighting state.
+- **The splitter** in `NazgWorkspace`, in place of `c_BoardMaxShare`, its share in `imgui.ini`.
+- **The Settings screen** gains the after-a-pick preference.
+- **Found by the mockup**: `KC_SPC` always prints blank (`PlacementClass::Blank`), so
+  `LT(1,KC_SPC)` on a 1u key shows only "L1"; Space should be blank only on keys 3u and wider.
+
 ## The common screens
 
 **1. No board open.** The keyboards found, each with its protocol and *Open*. No section
@@ -1094,8 +1221,9 @@ become editable. The keymap needs no such screen: Vial accepts keymap writes whi
 
 **6. Settings**, from the settings button. It replaces the main area; the header stays, so
 the open board is still named. The host layout and the user definitions library (Re-import,
-Remove, Import) move here from today's HID Devices window. "Back to the board" returns where
-you were.
+Remove, Import) move here from today's HID Devices window, and the keycode picker's one
+preference, moving to the next key after a pick, off by default (see "The keycode picker").
+"Back to the board" returns where you were.
 
 ![Settings](ui-design/screen-settings.svg)
 
@@ -1357,6 +1485,9 @@ look is built** (Rico, 2026-10-03): they are judged on the real thing, not on a 
   found later. The strike through a KC_NO key, which made it visible from afar, was dropped the
   same day (see "Transparent keys").
 - **Which sections fold the board away**, and whether folding it confuses more than it helps.
+- **MIDI in the picker's Devices tab**: the basic set is offered on every board. A Vial definition
+  says `"midi": "basic"` or `"advanced"` (vial-gui shows MIDI keys only then); whether Nazg
+  hides MIDI without it, and offers the advanced set with it, is to decide when it is built.
 - **Folding the section column to icons in a narrow window** (Rico, 2026-10-03). The column is
   150 px, shown on every board with more than one section -- most Vial boards, once Macros, Tap
   Dance and Combos are sections -- and with the 9 px floor it is what pushes a TKL past a 1280 px
