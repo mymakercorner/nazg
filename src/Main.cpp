@@ -142,6 +142,19 @@ namespace
         // ordinary user's way until asked for (ui-design.md, screen 6).
         bool advancedTools = false;
 
+        // Where the window was left: its place when not maximized, in SDL's window
+        // coordinates, and whether it was maximized. A width of 0: never saved.
+        struct WindowPlace
+        {
+            int  x         = 0;
+            int  y         = 0;
+            int  width     = 0;
+            int  height    = 0;
+            bool maximized = false;
+
+            bool operator==(const WindowPlace&) const = default;
+        } window;
+
         // Paths of VIA definition files that builds before the library remembered here.
         // Read, imported into the library once, then dropped -- written back only while
         // there is no library to import them into.
@@ -186,6 +199,8 @@ namespace
             constexpr char c_LegendFamily[]  = "Legends=";
             constexpr char c_AdvancedTools[] = "AdvancedTools=";
             constexpr char c_ViaDefinition[] = "ViaDefinition=";
+            constexpr char c_Window[]        = "Window=";
+            constexpr char c_Maximized[]     = "Maximized=";
 
             if (std::strncmp(line, c_HostLayout, sizeof(c_HostLayout) - 1) == 0)
                 loaded.legends.hostLayout = line + sizeof(c_HostLayout) - 1;
@@ -202,6 +217,19 @@ namespace
                 loaded.advancedTools = std::strcmp(line + sizeof(c_AdvancedTools) - 1, "1") == 0;
             else if (std::strncmp(line, c_ViaDefinition, sizeof(c_ViaDefinition) - 1) == 0)
                 loaded.legacyViaDefinitions.emplace_back(line + sizeof(c_ViaDefinition) - 1);
+            else if (std::strncmp(line, c_Window, sizeof(c_Window) - 1) == 0)
+            {
+                AppSettings::WindowPlace place;
+                if (std::sscanf(line + sizeof(c_Window) - 1, "%d,%d,%d,%d", &place.x, &place.y, &place.width,
+                                &place.height) == 4 &&
+                    place.width > 0 && place.height > 0)
+                {
+                    place.maximized = loaded.window.maximized;
+                    loaded.window   = place;
+                }
+            }
+            else if (std::strncmp(line, c_Maximized, sizeof(c_Maximized) - 1) == 0)
+                loaded.window.maximized = std::strcmp(line + sizeof(c_Maximized) - 1, "1") == 0;
         };
 
         handler.WriteAllFn = [](ImGuiContext*, ImGuiSettingsHandler* self, ImGuiTextBuffer* out)
@@ -216,10 +244,82 @@ namespace
             // none is lost before it can be.
             for (const std::string& path : saved.legacyViaDefinitions)
                 out->appendf("ViaDefinition=%s\n", path.c_str());
+            if (saved.window.width > 0)
+                out->appendf("Window=%d,%d,%d,%d\nMaximized=%d\n", saved.window.x, saved.window.y,
+                             saved.window.width, saved.window.height, saved.window.maximized ? 1 : 0);
             out->append("\n");
         };
 
         ImGui::AddSettingsHandler(&handler);   // copied by ImGui
+    }
+
+    // The window where it was left, if that is still on a display -- its top-left corner, where
+    // the title bar is, in some display's usable area -- and no bigger than that area. Otherwise,
+    // and on the first run, centred on the main display and as large as most of it: a full-size
+    // board needs more than 1280 px (ui-design.md, "The floor is on the header").
+    void PlaceWindow(SDL_Window* window, const AppSettings::WindowPlace& saved, float scale)
+    {
+        SDL_Rect usable{};
+        SDL_GetDisplayUsableBounds(SDL_GetPrimaryDisplay(), &usable);
+
+        bool onDisplay = false;
+        if (saved.width > 0)
+        {
+            int                  count    = 0;
+            SDL_DisplayID* const displays = SDL_GetDisplays(&count);
+            for (int i = 0; i < count && !onDisplay; ++i)
+            {
+                SDL_Rect bounds{};
+                if (SDL_GetDisplayUsableBounds(displays[i], &bounds) && saved.x >= bounds.x &&
+                    saved.y >= bounds.y && saved.x < bounds.x + bounds.w && saved.y < bounds.y + bounds.h)
+                {
+                    usable    = bounds;
+                    onDisplay = true;
+                }
+            }
+            SDL_free(displays);
+        }
+
+        int width  = std::max(static_cast<int>(c_DefaultWindowWidth * scale), usable.w * 85 / 100);
+        int height = std::max(static_cast<int>(c_DefaultWindowHeight * scale), usable.h * 85 / 100);
+        if (saved.width > 0)
+        {
+            width  = saved.width;
+            height = saved.height;
+        }
+        SDL_SetWindowSize(window, std::min(width, usable.w), std::min(height, usable.h));
+
+        if (onDisplay)
+            SDL_SetWindowPosition(window, saved.x, saved.y);
+        else
+            SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+
+        if (saved.maximized)
+            SDL_MaximizeWindow(window);
+    }
+
+    // Keep the settings in step with the window: its place while it is neither maximized nor
+    // minimized -- so a maximized window comes back to it when restored -- and whether it is
+    // maximized. Saved by ImGui with the rest, a few seconds after a change and on exit.
+    void TrackWindowPlace(SDL_Window* window, AppSettings::WindowPlace& saved)
+    {
+        const SDL_WindowFlags flags = SDL_GetWindowFlags(window);
+        if ((flags & SDL_WINDOW_MINIMIZED) != 0)
+            return;
+
+        AppSettings::WindowPlace place = saved;
+        place.maximized                = (flags & SDL_WINDOW_MAXIMIZED) != 0;
+        if (!place.maximized)
+        {
+            SDL_GetWindowPosition(window, &place.x, &place.y);
+            SDL_GetWindowSize(window, &place.width, &place.height);
+        }
+
+        if (!(place == saved))
+        {
+            saved = place;
+            ImGui::MarkIniSettingsDirty();
+        }
     }
 
     // A UTF-8 path, as SDL hands them over, as a filesystem path on every platform.
@@ -861,8 +961,6 @@ int main(int, char**)
         SDL_Quit();
         return 1;
     }
-    SDL_SetWindowPosition(pWindow, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-    SDL_ShowWindow(pWindow);
 
     // Create the GPU device. SDL picks the backend per platform: Metal on macOS,
     // D3D12 on Windows, Vulkan on Linux. We accept every shader format so SDL is free
@@ -911,6 +1009,11 @@ int main(int, char**)
     AppSettings settings;
     settings.legends.modifierNames = PlatformModifierNames();
     RegisterSettings(settings);
+
+    // Now rather than at the first NewFrame(), so the window shows where it was left.
+    ImGui::LoadIniSettingsFromDisk(io.IniFilename);
+    PlaceWindow(pWindow, settings.window, mainScale);
+    SDL_ShowWindow(pWindow);
 
     // The interface's font first: the first font added is ImGui's default.
     LoadInterfaceFont(io);
@@ -1114,8 +1217,8 @@ int main(int, char**)
             }
         }
 
-        // Paths an earlier build remembered in imgui.ini, which ImGui reads during the first
-        // frame: imported once, then dropped from the settings. Kept if there is no library.
+        // Paths an earlier build remembered in imgui.ini, read before the window shows:
+        // imported once, then dropped from the settings. Kept if there is no library.
         if (!settings.legacyViaDefinitions.empty() && library.library)
         {
             ImportDefinitions(library, settings.legacyViaDefinitions, false);
@@ -1599,6 +1702,7 @@ int main(int, char**)
             if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED && event.window.windowID == SDL_GetWindowID(pWindow))
                 done = true;
         }
+        TrackWindowPlace(pWindow, settings.window);
 
         drawFrame();
     }
