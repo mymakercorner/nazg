@@ -3,8 +3,9 @@
 <!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
 <!-- Mockup of the keycode picker -- the Keymap section's panel -- on a 60% board. Open it in a
      browser. Keycaps are drawn as the board draws them (ui-design.md, "The board's look"), with
-     what ImGui can draw: rounded rectangles, lines and text. The controls switch between the
-     variants to compare. Arimo comes from Google Fonts, so it needs a network connection. -->
+     what ImGui can draw: rounded rectangles, lines and text. The design is settled (2026-10-04); the
+     controls switch the theme, the after-a-pick setting and the board the mockup stands for. Arimo
+     comes from Google Fonts, so it needs a network connection. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -36,48 +37,22 @@ button:disabled{opacity:.45;cursor:default}
 .splitter{height:12px;flex:none;cursor:row-resize;display:flex;align-items:center;justify-content:center}
 .splitter::after{content:'';width:56px;height:4px;border-radius:2px;background:var(--border)}
 .splitter:hover::after,.splitter.drag::after{background:var(--ui-accent)}
-.keystrip{display:flex;align-items:center;gap:6px 12px;margin-left:28px;padding-left:16px;border-left:1px solid var(--border);flex-wrap:wrap}
-.keystrip.inpanel{margin:0;padding:6px 12px;border-left:none;border-bottom:1px solid var(--border);min-height:41px;flex:none}
-.keystrip .where{color:var(--muted)}
-.keystrip input.expr{width:320px;font:13px Consolas,"Cascadia Mono",monospace;padding:4px 7px;border:1px solid var(--border);border-radius:4px;background:var(--control);color:var(--text)}
-.keystrip input.expr.bad{border-color:var(--error)}
-.keystrip .msg{font-size:12px}
-.keystrip .name{color:var(--muted)}
-.keystrip .seg{display:inline-flex;gap:3px;align-items:center}
-.keystrip button{min-width:0;padding:2px 8px}
+.keyline{display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap;padding:6px 12px;border-bottom:1px solid var(--border);min-height:41px;flex:none}
+.keyline .where{color:var(--muted)}
+.keyline input.expr{width:320px;font:13px Consolas,"Cascadia Mono",monospace;padding:4px 7px;border:1px solid var(--border);border-radius:4px;background:var(--control);color:var(--text)}
+.keyline input.expr.bad{border-color:var(--error)}
+.keyline .msg{font-size:12px}
+.keyline .name{color:var(--muted)}
+.keyline .seg{display:inline-flex;gap:3px;align-items:center}
+.keyline button{min-width:0;padding:2px 8px}
 .popup{position:absolute;z-index:8;background:var(--control);border:1px solid var(--border);border-radius:6px;padding:8px;box-shadow:0 4px 16px rgba(0,0,0,.18);display:flex;flex-direction:column;gap:6px}
 .popup .prow{display:flex;gap:3px}
 .key{position:absolute;overflow:hidden;cursor:pointer}
 .t{position:absolute;white-space:nowrap;line-height:1;font-family:Arimo,"Noto Sans Math","Noto Sans Symbols 2",sans-serif}
-.panel{display:flex;gap:0;border:1px solid var(--border);border-radius:6px;background:var(--panel);overflow:hidden;flex:none}
-.card{width:260px;flex:none;padding:12px;border-right:1px solid var(--border);overflow-y:auto}
-.card.right{border-right:none;border-left:1px solid var(--border)}
-.keybar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:8px 12px;border-bottom:1px solid var(--border)}
-.keybar .where{color:var(--muted)}
-.keybar input.expr{width:340px;font:13px Consolas,"Cascadia Mono",monospace;padding:4px 7px;border:1px solid var(--border);border-radius:4px;background:var(--control);color:var(--text)}
-.keybar input.expr.bad{border-color:var(--error)}
-.keybar .msg{font-size:12px}
-.keybar .row{display:inline-flex;align-items:center;gap:3px}
-.keybar .row .name{color:var(--muted);margin-right:3px}
-.keybar .row .name:empty{display:none}
-.keybar .note{color:var(--muted);font-size:12px}
-.keybar button{padding:2px 8px}
+.panel{display:flex;flex-direction:column;width:100%;margin:0 auto;border:1px solid var(--border);border-radius:6px;background:var(--panel);overflow:hidden;flex:none}
 .tile{position:relative;border-radius:5px;overflow:hidden;cursor:pointer;flex:none}
 .flow{display:grid;grid-auto-rows:40px;column-gap:4px;row-gap:6px;align-items:start}
-.grouprow{display:flex;gap:6px;align-items:flex-start;max-width:100%;min-width:0}
-.grouprow .grid{min-width:0}
-.flow .glabel{color:var(--muted);font-size:12px;line-height:1.2;overflow:hidden;align-self:stretch;display:flex;align-items:center}
-.flow.boxed .glabel{border:1px solid var(--border);border-radius:5px;padding:0 8px;background:var(--label-fill);color:var(--label-text)}
-.card .where{color:var(--muted);margin-bottom:8px}
-.card .preview{position:relative;height:110px;margin-bottom:8px}
-.card input.expr{width:100%;font:13px Consolas,"Cascadia Mono",monospace;padding:5px 7px;border:1px solid var(--border);border-radius:4px;background:var(--control);color:var(--text)}
-.card input.expr.bad{border-color:var(--error)}
-.card .msg{min-height:18px;margin:4px 0 8px;font-size:12px}
-.card .row{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin:6px 0}
-.card .row .name{flex-basis:100%;color:var(--muted)}
-.card .row .name:empty{display:none}
-.card .note{color:var(--muted);font-size:12px;line-height:1.4;margin:4px 0}
-.card button{padding:2px 8px}
+.flow .glabel{font-size:12px;line-height:1.2;overflow:hidden;align-self:stretch;display:flex;align-items:center;border:1px solid var(--border);border-radius:5px;padding:0 8px;background:var(--label-fill);color:var(--label-text)}
 .pick{flex:1;display:flex;flex-direction:column;min-width:0}
 .tabs{display:flex;align-items:flex-end;gap:2px;padding:8px 10px 0;border-bottom:1px solid var(--border);flex-wrap:wrap}
 .tabs .tab{border:1px solid transparent;border-bottom:none;border-radius:5px 5px 0 0;padding:5px 9px 4px;cursor:pointer;color:var(--muted);position:relative}
@@ -85,19 +60,7 @@ button:disabled{opacity:.45;cursor:default}
 .tabs .tab .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;vertical-align:1px}
 .tabs input{margin-left:auto;margin-bottom:5px;flex:1 1 100px;width:0;min-width:100px;max-width:220px;padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--control);color:var(--text);font:inherit}
 .items{flex:1;overflow-y:auto;padding:8px 12px 12px;background:var(--window)}
-.items h4{margin:10px 0 5px;font-weight:600;color:var(--muted);font-size:12px}
-.items h4:first-child{margin-top:2px}
-.items .grid{display:flex;flex-wrap:wrap;gap:4px}
-.items .itemkey{position:relative;cursor:pointer}
-.items .textbtn{padding:4px 8px;min-width:46px}
 .items .info{color:var(--muted);font-size:12px;margin:2px 0 8px;line-height:1.4}
-.layers-table{border-collapse:collapse}
-.layers-table td{padding:2px 4px 2px 0;vertical-align:middle}
-.layers-table td.op{color:var(--muted);padding-right:10px;white-space:nowrap}
-.kinds{width:170px;flex:none;border-right:1px solid var(--border);padding:8px 0;overflow-y:auto}
-.kinds div{padding:5px 12px;cursor:pointer}
-.kinds div.on{background:var(--ui-accent);color:var(--ui-accent-text)}
-.kinds .sep{height:1px;background:var(--border);margin:6px 0;padding:0}
 .notes{max-width:1000px;margin:0 auto;padding:14px 16px 30px;color:var(--muted);line-height:1.5}
 .notes b{color:var(--text);font-weight:600}
 .notes p{margin:0 0 8px}
@@ -126,13 +89,13 @@ const THEMES = {
   Light: {
     css: { window: '#f3f3f5', menubar: '#e3e4e9', text: '#1d1e22', muted: '#6b6e78', control: '#ffffff', border: '#c8cad2',
            'ui-accent': '#3b82f6', 'ui-accent-text': '#ffffff', panel: '#f8f8fa', warning: '#e8590c', success: '#2f9e44', error: '#e03131' },
-    labelFill: '#d1d4da', labelText: '#2f3238', sage: '#e8efd8', plate: '#d3d4d8', outline: '#b4b7c2', legend: '#24262b', hovered: 'rgba(0,0,0,0.08)', selected: '#1d1e22',
+    labelFill: '#d1d4da', labelText: '#2f3238', plate: '#d3d4d8', outline: '#b4b7c2', legend: '#24262b', hovered: 'rgba(0,0,0,0.08)', selected: '#1d1e22',
     alpha: '#ffffff', mod: '#e4e5ea', accent: '#afbfd5', accentLegend: '#18222f', preview: '#1c7ed6',
   },
   Dark: {
     css: { window: '#0f0f11', menubar: '#24252b', text: '#ececf1', muted: '#80838f', control: '#20232b', border: '#3a3d48',
            'ui-accent': '#4296fa', 'ui-accent-text': '#ffffff', panel: '#16171b', warning: '#ffb34d', success: '#78dc82', error: '#ff8b7f' },
-    labelFill: '#1d1e25', labelText: '#9a9daa', sage: '#1d2419', plate: '#1c1d23', outline: '#4b4e5c', legend: '#ebebf0', hovered: 'rgba(255,255,255,0.13)', selected: '#ececf1',
+    labelFill: '#1d1e25', labelText: '#9a9daa', plate: '#1c1d23', outline: '#4b4e5c', legend: '#ebebf0', hovered: 'rgba(255,255,255,0.13)', selected: '#ececf1',
     alpha: '#3a3c48', mod: '#2c2e38', accent: '#5a6a80', accentLegend: '#e8eff9', preview: '#71b6ff',
   },
 };
@@ -936,40 +899,15 @@ function tabs() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// State and controls.
+// State and controls. The picker's design is settled (Rico, 2026-10-04); what the controls still
+// switch is the theme, the one user preference the picker has, and the board the mockup stands for.
 const state = {
-  theme: 'Light', structure: 'Tabs', items: 'Compact', labelStyle: 'Box', labelFill: 'Recessed', cardSide: 'Bar', panelWidth: "Board's", split: 0.62, popup: null, unit: 56, composer: 'On', hoverPreview: 'With the tooltip', advance: 'Stay', flash: null, justPicked: null,
+  theme: 'Light', advance: 'Stay', split: 0.62, popup: null, unit: 56, flash: null, justPicked: null,
   host: 'US', firmware: 'Unknown', lighting: 'Underglow + RGB Matrix', protocol: 'Vial 6', ownKeys: 'None',
-  layer: 0, selected: null, tab: 'keys', search: '', preview: null, message: '', warning: false, kindTab: 'key',
-  exprDraft: null,
+  layer: 0, selected: null, tab: 'keys', search: '', preview: null, message: '', warning: false, exprDraft: null,
 };
 const CONTROLS = [
   ['theme', 'Theme', Object.keys(THEMES)],
-  // Tabs: VIA's and Vial's category tabs; Keyboard: Vial's Basic tab drawn as a keyboard; Kind +
-  // parameters: ZMK Studio's behaviour, then its typed parameters.
-  ['structure', 'Structure', ['Tabs', 'Keyboard tab', 'Kind + parameters']],
-  // Compact (Rico, 2026-10-04: keys too big): tiles 38 px tall, a header left out where the
-  // group's title already says it, the group's title beside its row.
-  ['items', 'Items', ['Compact', 'Keycaps', 'Text']],
-  // The key as a bar over the tabs (Rico, 2026-10-04): the expression box wide, no preview -- the
-  // board's key is one. Or a card on the right, as an inspector, or on the left as first drawn.
-  // In the strip row (Rico, 2026-10-04): beside the layers, so it costs the board no height.
-  // Bar, the default since (Rico, 2026-10-04): the same line, popups and all, in the panel right
-  // over the tabs -- nearer the keycodes it shapes, and affordable now the tiles are compact.
-  ['cardSide', 'Key card', ['Bar', 'Strip', 'Right', 'Left']],
-  // Group labels: an outlined box two cells wide, spanning its group's rows -- or plain text.
-  ['labelStyle', 'Group labels', ['Box', 'Plain']],
-  // The box's fill: a recessed neutral -- darker than the panel on Light, lighter on Dark, never a
-  // key's or a text field's -- the tab's category colour at 10%, or none.
-  ['labelFill', 'Label fill', ['Recessed', 'Sage', 'Category tint', 'None']],
-  // Decided (Rico, 2026-10-04): the board's -- one column with the board, and room kept for the
-  // section column on the left, maybe icons only.
-  ['panelWidth', 'Panel width', ["Board's", "Window's"]],
-  // The key card's hold and modifier rows: LT, MT and Ctrl+C in one step.
-  ['composer', 'Composer', ['On', 'Off']],
-  // The selected key shows the keycode under the mouse: once its tooltip shows, at once, or never.
-  // Decided (Rico, 2026-10-04): with the tooltip.
-  ['hoverPreview', 'Hover preview', ['With the tooltip', 'At once', 'Off']],
   // Vial always advances to the next key after a pick; VIA too, unless Fast Key Mapping is
   // turned off -- then it deselects; ZMK Studio stays. Nazg stays (Rico, 2026-10-04): the next key
   // only as a user preference in Settings, off by default. Here it stands for that setting.
@@ -1007,7 +945,7 @@ function hideTip() { tip.style.display = 'none'; }
 // ImGui's tooltip timing, HoverFlagsForTooltipMouse = Stationary | DelayShort: the mouse rests
 // 0.15 s on an item and its tooltip shows; moved on to another item soon after, that one's shows at
 // once -- the shared delay. So sweeping across the tiles to reach one shows nothing, and once
-// looking, the tooltip follows the mouse. The hover preview "with the tooltip" keeps the same rule.
+// looking, the tooltip follows the mouse. The hover preview keeps the same rule (Rico, 2026-10-04).
 const HOVER_DELAY = 150, HOVER_SHARED = 250;
 let hoverTimer = null, hoverWarmUntil = 0;
 function hoverable(el, textOf, onShow, onHide) {
@@ -1048,6 +986,8 @@ const current = () => state.selected === null ? null : KEYMAP[state.layer][state
 function render() {
   const T = THEMES[state.theme];
   for (const [n, v] of Object.entries(T.css)) document.documentElement.style.setProperty('--' + n, v);
+  document.documentElement.style.setProperty('--label-fill', T.labelFill);
+  document.documentElement.style.setProperty('--label-text', T.labelText);
   document.querySelector('.menubar .proto').textContent = state.protocol;
   // A tab the board no longer has -- Lighting with none declared -- gives way to Keys.
   if (!tabs().some(t => t.id === state.tab)) state.tab = 'keys';
@@ -1055,20 +995,18 @@ function render() {
 }
 // The window below the controls is the app's: the strip, the board's area, the splitter and the
 // panel. The board grows until its area's width or height stops it, at most 96 px a unit, as in
-// NazgBoardView; the panel keeps at least three rows of tiles under its tabs.
-// The splitter stops where the board would fall below its legibility floor -- 60 px a unit, the
-// 9 px header (c_SmallestUnit) -- so the board is never squeezed to give the picker room (Rico,
-// 2026-10-04); a window too small for both gives the panel its minimum first.
-const PANEL_MIN = 200, SMALLEST_UNIT = 60, BOARD_MIN = Math.ceil(5.7 * SMALLEST_UNIT) + 4;
+// NazgBoardView. The splitter stops where the board would fall below its legibility floor -- 60 px
+// a unit, the 9 px header (c_SmallestUnit) -- so the board is never squeezed to give the picker
+// room (Rico, 2026-10-04); a window too small for both gives the panel its minimum first: the key
+// line and three rows of tiles under the tabs.
+const PANEL_MIN = 241, SMALLEST_UNIT = 60, BOARD_MIN = Math.ceil(5.7 * SMALLEST_UNIT) + 4;
 function layout() {
   const app = document.getElementById('app'), strip = document.getElementById('strip');
   const top = app.getBoundingClientRect().top + window.scrollY;
   const height = Math.max(560, window.innerHeight - top);
   app.style.height = height + 'px';
   const avail = height - strip.offsetHeight - 10 - 12 - 8;
-  // The key line over the tabs takes a row of its own: the panel keeps three rows of tiles still.
-  const panelMin = PANEL_MIN + (state.cardSide === 'Bar' ? 41 : 0);
-  const boardH = Math.round(Math.min(Math.max(state.split * avail, BOARD_MIN), avail - panelMin));
+  const boardH = Math.round(Math.min(Math.max(state.split * avail, BOARD_MIN), avail - PANEL_MIN));
   document.getElementById('boardarea').style.height = boardH + 'px';
   const width = app.clientWidth - 32;
   state.unit = Math.max(24, Math.min(96, width / 15.7, (boardH - 4) / 5.7));
@@ -1095,7 +1033,6 @@ function renderStrip() {
     b.onclick = () => { state.layer = n; state.message = ''; render(); };
     s.appendChild(b);
   });
-  if (state.cardSide === 'Strip') s.appendChild(renderKeyStrip());
 }
 const boardWidth = () => 15.7 * state.unit;
 const FLASH_MS = 900;
@@ -1124,32 +1061,15 @@ function renderBoard() {
   });
 }
 
-// An item of the picker: a keycap drawn as the board draws it, or today's text button.
-function itemEl(k, opts = {}) {
-  const sel = current();
-  if (state.items === 'Text') {
-    const b = document.createElement('button'); b.className = 'textbtn';
-    const d = describe(k, 'picker');
-    b.textContent = [d.hold && d.hold.full, d.header && d.header.full, d.shifted ? d.shifted + ' ' + d.plain : d.plain || d.arrow || d.full].filter(Boolean).join(' ');
-    hook(b, k); return b;
-  }
-  if (state.items === 'Compact' && !opts.unit) { const t = compactTile(k, opts, sel && format(sel) === format(k)); hook(t, k); return t; }
-  const u = opts.unit || 60, w = opts.w || 1;
-  const el = document.createElement('div'); el.className = 'itemkey';
-  Object.assign(el.style, { width: w * u - 2 + 'px', height: u - 2 + 'px' });
-  const cap = document.createElement('div'); cap.style.position = 'absolute'; el.appendChild(cap);
-  drawKeycap(cap, k, { unit: u, gap: 1, w, where: 'picker', selected: sel && format(sel) === format(k) });
-  hook(el, k);
-  return el;
-}
-// A compact tile: every one 1u, 46 x 40 px (Rico, 2026-10-04: one size, short forms where needed).
-// Its text area is the legend area of a 1u keycap at the board's smallest unit -- 60 px, padded
-// to about 40 px wide, words at 11 px -- so a name fits as it does there: on one line, on two, its
+// A tile: every one 1u, 46 x 40 px (Rico, 2026-10-04: one size, short forms where needed). Its
+// text area is the legend area of a 1u keycap at the board's smallest unit -- 60 px, padded to
+// about 40 px wide, words at 11 px -- so a name fits as it does there: on one line, on two, its
 // short form, then cut; legend_font checks every keycode fits a 1u keycap. The keycap's face,
 // band and colours stay; a header the group's title says is left out (`dropHeader`).
 const TILE = { w: 46, h: 40, pad: 3, letter: 15, pair: 12, words: 11, header: 9, gap: 4 };
 const CELL = TILE.w + TILE.gap, HALF = CELL / 2;
-function compactTile(k, opts, selected) {
+function tileEl(k, opts = {}) {
+  const sel = current(), selected = sel && format(sel) === format(k);
   const T = THEMES[state.theme], cls = classOf(k, 1), face = T[cls], legend = cls === 'accent' ? T.accentLegend : T.legend;
   const d = describe(k, 'picker');
   // Shift and a key types its Shift character: the tile shows that one alone, as VIA's does. The
@@ -1159,7 +1079,6 @@ function compactTile(k, opts, selected) {
   const header = !opts.dropHeader && (d.hold || d.header);
   const bandCat = d.hold ? d.hold.cat : d.header ? d.header.cat : null;
   const w = TILE.w, h = TILE.h, room = w - 2 * TILE.pad;
-  el.dataset.span = 2;
   Object.assign(el.style, { width: w + 'px', height: h + 'px', background: face, border: `1px solid ${T.outline}` });
   if (bandCat) {
     const b = document.createElement('div');
@@ -1186,6 +1105,7 @@ function compactTile(k, opts, selected) {
   }
   if (d.mark) span(el, d.mark, w - 13, h - 15, 10, legend, false, { opacity: 0.55 });
   if (selected) el.style.boxShadow = `inset 0 0 0 2px ${T.selected}`;
+  hook(el, k);
   return el;
 }
 // A tile's tooltip says what a click writes: with the composer holding a hold or modifiers, that
@@ -1195,20 +1115,21 @@ function tipOfPick(k) {
   if (c === k) return tipFor(k);
   return format(c) + '\n' + format(k) + (c.kind === 'mods' ? ', keeping the key\'s modifiers' : ', keeping the key\'s hold');
 }
+// Hover preview: once a tile's tooltip shows, the selected key on the board shows what the click
+// would write, outlined in blue (Rico, 2026-10-04).
 function hook(el, k) {
   el.onclick = () => pick(k);
   const preview = () => {
-    if (state.hoverPreview === 'Off' || state.selected === null || state.justPicked === format(k)) return;
+    if (state.selected === null || state.justPicked === format(k)) return;
     state.preview = composeWithCard(k); renderBoard();
   };
   const unpreview = () => { if (state.justPicked === format(k)) state.justPicked = null; if (state.preview) { state.preview = null; renderBoard(); } };
-  hoverable(el, () => tipOfPick(k), state.hoverPreview === 'With the tooltip' ? preview : null, unpreview);
-  if (state.hoverPreview === 'At once') el.addEventListener('mouseenter', preview);
+  hoverable(el, () => tipOfPick(k), preview, unpreview);
 }
-// A plain key picked while the key card holds a hold or modifiers keeps them: pick A with "Hold:
-// L1" set and the key becomes LT(1, KC_A).
+// A plain key picked while the key holds a hold or modifiers keeps them: pick A with "When held:
+// Layer 1" set and the key becomes LT(1, KC_A).
 function composeWithCard(k) {
-  if (state.composer !== 'On' || state.structure === 'Kind + parameters' || !isBasic(k)) return k;
+  if (!isBasic(k)) return k;
   const cur = current();
   if (!cur) return k;
   if (cur.kind === 'mt') return { kind: 'mt', mods: cur.mods, kc: k.kc };
@@ -1222,23 +1143,14 @@ function pick(k) { state.preview = null; state.popup = null; state.justPicked = 
   write(composeWithCard(k), true); }
 
 // ---------------------------------------------------------------------------------------------
-// The panel: the key card, then the picker in the chosen structure.
+// The panel: the key line, then the tabs. As wide as the board (Rico, 2026-10-04: a panel wider
+// than the board unbalanced the screen, and a section column will come on the left), with a floor
+// so a small board's tabs still fit on one line.
 function renderPanel() {
   const panel = document.getElementById('panel');
   panel.innerHTML = '';
-  // The board's width (Rico, 2026-10-04: a panel wider than the board unbalanced the screen), with
-  // a floor so a small board's tabs still fit on one line.
-  panel.style.maxWidth = state.panelWidth === "Board's" ? Math.max(980, boardWidth()) + 'px' : 'none';
-  panel.style.margin = '0 auto';
-  panel.style.width = '100%';
-  const picker = state.structure === 'Kind + parameters' ? renderKinds() : renderTabs();
-  panel.style.flexDirection = state.cardSide === 'Bar' ? 'column' : 'row';
-  if (state.cardSide === 'Strip') { panel.append(picker); return; }
-  // The bar: the strip's key line, moved over the tabs.
-  if (state.cardSide === 'Bar') { const bar = renderKeyStrip(); bar.classList.add('inpanel'); panel.append(bar, picker); return; }
-  const card = renderCard();
-  if (state.cardSide === 'Right') { card.classList.add('right'); panel.append(picker, card); }
-  else panel.append(card, picker);
+  panel.style.maxWidth = Math.max(980, boardWidth()) + 'px';
+  panel.append(renderKeyLine(), renderTabs());
 }
 function chips(row, values, isOn, onClick, disabled) {
   for (const [label, value] of values) {
@@ -1246,87 +1158,12 @@ function chips(row, values, isOn, onClick, disabled) {
     b.disabled = !!disabled; b.onclick = () => onClick(value); row.appendChild(b);
   }
 }
-function cardRow(card, name) {
-  const r = document.createElement(state.cardSide === 'Bar' ? 'span' : 'div'); r.className = 'row';
-  r.innerHTML = `<span class="name">${name}</span>`; card.appendChild(r); return r;
-}
-function renderCard() {
-  const bar = state.cardSide === 'Bar';
-  const card = document.createElement('div'); card.className = bar ? 'keybar' : 'card';
-  const cur = current();
-  if (state.selected === null) {
-    card.innerHTML = '<span class="where">No key selected.</span><span class="note">Click a key on the board, then a keycode below -- or type one as QMK writes it.</span>';
-    return card;
-  }
-  const key = KEYS[state.selected];
-  card.innerHTML = `<span class="where">Layer ${state.layer} · row ${key.row}, column ${key.col}</span>`;
-  // The side card shows the key larger; the bar does not -- the board's own key is the preview,
-  // and hover preview shows a keycode there before the click.
-  if (!bar) {
-    const preview = document.createElement('div'); preview.className = 'preview';
-    const cap = document.createElement('div'); cap.style.position = 'absolute';
-    drawKeycap(cap, state.preview || cur, { unit: 96, gap: 0, w: Math.min(key.w, 2.25), cls: CLASSES[state.selected], where: 'board',
-                                           fallsTo: fallsTo(state.selected, state.layer) });
-    preview.appendChild(cap); card.appendChild(preview);
-  }
-
-  // The Any entry: the keycode in QMK's words, editable.
-  const input = document.createElement('input'); input.className = 'expr'; input.spellcheck = false;
-  input.value = state.exprDraft !== null ? state.exprDraft : format(cur);
-  input.title = 'Type a keycode as QMK writes it -- LT(1,KC_SPC), MT(MOD_LCTL,KC_A), LCTL(KC_C), MO(2) -- and press Enter';
-  const msg = document.createElement('div'); msg.className = 'msg';
-  const apply = () => { const k = parse(input.value); if (k) write(k, true); else { input.classList.add('bad'); msg.style.color = 'var(--error)'; msg.textContent = 'not a keycode Nazg knows: ' + input.value; } };
-  input.onkeydown = e => { if (e.key === 'Enter') apply(); };
-  input.oninput = () => { state.exprDraft = input.value; input.classList.remove('bad'); };
-  card.appendChild(input);
-  msg.style.color = state.warning ? 'var(--warning)' : 'var(--success)'; msg.textContent = state.message;
-  card.appendChild(msg);
-  if (state.composer !== 'On' || state.structure === 'Kind + parameters') return card;
-
-  // The composer: what happens when held, and the modifiers sent with the key -- shown only where
-  // they apply (Rico, 2026-10-04): with a plain key, or one already holding or modified. A
-  // tap-hold key taps a plain key, so "Sent with" goes while a hold is set.
-  const tapKc = tapOf(cur);
-  if (!tapKc) return card;
-  const hold = cur.kind === 'mt' ? 'mods' : cur.kind === 'lt' ? 'layer' : 'none';
-  const set = k => write(k);
-  const r1 = cardRow(card, 'When held');
-  chips(r1, [['Nothing', 'none'], ['Modifiers', 'mods'], ['Layer', 'layer']], v => v === hold, v => {
-    if (v === 'none') set(B(tapKc));
-    if (v === 'mods') set({ kind: 'mt', mods: { ctrl: true }, kc: tapKc });
-    if (v === 'layer') set({ kind: 'lt', layer: 1, kc: tapKc });
-  });
-  if (hold === 'mods') {
-    const r = cardRow(card, '');
-    chips(r, MOD_NAMES.map(n => [MOD_WORD[n], n]), n => cur.mods[n], n => {
-      const mods = { ...cur.mods, [n]: !cur.mods[n] }; if (modsList(mods).length) set({ ...cur, mods });
-    });
-    const r2 = cardRow(card, '');
-    chips(r2, [['Left', false], ['Right', true]], v => !!cur.mods.right === v, v => set({ ...cur, mods: { ...cur.mods, right: v } }));
-  }
-  if (hold === 'layer') {
-    const r = cardRow(card, '');
-    chips(r, KEYMAP.map((_, n) => ['L' + n, n]), n => cur.layer === n, n => set({ ...cur, layer: n }));
-  }
-  if (hold === 'none') {
-    const sentWith = cur.kind === 'mods' ? cur.mods : {};
-    const r3 = cardRow(card, 'Sent with');
-    chips(r3, MOD_NAMES.map(n => [MOD_WORD[n], n]), n => !!sentWith[n], n => {
-      const mods = { ...sentWith, [n]: !sentWith[n] };
-      set(modsList(mods).length ? { kind: 'mods', mods, kc: tapKc } : B(tapKc));
-    });
-  }
-  // Once something is set, what the next pick does with it.
-  if (cur.kind !== 'basic') {
-    const note = document.createElement('div'); note.className = 'note';
-    note.textContent = hold !== 'none' ? 'Another key picked keeps this hold.' : 'Another key picked keeps these modifiers.';
-    card.appendChild(note);
-  }
-  return card;
-}
-
-function renderKeyStrip() {
-  const bar = document.createElement('div'); bar.className = 'keystrip';
+// The key line, over the tabs (Rico, 2026-10-04): where the key is, the keycode in QMK's words --
+// editable, the Any entry -- and the composer: what happens when held, the modifiers sent with
+// the key, shown only where they apply -- a plain key, or one already holding or modified. Their
+// choices open in small popups, so the line never wraps.
+function renderKeyLine() {
+  const bar = document.createElement('div'); bar.className = 'keyline';
   const cur = current();
   if (state.selected === null) {
     bar.innerHTML = '<span class="where">Click a key to change it.</span>';
@@ -1344,7 +1181,7 @@ function renderKeyStrip() {
   input.oninput = () => { state.exprDraft = input.value; input.classList.remove('bad'); };
   bar.appendChild(input);
   const tapKc = tapOf(cur);
-  if (state.composer === 'On' && state.structure !== 'Kind + parameters' && tapKc) {
+  if (tapKc) {
     const hold = cur.kind === 'mt' ? 'mods' : cur.kind === 'lt' ? 'layer' : 'none';
     const seg = document.createElement('span'); seg.className = 'seg';
     seg.innerHTML = '<span class="name">When held</span>';
@@ -1356,6 +1193,7 @@ function renderKeyStrip() {
     button(hold === 'layer' ? 'Layer ' + cur.layer + ' ▾' : 'Layer', hold === 'layer',
            () => { if (hold !== 'layer') write({ kind: 'lt', layer: 1, kc: tapKc }); state.popup = 'hold-layer'; reopenPopup(); }, 'hold-layer');
     bar.appendChild(seg);
+    // A tap-hold key taps a plain key, so "Sent with" goes while a hold is set.
     if (hold === 'none') {
       const sent = document.createElement('span'); sent.className = 'seg';
       sent.innerHTML = '<span class="name">Sent with</span>';
@@ -1403,6 +1241,7 @@ addEventListener('mousedown', e => {
   if (state.popup && !e.target.closest('.popup') && !e.target.closest('[data-popup]')) { state.popup = null; reopenPopup(); }
 });
 
+// The tabs, each with its category's dot, and one search box across them all.
 function renderTabs() {
   const pickEl = document.createElement('div'); pickEl.className = 'pick';
   const bar = document.createElement('div'); bar.className = 'tabs';
@@ -1432,103 +1271,58 @@ function renderTabs() {
   else {
     const tab = all.find(t => t.id === state.tab);
     if (tab.lighting) { const i = document.createElement('div'); i.className = 'info'; i.innerHTML = FIRMWARE_LINES[state.firmware] + ' Board lighting: ' + state.lighting + '.'; items.appendChild(i); }
-    if (tab.id === 'keys' && state.structure === 'Keyboard tab') renderKeyboard(items);
-    else if (tab.layers && state.items === 'Keycaps') renderLayerTable(items, tab);
-    else renderGroups(items, tab.groups);
+    renderGroups(items, tab.groups);
   }
   pickEl.appendChild(items);
   return pickEl;
-}
-// The label boxes' fill. The tint is the tab's category band colour at 10%; a tab with none, and
-// search results, which mix tabs, take the recessed shade.
-function labelFill() {
-  const T = THEMES[state.theme];
-  if (state.labelFill === 'None') return 'transparent';
-  if (state.labelFill === 'Sage') return T.sage;
-  const tab = !state.search && tabs().find(t => t.id === state.tab);
-  if (state.labelFill === 'Category tint' && tab && tab.cat && state.structure !== 'Kind + parameters') {
-    const c = categoryInk(T.mod, tab.cat, 'band');
-    return `rgba(${[1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16)).join(',')},0.10)`;
-  }
-  return T.labelFill;
 }
 // The header every item of a group shares -- Media, L1 -- which the group's title stands for.
 function sharedHeader(items) {
   const heads = items.map(k => { const d = describe(k, 'picker'); const h = d.hold || d.header; return h ? h.full : null; });
   return heads.length > 1 && heads[0] && heads.every(h => h === heads[0]);
 }
+// Groups flow side by side where they fit (Rico, 2026-10-04: Digits beside Punctuation), each its
+// label then its tiles; a long one takes the width and wraps.
 function renderGroups(parent, groups) {
-  const compact = state.items === 'Compact';
-  // Compact groups flow side by side where they fit (Rico, 2026-10-04: Digits beside
-  // Punctuation), each its label then its tiles; a long one takes the width and wraps.
-  let flow = null;
-  if (compact) {
-    flow = document.createElement('div'); flow.className = 'flow' + (state.labelStyle === 'Box' ? ' boxed' : ''); flow.groups = [];
-    flow.style.setProperty('--label-fill', labelFill());
-    flow.style.setProperty('--label-text', state.labelFill === 'Recessed' ? THEMES[state.theme].labelText : 'var(--muted)');
-    parent.appendChild(flow);
-  }
+  const flow = document.createElement('div'); flow.className = 'flow'; flow.groups = [];
+  parent.appendChild(flow);
   for (const g of groups) {
     if (!g.items.length) continue;
-    const dropHeader = compact && sharedHeader(g.items);
-    if (compact) {
-      // The title beside the row, its first words; the rest on hover. Placed by layoutFlow().
-      const label = document.createElement('div'); label.className = 'glabel';
-      const [title, more] = g.title.split(' -- ');
-      label.textContent = title; if (more) label.title = more;
-      const tiles = g.items.map(k => itemEl(k, { dropHeader }));
-      flow.append(label, ...tiles);
-      flow.groups.push({ label, tiles, spans: tiles.map(t => +t.dataset.span || 1) });
-    } else {
-      const grid = document.createElement('div'); grid.className = 'grid';
-      for (const k of g.items) grid.appendChild(itemEl(k, { dropHeader }));
-      const h = document.createElement('h4'); h.textContent = g.title; parent.appendChild(h);
-      parent.appendChild(grid);
-    }
+    const dropHeader = sharedHeader(g.items);
+    // The title in its box, its first words; the rest on hover. Placed by layoutFlow().
+    const label = document.createElement('div'); label.className = 'glabel';
+    const [title, more] = g.title.split(' -- ');
+    label.textContent = title; if (more) label.title = more;
+    const tiles = g.items.map(k => tileEl(k, { dropHeader }));
+    flow.append(label, ...tiles);
+    flow.groups.push({ label, tiles });
   }
-  if (flow) new ResizeObserver(() => layoutFlow(flow)).observe(flow);
+  new ResizeObserver(() => layoutFlow(flow)).observe(flow);
 }
-// The groups on one grid of cells: a label takes two, a tile its span, and one empty cell parts two
-// groups on a row. A group that does not fit the rest of a row starts the next; one longer than a
-// row wraps, its next rows starting under its first tile.
+// The groups on one grid of cells: a label takes two, a tile one, and no empty cell parts two
+// groups on a row -- the label does. A group that does not fit the rest of a row starts the next;
+// one longer than a row wraps, its next rows starting under its first tile, and its label box
+// spans all its rows (Rico, 2026-10-04).
 function layoutFlow(flow) {
-  // In half cells: a label takes four, and a group starts on an even one.
+  // In half cells: a label takes four, a tile two, and a group starts on an even one.
   const n = 2 * Math.max(6, Math.floor((flow.clientWidth + TILE.gap) / CELL));
   flow.style.gridTemplateColumns = `repeat(${n}, ${HALF - TILE.gap}px)`;
   const place = (el, row, col, span) => { el.style.gridRow = row; el.style.gridColumn = `${col + 1} / span ${span}`; };
   let row = 1, col = 0;
   for (const g of flow.groups) {
-    const cells = 4 + g.spans.reduce((a, b) => a + b, 0);
-    // No empty cell between two groups on a row: the label parts them.
+    const cells = 4 + 2 * g.tiles.length;
     let start = col === 0 ? 0 : col + (col % 2);
     if (col > 0 && start + Math.min(cells, n) > n) { row++; start = 0; }
     const first = row;
     let c = start + 4;
-    g.tiles.forEach((t, i) => {
-      const s = g.spans[i];
-      if (c + s > n) { row++; c = start + 4; }
-      place(t, row, c, s); c += s;
+    g.tiles.forEach(t => {
+      if (c + 2 > n) { row++; c = start + 4; }
+      place(t, row, c, 2); c += 2;
     });
-    // The label: two cells, a tile's height -- or, boxed, every row of its group (Rico, 2026-10-04).
     place(g.label, first, start, 4);
-    if (state.labelStyle === 'Box') g.label.style.gridRow = `${first} / span ${row - first + 1}`;
-    g.label.style.paddingLeft = state.labelStyle === 'Box' || start === 0 ? '' : '10px';
+    g.label.style.gridRow = `${first} / span ${row - first + 1}`;
     col = c;
   }
-}
-// Layers as a table: an operation per row, a layer per column.
-function renderLayerTable(parent, tab) {
-  const h = document.createElement('h4'); h.textContent = 'Layer keys -- and a layer under a key: "When held: Layer" in the key card'; parent.appendChild(h);
-  const table = document.createElement('table'); table.className = 'layers-table';
-  for (const [op, word, label] of LAYER_OPS) {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td class="op" title="${label}">${word}</td>`;
-    KEYMAP.forEach((_, n) => { const td = document.createElement('td'); td.appendChild(itemEl({ kind: 'layer', op, layer: n })); tr.appendChild(td); });
-    const note = document.createElement('td'); note.className = 'op'; note.textContent = label; tr.appendChild(note);
-    table.appendChild(tr);
-  }
-  parent.appendChild(table);
-  renderGroups(parent, tab.groups.slice(LAYER_OPS.length));
 }
 function searchText(k) {
   const d = describe(k, 'picker');
@@ -1543,93 +1337,18 @@ function renderSearch(parent, all) {
     found += items.length;
     renderGroups(parent, [{ title: t.name, items }]);
   }
-  if (!found) parent.innerHTML = `<div class="info">Nothing matches "${state.search}". Type a QMK expression in the key card for anything not listed.</div>`;
-}
-// Vial's Basic tab: the keys drawn as a full-size keyboard, in the host layout.
-function renderKeyboard(parent) {
-  const rows = [
-    [['KC_ESC', 1], [null, 1], ...[1, 2, 3, 4].map(i => ['KC_F' + i, 1]), [null, 0.5], ...[5, 6, 7, 8].map(i => ['KC_F' + i, 1]), [null, 0.5],
-     ...[9, 10, 11, 12].map(i => ['KC_F' + i, 1]), [null, 0.25], ['KC_PSCR', 1], ['KC_SCRL', 1], ['KC_PAUS', 1]],
-    [['KC_GRV', 1], ...'1234567890'.split('').map(c => ['KC_' + c, 1]), ['KC_MINS', 1], ['KC_EQL', 1], ['KC_BSPC', 2], [null, 0.25],
-     ['KC_INS', 1], ['KC_HOME', 1], ['KC_PGUP', 1], [null, 0.25], ['KC_NUM', 1], ['KC_PSLS', 1], ['KC_PAST', 1], ['KC_PMNS', 1]],
-    [['KC_TAB', 1.5], ...'QWERTYUIOP'.split('').map(c => ['KC_' + c, 1]), ['KC_LBRC', 1], ['KC_RBRC', 1], ['KC_BSLS', 1.5], [null, 0.25],
-     ['KC_DEL', 1], ['KC_END', 1], ['KC_PGDN', 1], [null, 0.25], ['KC_P7', 1], ['KC_P8', 1], ['KC_P9', 1], ['KC_PPLS', 1]],
-    [['KC_CAPS', 1.75], ...'ASDFGHJKL'.split('').map(c => ['KC_' + c, 1]), ['KC_SCLN', 1], ['KC_QUOT', 1], ['KC_ENT', 2.25], [null, 3.5],
-     ['KC_P4', 1], ['KC_P5', 1], ['KC_P6', 1], ['KC_PENT', 1]],
-    [['KC_LSFT', 2.25], ...'ZXCVBNM'.split('').map(c => ['KC_' + c, 1]), ['KC_COMM', 1], ['KC_DOT', 1], ['KC_SLSH', 1], ['KC_RSFT', 2.75],
-     [null, 1.25], ['KC_UP', 1], [null, 1.25], ['KC_P1', 1], ['KC_P2', 1], ['KC_P3', 1], ['KC_PDOT', 1]],
-    [['KC_LCTL', 1.25], ['KC_LGUI', 1.25], ['KC_LALT', 1.25], ['KC_SPC', 6.25], ['KC_RALT', 1.25], ['KC_RGUI', 1.25], ['KC_APP', 1.25],
-     ['KC_RCTL', 1.25], [null, 0.25], ['KC_LEFT', 1], ['KC_DOWN', 1], ['KC_RGHT', 1], [null, 0.25], ['KC_P0', 2], ['KC_NUBS', 1], ['KC_NUHS', 1]],
-  ];
-  const width = parent.clientWidth || 1100;
-  const u = state.items === 'Compact' ? 40 : Math.max(40, Math.min(56, Math.floor((width - 40) / 22.75)));
-  const wrap = document.createElement('div'); wrap.style.cssText = `position:relative;height:${6 * u + 0.25 * u}px;margin:4px 0 6px`;
-  rows.forEach((row, r) => {
-    let x = 0;
-    for (const [kc, w] of row) {
-      if (kc) { const el = itemEl(B(kc), { unit: u, w }); el.style.position = 'absolute'; el.style.left = x * u + 'px'; el.style.top = (r * u + (r ? 0.25 * u : 0)) + 'px'; wrap.appendChild(el); }
-      x += w;
-    }
-  });
-  parent.appendChild(wrap);
-  renderGroups(parent, [{ title: 'F13 to F24', items: Array.from({ length: 12 }, (_, i) => B('KC_F' + (i + 13))) },
-                        { title: 'International', items: ['KC_INT1', 'KC_INT2', 'KC_INT3', 'KC_INT4', 'KC_INT5', 'KC_LNG1', 'KC_LNG2'].map(B) },
-                        { title: 'Nothing', items: [TRNS, NO] }]);
-}
-
-// ZMK Studio's way: a kind, then its parameters, each with an editor of its own type.
-const KINDS = [
-  ['key', 'Key'], ['mods', 'Key with modifiers'], ['mt', 'Modifiers when held'], ['lt', 'Layer when held'], 'sep',
-  ['layer', 'Layer key'], ['lm', 'Layer with modifiers'], ['osm', 'One-shot modifiers'], 'sep',
-  ['cmd', 'Command'], ['macro', 'Macro'], ['td', 'Tap dance'], ['special', 'Transparent or none'],
-];
-function renderKinds() {
-  const wrap = document.createElement('div'); wrap.style.cssText = 'flex:1;display:flex;min-width:0';
-  const list = document.createElement('div'); list.className = 'kinds';
-  for (const k of KINDS) {
-    if (k === 'sep') { list.appendChild(Object.assign(document.createElement('div'), { className: 'sep' })); continue; }
-    const el = document.createElement('div'); el.textContent = k[1]; if (k[0] === state.kindTab) el.className = 'on';
-    el.onclick = () => { state.kindTab = k[0]; renderPanel(); };
-    list.appendChild(el);
-  }
-  wrap.appendChild(list);
-  const ed = document.createElement('div'); ed.className = 'items'; ed.style.background = 'var(--window)';
-  const cur = current() || B('KC_A');
-  const params = state.kindParams = state.kindParams || { mods: { ctrl: true }, layer: 1, op: 'MO' };
-  const row = name => { const r = document.createElement('div'); r.className = 'row'; r.style.cssText = 'display:flex;gap:4px;align-items:center;margin:4px 0 8px';
-    r.innerHTML = `<span style="width:90px;color:var(--muted)">${name}</span>`; ed.appendChild(r); return r; };
-  const modsRow = () => chips(row('Modifiers'), MOD_NAMES.map(n => [MOD_WORD[n], n]), n => params.mods[n], n => { params.mods = { ...params.mods, [n]: !params.mods[n] }; if (!modsList(params.mods).length) params.mods[n] = true; renderPanel(); });
-  const layerRow = () => chips(row('Layer'), KEYMAP.map((_, n) => ['L' + n, n]), n => params.layer === n, n => { params.layer = n; renderPanel(); });
-  const keyGrid = build => { const h = document.createElement('h4'); h.textContent = 'Then the key -- click it to write'; ed.appendChild(h);
-    renderGroups(ed, tabs()[0].groups.filter(g => g.items.every(isBasic)).slice(0, 8).map(g => ({ title: g.title, items: g.items.map(build) }))); };
-  switch (state.kindTab) {
-    case 'key': renderGroups(ed, tabs()[0].groups); break;
-    case 'mods': modsRow(); keyGrid(k => ({ kind: 'mods', mods: params.mods, kc: k.kc })); break;
-    case 'mt': modsRow(); keyGrid(k => ({ kind: 'mt', mods: params.mods, kc: k.kc })); break;
-    case 'lt': layerRow(); keyGrid(k => ({ kind: 'lt', layer: params.layer, kc: k.kc })); break;
-    case 'layer': chips(row('Operation'), LAYER_OPS.map(o => [o[1], o[0]]), op => params.op === op, op => { params.op = op; renderPanel(); });
-      layerRow(); renderGroups(ed, [{ title: 'Write it', items: [{ kind: 'layer', op: params.op, layer: params.layer }] }]); break;
-    case 'lm': layerRow(); modsRow(); renderGroups(ed, [{ title: 'Write it', items: [{ kind: 'lm', layer: params.layer, mods: params.mods }] }]); break;
-    case 'osm': modsRow(); renderGroups(ed, [{ title: 'Write it', items: [{ kind: 'osm', mods: params.mods }] }]); break;
-    case 'cmd': renderGroups(ed, tabs().slice(2).flatMap(t => t.groups.map(g => ({ title: t.name + ' -- ' + g.title, items: g.items })))); break;
-    case 'macro': renderGroups(ed, tabs().find(t => t.id === 'macros').groups.filter(g => !/^Tap/.test(g.title))); break;
-    case 'td': renderGroups(ed, tabs().find(t => t.id === 'macros').groups.filter(g => /^Tap/.test(g.title))); break;
-    case 'special': renderGroups(ed, [{ title: 'Nothing', items: [TRNS, NO] }]); break;
-  }
-  wrap.appendChild(ed);
-  return wrap;
+  if (!found) parent.innerHTML = `<div class="info">Nothing matches "${state.search}". Type a QMK expression in the key line for anything not listed.</div>`;
 }
 
 function renderNotes() {
   document.getElementById('notes').innerHTML = [
-    '<p><b>Try</b>: click a key on the board, then a keycode -- it is written at once, as Nazg does. With the composer, click Caps Lock: it holds Ctrl, taps Esc. Pick another key and the hold stays: the key card shapes every pick, so LT(1, KC_SPC) is "When held: Layer, L1", then Space -- one step, where Vial takes two. Type in the expression box -- <code>LT(2,KC_A)</code>, <code>C(S(KC_T))</code>, <code>OSM(MOD_LSFT)</code> -- and press Enter.</p>',
-    '<p><b>Structure</b>. <b>Tabs</b>: categories as VIA and Vial have them, each with its colour; the search box looks through every tab. <b>Keyboard tab</b>: the Keys tab drawn as a full-size keyboard in the host layout, as Vial\'s Basic tab -- quick to find a key by its place, but it takes the panel\'s whole height. <b>Kind + parameters</b>: ZMK Studio\'s model -- the kind first, then its parameters; every keycode is reachable without an expression, at the cost of a click more for the common ones.</p>',
-    '<p><b>Items</b>: <b>Compact</b> tiles, 38 px tall -- the keycap\'s face, band and colours, as wide as their words, a header left out where the group\'s title says it, the title beside the row -- or keycaps drawn exactly as the board draws them, or text buttons as today. <b>Key card</b>: on the right, as an inspector -- the palette starts under the board\'s left edge, where the eye starts -- or on the left. Its "When held" and "Sent with" rows show only where they apply: with a plain key, or one already holding or modified.</p>',
-    '<p><b>Hover preview</b>: the selected key on the board shows the keycode under the mouse, outlined in blue, before the click -- what the click will write, composer included, which the tile alone does not show; its tooltip says it too. <b>With the tooltip</b>, decided (Rico, 2026-10-04), it waits for ImGui\'s tooltip timing -- the mouse resting 0.15 s, then none while moving on to the next tile -- so sweeping across the panel to reach a tile leaves the board still; <b>at once</b> shows how much the board then flickers, in the corner of the eye. <b>After a pick</b>, decided (Rico, 2026-10-04): the selection <b>stays</b> on the key, as ZMK Studio\'s; <b>moving to the next key</b>, as Vial always does and VIA by default (its Fast Key Mapping; turned off, VIA deselects), is only a user preference in Settings, off by default. Next key fills a row in one click a key instead of two -- but the writes are live and there is no undo, so a second click meant to correct the pick lands, written, on the key after. With the setting on, the next key is in board order, and past the last key the selection clears rather than wrapping round to the first; the key just written flashes, and the message names it. Try it: Next key, then pick twice in a row.</p>',
-    '<p><b>Height</b>: every pixel the panel takes comes out of the board, which grows until its area\'s width or height stops it. The key\'s line first sat in the strip row, beside the layers, at no height of its own; with the tiles compact it moved back over the tabs (Rico, 2026-10-04), next to the keycodes it shapes, the panel growing by its row -- its choices still in small popups, so it never wraps; "Sent with" starts with None, back to the plain key in one click. And a <b>splitter</b> under the board shares the height: drag it, and Nazg would remember where. It stops where the board would fall below 60 px a unit, its legibility floor; the panel keeps at least 200 px -- three rows of tiles under the tabs.</p>',
-    '<p><b>Tabs</b>, a draft of names and contents. <b>Keys</b>: what a stock keyboard has, plus Shift and a key in one click -- VIA\'s symbols, for a symbol layer -- and Transparent and None. <b>Layers</b>: the seven operations for each layer the board has, one-shot modifiers, layer lock and tri layer. <b>Media &amp; mouse</b>, one tab (Rico, 2026-10-04), as Vial\'s App, Media and Mouse: media, volume, screen, system, apps, web, then the mouse. <b>Lighting</b>: by the lighting policy, and absent when the definition declares none. <b>Features</b>: QMK features that change how keys behave. <b>Macros</b>: keys that play what is set elsewhere, as many as the board has -- macros, then tap dances (Rico, 2026-10-04: kept here, by the macros, though a tap dance is drawn in Behaviour\'s violet), then dynamic macros. <b>Special</b> (Rico, 2026-10-04; VIA\'s word): the settings kept on the board -- QMK\'s Magic keycodes, a group per swap so each reads Swap, Unswap, On/Off, then Win key, NKRO, EE Hands, audio, clicky, music mode, haptic, the Unicode input mode, the output and Bluetooth. <b>Custom</b>: the keys the firmware\'s own code handles -- the board\'s, QK_KB_n, by the names its definition gives them (416 of VIA\'s 3513 definitions name some, Keychron\'s macOS keys the commonest) or else numbered -- VIA\'s Custom, and what Vial calls User -- then the keymap\'s, QMK\'s real user range, which neither app offers. <b>Devices</b>: the board acting as another device -- MIDI, the sequencer, steno, joystick, programmable buttons; MIDI and steno tiles drop the MI_ and ST_ their group says. <b>Firmware</b>, last and apart: the keys that can hurt. No catch-all: the rarer HID keys and the rest of International went to the end of Keys, where a key is looked for. Every keycode of the board\'s version is in a tab -- the commands with the app\'s own words, from NazgCommandTable.cpp -- and search finds them all. <b>A group is left out when the board says it cannot work</b>: lighting by the definition, the macro and tap dance counts, Vial\'s feature bits -- switch Protocol: the mock Vial board has no Layer Lock and no Repeat. What nothing tells -- audio, haptic, Unicode, steno -- is offered, as Vial and VIA do. A tab left empty goes: Board lighting None.</p>',
+    '<p><b>Try</b>: click a key on the board, then a keycode -- it is written at once, as Nazg does. Click Caps Lock: it holds Ctrl, taps Esc. Pick another key and the hold stays: the key line shapes every pick, so LT(1, KC_SPC) is "When held: Layer", then Space -- one step, where Vial takes two. Type in the expression box -- <code>LT(2,KC_A)</code>, <code>C(S(KC_T))</code>, <code>OSM(MOD_LSFT)</code> -- and press Enter.</p>',
+    '<p><b>The picker</b>, settled with Rico on 2026-10-04 -- the alternatives it was chosen from are in this file\'s history. <b>Tabs</b> by category, each with its colour, and one search box through them all. <b>Tiles</b>, every one 1u, 46 x 40 px: the keycap\'s face, band and colours, words at a 1u keycap\'s legend size at the board\'s smallest unit, so every name fits as legend_font checks it does there; a header the group\'s title says is left out. Groups pack side by side on one grid, each title in a box spanning its rows.</p>',
+    '<p><b>The key line</b>, over the tabs, next to the keycodes it shapes: where the key is, its keycode in QMK\'s words -- editable, the Any entry -- and the composer. "When held" Nothing, Modifiers or Layer, and "Sent with" -- None first -- open in small popups, so the line never wraps; they show only where they apply, with a plain key or one already holding or modified. A tile picked keeps the key\'s hold or modifiers, and its tooltip says what the click writes.</p>',
+    '<p><b>Hover preview</b>: once a tile\'s tooltip shows -- ImGui\'s timing, the mouse resting 0.15 s, then none while moving on to the next tile -- the selected key on the board shows what the click would write, outlined in blue; sweeping across the panel to reach a tile leaves the board still. <b>After a pick</b> the selection stays on the key, as ZMK Studio\'s; moving to the next key, as Vial always does and VIA by default, is only a user preference in Settings, off by default: the writes are live and there is no undo, so a second click meant to correct a pick would land, written, on the key after. With it on, the next key is in board order, the selection clears past the last key, the key just written flashes and the message names it.</p>',
+    '<p><b>Height and width</b>: every pixel the panel takes comes out of the board, which grows until its area\'s width or height stops it. A <b>splitter</b> under the board shares the height -- drag it, and Nazg would remember where; it stops where the board would fall below 60 px a unit, its legibility floor, and the panel keeps the key line and three rows of tiles. The panel is as wide as the board, at least 980 px, so board and picker read as one column, with room kept for a section column on the left.</p>',
+    '<p><b>Tabs</b>. <b>Keys</b>: what a stock keyboard has, plus Shift and a key in one click -- VIA\'s symbols, for a symbol layer -- the rarer HID keys last, and Transparent and None. <b>Layers</b>: the seven operations for each layer the board has, one-shot modifiers, layer lock and tri layer. <b>Media &amp; mouse</b>, as Vial\'s App, Media and Mouse. <b>Lighting</b>: by the lighting policy, and absent when the definition declares none. <b>Features</b>: QMK features that change how keys behave. <b>Macros</b>: keys that play what is set elsewhere, as many as the board has -- macros, tap dances, dynamic macros. <b>Special</b>, VIA\'s word: the settings kept on the board -- QMK\'s Magic keycodes, a group per swap, Win key, NKRO, EE Hands, audio, clicky, music mode, haptic, the Unicode input mode, the output and Bluetooth. <b>Custom</b>, on every board: the keys the firmware\'s own code handles -- the board\'s, QK_KB_n, by the names its definition gives them (416 of VIA\'s 3513 definitions name some; Own keys: Keychron) or else numbered -- VIA\'s Custom, and what Vial calls User -- then the keymap\'s, QMK\'s user range. <b>Devices</b>: the board acting as another device -- MIDI, the sequencer, steno, joystick, programmable buttons; MIDI and steno tiles drop the MI_ and ST_ their group says. <b>Firmware</b>, last and apart: the keys that can hurt. Every keycode of the board\'s version is in a tab -- the commands with the app\'s own words, from NazgCommandTable.cpp -- and search finds them all. <b>A group is left out when the board says it cannot work</b>: lighting by the definition, the macro and tap dance counts, Vial\'s feature bits -- switch Protocol: the mock Vial board has no Layer Lock and no Repeat. What nothing tells -- audio, haptic, Unicode, steno -- is offered, as Vial and VIA do.</p>',
     '<p><b>Lighting</b>: switch Firmware and Board lighting to see what the Lighting tab offers -- one set on old and unknown firmware, a set per system on new, the RGB_M modes on old only; hover tells what a key drives where it is not obvious (ui-design.md, "Which lighting keycodes a board gets").</p>',
-    '<p><b>To decide</b>: the structure; keycaps or text; whether the key card\'s composer and its expression box replace the Any dialog; and the tabs\' names and contents, drafted above.</p>',
   ].join('');
 }
 
