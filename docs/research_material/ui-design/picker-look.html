@@ -37,6 +37,7 @@ button:disabled{opacity:.45;cursor:default}
 .splitter::after{content:'';width:56px;height:4px;border-radius:2px;background:var(--border)}
 .splitter:hover::after,.splitter.drag::after{background:var(--ui-accent)}
 .keystrip{display:flex;align-items:center;gap:6px 12px;margin-left:28px;padding-left:16px;border-left:1px solid var(--border);flex-wrap:wrap}
+.keystrip.inpanel{margin:0;padding:6px 12px;border-left:none;border-bottom:1px solid var(--border);min-height:41px;flex:none}
 .keystrip .where{color:var(--muted)}
 .keystrip input.expr{width:320px;font:13px Consolas,"Cascadia Mono",monospace;padding:4px 7px;border:1px solid var(--border);border-radius:4px;background:var(--control);color:var(--text)}
 .keystrip input.expr.bad{border-color:var(--error)}
@@ -936,7 +937,7 @@ function tabs() {
 // ---------------------------------------------------------------------------------------------
 // State and controls.
 const state = {
-  theme: 'Light', structure: 'Tabs', items: 'Compact', labelStyle: 'Box', labelFill: 'Recessed', cardSide: 'Strip', panelWidth: "Board's", split: 0.62, popup: null, unit: 56, composer: 'On', hoverPreview: 'With the tooltip', advance: 'Stay', flash: null, justPicked: null,
+  theme: 'Light', structure: 'Tabs', items: 'Compact', labelStyle: 'Box', labelFill: 'Recessed', cardSide: 'Bar', panelWidth: "Board's", split: 0.62, popup: null, unit: 56, composer: 'On', hoverPreview: 'With the tooltip', advance: 'Stay', flash: null, justPicked: null,
   host: 'US', firmware: 'Unknown', lighting: 'Underglow + RGB Matrix', protocol: 'Vial 6', ownKeys: 'None',
   layer: 0, selected: null, tab: 'keys', search: '', preview: null, message: '', warning: false, kindTab: 'key',
   exprDraft: null,
@@ -952,7 +953,9 @@ const CONTROLS = [
   // The key as a bar over the tabs (Rico, 2026-10-04): the expression box wide, no preview -- the
   // board's key is one. Or a card on the right, as an inspector, or on the left as first drawn.
   // In the strip row (Rico, 2026-10-04): beside the layers, so it costs the board no height.
-  ['cardSide', 'Key card', ['Strip', 'Bar', 'Right', 'Left']],
+  // Bar, the default since (Rico, 2026-10-04): the same line, popups and all, in the panel right
+  // over the tabs -- nearer the keycodes it shapes, and affordable now the tiles are compact.
+  ['cardSide', 'Key card', ['Bar', 'Strip', 'Right', 'Left']],
   // Group labels: an outlined box two cells wide, spanning its group's rows -- or plain text.
   ['labelStyle', 'Group labels', ['Box', 'Plain']],
   // The box's fill: a recessed neutral -- darker than the panel on Light, lighter on Dark, never a
@@ -1060,7 +1063,9 @@ function layout() {
   const height = Math.max(560, window.innerHeight - top);
   app.style.height = height + 'px';
   const avail = height - strip.offsetHeight - 10 - 12 - 8;
-  const boardH = Math.round(Math.min(Math.max(state.split * avail, BOARD_MIN), avail - PANEL_MIN));
+  // The key line over the tabs takes a row of its own: the panel keeps three rows of tiles still.
+  const panelMin = PANEL_MIN + (state.cardSide === 'Bar' ? 41 : 0);
+  const boardH = Math.round(Math.min(Math.max(state.split * avail, BOARD_MIN), avail - panelMin));
   document.getElementById('boardarea').style.height = boardH + 'px';
   const width = app.clientWidth - 32;
   state.unit = Math.max(24, Math.min(96, width / 15.7, (boardH - 4) / 5.7));
@@ -1225,9 +1230,10 @@ function renderPanel() {
   const picker = state.structure === 'Kind + parameters' ? renderKinds() : renderTabs();
   panel.style.flexDirection = state.cardSide === 'Bar' ? 'column' : 'row';
   if (state.cardSide === 'Strip') { panel.append(picker); return; }
+  // The bar: the strip's key line, moved over the tabs.
+  if (state.cardSide === 'Bar') { const bar = renderKeyStrip(); bar.classList.add('inpanel'); panel.append(bar, picker); return; }
   const card = renderCard();
-  if (state.cardSide === 'Bar') panel.append(card, picker);
-  else if (state.cardSide === 'Right') { card.classList.add('right'); panel.append(picker, card); }
+  if (state.cardSide === 'Right') { card.classList.add('right'); panel.append(picker, card); }
   else panel.append(card, picker);
 }
 function chips(row, values, isOn, onClick, disabled) {
@@ -1376,9 +1382,14 @@ function reopenPopup() {
     chips(row(), KEYMAP.map((_, n) => ['L' + n, n]), n => cur.layer === n, n => write({ ...cur, layer: n }));
   } else if (state.popup === 'sent' && tapKc) {
     const mods = cur.kind === 'mods' ? cur.mods : {};
+    // None first: back to the plain key in one click (Rico, 2026-10-04) -- a tile picked keeps
+    // the modifiers, so without it the way back was a click per modifier.
+    chips(row(), [['None', null]], () => cur.kind !== 'mods', () => { if (cur.kind === 'mods') write(B(tapKc)); });
     chips(row(), MOD_NAMES.map(n => [MOD_WORD[n], n]), n => !!mods[n], n => {
       const next = { ...mods, [n]: !mods[n] }; write(modsList(next).length ? { kind: 'mods', mods: next, kc: tapKc } : B(tapKc)); });
-    chips(row(), [['Left', false], ['Right', true]], v => !!mods.right === v, v => { if (cur.kind === 'mods') write({ ...cur, mods: { ...mods, right: v } }); });
+    // A side only means something with a modifier on.
+    chips(row(), [['Left', false], ['Right', true]], v => cur.kind === 'mods' && !!mods.right === v,
+          v => { if (cur.kind === 'mods') write({ ...cur, mods: { ...mods, right: v } }); }, cur.kind !== 'mods');
   } else { state.popup = null; return; }
   const r = anchor.getBoundingClientRect();
   Object.assign(pop.style, { left: r.left + window.scrollX + 'px', top: r.bottom + window.scrollY + 4 + 'px' });
@@ -1611,7 +1622,7 @@ function renderNotes() {
     '<p><b>Structure</b>. <b>Tabs</b>: categories as VIA and Vial have them, each with its colour; the search box looks through every tab. <b>Keyboard tab</b>: the Keys tab drawn as a full-size keyboard in the host layout, as Vial\'s Basic tab -- quick to find a key by its place, but it takes the panel\'s whole height. <b>Kind + parameters</b>: ZMK Studio\'s model -- the kind first, then its parameters; every keycode is reachable without an expression, at the cost of a click more for the common ones.</p>',
     '<p><b>Items</b>: <b>Compact</b> tiles, 38 px tall -- the keycap\'s face, band and colours, as wide as their words, a header left out where the group\'s title says it, the title beside the row -- or keycaps drawn exactly as the board draws them, or text buttons as today. <b>Key card</b>: on the right, as an inspector -- the palette starts under the board\'s left edge, where the eye starts -- or on the left. Its "When held" and "Sent with" rows show only where they apply: with a plain key, or one already holding or modified.</p>',
     '<p><b>Hover preview</b>: the selected key on the board shows the keycode under the mouse, outlined in blue, before the click -- what the click will write, composer included, which the tile alone does not show; its tooltip says it too. <b>With the tooltip</b>, decided (Rico, 2026-10-04), it waits for ImGui\'s tooltip timing -- the mouse resting 0.15 s, then none while moving on to the next tile -- so sweeping across the panel to reach a tile leaves the board still; <b>at once</b> shows how much the board then flickers, in the corner of the eye. <b>After a pick</b>, decided (Rico, 2026-10-04): the selection <b>stays</b> on the key, as ZMK Studio\'s; <b>moving to the next key</b>, as Vial always does and VIA by default (its Fast Key Mapping; turned off, VIA deselects), is only a user preference in Settings, off by default. Next key fills a row in one click a key instead of two -- but the writes are live and there is no undo, so a second click meant to correct the pick lands, written, on the key after. With the setting on, the next key is in board order, and past the last key the selection clears rather than wrapping round to the first; the key just written flashes, and the message names it. Try it: Next key, then pick twice in a row.</p>',
-    '<p><b>Height</b>: every pixel the panel takes comes out of the board, which grows until its area\'s width or height stops it. So the key\'s line sits in the strip row, beside the layers -- no height of its own -- its choices in small popups so the row never wraps; and a <b>splitter</b> under the board shares the height: drag it, and Nazg would remember where. It stops where the board would fall below 60 px a unit, its legibility floor; the panel keeps at least 200 px -- three rows of tiles under the tabs.</p>',
+    '<p><b>Height</b>: every pixel the panel takes comes out of the board, which grows until its area\'s width or height stops it. The key\'s line first sat in the strip row, beside the layers, at no height of its own; with the tiles compact it moved back over the tabs (Rico, 2026-10-04), next to the keycodes it shapes, the panel growing by its row -- its choices still in small popups, so it never wraps; "Sent with" starts with None, back to the plain key in one click. And a <b>splitter</b> under the board shares the height: drag it, and Nazg would remember where. It stops where the board would fall below 60 px a unit, its legibility floor; the panel keeps at least 200 px -- three rows of tiles under the tabs.</p>',
     '<p><b>Tabs</b>, a draft of names and contents. <b>Keys</b>: what a stock keyboard has, plus Shift and a key in one click -- VIA\'s symbols, for a symbol layer -- and Transparent and None. <b>Layers</b>: the seven operations for each layer the board has, one-shot modifiers, layer lock and tri layer. <b>Media &amp; mouse</b>, one tab (Rico, 2026-10-04), as Vial\'s App, Media and Mouse: media, volume, screen, system, apps, web, then the mouse. <b>Lighting</b>: by the lighting policy, and absent when the definition declares none. <b>Features</b>: QMK features that change how keys behave. <b>Macros</b>: keys that play what is set elsewhere, as many as the board has -- macros, then tap dances (Rico, 2026-10-04: kept here, by the macros, though a tap dance is drawn in Behaviour\'s violet), then dynamic macros. <b>Special</b> (Rico, 2026-10-04; VIA\'s word): the settings kept on the board -- QMK\'s Magic keycodes, a group per swap so each reads Swap, Unswap, On/Off, then Win key, NKRO, EE Hands, audio, clicky, music mode, haptic, the Unicode input mode, the output and Bluetooth. <b>Custom</b>: the keys the firmware\'s own code handles -- the board\'s, QK_KB_n, by the names its definition gives them (416 of VIA\'s 3513 definitions name some, Keychron\'s macOS keys the commonest) or else numbered -- VIA\'s Custom, and what Vial calls User -- then the keymap\'s, QMK\'s real user range, which neither app offers. <b>Devices</b>: the board acting as another device -- MIDI, the sequencer, steno, joystick, programmable buttons; MIDI and steno tiles drop the MI_ and ST_ their group says. <b>Firmware</b>, last and apart: the keys that can hurt. No catch-all: the rarer HID keys and the rest of International went to the end of Keys, where a key is looked for. Every keycode of the board\'s version is in a tab -- the commands with the app\'s own words, from NazgCommandTable.cpp -- and search finds them all. <b>A group is left out when the board says it cannot work</b>: lighting by the definition, the macro and tap dance counts, Vial\'s feature bits -- switch Protocol: the mock Vial board has no Layer Lock and no Repeat. What nothing tells -- audio, haptic, Unicode, steno -- is offered, as Vial and VIA do. A tab left empty goes: Board lighting None.</p>',
     '<p><b>Lighting</b>: switch Firmware and Board lighting to see what the Lighting tab offers -- one set on old and unknown firmware, a set per system on new, the RGB_M modes on old only; hover tells what a key drives where it is not obvious (ui-design.md, "Which lighting keycodes a board gets").</p>',
     '<p><b>To decide</b>: the structure; keycaps or text; whether the key card\'s composer and its expression box replace the Any dialog; and the tabs\' names and contents, drafted above.</p>',
