@@ -1149,7 +1149,8 @@ const CELL = TILE.w + TILE.gap, HALF = CELL / 2;
 function compactTile(k, opts, selected) {
   const T = THEMES[state.theme], cls = classOf(k, 1), face = T[cls], legend = cls === 'accent' ? T.accentLegend : T.legend;
   const d = describe(k, 'picker');
-  // Shift and a key types its Shift character: the tile shows that one alone, as VIA's does.
+  // Shift and a key types its Shift character: the tile shows that one alone, as VIA's does. The
+  // board keeps the general rule -- "Shift+" over the pair (Rico, 2026-10-04: it reads fine).
   if (k.kind === 'mods' && modsList(k.mods).join() === 'shift' && d.shifted) { d.plain = d.shifted; d.shifted = undefined; }
   const el = document.createElement('div'); el.className = 'tile';
   const header = !opts.dropHeader && (d.hold || d.header);
