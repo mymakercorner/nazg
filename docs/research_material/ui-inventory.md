@@ -49,7 +49,8 @@ With no board: a "No devices detected" label.
 - The board, centred and scrollable, above a **tabbed keycode palette**. The manual calls
   them the "top palette" and the "bottom palette".
 - Click a key, then click a keycode: it is written at once, and **selection advances to the
-  next key**. Clicking empty space deselects.
+  next key** -- always, by position (top to bottom, then left to right), wrapping from the last
+  key to the first (`KeyboardWidget.select_next()`). Clicking empty space deselects.
 - **Double-click** a key, or "Any" in the palette, opens the **Any key** dialog: type a QMK
   expression (`LT(1,KC_A)`, `RALT(RSFT(KC_A))`) or a raw hex value.
 - Palette tabs: Basic · ISO/JIS · Layers · Quantum · Backlight · App, Media and Mouse · MIDI ·
@@ -114,7 +115,8 @@ that drops down a list of connected boards to switch between.
 - **Design**: load a draft definition, pick which one draws the board, show the matrix,
   V2 compatibility — the definition author's workbench.
 - **Settings**: Show Design tab · Show HID Console tab · **Fast Key Mapping** (the same
-  auto-advance Vial does) · Slider Mode · Light Mode · Keycap Theme · Render Mode (2D/3D) ·
+  auto-advance Vial does, on by default, row by row; past the last key, and after every pick
+  when it is off, the selection is cleared rather than kept -- `getNextKey()`) · Slider Mode · Light Mode · Keycap Theme · Render Mode (2D/3D) ·
   Show Diagnostic Information.
 
 ---
