@@ -68,6 +68,15 @@ namespace nazg
         // group titles are words in the host's modifier names.
         const std::vector<CatalogueTab>& Catalogue();
 
+        // The key line over the tabs (ui-design.md, "The key line"): where the key is, its keycode
+        // in QMK's words -- editable, the Any entry -- and the composer, whose choices open in
+        // popups and are written at once.
+        void DrawKeyLine(const Keycode& current);
+        void DrawComposer(const Keycode& current);
+
+        // Writes `keycode` to the selected key, unless a write is still running.
+        void Write(const Keycode& keycode);
+
         uint8_t                m_Layer = 0;
         std::optional<uint8_t> m_Peek;   // a layer hovered in the strip, shown meanwhile
         std::optional<Cell> m_Selected;
@@ -78,6 +87,13 @@ namespace nazg
 
         // What a click on the tile under the mouse would write, shown on the selected key meanwhile.
         std::optional<Keycode> m_Preview;
+
+        // The expression box: what is typed, and what it was last filled from -- the selected key's
+        // keycode, refilled when that changes and the box is not being typed in.
+        char        m_Expression[128] = {};
+        std::string m_ExpressionFor;
+        std::string m_ExpressionError;   // why Enter wrote nothing, outlining the box
+        bool        m_ExpressionEditing = false;   // the box had the keyboard last frame
 
         Task<void>  m_Write;
         bool        m_IsWriting = false;

@@ -3,13 +3,18 @@
 
 #include "NazgKeymapSection.h"
 
+#include <algorithm>
+#include <array>
+#include <cstdio>
 #include <exception>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <variant>
 
 #include "imgui.h"
 
+#include "adapters/qmk/NazgQmkExpression.h"
 #include "adapters/qmk/NazgQmkKeycodeCodec.h"
 #include "adapters/qmk/NazgQmkKeycodes.h"
 #include "adapters/via/NazgViaKeymap.h"
@@ -143,25 +148,20 @@ namespace nazg
 
     void KeymapSection::DrawPanel()
     {
-        if (!m_Selected)
-        {
-            ImGui::TextUnformatted("Click a key to change it.");
-        }
-        else
-        {
-            ImGui::Text("Layer %d, row %d, column %d: %s", m_Layer, m_Selected->row, m_Selected->column,
-                        FormatKeycode(m_Keyboard.keymap.At(m_Layer, m_Selected->row, m_Selected->column)).c_str());
-
-            if (m_IsWriting)
-                ImGui::TextUnformatted("writing...");
-            else if (!m_Message.empty())
-                ColouredText(m_IsWarning ? PanelColour::Warning : PanelColour::Success, "%s", m_Message.c_str());
-        }
-
-        // Always shown, as the design has it; a keycode clicked with no key selected does nothing.
         std::optional<Keycode> current;
         if (m_Selected)
             current = m_Keyboard.keymap.At(m_Layer, m_Selected->row, m_Selected->column);
+
+        if (current)
+            DrawKeyLine(*current);
+        else
+        {
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextDisabled("Click a key to change it.");
+        }
+        ImGui::Separator();
+
+        // Always shown, as the design has it; a keycode clicked with no key selected does nothing.
 
         const std::vector<Words> custom = CustomKeycodeWordsOf(m_Keyboard);
         const LegendContext      context{ m_Legends.Layout(), m_Legends.modifierNames, KeySide::Neither,
@@ -173,11 +173,269 @@ namespace nazg
         ImGui::EndDisabled();
         m_Preview = events.preview;
 
+        // A pick keeps the key's hold or modifiers.
+        if (events.picked && current)
+            Write(ComposeWithKey(*events.picked, *current, m_Keyboard.keycodeVersion));
+    }
+
+    void KeymapSection::Write(const Keycode& keycode)
+    {
         // Never replace a Task still running: destroying it would free a coroutine frame the
-        // transport still holds a handle to. A pick keeps the key's hold or modifiers.
-        if (events.picked && m_Selected && !IsBusy())
-            m_Write = WriteKey(m_Layer, *m_Selected, ComposeWithKey(*events.picked, *current, m_Keyboard.keycodeVersion),
-                               m_Keyboard.keycodeVersion);
+        // transport still holds a handle to.
+        if (m_Selected && !IsBusy())
+            m_Write = WriteKey(m_Layer, *m_Selected, keycode, m_Keyboard.keycodeVersion);
+    }
+
+    namespace
+    {
+        // A tap-hold's or a modified key's tap, or a plain key itself: what the composer shapes.
+        // Only a basic keycode -- QMK's bottom byte, from KC_A -- can be one.
+        std::optional<std::string_view> TapOf(const Keycode& keycode, QmkKeycodeVersion version)
+        {
+            if (const auto* modTap = std::get_if<ModTapKey>(&keycode))
+                return modTap->key;
+            if (const auto* layerTap = std::get_if<LayerTapKey>(&keycode))
+                return layerTap->key;
+            if (const auto* modified = std::get_if<ModifiedKey>(&keycode))
+                return modified->key;
+            if (const auto* named = std::get_if<NamedKey>(&keycode))
+                if (const QmkKeycode* row = FindQmkKeycodeByName(named->name, version);
+                    row != nullptr && row->value >= 0x04 && row->value <= 0xFF)
+                    return named->name;
+            return std::nullopt;
+        }
+
+        // The four modifiers by the host's names, each as a bit on either side.
+        struct Modifier
+        {
+            uint8_t     left;
+            uint8_t     right;
+            const char* name;
+        };
+
+        std::array<Modifier, 4> ModifiersFor(ModifierNames names)
+        {
+            const bool mac = names == ModifierNames::Mac;
+            return { { { Mod::LeftCtrl, Mod::RightCtrl, "Ctrl" },
+                       { Mod::LeftShift, Mod::RightShift, "Shift" },
+                       { Mod::LeftAlt, Mod::RightAlt, mac ? "Option" : "Alt" },
+                       { Mod::LeftGui, Mod::RightGui, mac ? "Cmd" : names == ModifierNames::Linux ? "Super" : "Win" } } };
+        }
+
+        bool IsRight(uint8_t mods) { return (mods & 0xF0) != 0; }
+
+        // A toggle in a popup or on the line: on, it looks pressed.
+        bool Toggle(const char* label, bool on, bool enabled = true)
+        {
+            ImGui::BeginDisabled(!enabled);
+            if (on)
+                ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+            const bool clicked = ImGui::Button(label);
+            if (on)
+                ImGui::PopStyleColor();
+            ImGui::EndDisabled();
+            return clicked;
+        }
+
+        // Its popup opens under the button just drawn.
+        void OpenUnder(const char* popup)
+        {
+            ImGui::SetNextWindowPos(ImVec2(ImGui::GetItemRectMin().x, ImGui::GetItemRectMax().y));
+            ImGui::OpenPopup(popup);
+        }
+
+        // The modifier toggles and the side, editing `mods` -- one at least stays on unless `none`
+        // is offered. Returns the new set when something was clicked.
+        std::optional<uint8_t> ModifierChoices(uint8_t mods, ModifierNames names, bool none)
+        {
+            std::optional<uint8_t> changed;
+            const bool             right = IsRight(mods);
+
+            if (none)
+            {
+                if (Toggle("None", mods == 0) && mods != 0)
+                    changed = uint8_t{ 0 };
+            }
+
+            const std::array<Modifier, 4> modifiers = ModifiersFor(names);
+            for (size_t index = 0; index < modifiers.size(); ++index)
+            {
+                const Modifier& modifier = modifiers[index];
+                if (none || index > 0)
+                    ImGui::SameLine();
+                const uint8_t bit = right ? modifier.right : modifier.left;
+                if (Toggle(modifier.name, (mods & bit) != 0))
+                {
+                    const uint8_t next = static_cast<uint8_t>(mods ^ bit);
+                    if (next != 0 || none)
+                        changed = next;
+                }
+            }
+
+            // QMK holds one side only: the side moves every modifier set.
+            if (Toggle("Left", mods != 0 && !right, mods != 0) && right)
+                changed = static_cast<uint8_t>(mods >> 4);
+            ImGui::SameLine();
+            if (Toggle("Right", mods != 0 && right, mods != 0) && !right)
+                changed = static_cast<uint8_t>(mods << 4);
+            return changed;
+        }
+    }
+
+    void KeymapSection::DrawKeyLine(const Keycode& current)
+    {
+        const QmkKeycodeVersion version = m_Keyboard.keycodeVersion;
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Row %d, column %d", m_Selected->row, m_Selected->column);
+        ImGui::SameLine();
+
+        // The Any entry: refilled from the key whenever it changes and nobody is typing.
+        const std::string formatted = FormatKeycode(current) + "@" + std::to_string(m_Layer) + "," +
+                                      std::to_string(m_Selected->row) + "," + std::to_string(m_Selected->column);
+        if (formatted != m_ExpressionFor && !m_ExpressionEditing)
+        {
+            const std::string text = FormatKeycode(current);
+            std::snprintf(m_Expression, sizeof(m_Expression), "%s", text.c_str());
+            m_ExpressionFor = formatted;
+            m_ExpressionError.clear();
+        }
+
+        const bool bad = !m_ExpressionError.empty();
+        if (bad)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Border, ColourOf(PanelColour::Error));
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, std::max(1.0f, ImGui::GetStyle().FontScaleDpi));
+        }
+        ImGui::SetNextItemWidth(ImGui::CalcTextSize("MT(MOD_LCTL|MOD_LSFT,KC_A)").x + 2 * ImGui::GetStyle().FramePadding.x);
+        ImGui::BeginDisabled(IsBusy());
+        const bool entered = ImGui::InputText("##expression", m_Expression, sizeof(m_Expression),
+                                              ImGuiInputTextFlags_EnterReturnsTrue);
+        ImGui::EndDisabled();
+        if (bad)
+        {
+            ImGui::PopStyleVar();
+            ImGui::PopStyleColor();
+        }
+        m_ExpressionEditing = ImGui::IsItemActive();
+        if (ImGui::IsItemEdited())
+            m_ExpressionError.clear();
+        ImGui::SetItemTooltip("Type a keycode as QMK writes it -- LT(1,KC_SPC), MT(MOD_LCTL,KC_A),\n"
+                              "C(S(KC_T)), OSM(MOD_LSFT), MO(2) -- and press Enter.");
+
+        if (entered)
+        {
+            const std::optional<Keycode> typed = ParseQmkExpression(m_Expression, version);
+            if (!typed)
+                m_ExpressionError = "not a keycode Nazg knows";
+            else if (!EncodeQmkKeycode(*typed, version))
+                m_ExpressionError = "this board cannot store it";
+            else
+                Write(*typed);
+        }
+
+        DrawComposer(current);
+
+        // What the last write did, or why Enter wrote nothing.
+        ImGui::SameLine();
+        if (bad)
+            ColouredText(PanelColour::Error, "%s", m_ExpressionError.c_str());
+        else if (m_IsWriting)
+            ImGui::TextDisabled("writing...");
+        else if (!m_Message.empty())
+            ColouredText(m_IsWarning ? PanelColour::Warning : PanelColour::Success, "%s", m_Message.c_str());
+    }
+
+    void KeymapSection::DrawComposer(const Keycode& current)
+    {
+        const QmkKeycodeVersion               version = m_Keyboard.keycodeVersion;
+        const std::optional<std::string_view> tap     = TapOf(current, version);
+        if (!tap)
+            return;
+
+        const auto* modTap   = std::get_if<ModTapKey>(&current);
+        const auto* layerTap = std::get_if<LayerTapKey>(&current);
+        const auto* modified = std::get_if<ModifiedKey>(&current);
+        const ModifierNames names = m_Legends.modifierNames;
+
+        // The modifiers' words as the board prints them: "Ctrl", "Ctrl Sft", "Hyper".
+        const auto wordsOf = [&](uint8_t mods)
+        { return LegendFor(OneShotModKey{ mods }, { m_Legends.Layout(), names }).cylindrical.full; };
+
+        ImGui::BeginDisabled(IsBusy());
+
+        ImGui::SameLine();
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("When held");
+        ImGui::SameLine();
+        if (Toggle("Nothing", modTap == nullptr && layerTap == nullptr) && (modTap != nullptr || layerTap != nullptr))
+            Write(NamedKey{ *tap });
+
+        ImGui::SameLine();
+        const std::string holdMods = modTap != nullptr ? wordsOf(modTap->mods) + " \xE2\x96\xBE###holdmods" : "Modifiers###holdmods";
+        if (Toggle(holdMods.c_str(), modTap != nullptr))
+        {
+            if (modTap == nullptr)
+                Write(ModTapKey{ Mod::LeftCtrl, *tap });
+            OpenUnder("##holdmods");
+        }
+        if (ImGui::BeginPopup("##holdmods"))
+        {
+            if (modTap != nullptr)
+                if (const std::optional<uint8_t> mods = ModifierChoices(modTap->mods, names, false))
+                    Write(ModTapKey{ *mods, modTap->key });
+            ImGui::EndPopup();
+        }
+
+        ImGui::SameLine();
+        const std::string holdLayer = layerTap != nullptr ? "Layer " + std::to_string(layerTap->layer) + " \xE2\x96\xBE###holdlayer"
+                                                          : "Layer###holdlayer";
+        if (Toggle(holdLayer.c_str(), layerTap != nullptr))
+        {
+            if (layerTap == nullptr)
+                Write(LayerTapKey{ static_cast<uint8_t>(m_Keyboard.keymap.Layers() > 1 ? 1 : 0), *tap });
+            OpenUnder("##holdlayer");
+        }
+        if (ImGui::BeginPopup("##holdlayer"))
+        {
+            // LT reaches the first 16 layers.
+            const int layers = std::min<int>(m_Keyboard.keymap.Layers(), 16);
+            for (int layer = 0; layer < layers; ++layer)
+            {
+                if (layer > 0)
+                    ImGui::SameLine();
+                const std::string label = "L" + std::to_string(layer);
+                if (Toggle(label.c_str(), layerTap != nullptr && layerTap->layer == layer) && layerTap != nullptr)
+                    Write(LayerTapKey{ static_cast<uint8_t>(layer), layerTap->key });
+            }
+            ImGui::EndPopup();
+        }
+
+        // A tap-hold's tap is a plain key, so "Sent with" goes while a hold is set.
+        if (modTap == nullptr && layerTap == nullptr)
+        {
+            ImGui::SameLine();
+            ImGui::TextDisabled("Sent with");
+            ImGui::SameLine();
+            const std::string sent = (modified != nullptr ? wordsOf(modified->mods) : std::string("nothing")) +
+                                     " \xE2\x96\xBE###sentwith";
+            if (Toggle(sent.c_str(), modified != nullptr))
+                OpenUnder("##sentwith");
+            if (ImGui::BeginPopup("##sentwith"))
+            {
+                // None first: back to the plain key in one click (Rico, 2026-10-04).
+                if (const std::optional<uint8_t> mods = ModifierChoices(modified != nullptr ? modified->mods : 0, names, true))
+                {
+                    if (*mods == 0)
+                        Write(NamedKey{ *tap });
+                    else
+                        Write(ModifiedKey{ *mods, *tap });
+                }
+                ImGui::EndPopup();
+            }
+        }
+
+        ImGui::EndDisabled();
     }
 
     bool KeymapSection::IsBusy() const

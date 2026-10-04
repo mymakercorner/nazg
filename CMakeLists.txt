@@ -119,6 +119,8 @@ set(NAZG_CORE_SOURCES
   src/ui/NazgMatrixDescription.cpp
   src/ui/NazgKeycodeCatalogue.h
   src/ui/NazgKeycodeCatalogue.cpp
+  src/adapters/qmk/NazgQmkExpression.h
+  src/adapters/qmk/NazgQmkExpression.cpp
 )
 
 add_library(nazg_core STATIC ${NAZG_CORE_SOURCES})
@@ -263,6 +265,7 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(definition_library tests/DefinitionLibraryTest.cpp)
     nazg_add_test(definition_choice  tests/DefinitionChoiceTest.cpp)
     nazg_add_test(keycode_catalogue  tests/KeycodeCatalogueTest.cpp)
+    nazg_add_test(qmk_expression     tests/QmkExpressionTest.cpp)
 
     # The legends in the real font, which needs ImGui's core -- no backend, no SDL window.
     add_executable(nazg_legend_font_test tests/LegendFontTest.cpp tests/TestSupport.h
