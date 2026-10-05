@@ -894,8 +894,20 @@ HTTP cache handles it. Web-only limits:
   (`mymakercorner/nazg-definitions`): files with no stated licence stay out of Nazg's GPL
   tree. Layout `boards/<publisher>/<board>/`, files byte for byte plus a `provenance.json`
   (source page, URL, date, SHA-256, licence status, VID:PID, VIA comparison); boards filed
-  under who publishes the file, the PCB's designer in the provenance. Nazg pins a commit of
-  it, as it pins `the-via/keyboards`.
+  under who publishes the file, the PCB's designer in the provenance.
+- **Agreed 2026-10-05 — Nazg pins a release asset of it, not a commit** (unlike
+  `the-via/keyboards`): the community repository publishes the bundle as a GitHub release
+  asset, and Nazg's build fetches that file by tag and checksum. Reason: a takedown. Deleting
+  a file in a new commit leaves it in the history; removing it for good means rewriting the
+  history (`git filter-repo`), force-pushing every branch and tag, deleting the release assets
+  that carry it, and asking GitHub Support to drop cached views and pull-request refs — and
+  forks and clones made before keep their copy, which only a DMCA notice reaches. A rewritten
+  history breaks every pinned commit, so older Nazg checkouts could no longer build their
+  bundle; a pinned asset only needs a new release. **Takedowns start with plain history**,
+  the procedure written in the repository's README; if they become frequent, the public
+  repository switches to a **snapshot** — `main` one regenerated commit, the working history
+  private or not kept, `provenance.json` already recording each file's origin — so a removal
+  is just the next snapshot.
 - **Proposed by Rico — implementation starts with the official definitions**, before any
   community work: ~2000 boards with no user action, no new storage, and it builds what the
   rest reuses. Steps: the converted-form entry in the parser (dynamic `name` accepted), with
