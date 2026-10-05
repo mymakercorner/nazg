@@ -36,6 +36,7 @@
 #include "ui/NazgWorkspace.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -208,7 +209,7 @@ namespace
             constexpr char c_ViaDefinition[] = "ViaDefinition=";
             constexpr char c_Window[]        = "Window=";
             constexpr char c_Maximized[]     = "Maximized=";
-            constexpr char c_BoardShare[]    = "BoardShare=";
+            constexpr char c_BoardHeight[]   = "BoardHeight=";
             constexpr char c_MoveToNextKey[] = "MoveToNextKey=";
 
             if (std::strncmp(line, c_HostLayout, sizeof(c_HostLayout) - 1) == 0)
@@ -239,11 +240,11 @@ namespace
             }
             else if (std::strncmp(line, c_Maximized, sizeof(c_Maximized) - 1) == 0)
                 loaded.window.maximized = std::strcmp(line + sizeof(c_Maximized) - 1, "1") == 0;
-            else if (std::strncmp(line, c_BoardShare, sizeof(c_BoardShare) - 1) == 0)
+            else if (std::strncmp(line, c_BoardHeight, sizeof(c_BoardHeight) - 1) == 0)
             {
-                float share = 0.0f;
-                if (std::sscanf(line + sizeof(c_BoardShare) - 1, "%f", &share) == 1 && share > 0.0f && share < 1.0f)
-                    loaded.workspace.boardShare = share;
+                float height = 0.0f;
+                if (std::sscanf(line + sizeof(c_BoardHeight) - 1, "%f", &height) == 1 && height > 0.0f)
+                    loaded.workspace.boardHeight = height;
             }
             else if (std::strncmp(line, c_MoveToNextKey, sizeof(c_MoveToNextKey) - 1) == 0)
                 loaded.moveToNextKey = std::strcmp(line + sizeof(c_MoveToNextKey) - 1, "1") == 0;
@@ -264,7 +265,9 @@ namespace
             if (saved.window.width > 0)
                 out->appendf("Window=%d,%d,%d,%d\nMaximized=%d\n", saved.window.x, saved.window.y,
                              saved.window.width, saved.window.height, saved.window.maximized ? 1 : 0);
-            out->appendf("BoardShare=%.3f\nMoveToNextKey=%d\n", saved.workspace.boardShare, saved.moveToNextKey ? 1 : 0);
+            if (saved.workspace.boardHeight > 0.0f)
+                out->appendf("BoardHeight=%.0f\n", saved.workspace.boardHeight);
+            out->appendf("MoveToNextKey=%d\n", saved.moveToNextKey ? 1 : 0);
             out->append("\n");
         };
 
@@ -1192,6 +1195,10 @@ int main(int, char**)
 
     // The window's colours are set when the theme changes -- first once imgui.ini is read.
     std::optional<nazg::ThemeId> appliedTheme;
+    // The window's minimum size, as last given to SDL: the open board's, so resizing never
+    // shrinks it (NazgWorkspace.h, WorkspaceLayout); none on the other screens.
+    int appliedMinWidth  = 0;
+    int appliedMinHeight = 0;
     bool openLoneBoard     = true;    // until the first list is in
     // One frame: finished transport work resumed, dialog results collected, then the UI drawn
     // and presented. Run by the loop below, and from inside SDL's event pumping while the
@@ -1295,6 +1302,7 @@ int main(int, char**)
 
         // One window filling SDL's: the header, then settings, the open board or the keyboard
         // list under it (ui-design.md, "The regions").
+        bool isBoardShown = false;
         {
             const ImGuiViewport* viewport = ImGui::GetMainViewport();
             ImGui::SetNextWindowPos(viewport->WorkPos);
@@ -1651,6 +1659,8 @@ int main(int, char**)
                                            settings.workspace);
                     }
 
+                    isBoardShown = true;
+
                     // A splitter dragged: kept for the next run.
                     if (settings.workspace.changed)
                     {
@@ -1685,6 +1695,25 @@ int main(int, char**)
             }
 
             ImGui::End();
+        }
+
+        // The window stops shrinking where the board would. ImGui's coordinates are the window's;
+        // a minimized window has none, and keeps the minimum it had.
+        if (io.DisplaySize.x > 0.0f && io.DisplaySize.y > 0.0f)
+        {
+            int minWidth  = 0;
+            int minHeight = 0;
+            if (isBoardShown)
+            {
+                minWidth  = static_cast<int>(std::ceil(io.DisplaySize.x - settings.workspace.spareWidth));
+                minHeight = static_cast<int>(std::ceil(io.DisplaySize.y - settings.workspace.spareHeight));
+            }
+            if (minWidth != appliedMinWidth || minHeight != appliedMinHeight)
+            {
+                SDL_SetWindowMinimumSize(pWindow, minWidth, minHeight);
+                appliedMinWidth  = minWidth;
+                appliedMinHeight = minHeight;
+            }
         }
 
         ImGui::Render();

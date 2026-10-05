@@ -25,10 +25,10 @@ namespace nazg
     // instead.
     void SetLegendFonts(const LegendFonts& fonts);
 
-    // Into the current ImGui window, at the cursor: the plate, the keys, the lines over them
-    // and the labels around them, as large as the width available allows but no taller than
-    // `maxHeight` pixels -- and no smaller than legible text allows, scrolling sideways past
-    // that. Returns what the mouse did on it this frame.
+    // Into the current ImGui window, at the cursor, centred in the width available: the plate,
+    // the keys, the lines over them and the labels around them, as large as that width allows
+    // but no taller than `maxHeight` pixels -- and no smaller than legible text allows,
+    // scrolling sideways past that. Returns what the mouse did on it this frame.
     [[nodiscard]] BoardEvents DrawBoard(const BoardDescription& board, float maxHeight);
 
     // A definition drawn small -- blank keys, the first choice of every layout option -- so

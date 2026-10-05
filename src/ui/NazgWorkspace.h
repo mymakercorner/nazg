@@ -70,12 +70,22 @@ namespace nazg
 
     // How the height under the strip is shared between the board and the panel: a splitter
     // between them, dragged, and remembered in imgui.ini (ui-design.md, "The keycode picker",
-    // "Its size"). The board's share is what it may take at most; it never goes below its
-    // legibility floor, and it takes less where the window's width stops it first.
+    // "Its size"). The board's height is what it may take at most, in pixels before DPI scaling:
+    // the splitter changes the board's size, the window only the room around it -- the board is
+    // centred -- until the board fills its width, and then the board too, down to its
+    // legibility floor. The caller keeps the window from shrinking past `spareWidth` and
+    // `spareHeight` (Rico, 2026-10-05). 0 until first drawn, then 60% of the height.
     struct WorkspaceLayout
     {
-        float boardShare = 0.6f;
-        bool  changed    = false;   // dragged this frame: the caller saves it
+        float boardHeight = 0.0f;
+        bool  changed     = false;  // dragged this frame: the caller saves it
+
+        // Each frame, how much narrower the window could be before the board reaches its floor
+        // or the panel its minimum width, and how much shorter before the board or the panel
+        // shrinks -- in ImGui's coordinates, the window's. Never negative: Nazg never grows the
+        // window.
+        float spareWidth  = 0.0f;
+        float spareHeight = 0.0f;
     };
 
     // `sections` are the open board's -- the column lists them, and is hidden when there is

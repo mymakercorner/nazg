@@ -1074,15 +1074,24 @@ and read back, as today.
 
 ### Its size
 
-- **As wide as the board**, centred under it, at least 980 px so a small board's tabs still fit
-  on one line (Rico: a panel wider than the board unbalanced the screen; and the section column
-  will come on the left). Board and picker read as one column.
+- **The whole width**, the board centred over it with the room it leaves on both sides (Rico,
+  2026-10-05: the picker gets the surface the board does not need, and the board can be smaller
+  than the window). It replaces "as wide as the board", which read as one column but tied the
+  panel to the board. At least 980 px, so a small board's tabs still fit on one line.
 - **A splitter between board and panel**, dragged to share the height and remembered in
-  `imgui.ini`. It replaces today's fixed 60% (`c_BoardMaxShare`, `NazgWorkspace.cpp`). It stops
-  where the board would fall below its legibility floor, 60 px a unit ("The floor is on the
-  header") -- the board is never squeezed to give the picker room; the panel keeps at least the
-  key line, the tabs and three rows of tiles, about 275 px. A window too small for both gives
-  the panel its minimum first.
+  `imgui.ini`. It stops where the board would fall below its legibility floor, 60 px a unit
+  ("The floor is on the header") -- the board is never squeezed to give the picker room; the
+  panel keeps at least the key line, the tabs and three rows of tiles, about 275 px. A window
+  too small for both gives the panel its minimum first.
+- **The splitter sizes the board, the window first the room around it** (Rico, 2026-10-05:
+  shrinking the window shrank the board). The splitter remembers the board's height in pixels,
+  not a share; dragged down, it stops where the board fills the window's width. A shorter
+  window takes from the panel, and stops at its minimum. A narrower window takes the room
+  beside the board, then the board, down to its legibility floor, and stops there or at the
+  panel's 980 px (Rico: blocked as soon as the board filled the width, the window could not be
+  narrowed at all). Both stops are `SDL_SetWindowMinimumSize`, each frame from what the view
+  could spare. Nazg never grows the window: a board wider than it, just opened, fits its width,
+  down to its floor, and scrolls beyond. The first time, the board may take 60% of the height.
 
 ### The key line
 
@@ -1183,7 +1192,7 @@ and VIA do, hover saying what it needs. A tab left with no group is not shown.
 - **What the board reports reaches the picker**: Vial's entry counts and feature bits
   (`VialEntryCounts`, already read), the macro count (`GetMacroCount()`), the layer count, the
   keycode version, the lighting state.
-- **The splitter** in `NazgWorkspace`, in place of `c_BoardMaxShare`, its share in `imgui.ini`.
+- **The splitter** in `NazgWorkspace`, in place of `c_BoardMaxShare`, its board height in `imgui.ini`.
 - **The Settings screen** gains the after-a-pick preference.
 - **Found by the mockup**: `KC_SPC` always prints blank (`PlacementClass::Blank`), so
   `LT(1,KC_SPC)` on a 1u key shows only "L1"; Space should be blank only on keys 3u and wider.

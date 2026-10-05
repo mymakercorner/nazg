@@ -588,10 +588,13 @@ namespace nazg
         const ImVec2      size(leftMargin + width * unit, topMargin + height * unit);
 
         // In a child of its own, which scrolls sideways when the board stops shrinking before the
-        // window does -- with room for the scrollbar under it, then.
+        // window does -- with room for the scrollbar under it, then; centred while it fits, the
+        // room it leaves on both sides (Rico, 2026-10-05).
         const bool scrolls = size.x > avail;
         ImGui::BeginChild("##board", ImVec2(0.0f, size.y + (scrolls ? style.ScrollbarSize : 0.0f)), ImGuiChildFlags_None,
                           ImGuiWindowFlags_HorizontalScrollbar);
+        if (!scrolls)
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + std::floor((avail - size.x) / 2.0f));
 
         const ImVec2 corner = ImGui::GetCursorScreenPos();
         const ImVec2 origin(corner.x + leftMargin + (c_PlateMargin - bounds.minX) * unit,
@@ -636,8 +639,10 @@ namespace nazg
         ImGui::Dummy(size);
         ImGui::EndChild();
 
-        events.width  = std::min(size.x, avail);
-        events.height = ImGui::GetItemRectSize().y;
+        events.width      = std::min(size.x, avail);
+        events.fullWidth  = size.x;
+        events.floorWidth = leftMargin + width * c_SmallestUnit * scale;
+        events.height     = ImGui::GetItemRectSize().y;
         return events;
     }
 
