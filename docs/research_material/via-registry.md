@@ -595,10 +595,13 @@ keyboards on `0xFEED` VIA refuses, are what the levels below serve.
    attracts nobody, and a few dozen boards make Nazg useful to their owners from day one.
    Files Rico did not write need three things from the start:
    - **The right to redistribute.** A file already under an open licence — a `via.json` in a
-     vendor's public GPL QMK tree is GPL — goes in with its source recorded. Otherwise ask the
-     vendor ("may I include your `via.json`?"), which costs them far less than submitting
-     and is a first contact for later. Otherwise leave it out: a takedown dispute early on
-     costs more than one missing board.
+     vendor's public GPL QMK tree is GPL — goes in with its source recorded. **A file with no
+     licence stated goes in too, and is removed on request** (Rico, 2026-10-05; replacing
+     "ask first, otherwise leave it out"): a definition is mostly functional data, published
+     by the vendor for exactly this use. The vendor is **told when it is included** — "tell us
+     if you want it removed, or want to maintain it" — which keeps the first contact. Its
+     licence is **never relabelled**: its provenance says "none stated, included pending
+     objection", and the repository's README states the removal policy.
    - **A status: verified on hardware, or unverified** — from the vendor's published file,
      Rico not owning the board. The picker shows it. Where the firmware source is public,
      cross-check it: matrix size against its `keyboard.json`, layout keys inside the matrix
@@ -607,10 +610,29 @@ keyboards on `0xFEED` VIA refuses, are what the levels below serve.
      status. It makes re-checking after a vendor update, **handing a file over** to a vendor
      who later maintains it, and removing one on request all straightforward.
 
-   First boards: commercial, with a published definition, **absent from VIA's registry**
-   (checked automatically against the `via-keyboards` clone), ideally with public firmware.
-   Few at first — each is Rico's to maintain until its vendor takes it over. Rico's own
-   boards are not candidates; most are not open source.
+   First boards: commercial, with a published definition **absent from VIA's registry or
+   different from VIA's copy** (checked automatically against the `via-keyboards` clone) —
+   vendors publish their own file because VIA's approval is slow (Rico: even Keychron, a
+   serious OEM, does), so VIA's copy, when there is one, is often older. Rico's own boards
+   are not candidates; most are not open source.
+
+   **What vendors publish — surveyed 2026-10-05**, collected in the workspace's
+   `vendor_definitions/` (outside the repo; its `README.md` is the index): the vendors Rico
+   named, then the 182 keyboard vendors of kbd.news/vendors and the GitHub repositories they
+   link, gave **about 590 distinct boards VIA does not have**, and some 75 where VIA's copy
+   differs. Keychron alone has 328 absent and 30 different (every Max and HE board); then
+   Qwertykeys, The Keebs Store, Lemokey, Bowl, KBDfans (YDKB's boards), GEONWORKS, Wuque
+   Studio, CannonKeys, Mechlovin... Most vendors publish nothing — 65 of the 182 link no file
+   of any kind — and Matrix Lab's boards run Vial. **Keychron's own QMK fork carries 280
+   definitions under GPL-2.0**, a copy for 179 of the Keychron boards VIA lacks or has older,
+   so for those the repository can take a licensed file rather than an unlicensed download. Rico expects
+   this is a small part of what is sold. So "few at first, seeded by hand" does not hold:
+   seeding is **collected by script** — Shopify vendors from their sitemap, Notion ones
+   through the browser — **and reviewed by Rico**, and the validator comes before the
+   repository opens. Where they publish matters for provenance: Shopify CDN links are stable,
+   Notion's signed links expire (record the page, date and hash), Google Drive and OneDrive
+   often refuse scripts. Vendors' made-up VIDs show up already (`0xFFFE`, `0x2026`, one
+   VID:PID for a hotswap and a solder PCB).
 
    Merge rules for when it opens: a **new file** is merged automatically if it parses with
    Nazg's parser, has a VID:PID and a name, stays under a size limit and is signed off (DCO,
@@ -864,6 +886,16 @@ HTTP cache handles it. Web-only limits:
 
 - **Agreed**: level 1 first. The community repository (level 2) is wanted, run and seeded
   by Rico, opened to vendors later.
+- **Agreed 2026-10-05 — community definitions reach users in each Nazg release**, as a second
+  bundle beside VIA's. An **updater** — fixes, improvements and community definitions in one
+  — is a later option (Rico: as Fan Control does: check GitHub Releases, offer, replace,
+  restart). It shares the HTTPS question with URL import, and adds one: signed releases.
+- **Agreed 2026-10-05 — the community repository is its own repository**
+  (`mymakercorner/nazg-definitions`): files with no stated licence stay out of Nazg's GPL
+  tree. Layout `boards/<publisher>/<board>/`, files byte for byte plus a `provenance.json`
+  (source page, URL, date, SHA-256, licence status, VID:PID, VIA comparison); boards filed
+  under who publishes the file, the PCB's designer in the provenance. Nazg pins a commit of
+  it, as it pins `the-via/keyboards`.
 - **Proposed by Rico — implementation starts with the official definitions**, before any
   community work: ~2000 boards with no user action, no new storage, and it builds what the
   rest reuses. Steps: the converted-form entry in the parser (dynamic `name` accepted), with
