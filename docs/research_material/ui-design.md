@@ -1081,7 +1081,7 @@ and read back, as today.
   `imgui.ini`. It replaces today's fixed 60% (`c_BoardMaxShare`, `NazgWorkspace.cpp`). It stops
   where the board would fall below its legibility floor, 60 px a unit ("The floor is on the
   header") -- the board is never squeezed to give the picker room; the panel keeps at least the
-  key line, the tabs and three rows of tiles, about 240 px. A window too small for both gives
+  key line, the tabs and three rows of tiles, about 275 px. A window too small for both gives
   the panel its minimum first.
 
 ### The key line
@@ -1140,15 +1140,17 @@ and VIA do, hover saying what it needs. A tab left with no group is not shown.
 
 ### The tiles
 
-- **Every tile 1u, 46 x 40 px.** Its text area is a 1u keycap's legend box at the board's
+- **Every tile 1u, 58 x 50 px.** Its text area is a 1u keycap's legend box at the board's
   smallest unit -- 60 px, padded to about 40 px wide, words at 11 px -- so every name fits as
-  `legend_font` checks it does on the board: one line, two, the short form, then cut. The words
+  `legend_font` checks it does on the board: one line, two, the short form, then cut. The tile
+  is then drawn 1.25 times that, text and gaps with it (`c_TileZoom`; Rico, 2026-10-05: 46 x 40
+  was small) -- the fit does not change with scale. The words
   are the board's own (`NazgKeycapLegend`), with the keycap's face, band and colours.
 - **A header the group's title says is left out**: "Media" over Play in the Media group,
   "Ctrl↔Caps" over Swap in its group, "MIDI" over CHND. The Shifted group's tiles show the Shift
   character alone ("!") -- on the board `S(KC_1)` is "Shift+" over "! 1", one rule for every
   modifier (Rico, short-forms.md rule 7).
-- **One grid**: cells 50 px; groups packed side by side where they fit, no empty cell between
+- **One grid**: cells 62 px; groups packed side by side where they fit, no empty cell between
   them; a group longer than the row wraps under its first tile. The group's title sits in a box
   two cells wide spanning all its rows -- its first words; the rest on hover. The box is a
   recessed neutral, darker than the panel on Light, lighter on Dark, never a key's or a text

@@ -19,7 +19,7 @@ namespace nazg
         // Pixels, before DPI scaling.
         constexpr float c_ColumnWidth   = 150.0f;
         constexpr float c_SplitterSize  = 10.0f;    // the splitter's height, its grip in the middle
-        constexpr float c_PanelMin      = 240.0f;   // the key line, the tabs and three rows of tiles
+        constexpr float c_PanelMin      = 275.0f;  // the key line, the tabs and three rows of tiles
         constexpr float c_PanelMinWidth = 980.0f;   // so a small board's tabs still fit on one line
 
         // The splitter under the board: dragged, it moves the board's share of `total`, the

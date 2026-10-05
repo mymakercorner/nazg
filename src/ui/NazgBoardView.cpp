@@ -644,7 +644,7 @@ namespace nazg
     void DrawKeycodeTile(const KeycodeTile& tile, const FaceBox& box)
     {
         ImDrawList*  drawList = ImGui::GetWindowDrawList();
-        const float  scale    = ImGui::GetStyle().FontScaleDpi;
+        const float  scale    = ImGui::GetStyle().FontScaleDpi * c_TileZoom;
         const ImVec2 p0(box.x0, box.y0);
         const ImVec2 p1(box.x1, box.y1);
         const float  rounding = 5.0f * scale;

@@ -334,8 +334,9 @@ namespace
                     legend.header = {};
                     legend.hold   = {};
                 }
-                for (float scale : { 1.0f, 1.25f, 1.5f, 2.0f })
+                for (float display : { 1.0f, 1.25f, 1.5f, 2.0f })
                 {
+                    const float   scale = display * nazg::c_TileZoom;
                     const FaceBox face{ 0.0f, 0.0f, nazg::c_TileWidth * scale, nazg::c_TileHeight * scale };
                     const KeycapPrimitives primitives = nazg::LayOutTile(legend, face, scale, measurer);
                     const std::vector<Box> boxes      = InkBoxes(primitives, measurer);

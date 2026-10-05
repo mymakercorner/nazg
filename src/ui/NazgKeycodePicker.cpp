@@ -129,7 +129,7 @@ namespace nazg
         void DrawGroups(const std::vector<CatalogueGroup>& groups, KeycodePickerState& state,
                         const KeycodePickerInput& input, KeycodePickerEvents& events)
         {
-            const float scale  = ImGui::GetStyle().FontScaleDpi;
+            const float scale  = ImGui::GetStyle().FontScaleDpi * c_TileZoom;
             const float tileW  = c_TileWidth * scale;
             const float tileH  = c_TileHeight * scale;
             const float gapX   = c_TileGap * scale;

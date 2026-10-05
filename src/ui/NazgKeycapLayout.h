@@ -153,11 +153,14 @@ namespace nazg
     // A tile of the keycode picker (ui-design.md, "The tiles"): every one 1u, its text room a 1u
     // keycap's at the board's smallest unit -- 0.68 of 60 px -- with words and headers at their
     // sizes there, so a name fits a tile as it fits the board, as legend_font checks. Pixels
-    // before DPI scaling; the band along its top is the board's, a few pixels.
+    // before DPI scaling; the band along its top is the board's, a few pixels. The picker draws
+    // them all -- tiles, text, gaps -- `c_TileZoom` larger, by passing it in `scale` (Rico,
+    // 2026-10-05: the tiles were small); what fits at one scale fits at any.
     inline constexpr float c_TileTextRoom = (1.0f - 2 * c_KeyGap - 2 * c_LegendPad) * c_SmallestUnit;
     inline constexpr float c_TileWidth    = c_TileTextRoom + 6.0f;
     inline constexpr float c_TileHeight   = 40.0f;
     inline constexpr float c_TileBand     = 3.0f;
+    inline constexpr float c_TileZoom     = 1.25f;
 
     // A tile's legends on `face`, at `scale` -- the display's: the headers top right, one line
     // each; characters top left, smaller than the board's, a pair as the board prints it; words
