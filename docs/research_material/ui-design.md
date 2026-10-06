@@ -1499,6 +1499,25 @@ look is built** (Rico, 2026-10-03): they are judged on the real thing, not on a 
   on US ANSI International the `=+` key prints its AltGr character, ×, bottom right -- the mark's
   corner, at a similar size. The better way must not look like any character a host layout prints
   there.
+- **Dragging the window jitters on a 60 Hz display** (Rico, 2026-10-06, on Windows; smooth at
+  144 Hz, and Visual Studio or the Claude app stay smooth on the same screen). Found by bisecting:
+  - **Not Nazg's code.** A bare SDL3 window with an SDL_GPU swapchain, presenting every frame,
+    does it too; the same window without a swapchain, or with one that has not presented for a
+    while, drags smoothly. D3D12 or Vulkan, VSYNC or MAILBOX, two or three swapchain buffers
+    (`SDL_SetGPUAllowedFramesInFlight`): no difference.
+  - **It is the presenting *before* the drag.** Drawing nothing during the drag still jitters;
+    a window idle for a few seconds does not, and a drag turns smooth after 2-3 s without
+    presents. Nazg itself keeps up: every move -- one a millisecond, with a 1000 Hz mouse --
+    was handled on time, and nothing in SDL's move handling is slow.
+  - **Likely, not confirmed:** Windows moves a window that presents steadily onto a hardware
+    overlay (independent flip, MPO), whose movement stutters with some drivers, and takes it off
+    after a few idle seconds. PresentMon's "Present Mode" column would confirm it.
+  - **Not done:** drawing only on demand would avoid it while idle, but goes against ImGui's
+    immediate mode and every poll, flash and coroutine that relies on a steady frame (Rico,
+    2026-10-06). What remains is outside Nazg: the GPU driver, or the system's MPO setting.
+  - **Kept from it:** a frame drawn from inside Windows' move-and-resize loop no longer waits for
+    VSYNC (`Main.cpp`, `drawFrame`): it is skipped when no swapchain texture is ready. Windows'
+    timer ticks there every ~16 ms, though SDL asks for 10 -- hard-coded, no hint changes it.
 - **Which sections fold the board away**, and whether folding it confuses more than it helps.
 - **MIDI in the picker's Devices tab**: the basic set is offered on every board. A Vial definition
   says `"midi": "basic"` or `"advanced"` (vial-gui shows MIDI keys only then); whether Nazg

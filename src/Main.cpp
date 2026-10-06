@@ -670,15 +670,16 @@ namespace
             pending.paths.emplace_back(*path);
     }
 
-    // Windows runs a loop of its own while the window is dragged to a new size, and the frame
-    // loop in main() stops until the mouse is released -- the window would stretch its last
-    // frame meanwhile. SDL keeps sending SDL_EVENT_WINDOW_EXPOSED from inside that loop, about
-    // every 10 ms, with data1 set to 1, on the main thread; an event watch sees it at once and
-    // may draw right there. `userdata` is main()'s frame function.
+    // Windows runs a loop of its own while the window is dragged -- moved or resized -- and the
+    // frame loop in main() stops until the mouse is released: a resized window would stretch its
+    // last frame meanwhile. SDL keeps sending SDL_EVENT_WINDOW_EXPOSED from inside that loop --
+    // a 10 ms timer, which Windows' tick stretches to about 16 -- with data1 set to 1, on the
+    // main thread; an event watch sees it at once and
+    // may draw right there. `userdata` is main()'s frame function, told the frame is a live one.
     bool SDLCALL DrawDuringLiveResize(void* userdata, SDL_Event* event)
     {
         if (event->type == SDL_EVENT_WINDOW_EXPOSED && event->window.data1 == 1)
-            (*static_cast<std::function<void()>*>(userdata))();
+            (*static_cast<std::function<void(bool)>*>(userdata))(true);
         return true;   // ignored for event watches
     }
 
@@ -1202,9 +1203,15 @@ int main(int, char**)
     bool openLoneBoard     = true;    // until the first list is in
     // One frame: finished transport work resumed, dialog results collected, then the UI drawn
     // and presented. Run by the loop below, and from inside SDL's event pumping while the
-    // window is being resized -- see DrawDuringLiveResize(). Never inside itself.
-    bool                  isDrawing = false;
-    std::function<void()> drawFrame = [&]
+    // window is being moved or resized -- `isLive`, see DrawDuringLiveResize(). Never inside
+    // itself.
+    //
+    // A live frame never waits for the display: Windows handles the mouse in the same loop, which
+    // a wait for VSYNC -- up to 16.7 ms at 60 Hz -- would hold up on every tick. It is skipped
+    // instead when the swapchain has no texture ready, and the next tick tries again. (Dragging
+    // the window still jitters at 60 Hz, for a reason outside Nazg: ui-design.md, "Open points".)
+    bool                      isDrawing = false;
+    std::function<void(bool)> drawFrame = [&](bool isLive)
     {
         if (isDrawing)
             return;
@@ -1723,7 +1730,10 @@ int main(int, char**)
         SDL_GPUCommandBuffer* pCommandBuffer = SDL_AcquireGPUCommandBuffer(pGpuDevice);
 
         SDL_GPUTexture* pSwapchainTexture = nullptr;
-        SDL_WaitAndAcquireGPUSwapchainTexture(pCommandBuffer, pWindow, &pSwapchainTexture, nullptr, nullptr);
+        if (isLive)
+            SDL_AcquireGPUSwapchainTexture(pCommandBuffer, pWindow, &pSwapchainTexture, nullptr, nullptr);
+        else
+            SDL_WaitAndAcquireGPUSwapchainTexture(pCommandBuffer, pWindow, &pSwapchainTexture, nullptr, nullptr);
 
         if (pSwapchainTexture != nullptr && !isMinimized)
         {
@@ -1763,7 +1773,7 @@ int main(int, char**)
         }
         TrackWindowPlace(pWindow, settings.window);
 
-        drawFrame();
+        drawFrame(false);
     }
 
     SDL_RemoveEventWatch(DrawDuringLiveResize, &drawFrame);
