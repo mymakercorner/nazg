@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- Mockup of the section column (ui-design.md, "The regions" and the open point "Folding the
+     section column to icons"): the 150 px list it was drawn with, a navigation rail -- icon over
+     a label -- and icons only, with the label shown on hover. Settled 2026-10-06: the list, with
+     Tabler's icons -- it opens on them. The controls switch the column, the
+     icon set, the board, the theme and the window's width. Icons come from jsDelivr (Lucide,
+     Tabler, Phosphor), so it needs a network connection; an icon that fails to load shows as a
+     dashed monogram. Section lists are real: VIA's and Vial's own sections, and the custom menu
+     labels of VIA's V3 definitions (2029 of them, 22 distinct labels; NEVEREST 60 is
+     cipulot/des_60). -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Section column mockup</title>
+<style>
+:root{--window:#f3f3f5;--menubar:#e3e4e9;--text:#1d1e22;--muted:#6b6e78;--control:#ffffff;--border:#c8cad2;--ui-accent:#3b82f6;--ui-accent-text:#fff;--panel:#f8f8fa;--column:#ebecf0;--hover:rgba(0,0,0,.06);--selected:rgba(59,130,246,.14)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--window);color:var(--text);font-family:"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+.controls{display:flex;flex-wrap:wrap;gap:8px 22px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.group .name{color:var(--muted);margin-right:4px}
+button{font:inherit;padding:3px 10px;border-radius:4px;border:1px solid var(--border);background:var(--control);color:var(--text);cursor:pointer}
+button.on{background:var(--ui-accent);border-color:var(--ui-accent);color:var(--ui-accent-text)}
+.stage{padding:16px;overflow-x:auto}
+.frame{margin:0 auto;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--window);display:flex;flex-direction:column;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.menubar{display:flex;gap:18px;align-items:center;background:var(--menubar);padding:5px 14px;flex:none}
+.menubar .board{font-weight:600}
+.menubar .muted{color:var(--muted)}
+.menubar .right{margin-left:auto;color:var(--muted)}
+.body{display:flex;flex:1;min-height:0}
+.col{flex:none;background:var(--column);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:6px 0;gap:2px;overflow-y:auto;overflow-x:visible}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;padding:6px 14px 14px}
+.strip{display:flex;align-items:center;gap:4px;min-height:30px;margin-bottom:6px;flex-wrap:wrap}
+.strip .label{color:var(--muted);margin-right:6px}
+.strip button{min-width:34px;padding:2px 8px}
+.boardarea{display:flex;justify-content:center;margin-bottom:10px}
+.plate{position:relative;border-radius:12px}
+.key{position:absolute;border-radius:5px;overflow:hidden}
+.key span{position:absolute;left:5px;top:3px;white-space:nowrap;font-family:Arimo,Arial,sans-serif}
+.panel{flex:1;min-height:150px;border:1px solid var(--border);border-radius:6px;background:var(--panel);padding:10px 12px;color:var(--muted);line-height:1.5}
+.panel b{color:var(--text)}
+.panel ul{margin:4px 0 0;padding-left:18px}
+
+/* Entries, common */
+.entry{position:relative;display:flex;cursor:pointer;color:var(--muted);border-radius:6px;margin:0 5px}
+.entry:hover{background:var(--hover);color:var(--text)}
+.entry.on{background:var(--selected);color:var(--text)}
+.entry.on::before{content:'';position:absolute;left:-5px;top:6px;bottom:6px;width:3px;border-radius:2px;background:var(--ui-accent)}
+.icon{flex:none;display:flex;align-items:center;justify-content:center}
+.sep{margin:7px 10px;border-top:1px solid var(--border)}
+.sepcap{margin:10px 9px 3px 14px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.col.rail .sepcap,.col.icons .sepcap{display:none}
+.icon svg{width:100%;height:100%;display:block}
+.mono{border-radius:5px;border:1.5px solid currentColor;font-weight:700;display:flex;align-items:center;justify-content:center;line-height:1;letter-spacing:-.02em}
+.mono.failed{border-style:dashed;opacity:.7}
+
+/* List: the 150 px column of ui-design.md */
+.col.list .entry{align-items:center;gap:9px;padding:7px 9px}
+.col.list .icon{width:18px;height:18px}
+.col.list .mono{font-size:9px}
+.col.list .text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Rail: icon over a label, two lines at most */
+.col.rail .entry{flex-direction:column;align-items:center;gap:3px;padding:7px 3px 6px}
+.col.rail .icon{width:20px;height:20px}
+.col.rail .mono{font-size:9px}
+.col.rail .text{font-size:11px;line-height:1.15;text-align:center;width:100%;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word;hyphens:auto}
+
+/* Icons only, the label on hover */
+.col.icons .entry{justify-content:center;padding:9px 0}
+.col.icons .icon{width:20px;height:20px}
+.col.icons .mono{font-size:9px}
+.col.icons .text{display:none}
+
+.flyout{position:fixed;z-index:20;pointer-events:none;background:var(--control);color:var(--text);border:1px solid var(--border);border-radius:5px;padding:4px 9px;box-shadow:0 3px 12px rgba(0,0,0,.18);white-space:nowrap;font-size:12px}
+.readout{margin:10px auto 0;color:var(--muted);text-align:center}
+.readout b{color:var(--text)}
+.candidates{max-width:980px;margin:12px auto 0;padding:0 16px}
+.candidates .title{color:var(--muted);margin-bottom:6px}
+.candidates .row{display:flex;flex-wrap:wrap;gap:6px}
+.cand{display:flex;flex-direction:column;align-items:center;gap:4px;width:104px;padding:8px 4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--control);color:var(--text);cursor:pointer;font-size:11px;text-align:center}
+.cand.on{border-color:var(--ui-accent);box-shadow:0 0 0 1px var(--ui-accent)}
+.cand .icon{width:26px;height:26px}
+.cand .why{color:var(--muted);font-size:10px;line-height:1.2}
+.notes{max-width:980px;margin:0 auto;padding:6px 16px 30px;color:var(--muted);line-height:1.55}
+.notes b{color:var(--text);font-weight:600}
+.notes p{margin:0 0 8px}
+.notes table{border-collapse:collapse;margin:6px 0 10px}
+.notes td,.notes th{border:1px solid var(--border);padding:3px 8px;text-align:left}
+.notes th{color:var(--text);font-weight:600}
+</style>
+</head>
+<body>
+<div class="controls" id="controls"></div>
+<div class="stage"><div class="frame" id="frame"></div><div class="readout" id="readout"></div></div>
+<div class="candidates" id="candidates"></div>
+<div class="notes" id="notes"></div>
+<div class="flyout" id="flyout" hidden></div>
+<script>
+// ---------------------------------------------------------------------------------------------
+// Themes: the app's Light and Dark window colours (src/ui/NazgPalette.cpp), plus the column's.
+const THEMES = {
+  Light: { css: { window:'#f3f3f5', menubar:'#e3e4e9', text:'#1d1e22', muted:'#6b6e78', control:'#ffffff', border:'#c8cad2',
+                  'ui-accent':'#3b82f6', 'ui-accent-text':'#ffffff', panel:'#f8f8fa', column:'#ebecf0',
+                  hover:'rgba(0,0,0,.06)', selected:'rgba(59,130,246,.14)' },
+           plate:'#d3d4d8', outline:'#b4b7c2', legend:'#24262b', alpha:'#ffffff', mod:'#e4e5ea', accent:'#afbfd5' },
+  Dark:  { css: { window:'#0f0f11', menubar:'#24252b', text:'#ececf1', muted:'#80838f', control:'#20232b', border:'#3a3d48',
+                  'ui-accent':'#4296fa', 'ui-accent-text':'#ffffff', panel:'#16171b', column:'#16171b',
+                  hover:'rgba(255,255,255,.07)', selected:'rgba(66,150,250,.20)' },
+           plate:'#1c1d23', outline:'#4b4e5c', legend:'#ebebf0', alpha:'#3a3c48', mod:'#2c2e38', accent:'#5a6a80' },
+};
+
+// ---------------------------------------------------------------------------------------------
+// Icon sets, from jsDelivr. One icon per kind of section, named in each set.
+const SETS = {
+  Lucide:   { url: n => `https://cdn.jsdelivr.net/npm/lucide-static@latest/icons/${n}.svg`, licence: 'ISC' },
+  Tabler:   { url: n => `https://cdn.jsdelivr.net/npm/@tabler/icons@latest/icons/outline/${n}.svg`, licence: 'MIT' },
+  Phosphor: { url: n => `https://cdn.jsdelivr.net/npm/@phosphor-icons/core@latest/assets/regular/${n}.svg`, licence: 'MIT' },
+};
+const ICONS = {          // kind:      Lucide                Tabler                   Phosphor
+  keymap:     ['keyboard',            'keyboard',              'keyboard'],
+  layout:     ['layout-template',     'layout',                'layout'],
+  macros:     ['play',                'player-play',           'play'],
+  lighting:   ['lightbulb',           'bulb',                  'lightbulb'],
+  tapdance:   ['footprints',          'shoe',                  'footprints'],
+  combos:     ['combine',             'arrows-join',           'git-merge'],
+  overrides:  ['replace',             'replace',               'swap'],
+  settings:   ['sliders-horizontal',  'adjustments-horizontal','sliders-horizontal'],
+  audio:      ['volume-2',            'volume',                'speaker-high'],
+  haptic:     ['vibrate',             'device-mobile-vibration','vibrate'],
+  encoders:   ['rotate-cw',           'rotate-clockwise',      'arrow-clockwise'],
+  display:    ['monitor',             'device-desktop',        'monitor'],
+  switches:   ['magnet',              'magnet',                'magnet'],
+  socd:       ['arrow-left-right',    'arrows-left-right',     'arrows-left-right'],
+  dks:        ['gauge',               'gauge',                 'gauge'],
+  controller: ['gamepad-2',           'device-gamepad-2',      'game-controller'],
+  system:     ['settings',            'settings',              'gear'],
+  indicators: ['lamp',                'bulb',                  'lamp'],
+  diagnostics:['activity',            'activity',              'pulse'],
+};
+
+// A custom menu's icon from its label, first match wins; none matching gives a monogram.
+const KEYWORDS = [
+  [/tap.?dance/, 'tapdance'], [/combo/, 'combos'], [/override/, 'overrides'], [/socd/, 'socd'], [/\bdks\b/, 'dks'],
+  [/indicator/, 'indicators'], [/light|rgb|backlight|\bled/, 'lighting'], [/audio|sound/, 'audio'], [/haptic/, 'haptic'],
+  [/display|oled|lcd|screen/, 'display'], [/switch|actuation/, 'switches'], [/controller|gamepad|joystick/, 'controller'],
+  [/knob|encoder|dial/, 'encoders'], [/setting/, 'settings'], [/system/, 'system'],
+];
+// "Switch Configuration" (cipulot's Hall-effect boards: actuation point, calibration): Tabler
+// candidates, since a magnet says little about it. Applied with the Tabler set.
+const SWITCH_CANDIDATES = [
+  ['arrow-bar-to-down', 'pressed down to a point: the actuation point'],
+  ['square-arrow-down', 'a key pressed down'],
+  ['arrows-vertical', 'key travel'],
+  ['arrow-autofit-height', 'travel between two limits'],
+  ['line-height', 'travel against a scale'],
+  ['spacing-vertical', 'a depth between two lines'],
+  ['ruler-measure', 'measuring: calibration'],
+  ['hand-finger-down', 'a finger pressing'],
+  ['adjustments-alt', 'tuning, vertical sliders'],
+  ['toggle-right', 'a switch, literally'],
+  ['magnet', 'Hall effect: the first proposal'],
+];
+const kindOf = label => { const l = label.toLowerCase(); const k = KEYWORDS.find(([re]) => re.test(l)); return k ? k[1] : null; };
+const monogram = label => {
+  const words = label.replace(/[^A-Za-z0-9 ]/g, ' ').split(/\s+/).filter(w => w && !/^(and|of|the)$/i.test(w));
+  return words.length > 1 ? (words[0][0] + words[1][0]).toUpperCase() : (words[0] || '?').slice(0, 2).replace(/^./, c => c.toUpperCase());
+};
+
+// ---------------------------------------------------------------------------------------------
+// Boards: what their column would list, and what each section's strip and panel hold.
+const S = (label, kind, strip, panel) => ({ label, kind, strip, panel });
+const slots = (p, n) => Array.from({ length: n }, (_, i) => p + i);
+const KEYMAP = S('Keymap', 'keymap', ['0', '1', '2', '3'], 'The keycode picker.');
+const LAYOUT = S('Layout', 'layout', null, 'Layout options: split backspace, ISO enter...');
+const MACROS = S('Macros', 'macros', slots('M', 16), 'The macro editor for the slot chosen in the strip.');
+const custom = (label, sections) => ({ ...S(label, kindOf(label), null, sections), group: 'board' });
+// A tool section: compiled in, or a plugin later, matched to the board by VID:PID, Vial UID or a
+// protocol probe (ui-design.md, "Plugins").
+const DIAGNOSTICS = { ...S('Diagnostics', 'diagnostics', ['Key presses', 'Signal levels', 'Device'],
+  'The Leyden Jar diagnostics: thresholds, bins, bootloader, erase EEPROM. Matched by a protocol probe: any board built on the controller.'),
+  group: 'tool' };
+const VIAL_FEATURES = [S('Tap Dance', 'tapdance', slots('TD', 16), 'The tap dance editor.'),
+  S('Combos', 'combos', slots('C', 16), 'The combo editor.'), S('Key Overrides', 'overrides', slots('KO', 16), 'The key override editor.'),
+  S('QMK Settings', 'settings', null, 'Vial\'s QMK settings: tapping term, auto shift, one-shot keys...')];
+const LIGHTING = S('Lighting', 'lighting', null, 'The lighting menu VIA builds in (qmk_rgblight, qmk_backlight, qmk_rgb_matrix...), or Vial\'s.');
+const BOARDS = {
+  'Typical VIA board': {
+    name: 'Aquanaut', protocol: 'VIA 12',
+    sections: [KEYMAP, LAYOUT, MACROS, LIGHTING],
+  },
+  'Vial, all features': {
+    name: 'Model F Labs B104', protocol: 'Vial 6',
+    sections: [KEYMAP, LAYOUT, MACROS, ...VIAL_FEATURES, LIGHTING],
+  },
+  'NEVEREST 60 (worst case)': {
+    name: 'NEVEREST 60', protocol: 'VIA 12',
+    sections: [KEYMAP, LAYOUT, MACROS,
+      custom('Switch Configuration', ['Actuation', 'Calibration']),
+      custom('Tap Dance', ['Tap Dance 0 - TD(0)', '...', 'Tap Dance 15 - TD(15)']),
+      custom('Combos', ['Combo 0', '...', 'Combo 9']),
+      custom('SOCD', ['SOCD Settings']),
+      custom('DKS', ['DKS General Settings', 'DKS 0 - DKS(0)', '...', 'DKS 15 - DKS(15)']),
+      custom('Controller', ['General', 'Stick Behavior', 'Left Stick', 'Right Stick', 'Left Trigger', 'Right Trigger']),
+      custom('QMK Settings', ['Grave Escape', 'Tap-Hold and Mod-Tap', 'Auto Shift', 'Combo Behavior', 'One-Shot Keys', 'Mouse Keys', 'Miscellaneous']),
+      custom('System', ['Maintenance'])],
+  },
+  'Model F on a Leyden Jar (Vial + a tool)': {
+    name: 'Model F Labs B104', protocol: 'Vial 6',
+    sections: [KEYMAP, LAYOUT, MACROS, ...VIAL_FEATURES, DIAGNOSTICS],
+  },
+  'All three groups (hypothetical)': {
+    name: 'A VIA board on a Leyden Jar', protocol: 'VIA 12',
+    sections: [KEYMAP, LAYOUT, MACROS, LIGHTING, custom('Indicators', ['Caps Lock', 'Layer indicator']),
+               custom('Advanced Features', ['(its own sections)']), DIAGNOSTICS],
+  },
+  'Lighting as a custom menu': {
+    name: 'A board with its own lighting menu', protocol: 'VIA 12',
+    sections: [KEYMAP, LAYOUT, MACROS, custom('Lighting', ['Backlight', 'Underglow'])],
+  },
+  'Every other custom label': {
+    name: 'All of VIA\'s other labels', protocol: 'VIA 12',
+    sections: [KEYMAP, LAYOUT, MACROS, ...['Indicators', 'Board System', 'Advanced Features', 'Custom Features', 'PMK Custom Settings',
+               'Haptic Feedback', 'Knob', 'Audio'].map(l => custom(l, ['(its own sections)']))],
+  },
+};
+
+// ---------------------------------------------------------------------------------------------
+const COLUMNS = { 'List, 150 px': { cls: 'list', width: 150 }, 'Rail, 76 px': { cls: 'rail', width: 76 }, 'Icons only, 44 px': { cls: 'icons', width: 44 } };
+const SEPARATORS = { 'Headers': 'caption', 'Lines only': 'line', 'None': 'none' };
+const WIDTHS = { '1024': 1024, '1280': 1280, '1600': 1600 };
+const state = { separator: 'Headers', switchIcon: 'arrow-bar-to-down', column: 'List, 150 px', set: 'Tabler', board: 'NEVEREST 60 (worst case)', theme: 'Light', width: '1280', section: 0, slot: 0 };
+
+const svgCache = {};
+function loadIcon(set, kind) {
+  const name = kind === 'switches' && set === 'Tabler' ? state.switchIcon : ICONS[kind][Object.keys(SETS).indexOf(set)];
+  return loadNamed(set, name);
+}
+async function loadNamed(set, name) {
+  const key = set + '/' + name;
+  if (!(key in svgCache)) {
+    svgCache[key] = fetch(SETS[set].url(name)).then(r => r.ok ? r.text() : null).then(t => {
+      if (!t || !t.includes('<svg')) return null;
+      // Every set draws with currentColor; drop fixed sizes so CSS sizes them.
+      return t.replace(/\s(width|height)="[^"]*"/g, '');
+    }).catch(() => null);
+  }
+  return svgCache[key];
+}
+
+function iconEl(section) {
+  const box = document.createElement('div');
+  box.className = 'icon';
+  const mono = failed => { box.innerHTML = `<div class="mono${failed ? ' failed' : ''}" style="width:100%;height:100%">${monogram(section.label)}</div>`; };
+  if (!section.kind) { mono(false); return box; }
+  loadIcon(state.set, section.kind).then(svg => { if (svg) box.innerHTML = svg; else mono(true); });
+  return box;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The board: a 60% ANSI, as the app draws it, only to give the column its context.
+const ROWS = [
+  [['Esc',1,'accent'],...'1234567890-='.split('').map(c=>[c,1]),['Backspace',2,'mod']],
+  [['Tab',1.5,'mod'],...'QWERTYUIOP[]'.split('').map(c=>[c,1]),['\\',1.5]],
+  [['Caps Lock',1.75,'mod'],...'ASDFGHJKL;\''.split('').map(c=>[c,1]),['Enter',2.25,'accent']],
+  [['Shift',2.25,'mod'],...'ZXCVBNM,./'.split('').map(c=>[c,1]),['Shift',2.75,'mod']],
+  [['Ctrl',1.25,'mod'],['Win',1.25,'mod'],['Alt',1.25,'mod'],['',6.25],['Alt',1.25,'mod'],['Win',1.25,'mod'],['Menu',1.25,'mod'],['Ctrl',1.25,'mod']],
+];
+
+function drawBoard(container, unit) {
+  const T = THEMES[state.theme], gap = Math.max(1, unit * 0.06), margin = unit * 0.35;
+  const plate = document.createElement('div');
+  plate.className = 'plate';
+  plate.style.cssText = `width:${15 * unit + 2 * margin}px;height:${5 * unit + 2 * margin}px;background:${T.plate}`;
+  ROWS.forEach((row, r) => {
+    let x = 0;
+    row.forEach(([legend, w, cls]) => {
+      const k = document.createElement('div');
+      k.className = 'key';
+      k.style.cssText = `left:${margin + x * unit + gap}px;top:${margin + r * unit + gap}px;width:${w * unit - 2 * gap}px;height:${unit - 2 * gap}px;` +
+                        `background:${T[cls || 'alpha']};border:1px solid ${T.outline}`;
+      k.innerHTML = `<span style="color:${T.legend};font-size:${Math.max(9, unit * (legend.length > 1 ? 0.2 : 0.3))}px">${legend}</span>`;
+      plate.appendChild(k);
+      x += w;
+    });
+  });
+  container.appendChild(plate);
+}
+
+// ---------------------------------------------------------------------------------------------
+const flyout = document.getElementById('flyout');
+function showFlyout(entry, text) {
+  const r = entry.getBoundingClientRect();
+  flyout.textContent = text;
+  flyout.hidden = false;
+  flyout.style.left = (r.right + 6) + 'px';
+  flyout.style.top = (r.top + r.height / 2 - flyout.offsetHeight / 2) + 'px';
+}
+
+function render() {
+  const T = THEMES[state.theme], board = BOARDS[state.board], column = COLUMNS[state.column];
+  for (const [k, v] of Object.entries(T.css)) document.documentElement.style.setProperty('--' + k, v);
+  if (state.section >= board.sections.length) state.section = 0;
+  const section = board.sections[state.section];
+
+  const frame = document.getElementById('frame');
+  const width = WIDTHS[state.width];
+  frame.style.width = width + 'px';
+  frame.innerHTML = `<div class="menubar"><span class="board">${board.name} ▾</span><span class="muted">${board.protocol}</span><span class="right">Settings</span></div>`;
+
+  const body = document.createElement('div');
+  body.className = 'body';
+  const col = document.createElement('div');
+  col.className = 'col ' + column.cls;
+  col.style.width = column.width + 'px';
+  // Nazg's own sections first, then the definition's custom menus, then tools. A group the
+  // board lacks takes no room; with more than one group, each opens with its header (Rico,
+  // 2026-10-06), and a line parts it from the one before.
+  // The first group is named by the protocol that provides it (Rico, 2026-10-06).
+  const GROUP_NAMES = { undefined: board.protocol.startsWith('Vial') ? 'Vial' : 'VIA', board: 'Board', tool: 'Tools' };
+  const groups = new Set(board.sections.map(s => s.group));
+  const style = SEPARATORS[state.separator];
+  board.sections.forEach((s, i) => {
+    const opensGroup = i === 0 || s.group !== board.sections[i - 1].group;
+    if (opensGroup && groups.size > 1 && style !== 'none') {
+      if (i > 0) col.insertAdjacentHTML('beforeend', '<div class="sep"></div>');
+      if (style === 'caption') col.insertAdjacentHTML('beforeend', `<div class="sepcap">${GROUP_NAMES[s.group]}</div>`);
+    }
+    const e = document.createElement('div');
+    e.className = 'entry' + (i === state.section ? ' on' : '');
+    e.appendChild(iconEl(s));
+    const t = document.createElement('div');
+    t.className = 'text';
+    t.textContent = s.label;
+    e.appendChild(t);
+    e.onclick = () => { state.section = i; state.slot = 0; render(); };
+    // Icons only: the label always flies out. List and rail: only when it is cut.
+    e.onmouseenter = () => {
+      const cut = column.cls === 'icons' || t.scrollWidth > t.clientWidth + 1 || t.scrollHeight > t.clientHeight + 1;
+      if (cut) showFlyout(e, s.label);
+    };
+    e.onmouseleave = () => { flyout.hidden = true; };
+    col.appendChild(e);
+  });
+  body.appendChild(col);
+
+  const main = document.createElement('div');
+  main.className = 'main';
+  const strip = document.createElement('div');
+  strip.className = 'strip';
+  if (section.strip) {
+    strip.innerHTML = `<span class="label">${section.kind === 'keymap' ? 'Layer' : section.group === 'tool' ? 'Mode' : 'Slot'}</span>`;
+    section.strip.forEach((name, i) => {
+      const b = document.createElement('button');
+      b.textContent = name;
+      if (i === state.slot) b.className = 'on';
+      b.onclick = () => { state.slot = i; render(); };
+      strip.appendChild(b);
+    });
+  }
+  main.appendChild(strip);
+
+  // The board takes the width the column leaves, 1u capped at 54 px as on a wide window.
+  const avail = width - column.width - 28 - 2;
+  const unit = Math.min(54, Math.floor((avail / (15 + 0.7)) * 10) / 10);
+  const area = document.createElement('div');
+  area.className = 'boardarea';
+  drawBoard(area, unit);
+  main.appendChild(area);
+
+  const panel = document.createElement('div');
+  panel.className = 'panel';
+  panel.innerHTML = Array.isArray(section.panel)
+    ? `<b>${section.label}</b> -- a custom menu from the definition; its sections:<ul>${section.panel.map(p => `<li>${p}</li>`).join('')}</ul>`
+    : `<b>${section.label}</b> -- ${section.panel}`;
+  main.appendChild(panel);
+  body.appendChild(main);
+  frame.appendChild(body);
+
+  frame.style.height = '';
+  document.getElementById('readout').innerHTML =
+    `Column <b>${column.width} px</b> of a <b>${width} px</b> window -- the board's 1u is <b>${unit} px</b>` +
+    (unit < 54 ? ` (54 px when the window is wide enough)` : '') +
+    `. ${board.sections.length} sections; icon source: ${state.set} (${SETS[state.set].licence}).`;
+  renderControls();
+  renderCandidates();
+}
+
+function renderCandidates() {
+  const c = document.getElementById('candidates');
+  c.innerHTML = `<div class="title">"Switch Configuration" icon -- Tabler candidates (click one to try it in the column; shown with the Tabler set)</div>`;
+  const row = document.createElement('div');
+  row.className = 'row';
+  SWITCH_CANDIDATES.forEach(([name, why]) => {
+    const b = document.createElement('div');
+    b.className = 'cand' + (state.switchIcon === name ? ' on' : '');
+    const box = document.createElement('div');
+    box.className = 'icon';
+    loadNamed('Tabler', name).then(svg => { if (svg) box.innerHTML = svg; });
+    b.appendChild(box);
+    b.insertAdjacentHTML('beforeend', `<div>${name}</div><div class="why">${why}</div>`);
+    b.onclick = () => { state.switchIcon = name; state.set = 'Tabler'; render(); };
+    row.appendChild(b);
+  });
+  c.appendChild(row);
+}
+
+function renderControls() {
+  const c = document.getElementById('controls');
+  c.innerHTML = '';
+  [['column', 'Column', Object.keys(COLUMNS)], ['set', 'Icons', Object.keys(SETS)], ['board', 'Board', Object.keys(BOARDS)],
+   ['separator', 'Groups', Object.keys(SEPARATORS)], ['width', 'Window', Object.keys(WIDTHS)], ['theme', 'Theme', Object.keys(THEMES)]].forEach(([key, name, values]) => {
+    const g = document.createElement('div');
+    g.className = 'group';
+    g.innerHTML = `<span class="name">${name}</span>`;
+    values.forEach(v => {
+      const b = document.createElement('button');
+      b.textContent = key === 'width' ? v + ' px' : v;
+      if (state[key] === v) b.className = 'on';
+      b.onclick = () => { state[key] = v; render(); };
+      g.appendChild(b);
+    });
+    c.appendChild(g);
+  });
+}
+
+document.getElementById('notes').innerHTML = `
+<p><b>The three columns.</b> <b>List</b> is the column as ui-design.md draws it: an icon and a label in a row,
+150 px. <b>Rail</b> puts the label under the icon, two lines at most, 11 px, cut with "..." beyond -- the full
+label flies out on hover only when it is cut. <b>Icons only</b> is 44 px; every label flies out on hover.
+The selected section has the accent bar on its left.</p>
+<p><b>What the width buys.</b> Switch the window to 1024 or 1280 px and compare the board's 1u in the line
+under the frame: the column is taken from the board's width, so every pixel saved goes to the keys.</p>
+<p><b>Nazg's sections, then the board's menus</b> (Rico, 2026-10-06): the sections Nazg provides itself --
+Keymap, Layout, Macros, Lighting as VIA or Vial build it in, Vial's features -- come first; the custom menus a
+VIA V3 definition declares follow after a separator, in the definition's order, even when one is named like a
+Nazg section (NEVEREST 60's own Tap Dance, Combos and QMK Settings). <b>Tools</b> -- sections that are neither,
+such as the Leyden Jar diagnostics, compiled in or a plugin later -- come last, after their own separator. With more than one group, each opens with its header -- the protocol's name (VIA or Vial) for Nazg's sections, Board, Tools -- and a group the board lacks takes no room; a board with Nazg's sections only shows none.
+<p><b>Custom menus get their icon from their label</b>, by keyword, first match wins; no match gives a
+monogram (try "Every other custom label": Board System, Advanced Features, Custom Features, PMK Custom
+Settings). VIA does the same with three keywords and falls back to a microchip. A dashed monogram means
+the icon failed to load from jsDelivr.</p>
+<table><tr><th>Keyword in the label</th><th>Icon</th></tr>
+${KEYWORDS.map(([re, kind]) => `<tr><td><code>${re.source}</code></td><td>${kind}</td></tr>`).join('')}
+</table>
+<p><b>The worst case is real</b>: NEVEREST 60 lists eight custom menus after VIA's Keymap, Layout and Macros --
+11 entries. 63 of VIA's 2029 V3 definitions have between 5 and 10 menus, almost all of them cipulot's
+Hall-effect boards; 39% have none and 57% have one, for lighting.</p>`;
+
+render();
+</script>
+</body>
+</html>

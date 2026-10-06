@@ -20,7 +20,7 @@ was not taken: a feature-rich board shows eleven tabs before anything is done.
 | Region | What it holds |
 |---|---|
 | **Header** | The board's name, which is a menu (see "Getting back to the keyboard list"); the protocol; the lock state on boards that have one; the **settings button** |
-| **Section column** | Keymap, Layout, Macros... — about 150 px wide, an icon and a label per row. **Only the sections the board has**, and **hidden when there is only one**. Possibly **icons only**, to keep the width contained beside a board and a picker both as wide as the board (Rico, 2026-10-04; see "Open points") |
+| **Section column** | Keymap, Layout, Macros... — about 150 px wide, an icon and a label per row, icons from **Tabler**. **Only the sections the board has**, and **hidden when there is only one**. A rail (icon over label, 76 px) and icons only (44 px) were tried in a mockup and set aside: the list reads best (Rico, 2026-10-06; see "Open points") |
 | **Strip** | A row of choices owned by the section: layers in Keymap, slots in Macros (see below). Absent when the section has nothing to choose |
 | **Board** | Drawn by Nazg; what each key shows is the section's |
 | **Panel** | The section's editor — the keycode picker in Keymap (see "The keycode picker"). **Always visible**, not only while a key is selected |
@@ -1525,8 +1525,39 @@ look is built** (Rico, 2026-10-03): they are judged on the real thing, not on a 
 - **Folding the section column to icons in a narrow window** (Rico, 2026-10-03). The column is
   150 px, shown on every board with more than one section -- most Vial boards, once Macros, Tap
   Dance and Combos are sections -- and with the 9 px floor it is what pushes a TKL past a 1280 px
-  window ("The floor is on the header"). Icons only, about 40 px, would give that back. Not
-  needed while Keymap is the only section: to settle when the column gets its second one.
+  window ("The floor is on the header"). Icons only, about 40 px, would give that back.
+  **Settled 2026-10-06: the list stays.** The mockup `ui-design/section-column.html` set the 150 px
+  list beside a navigation rail (icon over a two-line label, 76 px) and icons only (44 px, the
+  label on hover), on real section lists up to NEVEREST 60's eleven; Rico, who had pushed for
+  icons only: the list looks better. **Icons: Tabler** (MIT), chosen over Lucide and Phosphor in
+  the same mockup.
+- **Nazg's sections, then the board's menus** (Rico, 2026-10-06, in the same mockup): the
+  sections Nazg provides -- Keymap, Layout, Macros, Lighting as VIA or Vial build it in, Vial's
+  features -- come first; a VIA V3 definition's custom menus (`{label, content}` entries of
+  `menus`) follow after a separator, in the definition's order, even when one is named like a
+  Nazg section: NEVEREST 60's Tap Dance, Combos and QMK Settings are cipulot's own, on value
+  channels 7-12 that VIA does not define. **Tools** -- sections that are neither, such as the
+  Leyden Jar diagnostics (see "Plugins"), compiled in or a plugin later -- form a third group,
+  **last** (Rico, 2026-10-06). **Each group opens with a text header** -- **the protocol's name,
+  *VIA* or *Vial*, for Nazg's sections**, ***Board*** for the definition's menus, *Tools* -- with
+  a line before every group but the first; **a group the board lacks takes no room**, no line
+  and no header, and a board with only
+  Nazg's sections shows no header at all. The headers also settle two entries sharing a name or
+  an icon -- Vial's Tap Dance and a board's own, Lighting and Indicators: their group tells them
+  apart. Open: whether Nazg's own tools -- the matrix view, today under Advanced -- join the
+  Tools group, with *Advanced tools* on.
+- **A custom menu's icon** (Rico, 2026-10-06), first match wins:
+  1. later, an `icon` field on the menu in the definition (step 5) -- the author's choice;
+  2. **a table keyed on the label**, kept by us: labels repeat across a family (cipulot's
+     "Switch Configuration" is one menu on about 55 boards), and VIA's registry has only 22;
+  3. **then VID:PID + label**, for labels the table does not know -- "Advanced Features" or
+     "Custom Features" on one board;
+  4. the keyword rule of the mockup's table;
+  5. a monogram.
+  Tables 2 and 3 are data, so they could live with the definitions in the community
+  repository (via-registry.md, "Sharing") rather than in a Nazg release. "Switch Configuration"
+  (actuation points, Rapid Trigger, calibration) wants a travel icon, not the magnet: Tabler's
+  `line-height` proposed, candidates in the mockup.
 - **Row labels on a board whose rows share a line** (Rico, 2026-10-01, from the mockup): on
   the Model F, R3 and R4 both have their leftmost key on the Caps Lock row, so spreading them
   apart puts R4 between two rows and nudges R2 off its own. To revisit when the board's look
