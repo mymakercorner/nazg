@@ -114,7 +114,8 @@ const THEMES = {
 };
 
 // ---------------------------------------------------------------------------------------------
-// Icon sets, from jsDelivr. One icon per kind of section, named in each set.
+// Icon sets, from jsDelivr. One icon per kind of section, named in each set. Tabler's column
+// follows section-icons.html, which settled every section's icon (2026-10-09).
 const SETS = {
   Lucide:   { url: n => `https://cdn.jsdelivr.net/npm/lucide-static@latest/icons/${n}.svg`, licence: 'ISC' },
   Tabler:   { url: n => `https://cdn.jsdelivr.net/npm/@tabler/icons@latest/icons/outline/${n}.svg`, licence: 'MIT' },
@@ -125,7 +126,7 @@ const ICONS = {          // kind:      Lucide                Tabler             
   layout:     ['layout-template',     'layout',                'layout'],
   macros:     ['play',                'player-play',           'play'],
   lighting:   ['lightbulb',           'bulb',                  'lightbulb'],
-  tapdance:   ['footprints',          'shoe',                  'footprints'],
+  tapdance:   ['footprints',          'hand-click',            'footprints'],
   combos:     ['combine',             'arrows-join',           'git-merge'],
   overrides:  ['replace',             'replace',               'swap'],
   settings:   ['sliders-horizontal',  'adjustments-horizontal','sliders-horizontal'],
@@ -133,12 +134,12 @@ const ICONS = {          // kind:      Lucide                Tabler             
   haptic:     ['vibrate',             'device-mobile-vibration','vibrate'],
   encoders:   ['rotate-cw',           'rotate-clockwise',      'arrow-clockwise'],
   display:    ['monitor',             'device-desktop',        'monitor'],
-  switches:   ['magnet',              'magnet',                'magnet'],
+  switches:   ['magnet',              'arrow-bar-to-down',     'magnet'],
   socd:       ['arrow-left-right',    'arrows-left-right',     'arrows-left-right'],
   dks:        ['gauge',               'gauge',                 'gauge'],
   controller: ['gamepad-2',           'device-gamepad-2',      'game-controller'],
   system:     ['settings',            'settings',              'gear'],
-  indicators: ['lamp',                'bulb',                  'lamp'],
+  indicators: ['lamp',                'circle-dot',            'lamp'],
   diagnostics:['activity',            'activity',              'pulse'],
 };
 

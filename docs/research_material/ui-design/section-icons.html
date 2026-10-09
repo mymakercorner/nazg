@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- Review of the section column's icons (ui-design.md, "Open points": the section column and
+     "A custom menu's icon"), after section-column.html settled the list and Tabler. One row per
+     kind of section -- Nazg's own, every custom menu label in VIA's V3 definitions (with how
+     many definitions use it), the tools -- with Tabler candidates. Settled by Rico 2026-10-09:
+     the one marked "chosen" is the decision, recorded in ui-design.md ("The icon of every
+     section"). Click a candidate to try another; the column on the right shows the choices at
+     the size the app draws them, and the list at the bottom flags an icon used twice in one group.
+     Icons come from jsDelivr, pinned to @tabler/icons 3.47.0, so it needs a network connection.
+     Every name below was checked against that version's outline set. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Section icon review</title>
+<style>
+:root{--window:#f3f3f5;--text:#1d1e22;--muted:#6b6e78;--control:#ffffff;--border:#c8cad2;--accent:#3b82f6;--accent-text:#fff;--panel:#f8f8fa;--column:#ebecf0;--hover:rgba(0,0,0,.06);--selected:rgba(59,130,246,.14);--warn:#c2410c}
+:root[data-theme="dark"]{--window:#0f0f11;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--accent:#4296fa;--accent-text:#fff;--panel:#16171b;--column:#16171b;--hover:rgba(255,255,255,.07);--selected:rgba(66,150,250,.20);--warn:#fb923c}
+*{box-sizing:border-box}
+body{margin:0;background:var(--window);color:var(--text);font-family:"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+.controls{position:sticky;top:0;z-index:2;display:flex;flex-wrap:wrap;gap:8px 22px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.group .name{color:var(--muted);margin-right:4px}
+button{font:inherit;padding:3px 10px;border-radius:4px;border:1px solid var(--border);background:var(--control);color:var(--text);cursor:pointer}
+button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+.layout{display:flex;gap:20px;padding:16px;align-items:flex-start}
+.rows{flex:1;min-width:0}
+.side{flex:none;width:340px;position:sticky;top:60px;display:flex;flex-direction:column;gap:12px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:22px 0 6px}
+h2:first-child{margin-top:0}
+.row{display:grid;grid-template-columns:190px 1fr;gap:10px;padding:10px 0;border-top:1px solid var(--border)}
+.row .what b{display:block;font-size:14px}
+.row .what span{color:var(--muted);font-size:12px;line-height:1.4;display:block;margin-top:2px}
+.cands{display:flex;flex-wrap:wrap;gap:6px}
+.cand{position:relative;width:96px;padding:8px 4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--control);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center}
+.cand:hover{background:var(--hover)}
+.cand.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset;background:var(--selected)}
+.cand .icon{width:var(--big);height:var(--big)}
+.cand .nm{font-size:11px;font-family:Consolas,monospace;word-break:break-all}
+.cand .why{font-size:10.5px;color:var(--muted);line-height:1.25}
+.cand .badge{position:absolute;top:3px;left:4px;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.icon{flex:none;display:flex;align-items:center;justify-content:center;color:var(--text)}
+.icon svg{width:100%;height:100%;display:block}
+.mono{display:flex;align-items:center;justify-content:center;border:1.5px solid currentColor;border-radius:4px;font-weight:700;font-size:9px;width:100%;height:100%}
+.mono.failed{border-style:dashed;opacity:.6}
+.card{border:1px solid var(--border);border-radius:8px;background:var(--panel);padding:10px}
+.card .title{color:var(--muted);margin-bottom:8px}
+.col{width:150px;background:var(--column);border:1px solid var(--border);border-radius:6px;padding:6px 0;display:flex;flex-direction:column;gap:2px}
+.entry{display:flex;align-items:center;gap:8px;padding:5px 9px;margin:0 5px;border-radius:6px;color:var(--muted)}
+.entry:first-of-type{background:var(--selected);color:var(--text)}
+.entry .icon{width:18px;height:18px;color:inherit}
+.entry .text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.entry.dup .text::after{content:" •";color:var(--warn)}
+.sep{height:1px;background:var(--border);margin:5px 10px}
+.sepcap{font-size:11px;color:var(--muted);padding:2px 14px 1px;text-transform:uppercase;letter-spacing:.05em}
+.preview{display:flex;gap:12px;align-items:flex-start}
+.preview .boards{display:flex;flex-direction:column;gap:4px}
+.preview .boards button{text-align:left;font-size:12px}
+pre{margin:0;font-size:11.5px;white-space:pre-wrap;font-family:Consolas,monospace;line-height:1.45}
+.warn{color:var(--warn)}
+.notes{color:var(--muted);line-height:1.5;max-width:900px}
+.notes b{color:var(--text)}
+@media (max-width:900px){.layout{flex-direction:column}.side{position:static;width:100%}.row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="controls" id="controls"></div>
+<div class="layout">
+  <div class="rows" id="rows"></div>
+  <div class="side">
+    <div class="card"><div class="title">The column, at the app's 18 px</div><div class="preview" id="preview"></div></div>
+    <div class="card"><div class="title">Choices <button id="copy" style="float:right;font-size:11px;padding:1px 8px">Copy</button></div><pre id="summary"></pre></div>
+  </div>
+</div>
+<div class="notes" style="padding:0 16px 24px">
+<p><b>Groups.</b> Nazg's sections (headed VIA or Vial), the board's custom menus (Board), Tools -- ui-design.md,
+"Nazg's sections, then the board's menus". A board's own Tap Dance, Combos, QMK Settings and Lighting take the
+icon of Nazg's kind of the same name: the group header tells them apart. A dot after a label in the preview, and
+a warning in the list, mark an icon used by two kinds <i>in the same group</i>.</p>
+<p><b>Board labels</b> are every custom menu label in VIA's 2029 V3 definitions, with the number of definitions
+using it; cipulot's Hall-effect family accounts for Switch Configuration, Tap Dance, Combos, SOCD, DKS,
+Controller, QMK Settings and System. Labels not in the table later fall back to the keyword rule, then a
+monogram ("AF" for Advanced Features).</p>
+</div>
+
+<script>
+const VERSION = '3.47.0';
+const url = n => `https://cdn.jsdelivr.net/npm/@tabler/icons@${VERSION}/icons/outline/${n}.svg`;
+const MONO = '@monogram';
+
+// kind: [label, group, note, chosen, [[name, why], ...]]. `chosen` is the decision (2026-10-09).
+const KINDS = [
+  // Nazg's own
+  ['keymap', 'Keymap', 'nazg', 'Every board.', 'keyboard', [
+    ['keyboard', 'the board'], ['stack-2', 'layers'], ['command', 'a key'], ['grid-dots', 'keys in rows']]],
+  ['layout', 'Layout', 'nazg', 'Boards with layout options.', 'layout', [
+    ['layout', 'panels'], ['layout-board-split', 'a split board'], ['puzzle', 'interchangeable pieces'],
+    ['toggle-left', 'options on and off'], ['arrows-shuffle', 'alternatives'], ['template', 'a template'], ['layout-grid', 'a grid']]],
+  ['macros', 'Macros', 'nazg', 'VIA and Vial.', 'player-play', [
+    ['macro', 'Tabler\'s own macro'], ['player-play', 'play back'], ['player-record', 'record'],
+    ['script', 'a script'], ['keyframes', 'steps in time'], ['list-details', 'a list of steps'], ['code', 'code']]],
+  ['lighting', 'Lighting', 'nazg', 'VIA\'s built-in menus (rgblight 477, backlight+rgblight 220, rgb_matrix 179, backlight 96), Vial\'s; and the "Lighting" label, 214.', 'bulb', [
+    ['bulb', 'a bulb'], ['sun', 'light'], ['brightness', 'brightness'], ['sparkles', 'effects'],
+    ['palette', 'colour'], ['color-swatch', 'colours'], ['lamp', 'a lamp']]],
+  ['audio', 'Audio', 'nazg', 'VIA\'s qmk_audio built-in, 7 definitions.', 'volume', [
+    ['volume', 'a speaker'], ['volume-2', 'quieter speaker'], ['music', 'notes'], ['speakerphone', 'a megaphone'], ['bell', 'a bell']]],
+  ['tapdance', 'Tap Dance', 'nazg', 'Vial; and cipulot\'s own label, 63.', 'hand-click', [
+    ['shoe', 'dance: the first idea'], ['hand-click', 'a tapping hand'], ['click', 'a tap'], ['hand-finger-down', 'a finger pressing'],
+    ['multiplier-2x', 'tapped twice'], ['hand-two-fingers', 'two fingers'], ['circles', 'several taps']]],
+  ['combos', 'Combos', 'nazg', 'Vial; and cipulot\'s own label, 63.', 'arrows-join', [
+    ['arrows-join', 'keys joining'], ['arrows-join-2', 'joining, curved'], ['plus-equal', 'A + B ='], ['ampersand', 'A & B'],
+    ['arrow-merge', 'merging'], ['layers-union', 'a union'], ['hand-two-fingers', 'two fingers']]],
+  ['overrides', 'Key Overrides', 'nazg', 'Vial.', 'replace', [
+    ['replace', 'one thing for another'], ['arrows-exchange', 'an exchange'], ['exchange', 'exchange, round'],
+    ['switch-horizontal', 'switched'], ['arrows-transfer-down', 'transfer'], ['arrows-split', 'a split path'], ['git-branch', 'a branch']]],
+  ['altrepeat', 'Alt Repeat Key', 'nazg', 'Vial, since 2025.', 'repeat', [
+    ['repeat', 'repeat'], ['repeat-once', 'repeat, once'], ['arrow-iteration', 'iteration'], ['arrow-loop-right', 'a loop'],
+    ['history', 'what came before'], ['arrow-back-up', 'back to the last key']]],
+  ['qmksettings', 'QMK Settings', 'nazg', 'Vial; and cipulot\'s own label, 63.', 'adjustments-horizontal', [
+    ['adjustments-horizontal', 'sliders'], ['adjustments', 'sliders, vertical'], ['adjustments-alt', 'sliders, alt'],
+    ['settings', 'a gear'], ['settings-2', 'a gear, hexagon'], ['tool', 'a wrench']]],
+  // The board's custom menus
+  ['switches', 'Switch Configuration', 'board', '55 definitions, cipulot: actuation points, Rapid Trigger, calibration.', 'arrow-bar-to-down', [
+    ['line-height', 'travel against a scale'], ['arrow-bar-to-down', 'pressed to a point'], ['arrows-vertical', 'key travel'],
+    ['arrow-autofit-height', 'travel between limits'], ['spacing-vertical', 'a depth'], ['ruler-measure', 'calibration'],
+    ['adjustments-alt', 'vertical sliders'], ['magnet', 'Hall effect']]],
+  ['dks', 'DKS', 'board', '51 definitions: Dynamic Keystroke, up to four actions along one press and release.', 'gauge', [
+    ['gauge', 'a gauge'], ['keyframes', 'steps'], ['stairs-down', 'stages down'], ['timeline', 'points on a line'],
+    ['list-numbers', 'numbered actions'], ['arrow-bar-both', 'both directions']]],
+  ['controller', 'Controller', 'board', '51 definitions: analog stick and trigger emulation.', 'device-gamepad-2', [
+    ['device-gamepad-2', 'a gamepad'], ['device-gamepad', 'a gamepad, flat'], ['device-gamepad-3', 'a d-pad']]],
+  ['system', 'System', 'board', '51 definitions; holds "Maintenance".', 'settings', [
+    ['settings', 'a gear'], ['tool', 'a wrench: maintenance'], ['tools', 'tools'], ['cpu', 'the controller'], ['settings-2', 'a gear, hexagon']]],
+  ['socd', 'SOCD', 'board', '50 definitions: opposite keys held together.', 'arrows-left-right', [
+    ['arrows-left-right', 'left and right'], ['arrows-right-left', 'opposite ways'], ['arrows-horizontal', 'both ends'],
+    ['arrows-diff', 'opposed'], ['switch-horizontal', 'one or the other'], ['arrows-move-horizontal', 'side to side']]],
+  ['indicators', 'Indicators', 'board', '22 definitions: Caps Lock and layer lights.', 'circle-dot', [
+    ['bulb', 'Lighting\'s icon'], ['arrow-big-up-line', '⇪ Caps Lock'], ['letter-case-upper', 'capitals'],
+    ['circle-dot', 'an LED'], ['point', 'a dot'], ['lamp', 'a lamp'], ['brightness-half', 'on/off']]],
+  ['boardsystem', 'Board System', 'board', '13 definitions. The keyword rule gives System\'s icon.', 'settings', [
+    ['settings', 'System\'s icon'], ['cpu', 'the board itself'], ['tool', 'a wrench'], ['settings-2', 'a gear, hexagon']]],
+  ['advanced', 'Advanced Features', 'board', '12 definitions; no keyword matches.', 'sparkles', [
+    [MONO, 'AF'], ['sparkles', 'extras'], ['adjustments-plus', 'more settings'], ['puzzle', 'add-ons'],
+    ['components', 'parts'], ['flask', 'experimental']]],
+  ['custom', 'Custom Features', 'board', '3 definitions; no keyword matches.', 'components', [
+    [MONO, 'CF'], ['puzzle', 'add-ons'], ['components', 'parts'], ['sparkles', 'extras'], ['adjustments-plus', 'more settings']]],
+  ['pmk', 'PMK Custom Settings', 'board', '2 definitions. The keyword "setting" gives QMK Settings\' icon.', 'adjustments-horizontal', [
+    ['adjustments-horizontal', 'QMK Settings\' icon'], ['settings', 'a gear'], ['adjustments-alt', 'sliders, alt']]],
+  ['haptic', 'Haptic Feedback', 'board', '2 definitions.', 'device-mobile-vibration', [
+    ['device-mobile-vibration', 'a vibrating phone'], ['wave-sine', 'a vibration'], ['waves-electricity', 'pulses'], ['activity', 'a pulse']]],
+  ['knob', 'Knob', 'board', '1 definition; also the keywords encoder and dial.', 'rotate-clockwise', [
+    ['rotate-clockwise', 'turning'], ['rotate-clockwise-2', 'turning, open'], ['rotate', 'turning, other way'],
+    ['rotate-dot', 'a turning point'], ['circle-dot', 'a knob from above']]],
+  ['display', 'Display', 'board', 'No label in VIA\'s registry; the keywords display, OLED, LCD, screen.', 'device-desktop', [
+    ['device-desktop', 'a monitor'], ['device-tv', 'a screen'], ['device-tv-old', 'a small screen']]],
+  // Tools
+  ['diagnostics', 'Diagnostics', 'tool', 'The Leyden Jar diagnostics: key presses, signal levels, device.', 'activity', [
+    ['activity', 'a trace'], ['activity-heartbeat', 'a heartbeat'], ['wave-sine', 'a signal'], ['heart-rate-monitor', 'a monitor'],
+    ['chart-line', 'a chart'], ['stethoscope', 'diagnosis'], ['microscope', 'inspection'], ['test-pipe', 'testing']]],
+  ['matrix', 'Matrix', 'tool', 'Open: does the matrix view join Tools, with Advanced tools on?', 'chart-grid-dots', [
+    ['matrix', 'Tabler\'s matrix'], ['grid-dots', 'a grid of switches'], ['grid-4x4', 'a grid'], ['grid-3x3', 'a smaller grid'],
+    ['chart-grid-dots', 'rows and columns'], ['table', 'a table']]],
+  ['plugin', 'A plugin', 'tool', 'A plugin that brings no icon of its own.', 'puzzle', [
+    [MONO, 'its initials'], ['puzzle', 'a piece'], ['plug', 'a plug'], ['components', 'parts']]],
+];
+const GROUPS = { nazg: 'Nazg\'s sections', board: 'The board\'s custom menus', tool: 'Tools' };
+
+// Preview boards: label, kind, group.
+const N = k => ({ kind: k, group: 'nazg' }), B = (label, k) => ({ label, kind: k, group: 'board' }), T = k => ({ kind: k, group: 'tool' });
+const BOARDS = {
+  'Vial, all features': { protocol: 'Vial', list: ['keymap', 'layout', 'macros', 'lighting', 'tapdance', 'combos', 'overrides', 'altrepeat', 'qmksettings'].map(N) },
+  'NEVEREST 60': { protocol: 'VIA', list: [N('keymap'), N('layout'), N('macros'), B('Switch Configuration', 'switches'), B('Tap Dance', 'tapdance'),
+    B('Combos', 'combos'), B('SOCD', 'socd'), B('DKS', 'dks'), B('Controller', 'controller'), B('QMK Settings', 'qmksettings'), B('System', 'system')] },
+  'Model F on a Leyden Jar': { protocol: 'Vial', list: [...['keymap', 'layout', 'macros', 'tapdance', 'combos', 'overrides', 'altrepeat', 'qmksettings'].map(N), T('diagnostics'), T('matrix')] },
+  'Every other label': { protocol: 'VIA', list: [N('keymap'), N('layout'), N('macros'), N('lighting'), N('audio'), B('Indicators', 'indicators'),
+    B('Board System', 'boardsystem'), B('Advanced Features', 'advanced'), B('Custom Features', 'custom'), B('PMK Custom Settings', 'pmk'),
+    B('Haptic Feedback', 'haptic'), B('Knob', 'knob'), B('Display', 'display'), T('plugin')] },
+};
+
+// ---------------------------------------------------------------------------------------------
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+                set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+const byKind = Object.fromEntries(KINDS.map(([k, label, group, note, now, cands]) => [k, { label, group, note, now, cands }]));
+let saved = {}; try { saved = JSON.parse(store.get('nazg-section-icons') || '{}'); } catch (e) {}
+const choice = Object.fromEntries(KINDS.map(([k, , , , now, cands]) => [k, saved[k] || now || null]));
+const state = { theme: store.get('nazg-section-icons-theme') || 'Light', size: '32 px', board: 'NEVEREST 60' };
+
+const cache = {};
+function load(name) {
+  if (!(name in cache)) cache[name] = fetch(url(name)).then(r => r.ok ? r.text() : null)
+    .then(t => t && t.includes('<svg') ? t.replace(/\s(width|height)="[^"]*"/g, '') : null).catch(() => null);
+  return cache[name];
+}
+const initials = label => {
+  const w = label.replace(/[^A-Za-z0-9 ]/g, ' ').split(/\s+/).filter(x => x && !/^(and|of|the|a)$/i.test(x));
+  return w.length > 1 ? (w[0][0] + w[1][0]).toUpperCase() : (w[0] || '?').slice(0, 2);
+};
+function iconEl(name, label) {
+  const box = document.createElement('div');
+  box.className = 'icon';
+  if (!name || name === MONO) { box.innerHTML = `<div class="mono"${name ? '' : ' style="opacity:.35;border-style:dotted"'}>${initials(label)}</div>`; return box; }
+  load(name).then(svg => { box.innerHTML = svg || `<div class="mono failed">${initials(label)}</div>`; });
+  return box;
+}
+
+// Icons a group uses for more than one kind.
+function duplicates() {
+  const seen = {}, dups = new Set();
+  for (const [k, { group }] of Object.entries(byKind)) {
+    const c = choice[k];
+    if (!c || c === MONO) continue;
+    const key = group + '/' + c;
+    if (seen[key]) { dups.add(k); dups.add(seen[key]); } else seen[key] = k;
+  }
+  return dups;
+}
+
+function renderRows() {
+  const rows = document.getElementById('rows');
+  rows.innerHTML = '';
+  let group = null;
+  for (const [k, { label, group: g, note, now, cands }] of Object.entries(byKind)) {
+    if (g !== group) { group = g; rows.insertAdjacentHTML('beforeend', `<h2>${GROUPS[g]}</h2>`); }
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML = `<div class="what"><b>${label}</b><span>${note}</span></div>`;
+    const cs = document.createElement('div');
+    cs.className = 'cands';
+    for (const [name, why] of cands) {
+      const c = document.createElement('div');
+      c.className = 'cand' + (choice[k] === name ? ' on' : '');
+      c.appendChild(iconEl(name, label));
+      c.insertAdjacentHTML('beforeend', `<div class="nm">${name === MONO ? 'monogram' : name}</div><div class="why">${why}</div>` +
+        (name === now ? '<div class="badge">chosen</div>' : ''));
+      c.onclick = () => { choice[k] = name; save(); render(); };
+      cs.appendChild(c);
+    }
+    row.appendChild(cs);
+    rows.appendChild(row);
+  }
+}
+
+function renderPreview() {
+  const p = document.getElementById('preview');
+  p.innerHTML = '';
+  const board = BOARDS[state.board], dups = duplicates();
+  const col = document.createElement('div');
+  col.className = 'col';
+  const groups = new Set(board.list.map(s => s.group));
+  const names = { nazg: board.protocol, board: 'Board', tool: 'Tools' };
+  board.list.forEach((s, i) => {
+    if ((i === 0 || s.group !== board.list[i - 1].group) && groups.size > 1) {
+      if (i > 0) col.insertAdjacentHTML('beforeend', '<div class="sep"></div>');
+      col.insertAdjacentHTML('beforeend', `<div class="sepcap">${names[s.group]}</div>`);
+    }
+    const label = s.label || byKind[s.kind].label;
+    const e = document.createElement('div');
+    e.className = 'entry' + (dups.has(s.kind) ? ' dup' : '');
+    e.appendChild(iconEl(choice[s.kind], label));
+    e.insertAdjacentHTML('beforeend', `<span class="text" title="${label}">${label}</span>`);
+    col.appendChild(e);
+  });
+  p.appendChild(col);
+  const bs = document.createElement('div');
+  bs.className = 'boards';
+  for (const name of Object.keys(BOARDS)) {
+    const b = document.createElement('button');
+    b.textContent = name;
+    if (name === state.board) b.className = 'on';
+    b.onclick = () => { state.board = name; render(); };
+    bs.appendChild(b);
+  }
+  p.appendChild(bs);
+}
+
+function summaryText() {
+  const dups = duplicates();
+  return Object.entries(byKind).map(([k, { label, now }]) => {
+    const c = choice[k] === MONO ? 'monogram' : (choice[k] || '(none)');
+    const changed = choice[k] !== (now || null) ? '  (chosen: ' + (now === MONO ? 'monogram' : now || 'none') + ')' : '';
+    return `${label.padEnd(22)} ${c}${changed}${dups.has(k) ? '  !! same icon as another in its group' : ''}`;
+  }).join('\n');
+}
+function renderSummary() {
+  const s = document.getElementById('summary');
+  s.innerHTML = summaryText().split('\n').map(l => l.includes('!!') ? `<span class="warn">${l}</span>` : l).join('\n');
+}
+
+function renderControls() {
+  const c = document.getElementById('controls');
+  c.innerHTML = '';
+  const add = (key, name, values, apply) => {
+    const g = document.createElement('div');
+    g.className = 'group';
+    g.innerHTML = `<span class="name">${name}</span>`;
+    for (const v of values) {
+      const b = document.createElement('button');
+      b.textContent = v;
+      if (state[key] === v) b.className = 'on';
+      b.onclick = () => { state[key] = v; apply && apply(); render(); };
+      g.appendChild(b);
+    }
+    c.appendChild(g);
+  };
+  add('theme', 'Theme', ['Light', 'Dark'], () => store.set('nazg-section-icons-theme', state.theme));
+  add('size', 'Candidates at', ['18 px', '24 px', '32 px']);
+  const r = document.createElement('button');
+  r.textContent = 'Reset to chosen';
+  r.onclick = () => { for (const [k, { now }] of Object.entries(byKind)) choice[k] = now || null; save(); render(); };
+  c.appendChild(r);
+}
+
+function save() { store.set('nazg-section-icons', JSON.stringify(choice)); }
+function render() {
+  document.documentElement.dataset.theme = state.theme.toLowerCase();
+  document.documentElement.style.setProperty('--big', state.size.replace(' ', ''));
+  renderControls(); renderRows(); renderPreview(); renderSummary();
+}
+document.getElementById('copy').onclick = () => { try { navigator.clipboard.writeText(summaryText()); } catch (e) {} };
+render();
+</script>
+</body>
+</html>

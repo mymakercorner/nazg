@@ -1556,8 +1556,44 @@ look is built** (Rico, 2026-10-03): they are judged on the real thing, not on a 
   5. a monogram.
   Tables 2 and 3 are data, so they could live with the definitions in the community
   repository (via-registry.md, "Sharing") rather than in a Nazg release. "Switch Configuration"
-  (actuation points, Rapid Trigger, calibration) wants a travel icon, not the magnet: Tabler's
-  `line-height` proposed, candidates in the mockup.
+  (actuation points, Rapid Trigger, calibration) wants a travel icon, not the magnet:
+  `arrow-bar-to-down`, a key pressed to a point (below).
+- **The icon of every section: settled** (Rico, 2026-10-09), in the review mockup
+  `ui-design/section-icons.html` -- every kind of section with Tabler candidates, the column
+  previewed at 18 px; the names are Tabler 3.47.0's outline set. A board's own Tap Dance, Combos,
+  QMK Settings and Lighting take the icon of Nazg's section of that name; the group header tells
+  them apart.
+
+  | Group | Section or label | Tabler icon |
+  |---|---|---|
+  | Nazg's | Keymap | `keyboard` |
+  | | Layout | `layout` |
+  | | Macros | `player-play` |
+  | | Lighting (VIA's built-in menus, Vial's; a board's "Lighting") | `bulb` |
+  | | Audio (VIA's `qmk_audio`) | `volume` |
+  | | Tap Dance | `hand-click` |
+  | | Combos | `arrows-join` |
+  | | Key Overrides | `replace` |
+  | | Alt Repeat Key | `repeat` |
+  | | QMK Settings | `adjustments-horizontal` |
+  | Board | Switch Configuration (55 definitions) | `arrow-bar-to-down` |
+  | | DKS (51) | `gauge` |
+  | | Controller (51) | `device-gamepad-2` |
+  | | System (51), Board System (13) | `settings` -- shared: the same meaning, never on one board |
+  | | SOCD (50) | `arrows-left-right` |
+  | | Indicators (22) | `circle-dot` -- not Lighting's bulb, which a board with both would show twice |
+  | | Advanced Features (12) | `sparkles` |
+  | | Custom Features (3) | `components` |
+  | | PMK Custom Settings (2) | `adjustments-horizontal` |
+  | | Haptic Feedback (2) | `device-mobile-vibration` |
+  | | Knob (1); the keywords encoder, dial | `rotate-clockwise` |
+  | | Display (no label yet; the keywords display, OLED, LCD, screen) | `device-desktop` |
+  | Tools | Diagnostics (the Leyden Jar's) | `activity` |
+  | | Matrix -- if the matrix view joins Tools, still open | `chart-grid-dots` |
+  | | A plugin bringing no icon of its own | `puzzle` |
+
+  Every custom label in VIA's V3 definitions is in the table, which is the label table of the
+  lookup above; a label it lacks still falls to VID:PID + label, the keywords, then a monogram.
 - **Row labels on a board whose rows share a line** (Rico, 2026-10-01, from the mockup): on
   the Model F, R3 and R4 both have their leftmost key on the Caps Lock row, so spreading them
   apart puts R4 between two rows and nudges R2 off its own. To revisit when the board's look
