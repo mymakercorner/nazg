@@ -4,7 +4,8 @@
 <!-- Mockup of the section column (ui-design.md, "The regions" and the open point "Folding the
      section column to icons"): the 150 px list it was drawn with, a navigation rail -- icon over
      a label -- and icons only, with the label shown on hover. Settled 2026-10-06: the list, with
-     Tabler's icons -- it opens on them. The controls switch the column, the
+     Tabler's icons. Added 2026-10-09, and opened on: the list made resizable, folding to icons
+     only below 100 px (Rico's idea, settled the same day). The controls switch the column, the
      icon set, the board, the theme and the window's width. Icons come from jsDelivr (Lucide,
      Tabler, Phosphor), so it needs a network connection; an icon that fails to load shows as a
      dashed monogram. Section lists are real: VIA's and Vial's own sections, and the custom menu
@@ -74,6 +75,12 @@ button.on{background:var(--ui-accent);border-color:var(--ui-accent);color:var(--
 .col.icons .icon{width:20px;height:20px}
 .col.icons .mono{font-size:9px}
 .col.icons .text{display:none}
+
+/* Resizable: a bar on the column's edge; dragged below the snap point, the column folds to icons */
+.splitter{flex:none;width:7px;margin:0 -4px 0 -3px;cursor:col-resize;position:relative;z-index:1}
+.splitter::after{content:'';position:absolute;left:2px;width:3px;top:0;bottom:0;border-radius:2px}
+.splitter:hover::after,body.dragging .splitter::after{background:var(--ui-accent);opacity:.6}
+body.dragging{cursor:col-resize;user-select:none}
 
 .flyout{position:fixed;z-index:20;pointer-events:none;background:var(--control);color:var(--text);border:1px solid var(--border);border-radius:5px;padding:4px 9px;box-shadow:0 3px 12px rgba(0,0,0,.18);white-space:nowrap;font-size:12px}
 .readout{margin:10px auto 0;color:var(--muted);text-align:center}
@@ -230,10 +237,30 @@ const BOARDS = {
 };
 
 // ---------------------------------------------------------------------------------------------
-const COLUMNS = { 'List, 150 px': { cls: 'list', width: 150 }, 'Rail, 76 px': { cls: 'rail', width: 76 }, 'Icons only, 44 px': { cls: 'icons', width: 44 } };
+const COLUMNS = { 'Resizable': { resizable: true }, 'List, 150 px': { cls: 'list', width: 150 }, 'Rail, 76 px': { cls: 'rail', width: 76 }, 'Icons only, 44 px': { cls: 'icons', width: 44 } };
 const SEPARATORS = { 'Headers': 'caption', 'Lines only': 'line', 'None': 'none' };
 const WIDTHS = { '1024': 1024, '1280': 1280, '1600': 1600 };
-const state = { separator: 'Headers', switchIcon: 'arrow-bar-to-down', column: 'List, 150 px', set: 'Tabler', board: 'NEVEREST 60 (worst case)', theme: 'Light', width: '1280', section: 0, slot: 0 };
+// Resizable (Rico, 2026-10-09): the list from LIST_MIN to LIST_MAX px -- 200 px fits every custom
+// menu label in VIA's registry, the longest 174 px -- or icons only once the
+// edge is dragged below the snap point -- never a width in between.
+const ICONS_WIDTH = 44, LIST_MIN = 120, LIST_MAX = 200;
+const SNAPS = ['70', '80', '100'];
+const state = { separator: 'Headers', switchIcon: 'arrow-bar-to-down', column: 'Resizable', set: 'Tabler', board: 'NEVEREST 60 (worst case)', theme: 'Light', width: '1280', section: 0, slot: 0,
+                listWidth: 150, compact: false, snap: '100' };
+let drag = null;   // { left }: the column's left edge, while its bar is dragged
+function columnNow() {
+  const c = COLUMNS[state.column];
+  if (!c.resizable) return c;
+  return state.compact ? { cls: 'icons', width: ICONS_WIDTH, resizable: true } : { cls: 'list', width: state.listWidth, resizable: true };
+}
+document.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const w = Math.round(e.clientX - drag.left);
+  if (w < Number(state.snap)) state.compact = true;
+  else { state.compact = false; state.listWidth = Math.min(LIST_MAX, Math.max(LIST_MIN, w)); }
+  render();
+});
+document.addEventListener('pointerup', () => { if (drag) { drag = null; document.body.classList.remove('dragging'); } });
 
 const svgCache = {};
 function loadIcon(set, kind) {
@@ -302,7 +329,7 @@ function showFlyout(entry, text) {
 }
 
 function render() {
-  const T = THEMES[state.theme], board = BOARDS[state.board], column = COLUMNS[state.column];
+  const T = THEMES[state.theme], board = BOARDS[state.board], column = columnNow();
   for (const [k, v] of Object.entries(T.css)) document.documentElement.style.setProperty('--' + k, v);
   if (state.section >= board.sections.length) state.section = 0;
   const section = board.sections[state.section];
@@ -347,6 +374,18 @@ function render() {
     col.appendChild(e);
   });
   body.appendChild(col);
+  if (column.resizable) {
+    const bar = document.createElement('div');
+    bar.className = 'splitter';
+    bar.title = 'Drag to resize; double-click to fold or unfold';
+    bar.onpointerdown = e => {
+      e.preventDefault();
+      drag = { left: col.getBoundingClientRect().left };
+      document.body.classList.add('dragging');
+    };
+    bar.ondblclick = () => { state.compact = !state.compact; render(); };
+    body.appendChild(bar);
+  }
 
   const main = document.createElement('div');
   main.className = 'main';
@@ -383,6 +422,7 @@ function render() {
 
   frame.style.height = '';
   document.getElementById('readout').innerHTML =
+    (column.resizable ? `Drag the column's edge: the list from ${LIST_MIN} to ${LIST_MAX} px, icons only below ${state.snap} px; double-click it to fold or unfold. ` : '') +
     `Column <b>${column.width} px</b> of a <b>${width} px</b> window -- the board's 1u is <b>${unit} px</b>` +
     (unit < 54 ? ` (54 px when the window is wide enough)` : '') +
     `. ${board.sections.length} sections; icon source: ${state.set} (${SETS[state.set].licence}).`;
@@ -413,13 +453,14 @@ function renderControls() {
   const c = document.getElementById('controls');
   c.innerHTML = '';
   [['column', 'Column', Object.keys(COLUMNS)], ['set', 'Icons', Object.keys(SETS)], ['board', 'Board', Object.keys(BOARDS)],
-   ['separator', 'Groups', Object.keys(SEPARATORS)], ['width', 'Window', Object.keys(WIDTHS)], ['theme', 'Theme', Object.keys(THEMES)]].forEach(([key, name, values]) => {
+   ['separator', 'Groups', Object.keys(SEPARATORS)], ['width', 'Window', Object.keys(WIDTHS)], ['theme', 'Theme', Object.keys(THEMES)],
+   ...(COLUMNS[state.column].resizable ? [['snap', 'Folds below', SNAPS]] : [])].forEach(([key, name, values]) => {
     const g = document.createElement('div');
     g.className = 'group';
     g.innerHTML = `<span class="name">${name}</span>`;
     values.forEach(v => {
       const b = document.createElement('button');
-      b.textContent = key === 'width' ? v + ' px' : v;
+      b.textContent = key === 'width' || key === 'snap' ? v + ' px' : v;
       if (state[key] === v) b.className = 'on';
       b.onclick = () => { state[key] = v; render(); };
       g.appendChild(b);
@@ -429,6 +470,11 @@ function renderControls() {
 }
 
 document.getElementById('notes').innerHTML = `
+<p><b>Resizable</b> (Rico, 2026-10-09: settled with the snap at 100 px and the double-click): the list, its edge dragged between ${LIST_MIN} and ${LIST_MAX} px --
+wider shows long labels such as Switch Configuration whole -- and dragged below the snap point ("Folds below") it folds to
+icons only, ${ICONS_WIDTH} px, with the group headers gone and every label on hover. There is no width in between: labels cut
+to a few letters would be the worst of both. Dragging back past the snap point unfolds it; a double-click on the edge
+folds or unfolds it at once. In Nazg the width would be one for every board, kept in imgui.ini.</p>
 <p><b>The three columns.</b> <b>List</b> is the column as ui-design.md draws it: an icon and a label in a row,
 150 px. <b>Rail</b> puts the label under the icon, two lines at most, 11 px, cut with "..." beyond -- the full
 label flies out on hover only when it is cut. <b>Icons only</b> is 44 px; every label flies out on hover.

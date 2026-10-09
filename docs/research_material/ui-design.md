@@ -20,7 +20,7 @@ was not taken: a feature-rich board shows eleven tabs before anything is done.
 | Region | What it holds |
 |---|---|
 | **Header** | The board's name, which is a menu (see "Getting back to the keyboard list"); the protocol; the lock state on boards that have one; the **settings button** |
-| **Section column** | Keymap, Layout, Macros... — about 150 px wide, an icon and a label per row, icons from **Tabler**. **Only the sections the board has**, and **hidden when there is only one**. A rail (icon over label, 76 px) and icons only (44 px) were tried in a mockup and set aside: the list reads best (Rico, 2026-10-06; see "Open points") |
+| **Section column** | Keymap, Layout, Macros... — 150 px wide by default, an icon and a label per row, icons from **Tabler**. **Only the sections the board has**, and **hidden when there is only one**. **Resizable**: its edge drags the list between 120 and 200 px, and below 100 px it folds to icons only, 44 px; a double-click on the edge folds or unfolds it (Rico, 2026-10-09; see "Open points") |
 | **Strip** | A row of choices owned by the section: layers in Keymap, slots in Macros (see below). Absent when the section has nothing to choose |
 | **Board** | Drawn by Nazg; what each key shows is the section's |
 | **Panel** | The section's editor — the keycode picker in Keymap (see "The keycode picker"). **Always visible**, not only while a key is selected |
@@ -1531,6 +1531,15 @@ look is built** (Rico, 2026-10-03): they are judged on the real thing, not on a 
   label on hover), on real section lists up to NEVEREST 60's eleven; Rico, who had pushed for
   icons only: the list looks better. **Icons: Tabler** (MIT), chosen over Lucide and Phosphor in
   the same mockup.
+  **Then made resizable** (Rico, 2026-10-09, tried in the same mockup): the list stays the
+  default, and each user folds it if they want the room. A bar on the column's edge drags the
+  list between **120 and 200 px** -- 200 fits every custom menu label in VIA's registry, the
+  longest ("PMK Custom Settings") 174 px -- and dragged below **100 px** the column snaps to
+  **icons only, 44 px**: the group headers go, the lines between groups stay, every label shows
+  on hover. **No width in between**: labels cut to a few letters would be the worst of both, so
+  between 100 and 120 px the edge holds at 120. Dragging back past 100 px unfolds it; a
+  **double-click on the edge** folds or unfolds it at once. One width for every board, kept in
+  `imgui.ini`. Manual only: the column never folds by itself when the window narrows.
 - **Nazg's sections, then the board's menus** (Rico, 2026-10-06, in the same mockup): the
   sections Nazg provides -- Keymap, Layout, Macros, Lighting as VIA or Vial build it in, Vial's
   features -- come first; a VIA V3 definition's custom menus (`{label, content}` entries of
