@@ -106,8 +106,19 @@ positions, a fill by meaning, marks for states, lines, edge labels, hover both w
 looks, with every colour in `ui/NazgTheme.*` (the panels' four named colours included).
 `ui/NazgWorkspace.*` lays out the column (hidden with one section), strip, board and panel.
 `ui/NazgKeymapSection.*` is the first
-implementation: layers in the strip, the write-and-read-back in its own coroutine. The match
-rule comes with the first section not on every board. The Leyden Jar diagnostics, planned as
+implementation: layers in the strip, the write-and-read-back in its own coroutine. **The column
+is built** (2026-10-09, from ui-design.md's open points and the mockups `section-column.html`,
+`section-icons.html`): every section a board should have, in two groups -- Nazg's, headed VIA or
+Vial, then the definition's custom menus, headed Board -- each with its Tabler icon
+(`ui/NazgIcons.h`, code points of `resources/fonts/tabler-icons.ttf`, Tabler 3.47.0, loaded as
+its own ImFont) or a monogram; resizable by its edge, 120-200 px, folding to icons only below
+100 px or on a double-click, the width in `imgui.ini`. Which sections: `PlanSections()`
+(`ui/NazgSectionPlan.*`, pure, tested), from the definition -- layout options, lighting, VIA V3's
+`qmk_audio` and custom menus, whose labels and sub-section labels the parser now keeps -- and the
+board report, which now has combo and key override counts and a QMK settings query
+(`QueryQmkSettings()`, tested on scripted bytes only). Keymap is built; every other section is a
+`PlaceholderSection` saying "Not built yet", a custom menu's listing its sections. So the match
+rule is the plan, for now. The Leyden Jar diagnostics, planned as
 the second, are **deferred far later** (Rico, 2026-09-26: they bring many design questions).
 Already decided for them: the device stays open while a view polls, and key output is disabled
 while they show -- RAM only on the firmware, so every close and exit path must enable it again.

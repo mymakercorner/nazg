@@ -85,12 +85,26 @@ namespace nazg
             {
                 const VialEntryCounts counts = co_await protocol.GetEntryCounts();
                 report.tapDanceCount     = counts.tapDance;
+                report.comboCount        = counts.combo;
+                report.keyOverrideCount  = counts.keyOverride;
                 report.altRepeatKeyCount = counts.altRepeatKey;
                 report.capsWord          = counts.capsWord;
                 report.layerLock         = counts.layerLock;
             }
             catch (const ProtocolError&)
             {
+            }
+
+            // Whether there are any: one query, from the start.
+            if (report.vialProtocol >= 4)
+            {
+                try
+                {
+                    report.hasQmkSettings = !(co_await protocol.QueryQmkSettings(0)).empty();
+                }
+                catch (const ProtocolError&)
+                {
+                }
             }
         }
 

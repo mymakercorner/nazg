@@ -456,6 +456,27 @@ namespace nazg
                         ids->push_back(id.get<std::string>());
         }
 
+        // A label that is not a string is left empty rather than refused: the menu is still
+        // the board's, and the column names it somehow.
+        const auto labelOf = [](const nlohmann::json& entry)
+        {
+            const auto label = entry.find("label");
+            return label != entry.end() && label->is_string() ? label->get<std::string>() : std::string();
+        };
+        if (const auto menus = document.find("menus"); menus != document.end() && menus->is_array())
+            for (const nlohmann::json& entry : *menus)
+            {
+                if (!entry.is_object())
+                    continue;
+
+                KeyboardDefinition::CustomMenu menu{ labelOf(entry), {} };
+                if (const auto content = entry.find("content"); content != entry.end() && content->is_array())
+                    for (const nlohmann::json& section : *content)
+                        if (section.is_object())
+                            menu.sections.push_back(labelOf(section));
+                definition.customMenus.push_back(std::move(menu));
+            }
+
         // An entry that is not an object still takes its place: the order is the numbering.
         if (const auto custom = document.find("customKeycodes"); custom != document.end() && custom->is_array())
             for (const nlohmann::json& entry : *custom)

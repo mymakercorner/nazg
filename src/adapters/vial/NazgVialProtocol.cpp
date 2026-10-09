@@ -135,6 +135,20 @@ namespace nazg
         co_return counts;
     }
 
+    Task<std::vector<uint16_t>> VialProtocol::QueryQmkSettings(uint16_t after)
+    {
+        std::vector<uint8_t> reply = co_await SendVial(VialCommand::QmkSettingsQuery,
+                                                       { static_cast<uint8_t>(after & 0xFF),
+                                                         static_cast<uint8_t>(after >> 8) });
+
+        std::vector<uint16_t> ids;
+        for (size_t offset = 0; offset + 1 < c_ViaReportSize; offset += 2)
+            if (const uint16_t id = ReadLittleEndian16(reply, offset); id != 0xFFFF)
+                ids.push_back(id);
+
+        co_return ids;
+    }
+
     Task<VialUnlockStatus> VialProtocol::GetUnlockStatus()
     {
         std::vector<uint8_t> reply = co_await SendVial(VialCommand::GetUnlockStatus, {});

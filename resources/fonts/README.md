@@ -1,8 +1,8 @@
-# Legend fonts
+# Legend and icon fonts
 
 The fonts Nazg draws keycap legends with, committed so every build draws the same legends on
-every platform (ui-design.md, "The legend font is Arimo" and "How the board's look is built").
-The build copies this folder beside the executable.
+every platform (ui-design.md, "The legend font is Arimo" and "How the board's look is built"),
+and the icon font of the section column. The build copies this folder beside the executable.
 
 | File | From | Licence | Covers |
 |---|---|---|---|
@@ -23,3 +23,16 @@ come from Arimo's own repository, which licenses them under the OFL.
 
 To update: download the same paths again, rerun the coverage check, and record the new commits
 here.
+
+## Tabler Icons
+
+| File | From | Licence | Covers |
+|---|---|---|---|
+| `tabler-icons.ttf` | the npm package [@tabler/icons-webfont](https://www.npmjs.com/package/@tabler/icons-webfont) 3.47.0, `dist/fonts/tabler-icons.ttf` (SHA-256 `19dc3cd4...269ed9`) | MIT, `tabler-icons-LICENSE.txt` (the package's `LICENSE`) | Tabler's ~5000 outline icons; Nazg draws the sections' icons with it (ui-design.md, "The icon of every section") |
+
+Not merged with the interface's font: the workspace draws each icon at its own size. Its em is
+the icon's box (units per em 1000, ascent 900, descent 100). Icons are addressed by code point,
+in the Private Use Area; `src/ui/NazgIcons.h` lists those in use, each taken from the same
+version's `dist/tabler-icons.css` (`.ti-<name>:before`). To update: download both files of the
+new version, check every code point in `NazgIcons.h` against its CSS, and record the version
+here and in `NazgIcons.h`.

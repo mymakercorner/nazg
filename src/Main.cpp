@@ -30,6 +30,8 @@
 #include "ui/NazgKeyboardList.h"
 #include "ui/NazgKeymapSection.h"
 #include "ui/NazgMatrixView.h"
+#include "ui/NazgPlaceholderSection.h"
+#include "ui/NazgSectionPlan.h"
 #include "ui/NazgSettingsScreen.h"
 #include "ui/NazgVialUnlock.h"
 #include "ui/NazgTheme.h"
@@ -143,7 +145,8 @@ namespace
         // ordinary user's way until asked for (ui-design.md, screen 6).
         bool advancedTools = false;
 
-        // The board's share of the height under the strip, as the splitter under it was left.
+        // The board's share of the height under the strip, as the splitter under it was left, and
+        // the section column's width.
         nazg::WorkspaceLayout workspace;
 
         // The keycode picker selects the next key after a pick -- off by default (ui-design.md,
@@ -210,6 +213,8 @@ namespace
             constexpr char c_Window[]        = "Window=";
             constexpr char c_Maximized[]     = "Maximized=";
             constexpr char c_BoardHeight[]   = "BoardHeight=";
+            constexpr char c_ColumnWidth[]   = "ColumnWidth=";
+            constexpr char c_ColumnFolded[]  = "ColumnFolded=";
             constexpr char c_MoveToNextKey[] = "MoveToNextKey=";
 
             if (std::strncmp(line, c_HostLayout, sizeof(c_HostLayout) - 1) == 0)
@@ -246,6 +251,14 @@ namespace
                 if (std::sscanf(line + sizeof(c_BoardHeight) - 1, "%f", &height) == 1 && height > 0.0f)
                     loaded.workspace.boardHeight = height;
             }
+            else if (std::strncmp(line, c_ColumnWidth, sizeof(c_ColumnWidth) - 1) == 0)
+            {
+                float width = 0.0f;
+                if (std::sscanf(line + sizeof(c_ColumnWidth) - 1, "%f", &width) == 1 && width > 0.0f)
+                    loaded.workspace.columnWidth = width;
+            }
+            else if (std::strncmp(line, c_ColumnFolded, sizeof(c_ColumnFolded) - 1) == 0)
+                loaded.workspace.isColumnFolded = std::strcmp(line + sizeof(c_ColumnFolded) - 1, "1") == 0;
             else if (std::strncmp(line, c_MoveToNextKey, sizeof(c_MoveToNextKey) - 1) == 0)
                 loaded.moveToNextKey = std::strcmp(line + sizeof(c_MoveToNextKey) - 1, "1") == 0;
         };
@@ -267,6 +280,8 @@ namespace
                              saved.window.width, saved.window.height, saved.window.maximized ? 1 : 0);
             if (saved.workspace.boardHeight > 0.0f)
                 out->appendf("BoardHeight=%.0f\n", saved.workspace.boardHeight);
+            out->appendf("ColumnWidth=%.0f\nColumnFolded=%d\n", saved.workspace.columnWidth,
+                         saved.workspace.isColumnFolded ? 1 : 0);
             out->appendf("MoveToNextKey=%d\n", saved.moveToNextKey ? 1 : 0);
             out->append("\n");
         };
@@ -418,6 +433,22 @@ namespace
         for (const std::string& path : missing)
             SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "legend font missing: %s", path.c_str());
         return fonts;
+    }
+
+    // Tabler's icons (ui/NazgIcons.h), from fonts/ beside the executable as the legends' are. A
+    // font of their own rather than merged into the interface's, so the icons are drawn at their
+    // size whatever the text's. Missing, sections show monograms.
+    ImFont* LoadIconFont(ImGuiIO& io)
+    {
+        const char*       base = SDL_GetBasePath();   // owned by SDL, ends with a separator
+        const std::string path = std::string(base != nullptr ? base : "") + "fonts/tabler-icons.ttf";
+
+        ImFont* const font = std::filesystem::exists(PathFromUtf8(path))
+                                 ? io.Fonts->AddFontFromFileTTF(path.c_str(), c_FontSize)
+                                 : nullptr;
+        if (font == nullptr)
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "icon font missing: %s", path.c_str());
+        return font;
     }
 
     // The modifier names of the OS Nazg runs on, for a first launch (ui-design.md, "Modifier
@@ -945,7 +976,8 @@ namespace
                 }
             }
 
-            // What the keycode picker offers, and which lighting keycodes work on this firmware.
+            // What the keycode picker offers, which lighting keycodes work on this firmware, and
+            // which sections the board has.
             if (state.keyboard)
                 state.keyboard->report = co_await nazg::ReadBoardReport(protocol);
 
@@ -1044,6 +1076,7 @@ int main(int, char**)
     // The interface's font first: the first font added is ImGui's default.
     LoadInterfaceFont(io);
     nazg::SetLegendFonts(LoadLegendFonts(io));
+    nazg::SetIconFont(LoadIconFont(io));
 
     ImGui::StyleColorsDark();
 
@@ -1645,11 +1678,19 @@ int main(int, char**)
                 }
                 else if (boardState.keyboard && !boardState.isLoading)
                 {
-                    // The sections of a board just loaded. Keymap is on every board, so there is
-                    // no match rule to ask yet -- it comes with the first section that is not.
+                    // The sections of a board just loaded: every one it should have, from what the
+                    // load read (ui/NazgSectionPlan.h) -- Keymap built, the rest placeholders.
                     if (boardState.sections.empty())
-                        boardState.sections.push_back(std::make_unique<nazg::KeymapSection>(
-                            transport, boardState.path, *boardState.keyboard, settings.legends, settings.moveToNextKey));
+                        for (nazg::PlannedSection& planned : nazg::PlanSections(*boardState.keyboard))
+                        {
+                            if (planned.kind == nazg::SectionKind::Keymap)
+                                boardState.sections.push_back(std::make_unique<nazg::KeymapSection>(
+                                    transport, boardState.path, *boardState.keyboard, settings.legends,
+                                    settings.moveToNextKey));
+                            else
+                                boardState.sections.push_back(
+                                    std::make_unique<nazg::PlaceholderSection>(std::move(planned)));
+                        }
 
                     if (!boardState.exportMessage.empty())
                         nazg::ColouredText(nazg::PanelColour::Muted, "%s", boardState.exportMessage.c_str());
@@ -1663,12 +1704,12 @@ int main(int, char**)
                     else
                     {
                         nazg::DrawSections(boardState.sections, boardState.activeSection, *boardState.keyboard,
-                                           settings.workspace);
+                                           boardState.keyboard->report.isVial ? "Vial" : "VIA", settings.workspace);
                     }
 
                     isBoardShown = true;
 
-                    // A splitter dragged: kept for the next run.
+                    // A splitter or the column's edge dragged: kept for the next run.
                     if (settings.workspace.changed)
                     {
                         settings.workspace.changed = false;

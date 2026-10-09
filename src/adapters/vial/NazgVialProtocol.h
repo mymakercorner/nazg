@@ -128,6 +128,11 @@ namespace nazg
         // 0xFE 0x0D 0x00.
         [[nodiscard]] Task<VialEntryCounts> GetEntryCounts();
 
+        // 0xFE 0x09, from Vial protocol 4: the QMK settings this firmware has with an id above
+        // `after`, as many as one report holds -- query again from the last to have them all.
+        // None when QMK settings are compiled out: the firmware fills the report with 0xFF.
+        [[nodiscard]] Task<std::vector<uint16_t>> QueryQmkSettings(uint16_t after);
+
         // 0xFE 0x05. Worth calling before any write: a locked board silently rewrites
         // QK_BOOT to 0 in everything it accepts, so a write can "succeed" and store
         // something else.

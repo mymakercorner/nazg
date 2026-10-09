@@ -119,6 +119,10 @@ set(NAZG_CORE_SOURCES
   src/ui/NazgMatrixDescription.cpp
   src/ui/NazgKeycodeCatalogue.h
   src/ui/NazgKeycodeCatalogue.cpp
+  src/ui/NazgIcons.h
+  src/ui/NazgIcons.cpp
+  src/ui/NazgSectionPlan.h
+  src/ui/NazgSectionPlan.cpp
   src/adapters/qmk/NazgQmkExpression.h
   src/adapters/qmk/NazgQmkExpression.cpp
 )
@@ -155,6 +159,8 @@ set(NAZG_SOURCES
   src/ui/NazgTheme.cpp
   src/ui/NazgKeymapSection.h
   src/ui/NazgKeymapSection.cpp
+  src/ui/NazgPlaceholderSection.h
+  src/ui/NazgPlaceholderSection.cpp
   src/ui/NazgMatrixView.h
   src/ui/NazgMatrixView.cpp
   src/ui/NazgKeyboardList.h
@@ -203,7 +209,7 @@ add_custom_command(TARGET nazg POST_BUILD
             -P ${CMAKE_CURRENT_SOURCE_DIR}/tools/CopyIfPresent.cmake
     VERBATIM)
 
-# The legend fonts (resources/fonts/README.md), committed: copied into fonts/ beside the
+# The legend and icon fonts (resources/fonts/README.md), committed: copied into fonts/ beside the
 # executable after every build, where Main.cpp looks for them.
 set(NAZG_FONTS
     ${CMAKE_CURRENT_SOURCE_DIR}/resources/fonts/Arimo-Regular.ttf
@@ -214,7 +220,9 @@ set(NAZG_FONTS
     ${CMAKE_CURRENT_SOURCE_DIR}/resources/fonts/NotoSansMath-Regular.ttf
     ${CMAKE_CURRENT_SOURCE_DIR}/resources/fonts/NotoSansMath-OFL.txt
     ${CMAKE_CURRENT_SOURCE_DIR}/resources/fonts/NotoSansSymbols2-Regular.ttf
-    ${CMAKE_CURRENT_SOURCE_DIR}/resources/fonts/NotoSansSymbols2-OFL.txt)
+    ${CMAKE_CURRENT_SOURCE_DIR}/resources/fonts/NotoSansSymbols2-OFL.txt
+    ${CMAKE_CURRENT_SOURCE_DIR}/resources/fonts/tabler-icons.ttf
+    ${CMAKE_CURRENT_SOURCE_DIR}/resources/fonts/tabler-icons-LICENSE.txt)
 add_custom_command(TARGET nazg POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:nazg>/fonts
     COMMAND ${CMAKE_COMMAND} -E copy_if_different ${NAZG_FONTS} $<TARGET_FILE_DIR:nazg>/fonts
@@ -266,6 +274,7 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(definition_choice  tests/DefinitionChoiceTest.cpp)
     nazg_add_test(keycode_catalogue  tests/KeycodeCatalogueTest.cpp)
     nazg_add_test(qmk_expression     tests/QmkExpressionTest.cpp)
+    nazg_add_test(section_plan       tests/SectionPlanTest.cpp)
 
     # The legends in the real font, which needs ImGui's core -- no backend, no SDL window.
     add_executable(nazg_legend_font_test tests/LegendFontTest.cpp tests/TestSupport.h

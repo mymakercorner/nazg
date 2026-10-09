@@ -17,13 +17,20 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "model/NazgKeyboard.h"
 #include "ui/NazgSection.h"
 
+struct ImFont;
+
 namespace nazg
 {
+    // Tabler's icon font (ui/NazgIcons.h), loaded by the caller; until it is set, or when it is
+    // missing, sections are drawn with their monograms.
+    void SetIconFont(ImFont* font);
+
     // A keyboard plugged in besides the open one, for the board menu's "Switch to".
     struct OtherKeyboard
     {
@@ -75,10 +82,16 @@ namespace nazg
     // centred -- until the board fills its width, and then the board too, down to its
     // legibility floor. The caller keeps the window from shrinking past `spareWidth` and
     // `spareHeight` (Rico, 2026-10-05). 0 until first drawn, then 60% of the height.
+    //
+    // And the section column's width (ui-design.md, the open point "Folding the section column"):
+    // the list's, dragged by its edge between 120 and 200 px, and whether it is folded to icons
+    // only -- dragged below 100 px, or by a double-click on the edge. One for every board.
     struct WorkspaceLayout
     {
-        float boardHeight = 0.0f;
-        bool  changed     = false;  // dragged this frame: the caller saves it
+        float boardHeight    = 0.0f;
+        float columnWidth    = 180.0f;   // every custom menu label in VIA's registry, whole
+        bool  isColumnFolded = false;
+        bool  changed        = false;  // dragged this frame: the caller saves it
 
         // Each frame, how much narrower the window could be before the board reaches its floor
         // or the panel its minimum width, and how much shorter before the board or the panel
@@ -90,9 +103,10 @@ namespace nazg
 
     // `sections` are the open board's -- the column lists them, and is hidden when there is
     // only one -- and `active` the one shown, which the column changes. `keyboard` gives the
-    // board the sections start from.
+    // board the sections start from; `protocol` heads Nazg's own sections when the board's
+    // menus follow them: "VIA" or "Vial".
     void DrawSections(const std::vector<std::unique_ptr<Section>>& sections, size_t& active, const Keyboard& keyboard,
-                      WorkspaceLayout& layout);
+                      std::string_view protocol, WorkspaceLayout& layout);
 
     // One section's strip, board and panel with no column -- a view that takes the sections'
     // place, such as the matrix view (ui/NazgMatrixView.h).

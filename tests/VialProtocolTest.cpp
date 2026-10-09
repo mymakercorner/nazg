@@ -157,6 +157,28 @@ namespace
               "the entry op is addressed by sub-command then operation");
     }
 
+    // The QMK settings a firmware has, above the id asked from: the ids, 0xFFFF filling the rest.
+    void TestQmkSettingsQuery()
+    {
+        std::printf("QMK settings query\n");
+
+        FakeDeviceChannel channel;
+        VialProtocol      vial(channel);
+
+        std::vector<uint8_t> reply(nazg::c_ViaReportSize, 0xFF);
+        reply[0] = 0x03; reply[1] = 0x00;
+        reply[2] = 0x15; reply[3] = 0x01;   // 0x0115: the ids are little-endian
+        channel.ReplyRaw(reply);
+
+        const std::vector<uint16_t> ids = Run(vial.QueryQmkSettings(0x0102));
+        Check(ids == std::vector<uint16_t>{ 0x0003, 0x0115 }, "the ids before the 0xFFFF fill");
+        Check(channel.RequestAt(0)[1] == 0x09 && channel.RequestAt(0)[2] == 0x02 && channel.RequestAt(0)[3] == 0x01,
+              "the id to start after, little-endian");
+
+        channel.ReplyRaw(std::vector<uint8_t>(nazg::c_ViaReportSize, 0xFF));
+        Check(Run(vial.QueryQmkSettings(0)).empty(), "compiled out: a report of 0xFF, no ids");
+    }
+
     void TestUnlockStatus()
     {
         std::printf("unlock status\n");
@@ -318,15 +340,24 @@ namespace
             channel.Reply({ 0x06, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x00 });
             std::vector<uint8_t> counts(nazg::c_ViaReportSize, 0x00);
             counts[0]  = 8;      // tap dance
+            counts[1]  = 6;      // combos
+            counts[2]  = 4;      // key overrides
             counts[3]  = 2;      // alt repeat key
             counts[31] = 0x01;   // Caps Word, no Layer Lock
             channel.ReplyRaw(counts);
+            std::vector<uint8_t> settings(nazg::c_ViaReportSize, 0xFF);   // QMK settings 1 and 2
+            settings[0] = 1; settings[1] = 0;
+            settings[2] = 2; settings[3] = 0;
+            channel.ReplyRaw(settings);
             channel.Reply({ 0x0C, 16 });   // macros
 
             const nazg::BoardReport report = Run(nazg::ReadBoardReport(vial));
             Check(report.viaProtocol == 9 && report.isVial && report.vialProtocol == 6, "a Vial 6 board");
-            Check(report.tapDanceCount == 8 && report.altRepeatKeyCount == 2, "its entry counts");
+            Check(report.tapDanceCount == 8 && report.comboCount == 6 && report.keyOverrideCount == 4 &&
+                      report.altRepeatKeyCount == 2,
+                  "its entry counts");
             Check(report.capsWord && !report.layerLock, "its feature bits");
+            Check(report.hasQmkSettings, "its QMK settings");
             Check(report.macroCount == 16, "and its macro count");
         }
 
@@ -340,11 +371,13 @@ namespace
             echo[0] = 0xFE;
             echo[1] = 0x0D;
             channel.ReplyRaw(echo);
+            channel.ReplyRaw(std::vector<uint8_t>(nazg::c_ViaReportSize, 0xFF));   // QMK settings compiled out
             channel.Reply({ 0x0C, 4 });
 
             const nazg::BoardReport report = Run(nazg::ReadBoardReport(vial));
             Check(report.isVial && report.vialProtocol == 5 && report.tapDanceCount == 0 && !report.capsWord,
                   "a build without entry counts reports none, not an error");
+            Check(!report.hasQmkSettings, "QMK settings compiled out: none");
             Check(report.macroCount == 4, "and the rest is still read");
         }
 
@@ -372,6 +405,7 @@ int main()
     TestDefinitionDownload();
     TestImplausibleDefinitionSizeIsRefused();
     TestEntryCounts();
+    TestQmkSettingsQuery();
     TestUnlockStatus();
     TestUnlockCommands();
     TestUnsupportedSubCommandEchoesTheRequest();

@@ -321,7 +321,33 @@ namespace
 
         Check(definition.keycodeModules == std::vector<std::string>{ "qmk_lighting" }, "the keycode modules");
         Check(definition.menuIds == std::vector<std::string>{ "qmk_rgblight", "qmk_rgb_matrix" },
-              "the standard menus' ids, a custom menu left to the board");
+              "the standard menus' ids, kept apart from the custom menu");
+    }
+
+    // VIA V3's custom menus, for the section column: each one's label and its sections' labels,
+    // in the definition's order.
+    void TestCustomMenus()
+    {
+        std::printf("custom menus\n");
+
+        const char text[] = R"({"matrix":{"rows":1,"cols":1},"layouts":{"keymap":[["0,0"]]},
+                               "menus":[{"label":"Switch Configuration","content":[
+                                            {"label":"Actuation","content":[]},{"label":"Calibration","content":[]}]},
+                                        "qmk_rgb_matrix",
+                                        {"label":"System"},
+                                        {"label":7,"content":[{"content":[]},"stray"]}]})";
+        const KeyboardDefinition definition =
+            ParseDefinition(std::vector<uint8_t>(text, text + std::char_traits<char>::length(text)));
+
+        const auto& menus = definition.customMenus;
+        Check(menus.size() == 3, "the menus that are objects, the standard one's id aside");
+        Check(menus.size() == 3 && menus[0].label == "Switch Configuration" &&
+                  menus[0].sections == std::vector<std::string>{ "Actuation", "Calibration" },
+              "a menu's label and its sections' labels, in order");
+        Check(menus.size() == 3 && menus[1].label == "System" && menus[1].sections.empty(),
+              "a menu with no content has no sections");
+        Check(menus.size() == 3 && menus[2].label.empty() && menus[2].sections == std::vector<std::string>{ "" },
+              "a label that is not a string is left empty, an entry that is not an object skipped");
     }
 
     // The board's own keycodes, in order: the first is QK_KB_0.
@@ -419,6 +445,7 @@ int main()
     TestKleDetails();
     TestUsbIdStrings();
     TestLightingFields();
+    TestCustomMenus();
     TestCustomKeycodes();
     TestConvertedForm();
     TestConvertedEdgeCases();

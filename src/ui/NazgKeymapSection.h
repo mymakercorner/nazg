@@ -36,6 +36,7 @@ namespace nazg
                       const bool& moveToNextKey);
 
         [[nodiscard]] std::string_view Name() const override { return "Keymap"; }
+        [[nodiscard]] Icon             ColumnIcon() const override { return Icon::Keyboard; }
 
         [[nodiscard]] Strip DescribeStrip() const override;
         void                OnStripChosen(size_t entry) override;

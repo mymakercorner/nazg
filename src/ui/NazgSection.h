@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "ui/NazgBoardDescription.h"
+#include "ui/NazgIcons.h"
 
 namespace nazg
 {
@@ -41,13 +42,25 @@ namespace nazg
         size_t                   chosen = 0;
     };
 
+    // The column's groups (ui-design.md, "Nazg's sections, then the board's menus"): the sections
+    // Nazg provides for the protocol, headed by its name -- VIA or Vial -- then the board's own
+    // menus from its definition, headed "Board". Tools, the third, comes with the first tool.
+    enum class SectionGroup
+    {
+        Protocol,
+        Board,
+    };
+
     class Section
     {
     public:
         virtual ~Section() = default;
 
-        // Its row in the section column.
+        // Its row in the section column: the name, its icon -- Icon::None draws a monogram of the
+        // name -- and the group it is listed in.
         [[nodiscard]] virtual std::string_view Name() const = 0;
+        [[nodiscard]] virtual Icon             ColumnIcon() const { return Icon::None; }
+        [[nodiscard]] virtual SectionGroup     Group() const { return SectionGroup::Protocol; }
 
         // 1. The strip, the entry the user picked in it, and the one under the mouse -- told
         // every frame the strip shows, before DescribeBoard(), none when the mouse is elsewhere:

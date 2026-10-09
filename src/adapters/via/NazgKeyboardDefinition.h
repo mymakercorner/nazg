@@ -84,11 +84,21 @@ namespace nazg
         uint16_t    productId = 0;
 
         // What the definition says of the board's lighting, kept verbatim: VIA V2's and Vial's
-        // `lighting` preset, and VIA V3's `keycodes` modules and standard `menus` -- the ids
-        // only, a custom menu object being the board's own business.
+        // `lighting` preset, and VIA V3's `keycodes` modules and standard `menus` -- the ids.
         std::string              lighting;
         std::vector<std::string> keycodeModules;
         std::vector<std::string> menuIds;
+
+        // VIA V3's custom menus -- the `menus` entries that are objects -- in the definition's
+        // order: each a section of its own in the column (ui-design.md, "Nazg's sections, then
+        // the board's menus"). Only the labels for now, the menu's and its first level's; what
+        // the controls are and the channels they set are read when custom menus are built.
+        struct CustomMenu
+        {
+            std::string              label;      // "Switch Configuration"
+            std::vector<std::string> sections;   // "Actuation", "Calibration"
+        };
+        std::vector<CustomMenu> customMenus;
 
         // The board's own keycodes, named: `customKeycodes`, the first on QK_KB_0, the next on
         // QK_KB_1... -- VIA's CUSTOM(n), what Vial calls USER(n). Kept verbatim; a field the

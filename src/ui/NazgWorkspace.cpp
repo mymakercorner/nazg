@@ -4,12 +4,17 @@
 #include "NazgWorkspace.h"
 
 #include <algorithm>
+#include <cfloat>
+#include <cmath>
 #include <optional>
 #include <string>
 
 #include "imgui.h"
+#include "imgui_internal.h"   // RenderTextEllipsis(), to cut a section's name
 
 #include "ui/NazgBoardView.h"
+#include "ui/NazgIcons.h"
+#include "ui/NazgSectionPlan.h"
 #include "ui/NazgTheme.h"
 
 namespace nazg
@@ -17,11 +22,43 @@ namespace nazg
     namespace
     {
         // Pixels, before DPI scaling.
-        constexpr float c_ColumnWidth   = 180.0f;   // every custom menu label in VIA's registry, whole
-        constexpr float c_SplitterSize  = 10.0f;    // the splitter's height, its grip in the middle
+        constexpr float c_SplitterSize  = 10.0f;    // a splitter's thickness, its grip in the middle
+        constexpr float c_GripLength    = 56.0f;
+        constexpr float c_GripThickness = 4.0f;
         constexpr float c_PanelMin      = 275.0f;  // the key line, the tabs and three rows of tiles
         constexpr float c_PanelMinWidth = 980.0f;   // so a small board's tabs still fit on one line
         constexpr float c_DefaultShare  = 0.6f;     // of the height under the strip, the first time
+
+        // The section column, as its mockup draws it (ui-design/section-column.html).
+        constexpr float c_ColumnMin     = 120.0f;   // the list's narrowest, a name cut with "..."
+        constexpr float c_ColumnMax     = 200.0f;
+        constexpr float c_FoldBelow     = 100.0f;   // dragged narrower than this: icons only
+        constexpr float c_FoldedWidth   = 44.0f;
+        constexpr float c_EntryHeight   = 32.0f;
+        constexpr float c_EntryPadding  = 9.0f;     // before the icon, between it and the name, after
+        constexpr float c_IconSize      = 18.0f;
+        constexpr float c_MonogramSize  = 9.0f;
+        constexpr float c_HeaderSize    = 13.0f;    // a group's header, smaller than the names
+
+        ImFont* g_IconFont = nullptr;
+
+        // The grip both splitters draw, across the middle of the last item -- the board's
+        // splitter lying down, the column's edge standing up: a short rounded bar, always shown,
+        // brighter while hovered or dragged.
+        void DrawGrip(bool isUpright, bool isLit)
+        {
+            const float  scale  = ImGui::GetStyle().FontScaleDpi;
+            const ImVec2 min    = ImGui::GetItemRectMin();
+            const ImVec2 max    = ImGui::GetItemRectMax();
+            const ImVec2 middle((min.x + max.x) / 2.0f, (min.y + max.y) / 2.0f);
+            const ImVec2 half   = isUpright ? ImVec2(c_GripThickness / 2.0f * scale, c_GripLength / 2.0f * scale)
+                                            : ImVec2(c_GripLength / 2.0f * scale, c_GripThickness / 2.0f * scale);
+
+            ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(middle.x - half.x, middle.y - half.y),
+                                                      ImVec2(middle.x + half.x, middle.y + half.y),
+                                                      ImGui::GetColorU32(isLit ? ImGuiCol_SeparatorActive : ImGuiCol_Separator),
+                                                      c_GripThickness / 2.0f * scale);
+        }
 
         // The splitter under the board: dragged, it moves the board's height within `total`, the
         // height under the strip, and `across`, the width -- the window never grows for it --
@@ -37,15 +74,7 @@ namespace nazg
             const bool hovered = ImGui::IsItemHovered();
             if (active || hovered)
                 ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
-
-            const ImVec2 min    = ImGui::GetItemRectMin();
-            const ImVec2 max    = ImGui::GetItemRectMax();
-            const float  grip   = 56.0f * scale;
-            const float  middle = (min.y + max.y) / 2.0f;
-            ImGui::GetWindowDrawList()->AddRectFilled(
-                ImVec2((min.x + max.x - grip) / 2.0f, middle - 2.0f * scale),
-                ImVec2((min.x + max.x + grip) / 2.0f, middle + 2.0f * scale),
-                ImGui::GetColorU32(active || hovered ? ImGuiCol_SeparatorActive : ImGuiCol_Separator), 2.0f * scale);
+            DrawGrip(false, active || hovered);
 
             if (active && ImGui::GetIO().MouseDelta.y != 0.0f && total > 0.0f)
             {
@@ -59,17 +88,175 @@ namespace nazg
             }
         }
 
-        void DrawColumn(const std::vector<std::unique_ptr<Section>>& sections, size_t& active)
+        // A section's icon, or a monogram of its name, centred on `centre` in a `box` pixels wide.
+        void DrawSectionIcon(ImDrawList& list, const Section& section, ImVec2 centre, float box, ImU32 colour)
         {
-            ImGui::BeginChild("sections", ImVec2(c_ColumnWidth * ImGui::GetStyle().FontScaleDpi, 0.0f),
-                              ImGuiChildFlags_Borders);
+            const Icon icon = section.ColumnIcon();
+            if (icon != Icon::None && g_IconFont != nullptr)
+            {
+                // Tabler's em is the icon's box. Centred on its ink, so an icon drawn off-centre in
+                // its box -- arrow-bar-to-down -- still sits in the middle of the row.
+                ImFontBaked* const       baked = g_IconFont->GetFontBaked(box);
+                const ImFontGlyph* const glyph = baked->FindGlyphNoFallback(static_cast<ImWchar>(icon));
+                if (glyph != nullptr)
+                {
+                    const std::string text = Utf8Of(icon);
+                    const ImVec2      at(std::floor(centre.x - (glyph->X0 + glyph->X1) / 2.0f),
+                                         std::floor(centre.y - (glyph->Y0 + glyph->Y1) / 2.0f));
+                    list.AddText(g_IconFont, box, at, colour, text.c_str());
+                    return;
+                }
+            }
+
+            // A monogram in a rounded square, about the size of an icon's ink.
+            const float       scale = ImGui::GetStyle().FontScaleDpi;
+            const float       half  = box * 0.42f;
+            const std::string text  = MonogramOf(section.Name());
+            list.AddRect(ImVec2(centre.x - half, centre.y - half), ImVec2(centre.x + half, centre.y + half), colour,
+                         4.0f * scale, 0, 1.5f * scale);
+
+            ImFont* const font   = ImGui::GetFont();
+            const float   size   = c_MonogramSize * scale;
+            const ImVec2  extent = font->CalcTextSizeA(size, FLT_MAX, 0.0f, text.c_str());
+            list.AddText(font, size, ImVec2(std::floor(centre.x - extent.x / 2.0f), std::floor(centre.y - extent.y / 2.0f)),
+                         colour, text.c_str());
+        }
+
+        // One row: an icon and a name, or the icon alone when the column is folded -- the name is
+        // then shown on hover, as it is whenever it is cut. The section shown has the accent bar.
+        bool DrawEntry(const Section& section, bool isActive, bool isFolded)
+        {
+            const float scale = ImGui::GetStyle().FontScaleDpi;
+
+            // The mockup's quiet tints rather than ImGui's header colours, which are a menu's.
+            const ImVec4 accent = ImGui::GetStyleColorVec4(ImGuiCol_CheckMark);
+            ImVec4       hover  = ImGui::GetStyleColorVec4(ImGuiCol_Text);
+            hover.w             = 0.07f;
+            ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(accent.x, accent.y, accent.z, 0.20f));
+            ImGui::PushStyleColor(ImGuiCol_HeaderHovered, isActive ? ImVec4(accent.x, accent.y, accent.z, 0.26f) : hover);
+            ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(accent.x, accent.y, accent.z, 0.30f));
+            const bool clicked = ImGui::Selectable("##section", isActive, 0, ImVec2(0.0f, c_EntryHeight * scale));
+            ImGui::PopStyleColor(3);
+
+            const bool   hovered = ImGui::IsItemHovered();
+            const ImVec2 min     = ImGui::GetItemRectMin();
+            const ImVec2 max     = ImGui::GetItemRectMax();
+            ImDrawList&  list    = *ImGui::GetWindowDrawList();
+            const ImU32  colour  = ImGui::GetColorU32(isActive || hovered ? ImGuiCol_Text : ImGuiCol_TextDisabled);
+
+            if (isActive)
+                list.AddRectFilled(ImVec2(min.x - 4.0f * scale, min.y + 6.0f * scale),
+                                   ImVec2(min.x - 1.0f * scale, max.y - 6.0f * scale), ImGui::GetColorU32(accent),
+                                   1.5f * scale);
+
+            const float box    = c_IconSize * scale;
+            const float middle = (min.y + max.y) / 2.0f;
+            const float centre = isFolded ? (min.x + max.x) / 2.0f : min.x + c_EntryPadding * scale + box / 2.0f;
+            DrawSectionIcon(list, section, ImVec2(centre, middle), box, colour);
+
+            const std::string name(section.Name());
+            bool              isCut = isFolded;
+            if (!isFolded)
+            {
+                const ImVec2 start(centre + box / 2.0f + c_EntryPadding * scale,
+                                   std::floor(middle - ImGui::GetTextLineHeight() / 2.0f));
+                const float  end    = max.x - c_EntryPadding * scale;
+                const ImVec2 extent = ImGui::CalcTextSize(name.c_str());
+                isCut               = start.x + extent.x > end;
+
+                ImGui::PushStyleColor(ImGuiCol_Text, colour);
+                ImGui::RenderTextEllipsis(&list, start, ImVec2(end, max.y), end, name.c_str(), nullptr, &extent);
+                ImGui::PopStyleColor();
+            }
+            if (isCut)
+                ImGui::SetItemTooltip("%s", name.c_str());
+
+            return clicked;
+        }
+
+        // The column's edge, between it and the rest: dragged, it sizes the list -- or folds the
+        // column to icons once below c_FoldBelow, never a width in between; double-clicked, it
+        // folds or unfolds it. `left` is the column's left edge.
+        void DrawColumnEdge(WorkspaceLayout& layout, float left, float height)
+        {
+            const float scale = ImGui::GetStyle().FontScaleDpi;
+
+            ImGui::SameLine(0.0f, 0.0f);
+            ImGui::InvisibleButton("##column edge", ImVec2(c_SplitterSize * scale, std::max(1.0f, height)));
+            const bool active  = ImGui::IsItemActive();
+            const bool hovered = ImGui::IsItemHovered();
+            if (active || hovered)
+                ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+            DrawGrip(true, active || hovered);
+
+            if (hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+            {
+                layout.isColumnFolded = !layout.isColumnFolded;
+                layout.changed        = true;
+            }
+            else if (active && ImGui::GetIO().MouseDelta.x != 0.0f)
+            {
+                const float width     = (ImGui::GetIO().MousePos.x - left) / scale;
+                layout.isColumnFolded = width < c_FoldBelow;
+                if (!layout.isColumnFolded)
+                    layout.columnWidth = std::clamp(width, c_ColumnMin, c_ColumnMax);
+                layout.changed = true;
+            }
+        }
+
+        // The sections in their groups: Nazg's first, headed by the protocol's name, then the
+        // board's menus, headed "Board" -- headers only when there is more than one group, and
+        // none when the column is folded, where the line between the groups stays.
+        void DrawColumn(const std::vector<std::unique_ptr<Section>>& sections, size_t& active, std::string_view protocol,
+                        WorkspaceLayout& layout)
+        {
+            const float scale    = ImGui::GetStyle().FontScaleDpi;
+            const bool  isFolded = layout.isColumnFolded;
+            const float width    = isFolded ? c_FoldedWidth : std::clamp(layout.columnWidth, c_ColumnMin, c_ColumnMax);
+
+            const bool hasGroups = std::any_of(sections.begin(), sections.end(), [&](const auto& section)
+                                               { return section->Group() != sections.front()->Group(); });
+
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(5.0f * scale, 6.0f * scale));
+            ImGui::BeginChild("sections", ImVec2(width * scale, 0.0f),
+                              ImGuiChildFlags_Borders | ImGuiChildFlags_AlwaysUseWindowPadding);
+            ImGui::PopStyleVar();
+            const float left = ImGui::GetWindowPos().x;
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 2.0f * scale));
+
             for (size_t index = 0; index < sections.size(); ++index)
             {
-                const std::string name(sections[index]->Name());
-                if (ImGui::Selectable(name.c_str(), index == active))
+                const Section& section     = *sections[index];
+                const bool     opensGroup  = index == 0 || section.Group() != sections[index - 1]->Group();
+                if (opensGroup && index > 0)
+                {
+                    ImGui::Dummy(ImVec2(0.0f, 3.0f * scale));
+                    ImGui::Separator();
+                    ImGui::Dummy(ImVec2(0.0f, 1.0f * scale));
+                }
+                if (opensGroup && hasGroups && !isFolded)
+                {
+                    std::string header = section.Group() == SectionGroup::Board ? "Board" : std::string(protocol);
+                    std::transform(header.begin(), header.end(), header.begin(),
+                                   [](char c) { return c >= 'a' && c <= 'z' ? static_cast<char>(c - 'a' + 'A') : c; });
+
+                    ImGui::Dummy(ImVec2(0.0f, 2.0f * scale));
+                    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + c_EntryPadding * scale);
+                    ImGui::PushFont(nullptr, c_HeaderSize);
+                    ImGui::TextDisabled("%s", header.c_str());
+                    ImGui::PopFont();
+                }
+
+                ImGui::PushID(static_cast<int>(index));
+                if (DrawEntry(section, index == active, isFolded))
                     active = index;
+                ImGui::PopID();
             }
+
+            ImGui::PopStyleVar();
             ImGui::EndChild();
+
+            DrawColumnEdge(layout, left, ImGui::GetItemRectSize().y);
         }
 
         void DrawStrip(Section& section)
@@ -106,6 +293,11 @@ namespace nazg
             }
             section.OnStripHovered(hovered);
         }
+    }
+
+    void SetIconFont(ImFont* font)
+    {
+        g_IconFont = font;
     }
 
     HeaderAction DrawHeader(const HeaderView& view)
@@ -207,17 +399,18 @@ namespace nazg
     }
 
     void DrawSections(const std::vector<std::unique_ptr<Section>>& sections, size_t& active, const Keyboard& keyboard,
-                      WorkspaceLayout& layout)
+                      std::string_view protocol, WorkspaceLayout& layout)
     {
         if (sections.empty())
             return;
         active = std::min(active, sections.size() - 1);
 
-        // The column: only the sections this board has, and none when there is only one.
+        // The column: only the sections this board has, and none when there is only one. Its
+        // edge takes the place of the spacing after it.
         if (sections.size() > 1)
         {
-            DrawColumn(sections, active);
-            ImGui::SameLine();
+            DrawColumn(sections, active, protocol, layout);
+            ImGui::SameLine(0.0f, 0.0f);
         }
 
         DrawView(*sections[active], keyboard, layout);
