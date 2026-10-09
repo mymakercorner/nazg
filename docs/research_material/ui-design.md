@@ -1219,7 +1219,9 @@ options**, most of them 1 to 6 groups; a choice runs to 13 options.
   for a choice (a label that is an array: the group's name, then its options), as VIA and Vial
   do and ImGui draws. In columns, as many as the panel's width holds. A choice's **combo follows
   its name directly**, as a checkbox's label follows its box; the name is shown whole up to **20
-  characters**, longer ones cut with "…" and given whole on hover (Rico, 2026-10-09).
+  characters**, longer ones cut with "…" and given whole on hover (Rico, 2026-10-09). The combo
+  is **as wide as its longest option**, not the rest of the line -- capped at what the line has
+  left (Rico, the same day).
 - **On hover**, an option -- a combo's item, or a checkbox for the state a click gives -- shows
   **its drawing** in a tooltip: the group's keys in that option, moved to where option 0 sits,
   every option of the group at one scale so they compare; **always inside the window** (Rico).

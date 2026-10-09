@@ -193,8 +193,14 @@ namespace nazg
         if (shown != options.name)
             ImGui::SetItemTooltip("%s", options.name.c_str());
 
+        // As wide as its longest option -- its text, the frame's padding and the arrow's square --
+        // but no wider than what the line has left.
+        float longest = 0.0f;
+        for (const std::string& option : options.options)
+            longest = std::max(longest, ImGui::CalcTextSize(option.c_str()).x);
         ImGui::SameLine();
-        ImGui::SetNextItemWidth(-FLT_MIN);
+        const float wanted = longest + 2.0f * ImGui::GetStyle().FramePadding.x + ImGui::GetFrameHeight();
+        ImGui::SetNextItemWidth(std::min(wanted, ImGui::GetContentRegionAvail().x));
         if (ImGui::BeginCombo("##choice", OptionName(options, chosen).c_str()))
         {
             for (uint8_t choice = 0; choice < options.options.size(); ++choice)
