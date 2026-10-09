@@ -71,6 +71,12 @@ namespace nazg
         return m_Request.IsValid() && !m_Request.IsDone();
     }
 
+    void MatrixView::WhileHidden()
+    {
+        if (m_Live != Live::Off && !IsBusy())
+            StopLiveTest();
+    }
+
     void MatrixView::StopLiveTest()
     {
         if (IsBusy())
@@ -207,13 +213,6 @@ namespace nazg
                          m_Stacked.c_str());
 
         ImGui::PopTextWrapPos();
-
-        ImGui::Spacing();
-        if (ImGui::Button("Close"))
-        {
-            m_WantsWiring = true;
-            m_IsClosed    = true;
-        }
     }
 
     void MatrixView::DrawLivePanel()

@@ -800,10 +800,10 @@ namespace
         std::vector<std::unique_ptr<nazg::Section>> sections;
         size_t                                      activeSection = 0;
 
-        // The matrix view, while it takes the sections' place. It refers to the keyboard too,
-        // and its live test keeps the board open: anything else that talks to the board stops
-        // the test first.
-        std::unique_ptr<nazg::MatrixView> matrix;
+        // The matrix view among the sections, last, while Advanced tools is on -- or null. Its
+        // live test keeps the board open: anything else that talks to the board stops the test
+        // first.
+        nazg::MatrixView* matrix = nullptr;
 
         // An unlock under way, while the board screen shows it instead of the sections.
         // Behind a pointer: it holds a Task that refers to it, so it must never move.
@@ -813,7 +813,7 @@ namespace
         // meanwhile.
         bool IsWorking() const
         {
-            return unlock != nullptr || (matrix && matrix->IsBusy()) ||
+            return unlock != nullptr ||
                    std::any_of(sections.begin(), sections.end(), [](const auto& section) { return section->IsBusy(); });
         }
     };
@@ -894,7 +894,7 @@ namespace
         // The board shown until now goes, sections first: they refer to it. The caller made
         // sure none is busy. A load that fails leaves no board, and the list says why.
         state.sections.clear();
-        state.matrix.reset();
+        state.matrix = nullptr;
         state.keyboard.reset();
         state.lock.reset();
         state.path     = path;
@@ -1382,10 +1382,7 @@ int main(int, char**)
                                        library.library->FindChoice(boardState.identity) != nullptr;
                     header.canExport = !boardState.exportable.empty() || userEntryInUse() != nullptr;
 
-                    // Not while a section works on the board: the live test would open a second
-                    // handle beside its own, and each would read the other's replies.
-                    header.canShowMatrix = !boardState.isLoading && !boardState.matrix && !isBusy;
-                    header.hasAdvanced   = settings.advancedTools;
+                    header.hasAdvanced = settings.advancedTools;
 
                     // A VIAL_INSECURE build reports itself unlocked and has no combo to unlock
                     // with: it has no lock, and the header says nothing.
@@ -1451,14 +1448,6 @@ int main(int, char**)
                         transport, boardState.path, *boardState.keyboard, boardState.lock->combo, settings.legends);
                 else
                     lockTask = LockBoard(transport, boardState.path, boardState);
-            }
-
-            if (headerAction.showMatrix && boardState.keyboard)
-            {
-                showSettings          = false;
-                boardState.isChoosing = false;
-                boardState.matrix     = std::make_unique<nazg::MatrixView>(
-                    transport, boardState.path, !boardState.isVia, *boardState.keyboard, settings.legends);
             }
 
             if (headerAction.exportDefinition)
@@ -1695,17 +1684,23 @@ int main(int, char**)
                     if (!boardState.exportMessage.empty())
                         nazg::ColouredText(nazg::PanelColour::Muted, "%s", boardState.exportMessage.c_str());
 
-                    if (boardState.matrix)
+                    // The matrix view joins the Tools group, last, while Advanced tools is on (Rico,
+                    // 2026-10-09) -- and leaves it, once idle, when the setting is turned off.
+                    if (settings.advancedTools && boardState.matrix == nullptr)
                     {
-                        nazg::DrawView(*boardState.matrix, *boardState.keyboard, settings.workspace);
-                        if (boardState.matrix->IsClosed() && !boardState.matrix->IsBusy())
-                            boardState.matrix.reset();
+                        auto view = std::make_unique<nazg::MatrixView>(transport, boardState.path, !boardState.isVia,
+                                                                       *boardState.keyboard, settings.legends);
+                        boardState.matrix = view.get();
+                        boardState.sections.push_back(std::move(view));
                     }
-                    else
+                    else if (!settings.advancedTools && boardState.matrix != nullptr && !boardState.matrix->IsBusy())
                     {
-                        nazg::DrawSections(boardState.sections, boardState.activeSection, *boardState.keyboard,
-                                           boardState.keyboard->report.isVial ? "Vial" : "VIA", settings.workspace);
+                        boardState.sections.pop_back();
+                        boardState.matrix = nullptr;
                     }
+
+                    nazg::DrawSections(boardState.sections, boardState.activeSection, *boardState.keyboard,
+                                       boardState.keyboard->report.isVial ? "Vial" : "VIA", settings.workspace);
 
                     isBoardShown = true;
 

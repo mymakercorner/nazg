@@ -126,7 +126,7 @@ while they show -- RAM only on the firmware, so every close and exit path must e
 **The workspace frame** replaced the three floating first-draft windows (2026-09-26): one
 window filling SDL's, its menu bar the header -- the board's name is the board menu (Switch to,
 Change definition... / Forget choice, Advanced, All keyboards), the protocol, and
-Settings on the right. **Advanced** -- Show matrix... and Export definition... -- appears only
+Settings on the right. **Advanced** -- Export definition... -- appears only
 with the *Advanced tools* setting on, off by default and saved in `imgui.ini` (2026-09-29, Rico:
 designer and debugging tools stay out of an ordinary user's way). Under it, one of three screens: the keyboard list
 (`ui/NazgKeyboardList.*`: each keyboard's protocol, probed after enumeration, "Show all HID
@@ -140,12 +140,13 @@ the board, a poll every 150 ms) or locks again. **Untested on hardware** -- no s
 Vial firmware at hand; the Model F is `VIAL_INSECURE` and shows no lock. Not done: noticing an unplugged board -- the
 list needs Refresh (hotplug, deferred: ui-design.md, "Open points").
 
-**The matrix view** (2026-09-29), from the board menu's Advanced > "Show matrix...": the structure only,
+**The matrix view** (2026-09-29), a section in the column's Tools group while *Advanced tools* is on
+(2026-10-09; it was the board menu's Advanced > "Show matrix..." before): the structure only,
 from the definition. `ui/NazgMatrixDescription.*` (pure, tested) fills the board through the
 section contract -- rulers, the row and column in focus lit in two colours
 (`Mark::HighlightedSecond` was added for it), their keys joined by the shortest links rather
-than in number order, which zigzagged on the Model F -- and `ui/NazgMatrixView.*` is a
-`Section` shown by `DrawView()` in the sections' place until Close. It draws the board's layout
+than in number order, which zigzagged on the Model F -- and `ui/NazgMatrixView.*` is the
+`Section`, its live test stopped by `WhileHidden()` once another section shows. It draws the board's layout
 choice only. Verified by Rico on the Model F and a VIA board, the Concordia.
 
 **The live test** (2026-09-29), the matrix view's strip *Wiring | Live test*: a view of its own

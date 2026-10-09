@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com>
 //
-// MatrixView - how the board is wired, opened from the board menu (ui-design.md, "The matrix
-// view"). Not a section in the column -- every board has the data, so it would bring the
-// column back on every keymap-only board -- but it fills the same regions through the same
-// contract (ui/NazgSection.h), in place of the sections until it is closed.
+// MatrixView - how the board is wired (ui-design.md, "The matrix view"): a section in the
+// column's Tools group, last, while the Advanced tools setting is on (Rico, 2026-10-09) -- every
+// board has the data, so with the setting off it would bring the column back on every
+// keymap-only board.
 //
 // Two modes in its strip. Wiring: hover a key and its row and its column light, with their
 // keys joined; hover a ruler label and that whole row or column does. Click pins what is in
@@ -15,7 +15,8 @@
 // built board -- a view of its own, with no hover, no wiring and no dimming. The board is opened once and kept open while the test runs, polled every
 // 20 ms as VIA and Vial poll it, and closed when the test stops -- so while it runs nothing
 // else may talk to the board: HID hands every open handle a copy of each reply, and one left
-// idle would read a stale one next. StopLiveTest() is for whoever needs the board.
+// idle would read a stale one next. StopLiveTest() is for whoever needs the board; the test
+// also stops once another section is shown, WhileHidden().
 //
 // The firmware must consent (via-vial-commands.md): a Vial board only while unlocked, which
 // the test checks first; a mainline VIA board only when built with VIA_INSECURE, or with
@@ -57,6 +58,8 @@ namespace nazg
         MatrixView& operator=(const MatrixView&) = delete;
 
         [[nodiscard]] std::string_view Name() const override { return "Matrix"; }
+        [[nodiscard]] Icon             ColumnIcon() const override { return Icon::ChartGridDots; }
+        [[nodiscard]] SectionGroup     Group() const override { return SectionGroup::Tools; }
 
         [[nodiscard]] Strip DescribeStrip() const override;
         void                OnStripChosen(size_t entry) override;
@@ -69,6 +72,9 @@ namespace nazg
         // A request in flight, which refers to the view.
         [[nodiscard]] bool IsBusy() const override;
 
+        // Stops the live test once its request is back: the next section must have the board.
+        void WhileHidden() override;
+
         // Ends the live test and closes the board, for another request to use it. Only when
         // not IsBusy(); does nothing when no test runs.
         void StopLiveTest();
@@ -76,9 +82,6 @@ namespace nazg
         // The live test is reading the board. Its keys then type into Nazg, so none of them
         // may drive the UI -- the caller turns keyboard navigation off.
         [[nodiscard]] bool IsLiveTestRunning() const noexcept { return m_Live == Live::Running && !m_WantsWiring; }
-
-        // Close was clicked: back to the sections, once not IsBusy().
-        [[nodiscard]] bool IsClosed() const noexcept { return m_IsClosed; }
 
     private:
         enum class Live
@@ -112,7 +115,6 @@ namespace nazg
         std::string                m_KeyAt;    // the keycode at m_Counts.keysAt, on layer 0
         std::string                m_Outside;  // FindInDefinition()'s findings, as positions
         std::string                m_Stacked;
-        bool                       m_IsClosed = false;
 
         Live               m_Live = Live::Off;
         std::string        m_LiveMessage;

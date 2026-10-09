@@ -50,12 +50,11 @@ namespace nazg
 
         // The board menu.
         std::vector<OtherKeyboard> others;
-        bool isVia         = false;   // Change definition... and Forget choice are VIA's
-        bool hasChoice     = false;   // a remembered choice to forget
-        bool hasAdvanced   = false;   // the Advanced submenu, with the setting on
-        bool canShowMatrix = false;   // a board loaded, its matrix view not already showing
-        bool canExport     = false;
-        bool isBusy        = false;   // a load or a write in flight: nothing may replace the board
+        bool isVia       = false;   // Change definition... and Forget choice are VIA's
+        bool hasChoice   = false;   // a remembered choice to forget
+        bool hasAdvanced = false;   // the Advanced submenu, with the setting on
+        bool canExport   = false;
+        bool isBusy      = false;   // a load or a write in flight: nothing may replace the board
 
         bool isSettingsShown = false;
     };
@@ -65,7 +64,6 @@ namespace nazg
         std::optional<size_t> switchTo;   // index into HeaderView::others
         bool changeDefinition = false;
         bool forgetChoice     = false;
-        bool showMatrix       = false;
         bool exportDefinition = false;
         bool allKeyboards     = false;
         bool toggleLock       = false;   // the lock state was clicked: unlock, or lock again
@@ -103,12 +101,11 @@ namespace nazg
 
     // `sections` are the open board's -- the column lists them, and is hidden when there is
     // only one -- and `active` the one shown, which the column changes. `keyboard` gives the
-    // board the sections start from; `protocol` heads Nazg's own sections when the board's
-    // menus follow them: "VIA" or "Vial".
+    // board the sections start from; `protocol` heads Nazg's own sections when another group
+    // follows them: "VIA" or "Vial". Every section not shown hears WhileHidden().
     void DrawSections(const std::vector<std::unique_ptr<Section>>& sections, size_t& active, const Keyboard& keyboard,
                       std::string_view protocol, WorkspaceLayout& layout);
 
-    // One section's strip, board and panel with no column -- a view that takes the sections'
-    // place, such as the matrix view (ui/NazgMatrixView.h).
+    // One section's strip, board and panel, with no column.
     void DrawView(Section& section, const Keyboard& keyboard, WorkspaceLayout& layout);
 }

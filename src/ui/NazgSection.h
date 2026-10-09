@@ -44,11 +44,13 @@ namespace nazg
 
     // The column's groups (ui-design.md, "Nazg's sections, then the board's menus"): the sections
     // Nazg provides for the protocol, headed by its name -- VIA or Vial -- then the board's own
-    // menus from its definition, headed "Board". Tools, the third, comes with the first tool.
+    // menus from its definition, headed "Board", then the tools, headed "Tools": the matrix view
+    // while Advanced tools is on, the Leyden Jar diagnostics later.
     enum class SectionGroup
     {
         Protocol,
         Board,
+        Tools,
     };
 
     class Section
@@ -82,5 +84,9 @@ namespace nazg
         // Work it started that has not finished -- a write in flight, which refers to the
         // section and the board. Nothing closes or reloads the board while it is busy.
         [[nodiscard]] virtual bool IsBusy() const { return false; }
+
+        // Every frame another section is shown instead: time to stop what runs only while this one
+        // shows -- the matrix view's live test, which keeps the board open.
+        virtual void WhileHidden() {}
     };
 }

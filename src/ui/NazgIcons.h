@@ -26,6 +26,7 @@ namespace nazg
         ArrowsJoin            = 0xEDAF,
         ArrowsLeftRight       = 0xEDB0,
         Bulb                  = 0xEA51,
+        ChartGridDots         = 0xF4C2,
         CircleDot             = 0xEFB1,
         Components            = 0xEFA5,
         DeviceDesktop         = 0xEA89,

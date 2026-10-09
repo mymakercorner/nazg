@@ -1284,9 +1284,10 @@ The board's name in the header is a menu, as in ZMK Studio and VIA:
 
 - **Switch to** — the other keyboards plugged in, one click each: the usual reason to go back.
 - **Change definition… / Forget choice** — VIA boards only; they leave the board screen.
-- **Advanced** — only with *Advanced tools* on in Settings: **Show matrix…** (the matrix
-  view, below) and **Export definition…** (the definition drawing the board, byte for byte,
-  for investigation and debugging). The picture shows it open.
+- **Advanced** — only with *Advanced tools* on in Settings: **Export definition…** (the
+  definition drawing the board, byte for byte, for investigation and debugging). The picture
+  shows it open, with **Show matrix…**, which left it for the column's Tools group (2026-10-09,
+  see "The matrix view").
 - **All keyboards** — closes the board and shows the list.
 
 It adds nothing to the first glance — the name is already there — and it is the only way to
@@ -1304,9 +1305,12 @@ are illustrative.) **Refresh** stays on the list.
 ## The matrix view
 
 How the board is wired: which row and which column of the switch matrix each key sits on.
-Mostly for designers and anyone debugging a build, so it is **opened from the board menu's
-Advanced submenu** ("Show matrix…", only with *Advanced tools* on) rather than being a section — a section would bring the column back on every
-keymap-only board, since every board has the data.
+Mostly for designers and anyone debugging a build, so it is **a section in the column's Tools
+group, only with *Advanced tools* on** (Rico, 2026-10-09) -- with the setting off, a section would
+bring the column back on every keymap-only board, since every board has the data. Until then it
+was opened from the board menu's Advanced submenu ("Show matrix…") and took the sections' place
+until closed. Its live test keeps the board open, so it stops as soon as another section is
+shown (`Section::WhileHidden()`).
 
 ### What VIA and Vial do
 
@@ -1553,8 +1557,8 @@ look is built** (Rico, 2026-10-03): they are judged on the real thing, not on a 
   and no header, and a board with only
   Nazg's sections shows no header at all. The headers also settle two entries sharing a name or
   an icon -- Vial's Tap Dance and a board's own, Lighting and Indicators: their group tells them
-  apart. Open: whether Nazg's own tools -- the matrix view, today under Advanced -- join the
-  Tools group, with *Advanced tools* on.
+  apart. **The matrix view joins the Tools group** while *Advanced tools* is on (Rico,
+  2026-10-09), last, with Tabler's `chart-grid-dots`; the board menu's "Show matrix…" is gone.
 - **A custom menu's icon** (Rico, 2026-10-06), first match wins:
   1. later, an `icon` field on the menu in the definition (step 5) -- the author's choice;
   2. **a table keyed on the label**, kept by us: labels repeat across a family (cipulot's

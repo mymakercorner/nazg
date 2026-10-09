@@ -236,7 +236,9 @@ namespace nazg
                 }
                 if (opensGroup && hasGroups && !isFolded)
                 {
-                    std::string header = section.Group() == SectionGroup::Board ? "Board" : std::string(protocol);
+                    std::string header = section.Group() == SectionGroup::Board   ? "Board"
+                                         : section.Group() == SectionGroup::Tools ? "Tools"
+                                                                                  : std::string(protocol);
                     std::transform(header.begin(), header.end(), header.begin(),
                                    [](char c) { return c >= 'a' && c <= 'z' ? static_cast<char>(c - 'a' + 'A') : c; });
 
@@ -342,13 +344,10 @@ namespace nazg
                                           "if more than one definition matches it.");
                 }
 
-                // Designer and debugging tools, only when asked for in Settings.
+                // Designer and debugging tools, only when asked for in Settings -- the matrix view
+                // then joins the column's Tools group.
                 if (view.hasAdvanced && ImGui::BeginMenu("Advanced"))
                 {
-                    action.showMatrix = ImGui::MenuItem("Show matrix...", nullptr, false, view.canShowMatrix);
-                    ImGui::SetItemTooltip("How the board is wired: the row and the column of the switch matrix\n"
-                                          "each key sits on, and a live test of every switch.");
-
                     action.exportDefinition = ImGui::MenuItem("Export definition...", nullptr, false, view.canExport);
                     ImGui::SetItemTooltip("For investigation and debugging: save the definition drawing this board\n"
                                           "exactly as Nazg has it.");
@@ -412,6 +411,10 @@ namespace nazg
             DrawColumn(sections, active, protocol, layout);
             ImGui::SameLine(0.0f, 0.0f);
         }
+
+        for (size_t index = 0; index < sections.size(); ++index)
+            if (index != active)
+                sections[index]->WhileHidden();
 
         DrawView(*sections[active], keyboard, layout);
     }
