@@ -357,6 +357,46 @@ namespace
         Check(nazg::LightingFirmwareOf(keyboard) == LightingFirmware::New, "Vial 6 with Layer Lock: new");
     }
 
+    // What hover adds to a lighting key: the policy's doubts, by firmware state and systems.
+    void TestLightingNotes()
+    {
+        std::printf("lighting notes\n");
+
+        const auto note = [](const nazg::Keyboard& keyboard, const char* name)
+        { return nazg::LightingNoteOf(nazg::NamedKey{ name }, keyboard); };
+
+        nazg::Keyboard keyboard;
+        keyboard.keymap               = nazg::Keymap(1, 1, 1);
+        keyboard.definition.lighting  = "qmk_rgblight";
+        keyboard.definition.menuIds   = { "qmk_rgb_matrix" };   // underglow and RGB Matrix
+
+        keyboard.report.viaProtocol = 12;   // unknown
+        Check(note(keyboard, "RM_TOGG").mayDoNothing && note(keyboard, "RGB_M_P").mayDoNothing,
+              "unknown: RM_ and the modes may do nothing");
+        Check(note(keyboard, "UG_TOGG").text == "drives the underglow, and the RGB Matrix unless the firmware opts out" &&
+                  !note(keyboard, "UG_TOGG").mayDoNothing,
+              "unknown: the one set drives both, unless the firmware opts out");
+        Check(note(keyboard, "KC_A").text.empty() && note(keyboard, "BL_TOGG").text.empty(), "other keys: nothing");
+
+        keyboard.report.viaProtocol = 13;   // new
+        Check(!note(keyboard, "RM_TOGG").mayDoNothing && note(keyboard, "RM_TOGG").text.empty(), "new: RM_ works");
+        Check(note(keyboard, "RGB_M_B").mayDoNothing, "new: the modes are dead");
+
+        keyboard.report.viaProtocol = 11;   // old
+        Check(note(keyboard, "RM_TOGG").mayDoNothing, "old: RM_ does nothing");
+        Check(note(keyboard, "RGB_M_SN").text.empty(), "old: the modes work");
+        Check(note(keyboard, "UG_TOGG").text == "drives the underglow and the RGB Matrix", "old: the one set drives both");
+
+        keyboard.definition.lighting = "none";   // RGB Matrix alone
+        Check(note(keyboard, "RGB_M_SN").mayDoNothing && note(keyboard, "RGB_M_SW").text.empty(),
+              "old, RGB Matrix alone: four modes reach it, the rest are an underglow's");
+        Check(note(keyboard, "UG_TOGG").text.empty(), "one system: nothing to add");
+
+        keyboard.report.isVial       = true;
+        keyboard.report.vialProtocol = 6;   // unknown
+        Check(note(keyboard, "RM_TOGG").text.find("vial-qmk") != std::string::npos, "a Vial board: vial-qmk's date");
+    }
+
     void TestKeyCentre()
     {
         std::printf("key centre\n");
@@ -405,6 +445,7 @@ int main()
     TestResolveKey();
     TestLightingSystems();
     TestLightingFirmware();
+    TestLightingNotes();
     TestKeyCentre();
     TestSpreadApart();
 

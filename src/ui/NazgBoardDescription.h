@@ -226,6 +226,19 @@ namespace nazg
     // load, never stored: a board can be reflashed.
     [[nodiscard]] LightingFirmware LightingFirmwareOf(const Keyboard& keyboard);
 
+    // What hover adds to a lighting key on `keyboard` (ui-design.md, "Which lighting keycodes a
+    // board gets"): that it may do nothing on the board's firmware -- RM_* unless the firmware is
+    // known to be new, RGB_M_* unless known to be old, or a mode only an underglow has, on a
+    // board with an RGB Matrix alone -- or, for UG_* on a board with underglow and RGB Matrix,
+    // that it drives both. Empty text for any other key.
+    struct LightingNote
+    {
+        std::string text;
+        bool        mayDoNothing = false;   // the picker marks the tile
+    };
+
+    [[nodiscard]] LightingNote LightingNoteOf(const Keycode& keycode, const Keyboard& keyboard);
+
     // Where a board's left half ends, in key units along x: the space bar's centre -- its
     // widest key, 3u or more -- or the board's own where there is none, on splits and
     // orthos. A full-size board's own centre falls near Backspace, because of the numpad, and

@@ -48,6 +48,7 @@ namespace nazg
         Fallthrough     mark     = Fallthrough::None;
         bool            selected = false;   // the selected key's keycode
         bool            hovered  = false;
+        bool            isFaint  = false;   // may do nothing on this board: drawn faint, as a fallthrough
     };
 
     void DrawKeycodeTile(const KeycodeTile& tile, const FaceBox& box);

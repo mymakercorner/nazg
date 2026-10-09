@@ -82,7 +82,10 @@ or ✕ in the corner -- `ResolveKey()` walks down the layers (`ui/NazgBoardDescr
 `BoardKey::fallthrough` says which, hover names the layer; the strike line was dropped, and the
 marks are small (an open point). Peek is the layer itself: hovering a layer in the strip shows
 it until the mouse leaves (`Section::OnStripHovered()`); second legends were built and dropped,
-they collided. Nazg remembers its window's place in `imgui.ini`. Next: the lighting policy.
+they collided. Nazg remembers its window's place in `imgui.ini`. The lighting policy is done
+(2026-10-09): the state (`LightingFirmwareOf()`) chooses what the picker offers, and hover says
+when a lighting key may do nothing on the firmware, or drives two systems (`LightingNoteOf()`);
+with *Advanced tools* on, the picker lists every lighting key, the doubtful ones faint.
 
 One key can be edited: click it, pick a keycode, and `WriteKeycode()`
 (`adapters/via/NazgViaKeymap.h`) encodes it for the board's version, sets it, reads the cell

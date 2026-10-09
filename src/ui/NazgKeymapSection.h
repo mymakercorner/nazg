@@ -30,10 +30,11 @@ namespace nazg
     {
     public:
         // The board at `path`, loaded into `keyboard`; writes update it. `legends` is the
-        // legends' settings, read every frame so a change shows at once. All three outlive the
+        // legends' settings, read every frame so a change shows at once, as the two settings
+        // are -- the Advanced tools one has the picker list every lighting key. All outlive the
         // section -- see ui/NazgSection.h.
         KeymapSection(HidTransport& transport, std::string path, Keyboard& keyboard, const LegendSettings& legends,
-                      const bool& moveToNextKey);
+                      const bool& moveToNextKey, const bool& advancedTools);
 
         [[nodiscard]] std::string_view Name() const override { return "Keymap"; }
         [[nodiscard]] Icon             ColumnIcon() const override { return Icon::Keyboard; }
@@ -66,6 +67,7 @@ namespace nazg
         Keyboard&             m_Keyboard;
         const LegendSettings& m_Legends;
         const bool&           m_MoveToNextKey;   // the setting, read at every pick
+        const bool&           m_AdvancedTools;
 
         // The board's cells in its order -- top to bottom, then left to right -- for "next key",
         // from the keys drawn this frame.

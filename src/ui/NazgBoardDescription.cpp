@@ -199,6 +199,56 @@ namespace nazg
         return LightingFirmware::Unknown;
     }
 
+    LightingNote LightingNoteOf(const Keycode& keycode, const Keyboard& keyboard)
+    {
+        // Only these three families: the board's state is not worked out for any other key.
+        const auto* named = std::get_if<NamedKey>(&keycode);
+        if (named == nullptr)
+            return {};
+        const std::string_view name   = named->name;
+        const bool             isRm   = name.rfind("RM_", 0) == 0;
+        const bool             isMode = name.rfind("RGB_M_", 0) == 0;
+        const bool             isGlow = name.rfind("UG_", 0) == 0;
+        if (!isRm && !isMode && !isGlow)
+            return {};
+
+        using namespace LightingSystem;
+        const LightingFirmware firmware = LightingFirmwareOf(keyboard);
+        const uint8_t          systems  = LightingSystemsOf(keyboard);
+        const bool             glow     = (systems & Underglow) != 0;
+        const bool             matrix   = (systems & RgbMatrix) != 0;
+
+        // QMK's RGB keycode overhaul reached vial-qmk three months after QMK.
+        const std::string overhaul = keyboard.report.isVial ? "vial-qmk's February 2025 merge of QMK's RGB overhaul"
+                                                            : "QMK's November 2024 RGB overhaul";
+
+        if (isRm && firmware == LightingFirmware::Old)
+            return { "does nothing on this firmware, from before " + overhaul, true };
+        if (isRm && firmware == LightingFirmware::Unknown)
+            return { "does nothing on firmware from before " + overhaul, true };
+
+        if (isMode && firmware == LightingFirmware::New)
+            return { "does nothing on this firmware: the RGB_M modes went with " + overhaul, true };
+        if (isMode && firmware == LightingFirmware::Unknown)
+            return { "does nothing on firmware from after " + overhaul, true };
+        if (isMode && matrix && !glow)
+        {
+            // Old firmware: four modes reach an RGB Matrix, the rest are an underglow's.
+            for (std::string_view reaches : { "RGB_M_P", "RGB_M_B", "RGB_M_R", "RGB_M_SW" })
+                if (name == reaches)
+                    return {};
+            return { "does nothing on this board: only an underglow has this mode", true };
+        }
+
+        if (isGlow && glow && matrix)
+            return { firmware == LightingFirmware::Old
+                         ? "drives the underglow and the RGB Matrix"
+                         : "drives the underglow, and the RGB Matrix unless the firmware opts out",
+                     false };
+
+        return {};
+    }
+
     float SideLine(const std::vector<BoardKey>& keys)
     {
         const BoardKey* widest = nullptr;

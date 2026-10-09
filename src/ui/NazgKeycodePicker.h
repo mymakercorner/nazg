@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include "model/NazgKeyboard.h"
 #include "model/NazgKeycode.h"
 #include "ui/NazgKeycapLegend.h"
 #include "ui/NazgKeycodeCatalogue.h"
@@ -50,6 +51,10 @@ namespace nazg
         // The selected key's keycode, outlined among the tiles, and what a pick composes with
         // (ComposeWithKey()); none while no key is selected.
         std::optional<Keycode> current;
+
+        // The board, for what hover says of a lighting key and whether its tile is faint
+        // (LightingNoteOf()); none on no board.
+        const Keyboard* keyboard = nullptr;
     };
 
     struct KeycodePickerEvents

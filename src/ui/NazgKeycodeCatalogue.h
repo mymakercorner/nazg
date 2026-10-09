@@ -41,8 +41,10 @@ namespace nazg
 
     // The tabs for `keyboard`, in order: Keys, Layers, Media & mouse, Lighting, Features, Macros,
     // Special, Custom, Devices, Firmware. `legends` gives the group titles that are a header --
-    // "Ctrl↔Win" or "Ctrl↔Cmd" by the modifier names.
-    [[nodiscard]] std::vector<CatalogueTab> BuildKeycodeCatalogue(const Keyboard& keyboard, const LegendSettings& legends);
+    // "Ctrl↔Win" or "Ctrl↔Cmd" by the modifier names. `everyLightingKey`, with Advanced tools on:
+    // every lighting keycode for the systems declared, not only those the firmware state allows.
+    [[nodiscard]] std::vector<CatalogueTab> BuildKeycodeCatalogue(const Keyboard& keyboard, const LegendSettings& legends,
+                                                                  bool everyLightingKey = false);
 
     // What a pick writes, the key's line keeping what it set (ui-design.md, "The key line"): a
     // plain key picked onto a key that holds -- MT, LT -- or is sent with modifiers keeps that:

@@ -161,6 +161,14 @@ namespace
         board.keycodeVersion     = QmkKeycodeVersion::V0_0_1;
         tabs = nazg::BuildKeycodeCatalogue(board, {});
         Check(Offers(tabs, "UG_TOGG") && !Offers(tabs, "RM_TOGG") && Offers(tabs, "RGB_M_P"), "old: one set and the modes");
+
+        // Advanced tools: every set and mode for the systems declared, whatever the state.
+        board.report.viaProtocol = 12;   // unknown
+        board.keycodeVersion     = QmkKeycodeVersion::V0_0_8;
+        tabs = nazg::BuildKeycodeCatalogue(board, {}, true);
+        Check(Offers(tabs, "UG_TOGG") && Offers(tabs, "RM_TOGG") && Offers(tabs, "RGB_M_P") && Offers(tabs, "RGB_M_T"),
+              "every lighting key: both sets and every mode");
+        Check(!Offers(tabs, "BL_TOGG") && !Offers(tabs, "LM_TOGG"), "but only for the systems declared");
     }
 
     void TestCustomAndSearch()

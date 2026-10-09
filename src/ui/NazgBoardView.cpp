@@ -664,9 +664,10 @@ namespace nazg
         drawList->AddRect(ImVec2(p0.x + border / 2, p0.y + border / 2), ImVec2(p1.x - border / 2, p1.y - border / 2),
                           BoardColours::Outline(), rounding, 0, border);
 
+        const auto faint = [&](ImU32 colour) { return tile.isFaint ? Faded(colour, c_FaintStrength) : colour; };
         if (tile.band != CommandCategory::None)
             FillBand(drawList, p0, p1, rounding, c_TileBand * scale,
-                     BoardColours::Category(tile.band, CategoryUse::Band, tile.fill, 0.0f).value_or(colours.legend));
+                     faint(BoardColours::Category(tile.band, CategoryUse::Band, tile.fill, 0.0f).value_or(colours.legend)));
 
         // The legends as the board draws them: a header in its category's colour, solved for this
         // face, the rest in the legend's.
@@ -675,8 +676,8 @@ namespace nazg
         const ImVec4            clip(p0.x, p0.y, p1.x, p1.y);
         const auto              colourOf   = [&](LegendInk ink, CommandCategory category)
         {
-            return BoardColours::Category(category, CategoryUse::Text, tile.fill, 0.0f)
-                .value_or(BoardColours::Legend(ink, tile.fill));
+            return faint(BoardColours::Category(category, CategoryUse::Text, tile.fill, 0.0f)
+                             .value_or(BoardColours::Legend(ink, tile.fill)));
         };
         for (const PlacedText& text : primitives.texts)
             drawList->AddText(measurer.FontFor(text.weight), measurer.ImGuiSize(text.size), ImVec2(text.x, text.y),

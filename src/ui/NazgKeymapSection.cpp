@@ -29,9 +29,9 @@
 namespace nazg
 {
     KeymapSection::KeymapSection(HidTransport& transport, std::string path, Keyboard& keyboard,
-                                 const LegendSettings& legends, const bool& moveToNextKey)
+                                 const LegendSettings& legends, const bool& moveToNextKey, const bool& advancedTools)
         : m_Transport(transport), m_Path(std::move(path)), m_Keyboard(keyboard), m_Legends(legends),
-          m_MoveToNextKey(moveToNextKey)
+          m_MoveToNextKey(moveToNextKey), m_AdvancedTools(advancedTools)
     {
     }
 
@@ -118,10 +118,11 @@ namespace nazg
 
     const std::vector<CatalogueTab>& KeymapSection::Catalogue()
     {
-        const std::string settings = m_Legends.hostLayout + "/" + std::string(IdOf(m_Legends.modifierNames));
+        const std::string settings = m_Legends.hostLayout + "/" + std::string(IdOf(m_Legends.modifierNames)) +
+                                     (m_AdvancedTools ? "/advanced" : "");
         if (m_Catalogue.empty() || settings != m_CatalogueFor)
         {
-            m_Catalogue    = BuildKeycodeCatalogue(m_Keyboard, m_Legends);
+            m_Catalogue    = BuildKeycodeCatalogue(m_Keyboard, m_Legends, m_AdvancedTools);
             m_CatalogueFor = settings;
         }
         return m_Catalogue;
@@ -169,6 +170,8 @@ namespace nazg
         if (resolved.fallthrough == Fallthrough::Disabled)
             text += resolved.layer ? "\ndisables layer " + std::to_string(*resolved.layer) + "'s " + nameOf(resolved.keycode)
                                    : std::string("\nnothing below to disable");
+        else if (const LightingNote note = LightingNoteOf(resolved.keycode, m_Keyboard); !note.text.empty())
+            text += "\n" + note.text;   // a lighting key that may do nothing on this firmware, or drives two systems
 
         ImGui::SetTooltip("%s\nrow %d, column %d", text.c_str(), key.row, key.column);
 
@@ -199,7 +202,7 @@ namespace nazg
 
         ImGui::BeginDisabled(IsBusy());
         const KeycodePickerEvents events =
-            DrawKeycodePicker(m_Picker, { Catalogue(), context, m_Keyboard.keycodeVersion, current });
+            DrawKeycodePicker(m_Picker, { Catalogue(), context, m_Keyboard.keycodeVersion, current, &m_Keyboard });
         ImGui::EndDisabled();
         m_Preview = events.preview;
 

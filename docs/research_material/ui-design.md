@@ -922,8 +922,16 @@ What each state offers in the picker, for the systems the definition declares, l
   ("does nothing on firmware built before November 2024"); no mark on the board.
 - **LED Matrix** cannot be declared (neither VIA nor Vial knows it), so `LM_*` are never offered;
   one on the keymap is drawn, "LEDs".
-- **Provisional**: with *Advanced tools* on, the picker could list every lighting keycode, those
-  that may do nothing marked -- for a board whose firmware the user knows better than Nazg.
+- **With *Advanced tools* on** (Rico, 2026-10-09; provisional until then), the picker lists every
+  lighting keycode for the systems declared -- both sets and every `RGB_M_*` mode -- whatever the
+  state, for a board whose firmware the user knows better than Nazg. Those that may do nothing
+  are **faint**, as a transparent key's legends are, and hover says why.
+- **As built** (2026-10-09): `LightingNoteOf()` (`ui/NazgBoardDescription.*`, tested) gives what
+  hover adds, on the board and on a tile -- "does nothing on firmware from before QMK's November
+  2024 RGB overhaul" for `RM_*` on unknown firmware (vial-qmk's February 2025 merge on a Vial
+  board), the mirror for `RGB_M_*`, a mode only an underglow has on a board with an RGB Matrix
+  alone, and for `UG_*` on a board with both systems "drives the underglow, and the RGB Matrix
+  unless the firmware opts out" ("and the RGB Matrix" on old firmware).
 
 **Four categories, each a colour** -- Rico chose **D′** of the variants sketched: a **band**
 along the top of the face and the **header** in the category's colour, the **main legend in the

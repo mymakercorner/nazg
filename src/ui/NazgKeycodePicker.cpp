@@ -175,8 +175,11 @@ namespace nazg
                     const std::string key = FormatKeycode(keycode);
 
                     const bool selected = input.current && *input.current == keycode;
-                    KeycodeTile tile = TileFor(keycode, input.context, dropHeader, selected);
+                    KeycodeTile        tile = TileFor(keycode, input.context, dropHeader, selected);
+                    const LightingNote note = input.keyboard != nullptr ? LightingNoteOf(keycode, *input.keyboard)
+                                                                        : LightingNote{};
                     tile.hovered = hovered;
+                    tile.isFaint = note.mayDoNothing;
                     DrawKeycodeTile(tile, { p0.x, p0.y, p0.x + tileW, p0.y + tileH });
 
                     // What a click writes, the key line's hold or modifiers kept.
@@ -184,11 +187,14 @@ namespace nazg
                         input.current ? ComposeWithKey(keycode, *input.current, input.version) : keycode;
                     if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
                     {
+                        const std::string more = note.text.empty() ? std::string() : "\n" + note.text;
                         if (composed == keycode)
-                            ImGui::SetTooltip("%s", KeycodeHoverText(keycode, input.version).c_str());
+                            ImGui::SetTooltip("%s%s", KeycodeHoverText(keycode, input.version).c_str(), more.c_str());
                         else
-                            ImGui::SetTooltip("%s\n%s, keeping the key's %s", FormatKeycode(composed).c_str(), key.c_str(),
-                                              std::holds_alternative<ModifiedKey>(composed) ? "modifiers" : "hold");
+                            ImGui::SetTooltip("%s\n%s, keeping the key's %s%s", FormatKeycode(composed).c_str(),
+                                              key.c_str(),
+                                              std::holds_alternative<ModifiedKey>(composed) ? "modifiers" : "hold",
+                                              more.c_str());
 
                         if (input.current && state.justPicked != key)
                             events.preview = composed;

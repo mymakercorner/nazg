@@ -1675,7 +1675,7 @@ int main(int, char**)
                             if (planned.kind == nazg::SectionKind::Keymap)
                                 boardState.sections.push_back(std::make_unique<nazg::KeymapSection>(
                                     transport, boardState.path, *boardState.keyboard, settings.legends,
-                                    settings.moveToNextKey));
+                                    settings.moveToNextKey, settings.advancedTools));
                             else
                                 boardState.sections.push_back(
                                     std::make_unique<nazg::PlaceholderSection>(std::move(planned)));

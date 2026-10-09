@@ -109,7 +109,11 @@ namespace nazg
         // Matrix's apart; on old or unknown firmware one set -- the UG_* values -- for both, and the
         // RGB_M modes on old firmware only, where they work. LED Matrix is never offered: no
         // definition can declare it.
-        std::vector<CatalogueGroup> LightingGroups(const Builder& builder, const Keyboard& keyboard)
+        //
+        // `everyKey`, with Advanced tools on (ui-design.md, the same section): every set and mode
+        // for the systems declared, whatever the firmware -- for a user who knows it better than
+        // Nazg. The picker marks those that may do nothing (LightingNoteOf()).
+        std::vector<CatalogueGroup> LightingGroups(const Builder& builder, const Keyboard& keyboard, bool everyKey)
         {
             using namespace LightingSystem;
 
@@ -133,7 +137,22 @@ namespace nazg
                 groups.push_back({ std::move(title), std::move(more), std::move(keycodes) });
             };
 
-            if (firmware == LightingFirmware::New)
+            if (everyKey)
+            {
+                if (glow)
+                    set("Underglow", "", "UG_");
+                else if (matrix)
+                    set("RGB Matrix, UG_", "the underglow keycodes, which drive an RGB Matrix on firmware from before "
+                                           "QMK's RGB overhaul, and after it unless the firmware opts out",
+                        "UG_");
+                if (matrix)
+                    set("RGB Matrix", "", "RM_");
+                if (glow || matrix)
+                    groups.push_back(builder.Group("Modes", "the RGB_M modes", { "RGB_M_P", "RGB_M_B", "RGB_M_R", "RGB_M_SW",
+                                                                                 "RGB_M_SN", "RGB_M_K", "RGB_M_X", "RGB_M_G",
+                                                                                 "RGB_M_T" }));
+            }
+            else if (firmware == LightingFirmware::New)
             {
                 if (glow)
                     set("Underglow", "", "UG_");
@@ -162,7 +181,8 @@ namespace nazg
         }
     }
 
-    std::vector<CatalogueTab> BuildKeycodeCatalogue(const Keyboard& keyboard, const LegendSettings& legends)
+    std::vector<CatalogueTab> BuildKeycodeCatalogue(const Keyboard& keyboard, const LegendSettings& legends,
+                                                    bool everyLightingKey)
     {
         const Builder      builder(keyboard, legends);
         const BoardReport& report = keyboard.report;
@@ -304,7 +324,7 @@ namespace nazg
             tabs.push_back(std::move(tab));
         }
 
-        tabs.push_back({ "lighting", "Lighting", CommandCategory::Board, LightingGroups(builder, keyboard) });
+        tabs.push_back({ "lighting", "Lighting", CommandCategory::Board, LightingGroups(builder, keyboard, everyLightingKey) });
 
         // Features: QMK features that change how keys behave.
         {
