@@ -20,7 +20,7 @@ was not taken: a feature-rich board shows eleven tabs before anything is done.
 | Region | What it holds |
 |---|---|
 | **Header** | The board's name, which is a menu (see "Getting back to the keyboard list"); the protocol; the lock state on boards that have one; the **settings button** |
-| **Section column** | Keymap, Layout, Macros... — 150 px wide by default, an icon and a label per row, icons from **Tabler**. **Only the sections the board has**, and **hidden when there is only one**. **Resizable**: its edge drags the list between 120 and 200 px, and below 100 px it folds to icons only, 44 px; a double-click on the edge folds or unfolds it (Rico, 2026-10-09; see "Open points") |
+| **Section column** | Keymap, Layout, Macros... — 180 px wide by default, so every custom menu label in VIA's registry shows whole (Rico, 2026-10-09), an icon and a label per row, icons from **Tabler**. **Only the sections the board has**, and **hidden when there is only one**. **Resizable**: its edge drags the list between 120 and 200 px, and below 100 px it folds to icons only, 44 px; a double-click on the edge folds or unfolds it (Rico, 2026-10-09; see "Open points") |
 | **Strip** | A row of choices owned by the section: layers in Keymap, slots in Macros (see below). Absent when the section has nothing to choose |
 | **Board** | Drawn by Nazg; what each key shows is the section's |
 | **Panel** | The section's editor — the keycode picker in Keymap (see "The keycode picker"). **Always visible**, not only while a key is selected |
@@ -753,16 +753,16 @@ of the letter size, 9 px there, was his limit. Two ways out were weighed:
   check in short-forms.md still holds. The cost: the board scrolls sooner -- the Model F (22.5
   units) below about 1420 px of width, against 1190 before. Above the floor nothing changes.
 
-The width below which a board scrolls, plate included, and with the section column (150 px) a
+The width below which a board scrolls, plate included, and with the section column (180 px, its default) a
 board with several sections shows:
 
 | Board | Units | Scrolls below | With the column |
 |---|---|---|---|
-| 60% | 15 | 970 px | 1120 px |
-| 65%, 75% -- the most popular (Rico) | 16 | 1030 px | 1180 px |
-| TKL | 18.25 | 1170 px | 1320 px |
-| Full size, Model F B104 | 22.5 | 1420 px | 1570 px |
-| Model F F122 / B122, two more columns on the left (estimated) | about 25 | 1570 px | 1720 px |
+| 60% | 15 | 970 px | 1150 px |
+| 65%, 75% -- the most popular (Rico) | 16 | 1030 px | 1210 px |
+| TKL | 18.25 | 1170 px | 1350 px |
+| Full size, Model F B104 | 22.5 | 1420 px | 1600 px |
+| Model F F122 / B122, two more columns on the left (estimated) | about 25 | 1570 px | 1750 px |
 
 A window half a QHD screen wide (1280 px, Rico's) holds a 65% or 75% with the column shown and a
 TKL without it; the big boards scroll there, and fit a 1920 px window without the column.
@@ -1532,7 +1532,7 @@ look is built** (Rico, 2026-10-03): they are judged on the real thing, not on a 
   icons only: the list looks better. **Icons: Tabler** (MIT), chosen over Lucide and Phosphor in
   the same mockup.
   **Then made resizable** (Rico, 2026-10-09, tried in the same mockup): the list stays the
-  default, and each user folds it if they want the room. A bar on the column's edge drags the
+  default, **180 px** wide so "Switch Configuration" (170 px) and every other label show whole, and each user folds it if they want the room. A bar on the column's edge drags the
   list between **120 and 200 px** -- 200 fits every custom menu label in VIA's registry, the
   longest ("PMK Custom Settings") 174 px -- and dragged below **100 px** the column snaps to
   **icons only, 44 px**: the group headers go, the lines between groups stay, every label shows
