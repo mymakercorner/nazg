@@ -64,6 +64,21 @@ namespace nazg
     // scaling are left alone.
     void ApplyWindowTheme(ThemeId theme);
 
+    // The window's sizes (interface-styling.md, "Settled"): the spacing scale, 6 px corners on
+    // frames and 8 on panels and popups, outlined controls -- scaled by `scale`, the display's.
+    // Once, before the first frame.
+    void ApplyWindowSizes(float scale);
+
+    // The interface's bold face, for headers -- the column's groups, Settings' parts, the board's
+    // name. Until it is set, or when it is missing, headers take the regular face.
+    void SetHeaderFont(ImFont* font);
+
+    // ImGui::SeparatorText() in the header face.
+    void SeparatorHeader(const char* text);
+
+    // The header face pushed, at `size` -- 0 keeps the current size. PopFont() after.
+    void PushHeaderFont(float size = 0.0f);
+
     // The named colours for panels.
     enum class PanelColour
     {

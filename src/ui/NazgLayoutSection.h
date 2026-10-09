@@ -4,7 +4,8 @@
 // LayoutSection - the board's layout options as a section (ui-design.md, "The Layout section",
 // after the mockup ui-design/layout-section.html): the board drawn with the stored choice and
 // layer 0's legends; in the panel, one line per option group -- a checkbox for a toggle, a combo
-// for a choice. Hovering an option shows its keys in a tooltip and previews it on the board.
+// for a choice. Hovering an option shows its keys in a tooltip; the board changes only once a
+// choice is written (Rico, 2026-10-09: no preview on the board).
 //
 // A choice is written at once, as Keymap writes a key: the whole packed value, then read back,
 // and the board draws what was stored. The keymap is untouched -- keys an option hides keep their
@@ -15,7 +16,6 @@
 #pragma once
 
 #include <cstdint>
-#include <optional>
 #include <string>
 #include <vector>
 
@@ -46,7 +46,7 @@ namespace nazg
         // One group's line: a checkbox, or a name and a combo.
         void DrawGroup(size_t group, uint8_t chosen);
 
-        // What hovering `choice` of `group` does: the tooltip with its keys, the board's preview.
+        // What hovering `choice` of `group` does: the tooltip with its keys.
         void OnOptionHovered(size_t group, uint8_t choice);
 
         // Everything it needs across its co_awaits is passed by value.
@@ -58,11 +58,6 @@ namespace nazg
         const LegendSettings& m_Legends;
 
         std::vector<LayoutOptionGroup> m_Groups;   // from the definition's labels, once
-
-        // The choice the board shows instead of the stored one, while an option is hovered:
-        // found while the panel draws, shown from the next frame, which draws the board first.
-        std::optional<std::vector<uint8_t>> m_Preview;
-        std::optional<std::vector<uint8_t>> m_NextPreview;
 
         Task<void>  m_Request;
         std::string m_Message;

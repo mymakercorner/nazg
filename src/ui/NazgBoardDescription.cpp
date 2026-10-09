@@ -288,13 +288,8 @@ namespace nazg
 
     BoardDescription DescribeKeyboard(const Keyboard& keyboard)
     {
-        return DescribeKeyboard(keyboard, keyboard.layoutSelection);
-    }
-
-    BoardDescription DescribeKeyboard(const Keyboard& keyboard, const std::vector<uint8_t>& selection)
-    {
         BoardDescription board;
-        for (const DefinitionKey& key : PlaceKeys(keyboard.definition, selection))
+        for (const DefinitionKey& key : PlaceKeys(keyboard.definition, keyboard.layoutSelection))
         {
             BoardKey described;
             described.geometry = key;

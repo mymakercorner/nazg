@@ -371,16 +371,23 @@ namespace
         return std::string(text.begin(), text.end());
     }
 
+    // ImGui's size for the interface's font -- its line height: Arimo at 16 is a 14.3 px font
+    // (interface-styling.md, "ImGui sizes a font by its line height").
     constexpr float c_FontSize = 16.0f;
 
-    // The interface's font:a system one, since ImGui's built-in font is ASCII only and device
-    // names and panels need more -- é, ß, Cyrillic, Greek. Which font the interface ships with
-    // belongs to the styling of the window, not decided yet; legends have their own,
-    // LoadLegendFonts(). ImGui 1.92 rasterises glyphs on demand, so no glyph ranges are
-    // listed; merged fonts fill in what the first one lacks. Falls back to the built-in font
-    // when none is found.
-    void LoadInterfaceFont(ImGuiIO& io)
+    // The interface's font (interface-styling.md, "Settled"): Arimo, the legends' font, from
+    // fonts/ beside the executable -- the same on every OS -- with the system's font merged
+    // behind it for what Arimo lacks in device names: other scripts, symbols. ImGui 1.92
+    // rasterises glyphs on demand, so no glyph ranges are listed. Without Arimo, the system font
+    // alone; without that, ImGui's built-in ASCII font. Returns the bold face, for headers, or
+    // null.
+    ImFont* LoadInterfaceFont(ImGuiIO& io)
     {
+        const char*       basePath = SDL_GetBasePath();   // owned by SDL, ends with a separator
+        const std::string bundled  = std::string(basePath != nullptr ? basePath : "") + "fonts/";
+        const std::string regular  = bundled + "Arimo-Regular.ttf";
+        const std::string bold     = bundled + "Arimo-Bold.ttf";
+
 #if defined(_WIN32)
         const char*       windir = std::getenv("WINDIR");
         const std::string fonts  = std::string(windir != nullptr ? windir : "C:\\Windows") + "\\Fonts\\";
@@ -398,27 +405,36 @@ namespace
         const std::vector<std::string> fallback = {};
 #endif
 
-        bool haveBase = false;
+        bool haveBase = std::filesystem::exists(PathFromUtf8(regular)) &&
+                        io.Fonts->AddFontFromFileTTF(regular.c_str(), c_FontSize) != nullptr;
+        if (!haveBase)
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "interface font missing: %s", regular.c_str());
+
+        // The system's font: behind Arimo, or in its place.
+        ImFontConfig merge;
+        merge.MergeMode = haveBase;
         for (const std::string& path : primary)
         {
-            if (std::filesystem::exists(path) && io.Fonts->AddFontFromFileTTF(path.c_str(), c_FontSize) != nullptr)
+            if (std::filesystem::exists(path) && io.Fonts->AddFontFromFileTTF(path.c_str(), c_FontSize, &merge) != nullptr)
             {
-                haveBase = true;
+                haveBase        = true;
+                merge.MergeMode = true;
                 break;
             }
         }
 
         if (!haveBase)
         {
-            SDL_Log("no system font found; the interface falls back to ImGui's ASCII font");
-            return;
+            SDL_Log("no interface font found; it falls back to ImGui's ASCII font");
+            return nullptr;
         }
 
-        ImFontConfig merge;
-        merge.MergeMode = true;
         for (const std::string& path : fallback)
             if (std::filesystem::exists(path))
                 io.Fonts->AddFontFromFileTTF(path.c_str(), c_FontSize, &merge);
+
+        return std::filesystem::exists(PathFromUtf8(bold)) ? io.Fonts->AddFontFromFileTTF(bold.c_str(), c_FontSize)
+                                                            : nullptr;
     }
 
     // The legends' fonts, from fonts/ beside the executable, where the build copies
@@ -1075,15 +1091,12 @@ int main(int, char**)
     SDL_ShowWindow(pWindow);
 
     // The interface's font first: the first font added is ImGui's default.
-    LoadInterfaceFont(io);
+    nazg::SetHeaderFont(LoadInterfaceFont(io));
     nazg::SetLegendFonts(LoadLegendFonts(io));
     nazg::SetIconFont(LoadIconFont(io));
 
     ImGui::StyleColorsDark();
-
-    ImGuiStyle& style = ImGui::GetStyle();
-    style.ScaleAllSizes(mainScale);
-    style.FontScaleDpi = mainScale;
+    nazg::ApplyWindowSizes(mainScale);
 
     ImGui_ImplSDL3_InitForSDLGPU(pWindow);
 

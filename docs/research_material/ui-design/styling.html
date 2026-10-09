@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- Mockup of the interface's styling (interface-styling.md): the font, its size, the spacing scale,
+     rounding and outlined controls, on Nazg's own screens -- the workspace with the Keymap panel,
+     the Layout panel, Settings. Drawn as ImGui draws: the font size is ImGui's, the line height,
+     converted per font to the em the browser needs (the fonts' measured line boxes); a frame is
+     the line plus twice FramePadding.y; spacing is ItemSpacing. "Today" is Nazg as it is: Segoe UI
+     at ImGui 16 -- a 12 px font -- and ImGui's default sizes.
+
+     The browser hints text and ImGui does not, so text here is crisper than Nazg's: the chosen
+     font is to be checked in Nazg before it is final. The board itself keeps its settled look and
+     Arimo. Fonts from Google Fonts and Tabler's icons from jsDelivr, so it needs a network
+     connection; Segoe UI is the system's.
+
+     Settled 2026-10-09 (Rico), and opened on: "Arimo throughout" -- Arimo at ImGui 16, the
+     proposed spacing, 6 px corners, outlined controls, bold headers (interface-styling.md,
+     "Settled"). -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Styling mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Arimo:wght@400;700&family=Fira+Sans:wght@400;600&family=IBM+Plex+Sans:wght@400;600&family=Inter:wght@400;600&family=Noto+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--window:#f3f3f5;--menubar:#e3e4e9;--text:#1d1e22;--muted:#6b6e78;--control:#ffffff;--border:#c8cad2;--accent:#3b82f6;--panel:#f8f8fa;--column:#ebecf0;
+--button:rgba(59,130,246,.40);--buttonhover:#3b82f6;--frame:#ffffff;--framehover:#e8effc;--tab:rgba(59,130,246,.25);--tabon:rgba(59,130,246,.60);--header:rgba(59,130,246,.31);
+--plate:#d3d4d8;--keyline:#b4b7c2;--alpha:#ffffff;--mod:#e4e5ea;--accentcap:#afbfd5;--legend:#24262b;--grouplabel:#dfe1e7}
+:root[data-theme="dark"]{--window:#0f0f11;--menubar:#24252b;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--accent:#4296fa;--panel:#16171b;--column:#16171b;
+--button:rgba(66,150,250,.40);--buttonhover:#4296fa;--frame:#20232b;--framehover:#26324a;--tab:rgba(66,150,250,.25);--tabon:rgba(66,150,250,.60);--header:rgba(66,150,250,.31);
+--plate:#1c1d23;--keyline:#4b4e5c;--alpha:#3a3c48;--mod:#2c2e38;--accentcap:#5a6a80;--legend:#ebebf0;--grouplabel:#2a2c35}
+*{box-sizing:border-box}
+body{margin:0;background:#e9e9ec;color:#1d1e22;font-family:"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+:root[data-theme="dark"] body{background:#050506;color:#ececf1}
+.controls{display:flex;flex-wrap:wrap;gap:8px 20px;padding:10px 16px;border-bottom:1px solid #c8cad2;background:#f8f8fa;color:#1d1e22;font-family:"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+.controls .group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.controls .name{color:#6b6e78;margin-right:4px}
+.controls button{font:inherit;padding:3px 10px;border-radius:4px;border:1px solid #c8cad2;background:#fff;color:#1d1e22;cursor:pointer}
+.controls button.on{background:#3b82f6;border-color:#3b82f6;color:#fff}
+.readout{padding:6px 16px;color:#6b6e78;font-family:"Segoe UI",Helvetica,Arial,sans-serif;font-size:12.5px}
+.readout b{color:#1d1e22}
+.stage{padding:12px 16px 20px;overflow-x:auto}
+
+/* The app, ImGui's geometry from the variables. */
+.app{margin:0 auto;width:1280px;height:800px;border:1px solid var(--border);background:var(--window);color:var(--text);display:flex;flex-direction:column;overflow:hidden;
+  font-family:var(--font);font-size:var(--fs);line-height:var(--lh)}
+.app b,.app .strong{font-weight:var(--bold)}
+.menubar{display:flex;align-items:center;gap:var(--isx);background:var(--menubar);padding:0 var(--wpx);height:calc(var(--lh) + 2 * var(--fpy))}
+.menubar .mi{padding:0 calc(var(--isx) / 2)}
+.menubar .right{margin-left:auto;display:flex;gap:var(--isx)}
+.muted{color:var(--muted)}
+.body{flex:1;display:flex;min-height:0;padding:var(--wpy) var(--wpx);gap:0}
+.col{flex:none;width:180px;border:var(--cb) solid var(--border);border-radius:var(--rc);background:var(--column);padding:6px 5px;display:flex;flex-direction:column;gap:2px;overflow:hidden}
+.ghead{font-size:calc(var(--fs) * 0.82);color:var(--muted);letter-spacing:.05em;text-transform:uppercase;padding:6px 9px 1px;font-weight:var(--bold)}
+.entry{display:flex;align-items:center;gap:9px;padding:0 9px;height:32px;border-radius:var(--rf);color:var(--muted);position:relative}
+.entry.on{background:var(--header);color:var(--text)}
+.entry.on::before{content:'';position:absolute;left:-4px;top:6px;bottom:6px;width:3px;border-radius:2px;background:var(--accent)}
+.entry .ic{width:18px;height:18px;flex:none}
+.entry .ic svg{width:100%;height:100%;display:block}
+.edge{flex:none;width:10px;display:flex;align-items:center;justify-content:center}
+.edge::after{content:'';width:4px;height:56px;border-radius:2px;background:var(--border)}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;gap:var(--isy)}
+.row{display:flex;align-items:center;gap:var(--isx);flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:var(--fpy) var(--fpx);border-radius:var(--rf);background:var(--button);box-shadow:inset 0 0 0 var(--fb) var(--fbc);color:var(--text);min-width:calc((var(--lh) + 2 * var(--fpy)) * 1.4);white-space:nowrap}
+.btn.on{background:var(--buttonhover);color:#fff}
+.frame{display:inline-flex;align-items:center;padding:var(--fpy) var(--fpx);border-radius:var(--rf);background:var(--frame);box-shadow:inset 0 0 0 var(--fb) var(--fbc);white-space:nowrap;min-width:0}
+.combo{position:relative;padding-right:calc(var(--lh) + var(--fpx) * 2)}
+.combo::after{content:'';position:absolute;right:0;top:0;bottom:0;width:calc(var(--lh) + var(--fpy) * 2);background:var(--button);border-radius:0 var(--rf) var(--rf) 0}
+.combo::before{content:'▾';position:absolute;right:0;width:calc(var(--lh) + var(--fpy) * 2);text-align:center;z-index:1;color:var(--text)}
+.check{display:inline-flex;align-items:center;gap:var(--iix)}
+.check .box{width:calc(var(--lh) + 2 * var(--fpy));height:calc(var(--lh) + 2 * var(--fpy));border-radius:var(--rf);background:var(--frame);box-shadow:inset 0 0 0 var(--fb) var(--fbc);display:flex;align-items:center;justify-content:center;color:var(--accent);font-weight:700}
+.radio{display:inline-flex;align-items:center;gap:var(--iix)}
+.radio .dot{width:calc(var(--lh) + 2 * var(--fpy));height:calc(var(--lh) + 2 * var(--fpy));border-radius:50%;background:var(--frame);box-shadow:inset 0 0 0 var(--fb) var(--fbc);display:flex;align-items:center;justify-content:center}
+.radio.on .dot::after{content:'';width:45%;height:45%;border-radius:50%;background:var(--accent)}
+.boardarea{display:flex;justify-content:center}
+.plate{position:relative;border-radius:12px;background:var(--plate)}
+.key{position:absolute;border-radius:5px;border:1px solid var(--keyline);overflow:hidden}
+.key span{position:absolute;left:5px;top:3px;white-space:nowrap;font-family:Arimo,Arial,sans-serif;color:var(--legend)}
+.split{height:10px;display:flex;justify-content:center;align-items:center}
+.split::after{content:'';width:56px;height:4px;border-radius:2px;background:var(--border)}
+.panel{flex:1;min-height:0;border:var(--cb) solid var(--border);border-radius:var(--rc);background:var(--panel);padding:var(--wpy) var(--wpx);display:flex;flex-direction:column;gap:var(--isy);overflow:hidden}
+.tabs{display:flex;gap:2px;align-items:flex-end;border-bottom:1px solid var(--accent)}
+.tab{padding:var(--fpy) var(--fpx);border-radius:var(--rt) var(--rt) 0 0;background:var(--tab);display:flex;align-items:center;gap:6px}
+.tab.on{background:var(--tabon)}
+.dotc{width:8px;height:8px;border-radius:50%}
+.tiles{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start}
+.glabel{width:110px;height:60px;border-radius:var(--rf);background:var(--grouplabel);padding:4px 7px;color:var(--muted);font-size:calc(var(--fs) * 0.92)}
+.tile{width:56px;height:56px;border-radius:6px;border:1px solid var(--keyline);background:var(--alpha);position:relative}
+.tile span{position:absolute;left:6px;top:4px;font-family:Arimo,Arial,sans-serif;font-size:15px;color:var(--legend)}
+.lines{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--isy) 18px}
+.line{display:flex;align-items:center;min-width:0}
+.line .lname{max-width:50%;flex:none;margin-right:var(--isx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.line .frame{flex:1}
+.sep{display:flex;align-items:center;gap:8px;color:var(--text);font-weight:var(--bold)}
+.sep::after{content:'';flex:1;height:1px;background:var(--border)}
+.form{display:grid;grid-template-columns:200px 1fr;gap:var(--isy) var(--isx);align-items:center;max-width:760px}
+.list{border:var(--cb) solid var(--border);border-radius:var(--rc);background:var(--panel);overflow:hidden}
+.lrow{display:grid;grid-template-columns:1fr 120px 140px 110px;gap:var(--isx);padding:var(--cpy) var(--cpx);align-items:center}
+.lrow.head{color:var(--muted);border-bottom:1px solid var(--border)}
+.lrow.sel{background:var(--header)}
+.notes{max-width:1280px;margin:0 auto;padding:4px 16px 30px;color:#6b6e78;line-height:1.55;font-family:"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+.notes b{color:#1d1e22}
+.notes table{border-collapse:collapse;margin:6px 0 10px}
+.notes td,.notes th{border:1px solid #c8cad2;padding:3px 8px;text-align:left}
+</style>
+</head>
+<body>
+<div class="controls" id="controls"></div>
+<div class="readout" id="readout"></div>
+<div class="stage"><div class="app" id="app"></div></div>
+<div class="notes" id="notes"></div>
+<script>
+// The fonts, their line box in em -- ascent to descent, which ImGui's size is -- measured from their
+// hhea tables (interface-styling.md), and their bold weight.
+const FONTS = {
+  'Segoe UI (today)': { css: '"Segoe UI", sans-serif', line: 1.330, bold: 600 },
+  'Arimo':            { css: 'Arimo, sans-serif', line: 1.117, bold: 700 },
+  'Inter':            { css: 'Inter, sans-serif', line: 1.210, bold: 600 },
+  'Fira Sans':        { css: '"Fira Sans", sans-serif', line: 1.200, bold: 600 },
+  'Noto Sans':        { css: '"Noto Sans", sans-serif', line: 1.362, bold: 600 },
+  'IBM Plex Sans':    { css: '"IBM Plex Sans", sans-serif', line: 1.300, bold: 600 },
+};
+// ImGui's style sizes, before DPI scaling.
+const SPACING = {
+  'ImGui default': { wp: [8, 8], fp: [4, 3], is: [8, 4], ii: [4, 4], cp: [4, 2] },
+  'Proposed':      { wp: [12, 10], fp: [8, 5], is: [8, 6], ii: [6, 4], cp: [6, 3] },
+  'Roomy':         { wp: [16, 12], fp: [10, 6], is: [10, 8], ii: [8, 5], cp: [8, 5] },
+};
+const ROUNDINGS = { '0': [0, 0, 5], '4': [4, 6, 4], '6': [6, 8, 6] };   // frames, children, tabs
+const PRESETS = {
+  'Today':    { font: 'Segoe UI (today)', size: '16', spacing: 'ImGui default', rounding: '0', frames: 'Filled', headers: 'Regular' },
+  'Proposed': { font: 'Inter', size: '17', spacing: 'Proposed', rounding: '4', frames: 'Outlined', headers: 'Semibold' },
+  'Arimo throughout': { font: 'Arimo', size: '16', spacing: 'Proposed', rounding: '6', frames: 'Outlined', headers: 'Semibold' },
+};
+const state = { preset: 'Arimo throughout', ...PRESETS['Arimo throughout'], panel: 'Keymap', theme: 'Light' };
+
+// Tabler icons for the column, as Nazg draws them.
+const ICONS = { Keymap: 'keyboard', Layout: 'layout', Macros: 'player-play', 'Tap Dance': 'hand-click', Combos: 'arrows-join',
+                'Key Overrides': 'replace', 'QMK Settings': 'adjustments-horizontal', Matrix: 'chart-grid-dots' };
+const svgs = {};
+async function icon(name) {
+  if (!(name in svgs))
+    svgs[name] = fetch(`https://cdn.jsdelivr.net/npm/@tabler/icons@3.47.0/icons/outline/${name}.svg`).then(r => r.ok ? r.text() : '')
+      .then(t => t.replace(/\s(width|height)="[^"]*"/g, '')).catch(() => '');
+  return svgs[name];
+}
+
+// The board: a 60% ANSI with its legends, as the app draws it -- unchanged by this choice.
+const ROWS = [
+  [['Esc',1,'accentcap'],...'1234567890-='.split('').map(c=>[c,1]),['Backspace',2,'mod']],
+  [['Tab',1.5,'mod'],...'QWERTYUIOP[]'.split('').map(c=>[c,1]),['\\',1.5]],
+  [['Caps Lock',1.75,'mod'],...'ASDFGHJKL;\''.split('').map(c=>[c,1]),['Enter',2.25,'accentcap']],
+  [['Shift',2.25,'mod'],...'ZXCVBNM,./'.split('').map(c=>[c,1]),['Shift',2.75,'mod']],
+  [['Ctrl',1.25,'mod'],['Win',1.25,'mod'],['Alt',1.25,'mod'],['',6.25],['Alt',1.25,'mod'],['Win',1.25,'mod'],['Menu',1.25,'mod'],['Ctrl',1.25,'mod']],
+];
+function board(unit) {
+  const gap = 2, m = unit * 0.35;
+  let html = `<div class="plate" style="width:${15 * unit + 2 * m}px;height:${5 * unit + 2 * m}px">`;
+  ROWS.forEach((row, r) => {
+    let x = 0;
+    row.forEach(([legend, w, cls]) => {
+      html += `<div class="key" style="left:${m + x * unit + gap}px;top:${m + r * unit + gap}px;width:${w * unit - 2 * gap}px;height:${unit - 2 * gap}px;background:var(--${cls || 'alpha'})${r === 2 && x === 1.75 ? ';outline:2px solid var(--accent);outline-offset:1px' : ''}"><span style="font-size:${legend.length > 1 ? 11 : 16}px">${legend}</span></div>`;
+      x += w;
+    });
+  });
+  return html + '</div>';
+}
+
+const combo = (text, width) => `<span class="frame combo"${width ? ` style="width:${width}px"` : ''}>${text}</span>`;
+const check = (label, on) => `<span class="check"><span class="box">${on ? '✓' : ''}</span>${label}</span>`;
+const radio = (label, on) => `<span class="radio${on ? ' on' : ''}"><span class="dot"></span>${label}</span>`;
+
+function keymapPanel() {
+  const tabs = [['Keys', ''], ['Layers', '#8b5cf6'], ['Media & mouse', '#06b6d4'], ['Lighting', '#f59e0b'], ['Features', '#8b5cf6'],
+                ['Macros', '#06b6d4'], ['Special', ''], ['Firmware', '#ef4444']];
+  return `
+  <div class="row"><b>KC_A</b><span class="muted">row 2, column 1, layer 0</span></div>
+  <div class="row"><span>Any</span><span class="frame" style="width:260px">LT(1,KC_SPC)</span><span>When held</span>${combo('Nothing', 150)}<span>Sent with</span>${combo('No modifiers', 170)}</div>
+  <div class="tabs">${tabs.map(([t, c], i) => `<span class="tab${i === 0 ? ' on' : ''}">${c ? `<span class="dotc" style="background:${c}"></span>` : ''}${t}</span>`).join('')}
+    <span style="margin-left:auto;padding-bottom:3px"><span class="frame" style="width:220px"><span class="muted">Search all keycodes</span></span></span></div>
+  <div class="tiles"><div class="glabel">Letters</div>${'ABCDEFGHIJKLM'.split('').map(c => `<div class="tile"><span>${c}</span></div>`).join('')}</div>
+  <div class="tiles"><div class="glabel">Digits</div>${'1234567890'.split('').map(c => `<div class="tile"><span>${c}</span></div>`).join('')}</div>`;
+}
+
+function layoutPanel() {
+  const lines = [
+    check('Split Backspace', true), check('Full Left Shift', false), check('Split Right Shift', false),
+    `<span class="lname">Enter</span>${combo('ISO Enter')}`, check('Split Numpad Zero', false), check('Full Nav Cluster', true)];
+  return `<div class="lines">${lines.map(l => `<div class="line">${l}</div>`).join('')}</div>
+  <div class="muted">stored Split Backspace: On</div>`;
+}
+
+function settingsPanel() {
+  return `
+  <div class="sep">Keycaps</div>
+  <div class="form">
+    <span>Host layout</span><span>${combo('French (AZERTY)', 260)}</span>
+    <span>Modifier names</span><span class="row">${radio('Windows', true)}${radio('Mac', false)}${radio('Linux', false)}</span>
+    <span>Keycaps</span><span class="row">${radio('Outlined', true)}${radio('Bottom lip', false)}</span>
+    <span>Legends</span><span class="row">${radio('Cylindrical', true)}${radio('Spherical', false)}</span>
+  </div>
+  <div class="sep">Window</div>
+  <div class="form">
+    <span>Theme</span><span>${combo('Light', 200)}</span>
+    <span></span><span>${check('Move to the next key after a pick', false)}</span>
+    <span></span><span>${check('Advanced tools', true)}</span>
+  </div>
+  <div class="sep">Definitions</div>
+  <div class="list">
+    <div class="lrow head"><span>Name</span><span>VID:PID</span><span>Imported</span><span></span></div>
+    <div class="lrow sel"><span>Phoenix Project No 1 (ortho test)</span><span>21C0:9901</span><span>2026-09-25</span><span><span class="btn">Re-import</span></span></div>
+    <div class="lrow"><span>Aquanaut</span><span>4D4D:0001</span><span>2026-09-23</span><span><span class="btn">Re-import</span></span></div>
+  </div>
+  <div class="row"><span class="btn">Import VIA definition...</span></div>`;
+}
+
+function render() {
+  document.documentElement.dataset.theme = state.theme.toLowerCase();
+  const f = FONTS[state.font], s = SPACING[state.spacing], rd = ROUNDINGS[state.rounding];
+  const size = +state.size, fs = size / f.line;
+  const v = {
+    '--font': f.css, '--fs': fs + 'px', '--lh': size + 'px', '--bold': state.headers === 'Semibold' ? f.bold : 400,
+    '--wpx': s.wp[0] + 'px', '--wpy': s.wp[1] + 'px', '--fpx': s.fp[0] + 'px', '--fpy': s.fp[1] + 'px',
+    '--isx': s.is[0] + 'px', '--isy': s.is[1] + 'px', '--iix': s.ii[0] + 'px', '--cpx': s.cp[0] + 'px', '--cpy': s.cp[1] + 'px',
+    '--rf': rd[0] + 'px', '--rc': rd[1] + 'px', '--rt': rd[2] + 'px',
+    '--fb': state.frames === 'Outlined' ? '1px' : '0px', '--fbc': 'var(--border)', '--cb': '1px',
+  };
+  const app = document.getElementById('app');
+  for (const [k, val] of Object.entries(v)) app.style.setProperty(k, val);
+
+  const columnEntries = ['Keymap', 'Layout', 'Macros', 'Tap Dance', 'Combos', 'Key Overrides', 'QMK Settings'];
+  const settings = state.panel === 'Settings';
+  app.innerHTML = `
+  <div class="menubar"><span class="mi strong">Model F Labs B104</span><span class="muted">Vial</span>
+    <span class="right"><span class="muted">Unlocked</span><span class="mi">Settings</span></span></div>
+  <div class="body">${settings ? '' : `
+    <div class="col"><div class="ghead">Vial</div>${columnEntries.map(e => `<div class="entry${(e === state.panel) ? ' on' : ''}" data-icon="${ICONS[e]}"><span class="ic"></span>${e}</div>`).join('')}
+      <div style="height:4px"></div><div style="border-top:1px solid var(--border);margin:3px 10px"></div><div class="ghead">Tools</div>
+      <div class="entry" data-icon="chart-grid-dots"><span class="ic"></span>Matrix</div></div>
+    <div class="edge"></div>`}
+    <div class="main">${settings ? settingsPanel() : `
+      <div class="row">${state.panel === 'Keymap' ? `<span>Layer</span>${['0', '1', '2', '3'].map((l, i) => `<span class="btn${i === 0 ? ' on' : ''}">${l}</span>`).join('')}` : ''}</div>
+      <div class="boardarea">${board(state.panel === 'Keymap' ? 50 : 54)}</div>
+      <div class="split"></div>
+      <div class="panel">${state.panel === 'Keymap' ? keymapPanel() : layoutPanel()}</div>`}
+    </div>
+  </div>`;
+  app.querySelectorAll('[data-icon]').forEach(e => icon(e.dataset.icon).then(svg => { e.querySelector('.ic').innerHTML = svg; }));
+
+  document.getElementById('readout').innerHTML =
+    `ImGui size <b>${size}</b> with ${state.font} is a <b>${fs.toFixed(1)} px</b> font (x-height about ${(fs * xHeight(state.font)).toFixed(1)} px); ` +
+    `a frame -- button, combo, checkbox -- is <b>${size + 2 * s.fp[1]} px</b> tall. The browser hints text and ImGui does not: Nazg's will be softer.`;
+  renderControls();
+}
+const xHeight = name => ({ 'Segoe UI (today)': 0.500, Arimo: 0.528, Inter: 0.546, 'Fira Sans': 0.527, 'Noto Sans': 0.536, 'IBM Plex Sans': 0.516 })[name];
+
+function renderControls() {
+  const c = document.getElementById('controls');
+  c.innerHTML = '';
+  [['preset', 'Preset', Object.keys(PRESETS)], ['font', 'Font', Object.keys(FONTS)], ['size', 'ImGui size', ['14', '15', '16', '17', '18']],
+   ['spacing', 'Spacing', Object.keys(SPACING)], ['rounding', 'Rounding', Object.keys(ROUNDINGS)], ['frames', 'Controls', ['Filled', 'Outlined']],
+   ['headers', 'Headers', ['Regular', 'Semibold']], ['panel', 'Screen', ['Keymap', 'Layout', 'Settings']], ['theme', 'Theme', ['Light', 'Dark']]].forEach(([key, name, values]) => {
+    const g = document.createElement('div'); g.className = 'group';
+    g.innerHTML = `<span class="name">${name}</span>`;
+    values.forEach(val => {
+      const b = document.createElement('button');
+      b.textContent = key === 'rounding' ? val + ' px' : val;
+      if (state[key] === val) b.className = 'on';
+      b.onclick = () => {
+        if (key === 'preset') Object.assign(state, PRESETS[val]);
+        state[key] = val;
+        if (!['preset', 'panel', 'theme'].includes(key)) state.preset = '';
+        render();
+      };
+      g.appendChild(b);
+    });
+    c.appendChild(g);
+  });
+}
+
+document.getElementById('notes').innerHTML = `
+<p><b>What it shows.</b> Nazg's own screens -- the workspace with the Keymap panel, the Layout panel, Settings -- drawn with
+ImGui's geometry: the size is ImGui's, the font's line height, so the same "16" is a different font size per font (the line
+under the controls says which). <b>Today</b> is Nazg as it is: Segoe UI at 16, a 12 px font, ImGui's default sizes, square
+frames. The board keeps its settled look and Arimo legends; only what is around it changes.</p>
+<p><b>The presets.</b> <b>Proposed</b>: Inter at 17, the spacing scale of interface-styling.md, 4 px corners, outlined
+controls, semibold headers. <b>Arimo throughout</b>: the legend font for the interface too -- nothing to bundle -- with the same
+scale. Then change one thing at a time.</p>
+<p><b>The caveat.</b> The browser hints text; ImGui does not, so the same font is softer in Nazg, more so when thin and small.
+Once a choice is made here it is checked in Nazg itself before it is final.</p>
+<table><tr><th>Font</th><th>Line, in em</th><th>At ImGui 16</th></tr>
+${Object.entries(FONTS).map(([n, f]) => `<tr><td>${n}</td><td>${f.line}</td><td>${(16 / f.line).toFixed(1)} px</td></tr>`).join('')}</table>`;
+
+render();
+</script>
+</body>
+</html>

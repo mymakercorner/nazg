@@ -1217,12 +1217,14 @@ options**, most of them 1 to 6 groups; a choice runs to 13 options.
 - **The board** is drawn with the stored choice and layer 0's legends, so its keys are known.
 - **The panel: one line per group** -- a **checkbox** for a toggle (a plain label), a **combo**
   for a choice (a label that is an array: the group's name, then its options), as VIA and Vial
-  do and ImGui draws. In columns, as many as the panel's width holds.
+  do and ImGui draws. In columns, as many as the panel's width holds. A choice's **combo follows
+  its name directly**, as a checkbox's label follows its box; the name is shown whole up to **20
+  characters**, longer ones cut with "…" and given whole on hover (Rico, 2026-10-09).
 - **On hover**, an option -- a combo's item, or a checkbox for the state a click gives -- shows
   **its drawing** in a tooltip: the group's keys in that option, moved to where option 0 sits,
   every option of the group at one scale so they compare; **always inside the window** (Rico).
-  And the board **previews** it until the mouse leaves, as hovering a layer in Keymap's strip
-  does.
+  **The board does not preview it**: it changes only once a choice is written and read back
+  (Rico, 2026-10-09, after trying it in Nazg -- chosen in the mockup first, then dropped).
 - **Written at once**, as Keymap writes a key: `id_set_keyboard_value` with `id_layout_options`,
   the whole packed value (via-vial-commands.md, "How `id_layout_options` packs its value"), then
   read back; the board then draws what was stored. A line under the groups says so. **The

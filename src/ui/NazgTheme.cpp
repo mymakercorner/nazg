@@ -178,6 +178,51 @@ namespace nazg
         colour[ImGuiCol_ResizeGripActive]     = ToFloat(t.accent, 0.95f);
     }
 
+    void ApplyWindowSizes(float scale)
+    {
+        ImGuiStyle& style = ImGui::GetStyle();
+
+        style.WindowPadding     = ImVec2(12.0f, 10.0f);
+        style.FramePadding      = ImVec2(8.0f, 5.0f);
+        style.ItemSpacing       = ImVec2(8.0f, 6.0f);
+        style.ItemInnerSpacing  = ImVec2(6.0f, 4.0f);
+        style.CellPadding       = ImVec2(6.0f, 3.0f);
+        style.FrameRounding     = 6.0f;
+        style.GrabRounding      = 6.0f;
+        style.TabRounding       = 6.0f;
+        style.ChildRounding     = 8.0f;
+        style.PopupRounding     = 8.0f;
+        style.WindowRounding    = 8.0f;   // popups and tooltips; the main window pushes 0
+        style.ScrollbarRounding = 6.0f;
+        style.FrameBorderSize   = 1.0f;   // outlined controls
+        style.ScrollbarSize     = 12.0f;
+
+        style.ScaleAllSizes(scale);
+        style.FontScaleDpi = scale;
+    }
+
+    namespace
+    {
+        ImFont* g_HeaderFont = nullptr;
+    }
+
+    void SetHeaderFont(ImFont* font)
+    {
+        g_HeaderFont = font;
+    }
+
+    void PushHeaderFont(float size)
+    {
+        ImGui::PushFont(g_HeaderFont, size);
+    }
+
+    void SeparatorHeader(const char* text)
+    {
+        PushHeaderFont();
+        ImGui::SeparatorText(text);
+        ImGui::PopFont();
+    }
+
     ImVec4 ColourOf(PanelColour colour)
     {
         const Palette& t = Current();

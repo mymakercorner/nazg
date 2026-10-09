@@ -244,7 +244,7 @@ namespace nazg
 
                     ImGui::Dummy(ImVec2(0.0f, 2.0f * scale));
                     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + c_EntryPadding * scale);
-                    ImGui::PushFont(nullptr, c_HeaderSize);
+                    PushHeaderFont(c_HeaderSize);
                     ImGui::TextDisabled("%s", header.c_str());
                     ImGui::PopFont();
                 }
@@ -316,7 +316,9 @@ namespace nazg
         {
             // The name is the menu, as in ZMK Studio and VIA: it adds nothing to the first
             // glance, and it is the way back to the list when Nazg opened a lone board itself.
+            PushHeaderFont();
             const bool isOpen = ImGui::BeginMenu((view.name + "##board").c_str());
+            ImGui::PopFont();
             if (!isOpen && !view.details.empty())
                 ImGui::SetItemTooltip("%s", view.details.c_str());
 
@@ -324,7 +326,7 @@ namespace nazg
             {
                 if (!view.others.empty())
                 {
-                    ImGui::SeparatorText("Switch to");
+                    SeparatorHeader("Switch to");
                     for (size_t index = 0; index < view.others.size(); ++index)
                     {
                         ImGui::PushID(static_cast<int>(index));

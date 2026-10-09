@@ -10,7 +10,6 @@
 #include <utility>
 
 #include "imgui.h"
-#include "imgui_internal.h"   // RenderTextEllipsis(), to cut a group's name
 
 #include "adapters/via/NazgViaProtocol.h"
 #include "transport/NazgDeviceChannel.h"
@@ -24,10 +23,32 @@ namespace nazg
     {
         // Pixels, before DPI scaling.
         constexpr float c_ColumnWidth   = 320.0f;   // a group's line; as many as the panel holds
-        constexpr float c_NameWidth     = 130.0f;   // a choice's name, before its combo
-        constexpr float c_DrawingWidth  = 300.0f;   // the tooltip's drawing, at most
-        constexpr float c_DrawingHeight = 90.0f;
-        constexpr float c_DrawingUnit   = 20.0f;    // 1u in the drawing, at most
+        constexpr size_t c_NameLength   = 20;       // characters of a choice's name shown, at most (Rico)
+        constexpr float c_DrawingWidth  = 390.0f;   // the tooltip's drawing, at most
+        constexpr float c_DrawingHeight = 120.0f;
+        constexpr float c_DrawingUnit   = 26.0f;    // 1u in the drawing, at most
+
+        // `text` cut to `length` characters, the last of them "..." when it is longer. Characters,
+        // not bytes: a UTF-8 sequence is never split.
+        std::string Shortened(const std::string& text, size_t length)
+        {
+            size_t characters = 0;
+            for (size_t at = 0; at < text.size(); ++at)
+            {
+                if ((static_cast<unsigned char>(text[at]) & 0xC0) == 0x80)
+                    continue;
+                if (++characters == length && at + 1 < text.size())
+                {
+                    // Is there more than this last character? Then it gives way to "...".
+                    size_t next = at + 1;
+                    while (next < text.size() && (static_cast<unsigned char>(text[next]) & 0xC0) == 0x80)
+                        ++next;
+                    if (next < text.size())
+                        return text.substr(0, at) + "\u2026";
+                }
+            }
+            return text;
+        }
 
         std::string OptionName(const LayoutOptionGroup& group, uint8_t choice)
         {
@@ -118,17 +139,12 @@ namespace nazg
 
     void LayoutSection::DescribeBoard(BoardDescription& board)
     {
-        if (m_Preview)
-            board = DescribeKeyboard(m_Keyboard, *m_Preview);
-
         // Layer 0's legends, so each key is recognised.
         DescribeLegends(board, m_Keyboard, 0, m_Legends);
     }
 
     void LayoutSection::DrawPanel()
     {
-        m_NextPreview.reset();
-
         const float scale   = ImGui::GetStyle().FontScaleDpi;
         const int   columns = std::max(1, static_cast<int>(ImGui::GetContentRegionAvail().x / (c_ColumnWidth * scale)));
 
@@ -151,9 +167,6 @@ namespace nazg
             ColouredText(m_IsWarning ? PanelColour::Warning : PanelColour::Muted, "%s", m_Message.c_str());
         else
             ColouredText(PanelColour::Muted, "Each choice is written to the board at once. The keymap is untouched.");
-
-        // Shown from the next frame, which draws the board before the panel.
-        m_Preview = m_NextPreview;
     }
 
     void LayoutSection::DrawGroup(size_t group, uint8_t chosen)
@@ -171,21 +184,16 @@ namespace nazg
             return;
         }
 
-        // A choice: its name, cut to its width, then the combo.
-        const float  scale = ImGui::GetStyle().FontScaleDpi;
-        const float  width = c_NameWidth * scale;
-        const ImVec2 start = ImGui::GetCursorScreenPos();
+        // A choice: its name, then the combo right after it, as a checkbox's label follows its box
+        // (Rico, 2026-10-09) -- the name whole up to 20 characters, then cut with "...", whatever
+        // room the line has; the combo takes the rest.
+        const std::string shown = Shortened(options.name, c_NameLength);
         ImGui::AlignTextToFramePadding();
-        ImGui::Dummy(ImVec2(width, ImGui::GetFrameHeight()));
-        const ImVec2 extent = ImGui::CalcTextSize(options.name.c_str());
-        const float  top    = start.y + (ImGui::GetFrameHeight() - extent.y) / 2.0f;
-        const float  end    = start.x + width - ImGui::GetStyle().ItemSpacing.x;
-        ImGui::RenderTextEllipsis(ImGui::GetWindowDrawList(), ImVec2(start.x, top), ImVec2(end, top + extent.y), end,
-                                  options.name.c_str(), nullptr, &extent);
-        if (start.x + extent.x > end)
+        ImGui::TextUnformatted(shown.c_str());
+        if (shown != options.name)
             ImGui::SetItemTooltip("%s", options.name.c_str());
 
-        ImGui::SameLine(0.0f, 0.0f);
+        ImGui::SameLine();
         ImGui::SetNextItemWidth(-FLT_MIN);
         if (ImGui::BeginCombo("##choice", OptionName(options, chosen).c_str()))
         {
@@ -203,11 +211,6 @@ namespace nazg
     void LayoutSection::OnOptionHovered(size_t group, uint8_t choice)
     {
         DrawOptionTooltip(m_Keyboard.definition, group, m_Groups[group], choice);
-
-        std::vector<uint8_t> preview = m_Keyboard.layoutSelection;
-        preview.resize(m_Groups.size(), 0);
-        preview[group] = choice;
-        m_NextPreview  = std::move(preview);
     }
 
     Task<void> LayoutSection::Write(size_t group, uint8_t choice)

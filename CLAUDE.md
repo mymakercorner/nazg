@@ -122,7 +122,7 @@ board report, which now has combo and key override counts and a QMK settings que
 (`QueryQmkSettings()`, tested on scripted bytes only). Keymap is built, and **Layout**
 (2026-10-09, ui-design.md "The Layout section", mockup `layout-section.html`; `ui/NazgLayoutSection.*`):
 one line per option group -- checkbox or combo -- hovering an option drawing its keys in a tooltip
-(`OptionKeys()`) and previewing it on the board, a choice written at once with
+(`OptionKeys()`), the board changing only once a choice is written -- at once, with
 `SetKeyboardValue()` and read back (`EncodeLayoutOptions()`, tested). Every other section is a
 `PlaceholderSection` saying "Not built yet", a custom menu's listing its sections. So the match
 rule is the plan, for now. The Leyden Jar diagnostics, planned as

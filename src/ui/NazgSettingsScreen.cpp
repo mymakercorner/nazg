@@ -79,7 +79,7 @@ namespace nazg
 
         void DrawAppearance(BoardStyle& style, SettingsAction& action)
         {
-            ImGui::SeparatorText("Appearance");
+            SeparatorHeader("Appearance");
             action.appearanceChanged |= DrawChoice("Theme", Themes(), style.theme);
             action.appearanceChanged |= DrawChoice("Keycaps", KeycapStyles(), style.keycaps);
             ImGui::SetItemTooltip("Outlined: a thin border around each key.\n"
@@ -182,29 +182,29 @@ namespace nazg
 
         DrawAppearance(style, action);
 
-        ImGui::SeparatorText("Legends");
+        SeparatorHeader("Legends");
         DrawLegendFamily(style, action);
         DrawHostLayout(legends, action);
         DrawModifierNames(legends, action);
 
         // Off by default (Rico, 2026-10-04): the writes are live and there is no undo, so a
         // second click meant to correct a pick would land, written, on the key after.
-        ImGui::SeparatorText("Keymap");
+        SeparatorHeader("Keymap");
         action.keymapChanged = ImGui::Checkbox("Move to the next key after a pick", &moveToNextKey);
         ImGui::SetItemTooltip("Fills a row in one click a key, as Vial does: after a keycode is picked or\n"
                               "typed, the next key -- top to bottom, then left to right -- is selected.\n"
                               "Every pick is written at once, and a pick cannot be undone.");
 
-        ImGui::SeparatorText("Definitions");
+        SeparatorHeader("Definitions");
         DrawOfficial(view.official);
         DrawUserDefinitions(view, action);
 
-        ImGui::SeparatorText("Advanced");
+        SeparatorHeader("Advanced");
         action.advancedToolsChanged = ImGui::Checkbox("Advanced tools", &advancedTools);
         ImGui::SetItemTooltip("For keyboard designers and debugging: adds an Advanced submenu to the\n"
                               "board menu, with the matrix view and Export definition.");
 
-        ImGui::SeparatorText("About");
+        SeparatorHeader("About");
         ImGui::TextUnformatted("Nazg -- one keyboard configurator to rule them all.");
         for (const std::string& line : view.about)
             ColouredText(PanelColour::Muted, "%s", line.c_str());
