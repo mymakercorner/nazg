@@ -278,19 +278,89 @@ def sections():
     s.save("sections.svg")
 
 
+# --- the keyboard list, as built 2026-10-09 ------------------------------------------------
+# One column centred in the window, each list framed with a header row and its count; Arimo, the
+# interface's font. Drawn with its own pieces, as the screen has its own look now.
+
+LIST_W, LIST_COL, LIST_ROW = 960, 640, 28
+LIST_X0 = (LIST_W - LIST_COL) // 2
+LIST_FONT = "Arimo, Arial, Helvetica, sans-serif"
+LIST_ROWBG, LIST_TICK, LIST_THUMB = "#F6F5F1", "#378ADD", "#B4B2AA"
+
+
+def list_text(x, y, t, size=13, fill=C["text"], anchor="start", weight=400):
+    return (f'<text x="{x}" y="{y}" font-family="{LIST_FONT}" font-size="{size}" fill="{fill}" '
+            f'text-anchor="{anchor}" font-weight="{weight}">{html.escape(t, quote=False)}</text>')
+
+
+def list_button(x, y, label, w=None):
+    w = w or 16 + 7 * len(label)
+    return (f'<rect x="{x}" y="{y}" width="{w}" height="24" rx="6" fill="#FFFFFF" stroke="{C["border"]}" stroke-width="1"/>' +
+            list_text(x + w / 2, y + 16, label, 12, anchor="middle"))
+
+
+def list_screen(h):
+    s = Svg(LIST_W, h)
+    s.e += [f'<rect x="0.5" y="0.5" width="{LIST_W - 1}" height="{h - 1}" rx="12" fill="#FFFFFF" stroke="{C["border"]}" stroke-width="1"/>',
+            list_text(14, 22, "No board open", 12, C["muted"]),
+            list_text(LIST_W - 14, 22, "Settings", 12, C["text2"], "end"),
+            f'<line x1="0" y1="34" x2="{LIST_W}" y2="34" stroke="{C["hair"]}" stroke-width="1"/>']
+    return s
+
+
+def list_table(s, y, columns, rows, visible=None, scrolled=False):
+    """A framed list: header row, then rows; `visible` rows shown, a scrollbar when fewer than all."""
+    visible = visible or len(rows)
+    h = LIST_ROW * (visible + 1)
+    x0, w = LIST_X0, LIST_COL
+    s.e.append(f'<rect x="{x0}" y="{y}" width="{w}" height="{h}" rx="8" fill="#FFFFFF" stroke="{C["border"]}" stroke-width="1"/>')
+    s.e.append(f'<line x1="{x0}" y1="{y + LIST_ROW}" x2="{x0 + w}" y2="{y + LIST_ROW}" stroke="{C["border"]}" stroke-width="1"/>')
+    for (label, cx, anchor) in columns:
+        s.e.append(list_text(x0 + cx, y + 18, label, 12, C["muted"], anchor, 700))
+    for i, cells in enumerate(rows[:visible]):
+        ry = y + LIST_ROW * (i + 1)
+        if i % 2 == 1:
+            s.e.append(f'<rect x="{x0 + 1}" y="{ry + 1}" width="{w - 2}" height="{LIST_ROW - 1}" fill="{LIST_ROWBG}"/>')
+        if i > 0:
+            s.e.append(f'<line x1="{x0}" y1="{ry}" x2="{x0 + w}" y2="{ry}" stroke="{C["hair"]}" stroke-width="1"/>')
+        for (value, cx, anchor, style) in cells:
+            if style == "button":
+                s.e.append(list_button(x0 + cx, ry + 2, value))
+            else:
+                s.e.append(list_text(x0 + cx, ry + 18, value, 13 if style == "ink" else 12,
+                                     C["text"] if style == "ink" else (C["muted"] if style == "muted" else C["text2"]), anchor))
+    if scrolled:
+        track = h - LIST_ROW - 8
+        s.e.append(f'<rect x="{x0 + w - 10}" y="{y + LIST_ROW + 4}" width="6" height="{track}" rx="3" fill="{C["hair"]}"/>')
+        s.e.append(f'<rect x="{x0 + w - 10}" y="{y + LIST_ROW + 4}" width="6" height="{track * visible // len(rows)}" rx="3" fill="{LIST_THUMB}"/>')
+    return y + h
+
+
+def list_keyboards(s, y):
+    boards = [("Model F Labs B104", "Vial"), ("Aquanaut", "VIA"), ("Phoenix Project No 1", "VIA")]
+    s.e += [list_text(LIST_X0, y + 16, f"Keyboards: {len(boards)}", 14, C["text"], weight=700),
+            list_button(LIST_X0 + LIST_COL - 72, y, "Refresh", 72)]
+    rows = [[(n, 12, "start", "ink"), (p, LIST_COL - 150, "start", "muted"), ("Open", LIST_COL - 66, "start", "button")]
+            for n, p in boards]
+    return list_table(s, y + 34, [("Product", 12, "start"), ("Protocol", LIST_COL - 150, "start")], rows)
+
+
+def list_checkbox(s, y, on):
+    s.e.append(f'<rect x="{LIST_X0}" y="{y}" width="20" height="20" rx="5" fill="#FFFFFF" stroke="{C["border"]}" stroke-width="1"/>')
+    s.e.append(list_text(LIST_X0 + 10, y + 15, "\u2713", 13, LIST_TICK, "middle", 700) if on else "")
+    s.e.append(list_text(LIST_X0 + 28, y + 15, "Show all HID devices", 13))
+
+
 # --- 3. the six common screens ------------------------------------------------------------
 
 W = 680
 
 
 def screen_no_board():
-    s = Svg(W, 250)
-    frame(s, 0, 0, W, 250)
-    header(s, 0, 0, W, "")
-    s.text(12, 60, "Keyboards found", 13, C["text"], weight=600)
-    for i, (n, p) in enumerate([("Model F Labs B104", "Vial"), ("Aquanaut", "VIA"), ("Phoenix Project No 1", "VIA")]):
-        list_row(s, 12, 72 + i * 42, W - 24, n, p)
-    s.text(12, 222, "Not listed? Turn on Show all HID devices below the list.", 12, C["muted"])
+    s = list_screen(300)
+    end = list_keyboards(s, 48)
+    list_checkbox(s, end + 16, False)
+    s.e.append(list_text(LIST_X0, end + 62, "Not listed? Turn on Show all HID devices.", 12, C["muted"]))
     s.save("screen-no-board.svg")
 
 
@@ -635,31 +705,23 @@ def console_drawer(is_open, name):
 
 
 def keyboard_list_all():
-    h = 360
-    s = Svg(W, h)
-    frame(s, 0, 0, W, h)
-    header(s, 0, 0, W, "")
-    s.text(12, 60, "Keyboards found", 13, C["text"], weight=600)
-    button(s, W - 90, 44, "↻ Refresh")
-    for i, (n, p) in enumerate([("Model F Labs B104", "Vial"), ("Aquanaut", "VIA"), ("Phoenix Project No 1", "VIA")]):
-        list_row(s, 12, 72 + i * 42, W - 24, n, p)
-    y = 204
-    s.rect(12, y, 28, 16, C["abd"], None, rx=8)
-    s.rect(26, y + 3, 10, 10, C["white"], None, rx=5)
-    s.text(48, y + 13, "Show all HID devices", 12, C["text2"])
-    s.text(W - 12, y + 13, "off at every start", 12, C["muted"], "end")
-    s.text(12, y + 40, "Other HID interfaces, not openable", 12, C["muted"])
-    y += 48
-    for n, v, u, itf in [("Logitech USB Receiver", "046D:C52B", "0001:0002", "if 1"),
-                         ("Model F Labs B104", "1209:4704", "0001:0006", "if 0, keyboard"),
-                         ("Aquanaut", "FEED:0001", "000C:0001", "if 2, consumer"),
-                         ("USB Audio", "0D8C:0014", "000C:0001", "if 3")]:
-        s.rect(12, y, W - 24, 24, C["white"], C["border"], rx=6, dash="4 3")
-        s.text(24, y + 16, n, 12, C["text2"])
-        s.text(330, y + 16, v, 12, C["text2"])
-        s.text(420, y + 16, "usage " + u, 12, C["text2"])
-        s.text(W - 24, y + 16, itf, 12, C["text2"], "end")
-        y += 28
+    # The other interfaces' frame fits its rows up to 24, then scrolls; the picture cuts it at 7.
+    others = [("Logitech USB Receiver", "046D:C52B", "0001:0002", "1"), ("Model F Labs B104", "1209:4704", "0001:0006", "0"),
+              ("Aquanaut", "FEED:0001", "000C:0001", "2"), ("USB Audio", "0D8C:0014", "000C:0001", "3"),
+              ("Logitech USB Receiver", "046D:C52B", "0001:0001", "0"), ("Phoenix Project No 1", "21C0:9901", "0001:0006", "0"),
+              ("(unnamed)", "8087:0029", "FF00:0001", "1")] + [("\u2026", "", "", "")] * 30
+    s = list_screen(560)
+    end = list_keyboards(s, 48)
+    list_checkbox(s, end + 16, True)
+    y = end + 54
+    s.e.append(list_text(LIST_X0, y + 16, f"Other HID interfaces: {len(others)}", 14, C["text"], weight=700))
+    s.e.append(list_text(LIST_X0 + 172, y + 16, "not openable", 12, C["muted"]))
+    rows = [[(n, 12, "start", "dim"), (v, 300, "start", "dim"), (u, 410, "start", "dim"), (i, LIST_COL - 24, "end", "dim")]
+            for n, v, u, i in others]
+    end = list_table(s, y + 26, [("Product", 12, "start"), ("VID:PID", 300, "start"), ("Usage", 410, "start"),
+                                 ("Interface", LIST_COL - 24, "end")], rows, visible=7, scrolled=True)
+    s.e.append(list_text(LIST_X0 + LIST_COL, end + 20, "as tall as its rows, up to 24 -- then it scrolls, its header row staying",
+                         11, C["muted"], "end"))
     s.save("keyboard-list-all.svg")
 
 
