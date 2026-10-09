@@ -1342,6 +1342,12 @@ HID interface is listed under them, dimmed, with VID:PID, usage page and interfa
 and cannot be opened. The technical columns exist only in that view. (The ids in the picture
 are illustrative.) **Refresh** stays on the list.
 
+**Each list is framed** (Rico, 2026-10-09: with no visible limit the list was confusing): a
+rounded, outlined frame with a header row, its count in its heading -- "Keyboards: 2", "Other HID
+interfaces: 37" -- and at most 900 px wide, the column centred in the window. Each frame is as
+tall as its rows; the other interfaces' up to 24 of them and never past the window's bottom,
+then it scrolls inside, its header row staying, so Refresh and the checkbox never scroll away.
+
 ## The matrix view
 
 How the board is wired: which row and which column of the switch matrix each key sits on.
