@@ -119,7 +119,11 @@ its own ImFont) or a monogram; resizable by its edge, 120-200 px, folding to ico
 (`ui/NazgSectionPlan.*`, pure, tested), from the definition -- layout options, lighting, VIA V3's
 `qmk_audio` and custom menus, whose labels and sub-section labels the parser now keeps -- and the
 board report, which now has combo and key override counts and a QMK settings query
-(`QueryQmkSettings()`, tested on scripted bytes only). Keymap is built; every other section is a
+(`QueryQmkSettings()`, tested on scripted bytes only). Keymap is built, and **Layout**
+(2026-10-09, ui-design.md "The Layout section", mockup `layout-section.html`; `ui/NazgLayoutSection.*`):
+one line per option group -- checkbox or combo -- hovering an option drawing its keys in a tooltip
+(`OptionKeys()`) and previewing it on the board, a choice written at once with
+`SetKeyboardValue()` and read back (`EncodeLayoutOptions()`, tested). Every other section is a
 `PlaceholderSection` saying "Not built yet", a custom menu's listing its sections. So the match
 rule is the plan, for now. The Leyden Jar diagnostics, planned as
 the second, are **deferred far later** (Rico, 2026-09-26: they bring many design questions).

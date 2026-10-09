@@ -104,6 +104,13 @@ namespace nazg
         co_return ReadBigEndian32(reply, 2);
     }
 
+    Task<void> ViaProtocol::SetKeyboardValue(ViaKeyboardValue value, uint32_t data)
+    {
+        co_await Send(ViaCommand::SetKeyboardValue,
+                      { static_cast<uint8_t>(value), static_cast<uint8_t>(data >> 24), static_cast<uint8_t>(data >> 16),
+                        static_cast<uint8_t>(data >> 8), static_cast<uint8_t>(data) });
+    }
+
     Task<SwitchMatrixState> ViaProtocol::GetSwitchMatrixState(SwitchMatrixFormat format, uint8_t rows,
                                                               uint8_t columns)
     {

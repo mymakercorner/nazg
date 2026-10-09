@@ -180,6 +180,9 @@ namespace nazg
     // its keycap class, from the base layer.
     [[nodiscard]] BoardDescription DescribeKeyboard(const Keyboard& keyboard);
 
+    // The same with other layout choices than the board's -- the Layout section's preview.
+    [[nodiscard]] BoardDescription DescribeKeyboard(const Keyboard& keyboard, const std::vector<uint8_t>& selection);
+
     // What a key at `layer` comes to: its own keycode, or -- transparent or KC_NO -- the keycode
     // below it, found by walking down the layer numbers, exact while one layer is on at a time.
     // A transparent key that reaches a KC_NO is disabled with it; one that reaches nothing, on

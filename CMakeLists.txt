@@ -161,6 +161,8 @@ set(NAZG_SOURCES
   src/ui/NazgKeymapSection.cpp
   src/ui/NazgPlaceholderSection.h
   src/ui/NazgPlaceholderSection.cpp
+  src/ui/NazgLayoutSection.h
+  src/ui/NazgLayoutSection.cpp
   src/ui/NazgMatrixView.h
   src/ui/NazgMatrixView.cpp
   src/ui/NazgKeyboardList.h

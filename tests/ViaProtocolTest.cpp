@@ -124,6 +124,13 @@ namespace
 
         Check(value == 0x00010203u, "the 32-bit value is parsed big-endian from byte 2");
         Check(channel.RequestAt(0)[1] == 0x04, "the value id is the first argument");
+
+        channel.Reply({ 0x03, 0x02, 0x00, 0x00, 0x01, 0x20 });   // the board echoes the request
+        Run(via.SetKeyboardValue(ViaKeyboardValue::LayoutOptions, 0x00000120u));
+        const std::vector<uint8_t>& set = channel.RequestAt(1);
+        Check(set[0] == 0x03 && set[1] == 0x02, "set: command 0x03, then the value id");
+        Check(set[2] == 0x00 && set[3] == 0x00 && set[4] == 0x01 && set[5] == 0x20,
+              "the value big-endian from byte 2, as it is read");
     }
 
     // The Concordia's matrix, 6 x 20: three bytes a row, most significant first, nine rows

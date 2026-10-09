@@ -1205,6 +1205,34 @@ and VIA do, hover saying what it needs. A tab left with no group is not shown.
 - **Found by the mockup**: `KC_SPC` always prints blank (`PlacementClass::Blank`), so
   `LT(1,KC_SPC)` on a 1u key shows only "L1"; Space should be blank only on keys 3u and wider.
 
+## The Layout section
+
+The board's layout options -- split backspace, ISO Enter, bottom rows -- chosen in the panel.
+Decided with Rico 2026-10-09 on the mockup `ui-design/layout-section.html`, real definitions in
+it: ZX60 (a 10-option and a 9-option choice), the Model F B104, Cypher, and Promenade RP24S, the
+worst case of VIA's registry with 11 groups. **1168 of VIA's 2029 V3 definitions have layout
+options**, most of them 1 to 6 groups; a choice runs to 13 options.
+
+- **In the column** when the definition has layout options (`layouts.labels`); no strip.
+- **The board** is drawn with the stored choice and layer 0's legends, so its keys are known.
+- **The panel: one line per group** -- a **checkbox** for a toggle (a plain label), a **combo**
+  for a choice (a label that is an array: the group's name, then its options), as VIA and Vial
+  do and ImGui draws. In columns, as many as the panel's width holds.
+- **On hover**, an option -- a combo's item, or a checkbox for the state a click gives -- shows
+  **its drawing** in a tooltip: the group's keys in that option, moved to where option 0 sits,
+  every option of the group at one scale so they compare; **always inside the window** (Rico).
+  And the board **previews** it until the mouse leaves, as hovering a layer in Keymap's strip
+  does.
+- **Written at once**, as Keymap writes a key: `id_set_keyboard_value` with `id_layout_options`,
+  the whole packed value (via-vial-commands.md, "How `id_layout_options` packs its value"), then
+  read back; the board then draws what was stored. A line under the groups says so. **The
+  keymap is untouched**: a key hidden by an option keeps its keycode.
+
+Tried and set aside in the same mockup: **buttons**, every option of a choice in a row -- they
+wrap on ZX60's ten; **pictures**, each option drawn small all the time -- too much room overall
+(Rico), hence the drawing on hover; and **lighting the group's keys** on the board, with a key
+of a group lighting its line in the panel.
+
 ## The common screens
 
 **1. No board open.** The keyboards found, each with its protocol and *Open*. No section

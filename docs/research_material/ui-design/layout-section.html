@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- Mockup of the Layout section (ui-design.md, "The Layout section"): the board's layout options
+     -- split backspace, ISO enter, bottom rows -- chosen in the panel, the board redrawn with them.
+
+     First round (2026-10-09): controls, buttons and pictures -- each option drawn small from its
+     own keys -- side by side. Rico: too much room overall, the drawings above all; draw them on
+     hover only. So two compact panels, one line per group: drop-downs (a checkbox per toggle, a
+     combo per choice, as VIA and Vial -- and as ImGui draws them) and buttons (every option of a
+     choice in a row). Hovering an option -- a combo's item, a button, a toggle -- shows its
+     drawing beside it, and can preview it on the board; hovering a group can light its keys,
+     a key of a group lighting the group in turn.
+
+     Settled 2026-10-09 (Rico), and opened on: drop-downs, with the drawing and the board preview
+     on hover; the drawing always inside the window. The group's keys are not lit.
+
+     The boards are real definitions, drawn with Nazg's placement rule (PlaceKeys(), VIA's pivot
+     rule): ZX60, a 60% with a 10-option and a 9-option choice; the Model F B104, Rico's board, five
+     toggles and a choice; Cypher, toggles and short choices; Promenade RP24S, the worst case of
+     VIA's registry, 11 groups. Their definitions are embedded below (VIA's registry is GPL-3.0;
+     the Model F's is the board's own, tests/ModelFDefinition.h). Of VIA's 2029 V3 definitions,
+     1168 have layout options -- most 1 to 6 groups, a choice up to 13 options. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Layout section mockup</title>
+<style>
+:root{--window:#f3f3f5;--menubar:#e3e4e9;--text:#1d1e22;--muted:#6b6e78;--control:#ffffff;--border:#c8cad2;--accent:#3b82f6;--accent-text:#fff;--panel:#f8f8fa;--column:#ebecf0;--hover:rgba(0,0,0,.06);--selected:rgba(59,130,246,.16);
+--plate:#d3d4d8;--key:#ffffff;--keyline:#b4b7c2;--lit:#dbe7fb;--litline:#3b82f6;--option:#eef3fc;--ok:#15803d}
+:root[data-theme="dark"]{--window:#0f0f11;--menubar:#24252b;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--accent:#4296fa;--accent-text:#fff;--panel:#16171b;--column:#16171b;--hover:rgba(255,255,255,.07);--selected:rgba(66,150,250,.22);
+--plate:#1c1d23;--key:#3a3c48;--keyline:#4b4e5c;--lit:#2a4a78;--litline:#4296fa;--option:#1d2738;--ok:#4ade80}
+*{box-sizing:border-box}
+body{margin:0;background:var(--window);color:var(--text);font-family:"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+.controls{display:flex;flex-wrap:wrap;gap:8px 22px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.group .name{color:var(--muted);margin-right:4px}
+button{font:inherit;padding:3px 10px;border-radius:4px;border:1px solid var(--border);background:var(--control);color:var(--text);cursor:pointer}
+button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+.stage{padding:16px;overflow-x:auto}
+.frame{margin:0 auto;width:1160px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--window);box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.menubar{display:flex;gap:18px;align-items:center;background:var(--menubar);padding:5px 14px}
+.menubar .board{font-weight:600}
+.menubar .muted,.muted{color:var(--muted)}
+.menubar .right{margin-left:auto;color:var(--muted)}
+.body{display:flex;min-height:560px}
+.col{flex:none;width:180px;background:var(--column);border-right:1px solid var(--border);padding:6px 5px;display:flex;flex-direction:column;gap:2px}
+.entry{padding:7px 10px;border-radius:6px;color:var(--muted)}
+.entry.on{background:var(--selected);color:var(--text);box-shadow:inset 3px 0 0 var(--accent)}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;padding:10px 14px 14px;gap:10px}
+.boardarea{display:flex;justify-content:center}
+svg.board{display:block}
+.panel{flex:1;border:1px solid var(--border);border-radius:6px;background:var(--panel);padding:8px 12px;min-height:150px}
+.groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:2px 18px;align-items:start}
+.lg{display:flex;align-items:center;gap:8px;padding:3px 6px;border-radius:5px;border:1px solid transparent;min-height:28px;position:relative}
+.lg.lit{background:var(--option);border-color:var(--litline)}
+.lg .gname{flex:none;width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lg label{display:flex;align-items:center;gap:6px;cursor:pointer}
+.combo{position:relative;flex:1;min-width:0}
+.combo>button{width:100%;text-align:left;padding:2px 22px 2px 8px;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:relative}
+.combo>button::after{content:'▾';position:absolute;right:7px;color:var(--muted)}
+.list{position:absolute;z-index:10;left:0;right:0;top:100%;margin-top:2px;background:var(--control);border:1px solid var(--border);border-radius:5px;box-shadow:0 4px 14px rgba(0,0,0,.18);padding:3px}
+.item{padding:3px 8px;border-radius:4px;cursor:pointer;white-space:nowrap}
+.item:hover{background:var(--hover)}
+.item.on{background:var(--selected)}
+.seg{display:flex;flex-wrap:wrap;gap:3px;flex:1;min-width:0}
+.seg button{padding:1px 7px;font-size:12px}
+.pop{position:fixed;z-index:20;pointer-events:none;background:var(--control);border:1px solid var(--border);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.2);padding:6px 8px 4px;text-align:center}
+.pop .cap{font-size:11px;color:var(--muted);margin-top:2px}
+.status{margin-top:8px;font-size:12px}
+.status .ok{color:var(--ok)}
+.notes{max-width:1160px;margin:0 auto;padding:4px 16px 30px;color:var(--muted);line-height:1.55}
+.notes b{color:var(--text);font-weight:600}
+.notes p{margin:0 0 8px}
+</style>
+</head>
+<body>
+<div class="controls" id="controls"></div>
+<div class="stage"><div class="frame" id="frame"></div></div>
+<div class="notes" id="notes"></div>
+<div class="pop" id="pop" hidden></div>
+<script>
+// The boards' `layouts`: labels and KLE keymap, as their definitions have them.
+const BOARDS = {"ZX60":{"name":"ZX60","source":"VIA registry, v3/1078591489.json","labels":["Split Backspace","ISO Enter",["Row 4","Default","Split right shift","Arrows","Default ISO","ISO split right shift","ISO arrows","[2U] Default","[2U] Split left shift","[2U] Split right shift","[2U] Split both shifts"],["Bottom row","6.25U","7U","6.25U Arrows","6.25U Arrows B","HHKB","WKL","6.25U HHKB","Split Space Left 2.25","Split Space Left 2.75"]],"keymap":[[{"x":2.5,"c":"#777777"},"0,0",{"c":"#cccccc"},"0,1","0,2","0,3","0,4","0,5","0,6","0,7","0,8","0,9","0,10","0,11","0,12",{"c":"#aaaaaa","w":2},"0,13\n\n\n0,0",{"x":0.5,"c":"#cccccc"},"0,13\n\n\n0,1","0,14\n\n\n0,1"],[{"x":2.5,"c":"#aaaaaa","w":1.5},"1,0",{"c":"#cccccc"},"1,1","1,2","1,3","1,4","1,5","1,6","1,7","1,8","1,9","1,10","1,11","1,12",{"w":1.5},"1,13\n\n\n1,0",{"x":1.25,"c":"#777777","w":1.25,"h":2,"w2":1.5,"h2":1,"x2":-0.25},"2,13\n\n\n1,1"],[{"x":2.5,"c":"#aaaaaa","w":1.75},"2,0",{"c":"#cccccc"},"2,1","2,2","2,3","2,4","2,5","2,6","2,7","2,8","2,9","2,10","2,11",{"c":"#777777","w":2.25},"2,13\n\n\n1,0",{"x":0.25,"c":"#cccccc"},"1,13\n\n\n1,1"],[{"x":2.5,"c":"#aaaaaa","w":2.25},"3,0\n\n\n2,0",{"c":"#cccccc"},"3,2\n\n\n2,0","3,3\n\n\n2,0","3,4\n\n\n2,0","3,5\n\n\n2,0","3,6\n\n\n2,0","3,7\n\n\n2,0","3,8\n\n\n2,0","3,9\n\n\n2,0","3,10\n\n\n2,0","3,11\n\n\n2,0",{"c":"#aaaaaa","w":2.75},"3,13\n\n\n2,0"],[{"x":2.5,"w":1.25},"4,0\n\n\n3,0",{"w":1.25},"4,1\n\n\n3,0",{"w":1.25},"4,2\n\n\n3,0",{"c":"#cccccc","w":6.25},"4,6\n\n\n3,0",{"c":"#aaaaaa","w":1.25},"4,10\n\n\n3,0",{"w":1.25},"4,11\n\n\n3,0",{"w":1.25},"4,13\n\n\n3,0",{"w":1.25},"4,14\n\n\n3,0"],[{"y":0.5,"x":2.5,"w":2.25},"3,0\n\n\n2,1",{"c":"#cccccc"},"3,2\n\n\n2,1","3,3\n\n\n2,1","3,4\n\n\n2,1","3,5\n\n\n2,1","3,6\n\n\n2,1","3,7\n\n\n2,1","3,8\n\n\n2,1","3,9\n\n\n2,1","3,10\n\n\n2,1","3,11\n\n\n2,1",{"c":"#aaaaaa","w":1.75},"3,13\n\n\n2,1","3,14\n\n\n2,1"],[{"x":2.5,"w":2.25},"3,0\n\n\n2,2",{"c":"#cccccc"},"3,2\n\n\n2,2","3,3\n\n\n2,2","3,4\n\n\n2,2","3,5\n\n\n2,2","3,6\n\n\n2,2","3,7\n\n\n2,2","3,8\n\n\n2,2","3,9\n\n\n2,2","3,10\n\n\n2,2",{"w":1.75},"3,11\n\n\n2,2","3,13\n\n\n2,2","3,12\n\n\n2,2"],[{"x":2.5,"c":"#aaaaaa","w":1.25},"3,0\n\n\n2,3","3,1\n\n\n2,3",{"c":"#cccccc"},"3,2\n\n\n2,3","3,3\n\n\n2,3","3,4\n\n\n2,3","3,5\n\n\n2,3","3,6\n\n\n2,3","3,7\n\n\n2,3","3,8\n\n\n2,3","3,9\n\n\n2,3","3,10\n\n\n2,3","3,11\n\n\n2,3",{"c":"#aaaaaa","w":2.75},"3,13\n\n\n2,3"],[{"x":2.5,"w":1.25},"3,0\n\n\n2,4","3,1\n\n\n2,4",{"c":"#cccccc"},"3,2\n\n\n2,4","3,3\n\n\n2,4","3,4\n\n\n2,4","3,5\n\n\n2,4","3,6\n\n\n2,4","3,7\n\n\n2,4","3,8\n\n\n2,4","3,9\n\n\n2,4","3,10\n\n\n2,4","3,11\n\n\n2,4",{"c":"#aaaaaa","w":1.75},"3,13\n\n\n2,4","3,14\n\n\n2,4"],[{"x":2.5,"w":1.25},"3,0\n\n\n2,5","3,1\n\n\n2,5",{"c":"#cccccc"},"3,2\n\n\n2,5","3,3\n\n\n2,5","3,4\n\n\n2,5","3,5\n\n\n2,5","3,6\n\n\n2,5","3,7\n\n\n2,5","3,8\n\n\n2,5","3,9\n\n\n2,5","3,10\n\n\n2,5",{"w":1.75},"3,11\n\n\n2,5","3,13\n\n\n2,5","3,14\n\n\n2,5"],[{"x":2.5,"c":"#aaaaaa","w":2},"3,0\n\n\n2,6",{"c":"#cccccc"},"3,2\n\n\n2,6","3,3\n\n\n2,6","3,4\n\n\n2,6","3,5\n\n\n2,6","3,6\n\n\n2,6","3,7\n\n\n2,6","3,8\n\n\n2,6","3,9\n\n\n2,6","3,10\n\n\n2,6","3,11\n\n\n2,6","3,13\n\n\n2,6",{"c":"#aaaaaa","w":2},"3,14\n\n\n2,6"],[{"x":2.5},"3,0\n\n\n2,7","3,1\n\n\n2,7",{"c":"#cccccc"},"3,2\n\n\n2,7","3,3\n\n\n2,7","3,4\n\n\n2,7","3,5\n\n\n2,7","3,6\n\n\n2,7","3,7\n\n\n2,7","3,8\n\n\n2,7","3,9\n\n\n2,7","3,10\n\n\n2,7","3,11\n\n\n2,7","3,12\n\n\n2,7",{"c":"#aaaaaa","w":2},"3,13\n\n\n2,7"],[{"x":2.5,"w":2},"3,0\n\n\n2,8",{"c":"#cccccc"},"3,2\n\n\n2,8","3,3\n\n\n2,8","3,4\n\n\n2,8","3,5\n\n\n2,8","3,6\n\n\n2,8","3,7\n\n\n2,8","3,8\n\n\n2,8","3,9\n\n\n2,8","3,10\n\n\n2,8","3,11\n\n\n2,8","3,12\n\n\n2,8",{"c":"#aaaaaa"},"3,13\n\n\n2,8","3,14\n\n\n2,8"],[{"x":2.5},"3,0\n\n\n2,9","3,1\n\n\n2,9",{"c":"#cccccc"},"3,2\n\n\n2,9","3,3\n\n\n2,9","3,4\n\n\n2,9","3,5\n\n\n2,9","3,6\n\n\n2,9","3,7\n\n\n2,9","3,8\n\n\n2,9","3,9\n\n\n2,9","3,10\n\n\n2,9","3,11\n\n\n2,9","3,12\n\n\n2,9",{"c":"#aaaaaa"},"3,13\n\n\n2,9","3,14\n\n\n2,9"],[{"y":0.5,"x":2.5,"w":1.5},"4,0\n\n\n3,1","4,1\n\n\n3,1",{"w":1.5},"4,2\n\n\n3,1",{"c":"#cccccc","w":7},"4,6\n\n\n3,1",{"c":"#aaaaaa","w":1.5},"4,11\n\n\n3,1","4,13\n\n\n3,1",{"w":1.5},"4,14\n\n\n3,1"],[{"x":2.5,"w":1.25},"4,0\n\n\n3,2",{"w":1.25},"4,1\n\n\n3,2",{"w":1.25},"4,2\n\n\n3,2",{"c":"#cccccc","w":6.25},"4,6\n\n\n3,2",{"c":"#aaaaaa"},"4,10\n\n\n3,2","4,11\n\n\n3,2","4,12\n\n\n3,2","4,13\n\n\n3,2","4,14\n\n\n3,2"],[{"x":2.5,"w":1.5},"4,0\n\n\n3,3","4,1\n\n\n3,3",{"w":1.25},"4,2\n\n\n3,3",{"c":"#cccccc","w":6.25},"4,6\n\n\n3,3",{"c":"#aaaaaa"},"4,10\n\n\n3,3","4,11\n\n\n3,3","4,12\n\n\n3,3","4,13\n\n\n3,3","4,14\n\n\n3,3"],[{"x":2.5,"w":1.5,"d":true},"4,0\n\n\n3,4","4,1\n\n\n3,4",{"w":1.5},"4,2\n\n\n3,4",{"c":"#cccccc","w":7},"4,6\n\n\n3,4",{"c":"#aaaaaa","w":1.5},"4,11\n\n\n3,4","4,12\n\n\n3,4",{"w":1.5,"d":true},"4,13\n\n\n3,4"],[{"x":2.5,"w":1.5},"4,0\n\n\n3,5",{"d":true},"\n\n\n3,5",{"w":1.5},"4,2\n\n\n3,5",{"c":"#cccccc","w":7},"4,6\n\n\n3,5",{"c":"#aaaaaa","w":1.5},"4,11\n\n\n3,5",{"d":true},"\n\n\n3,5",{"w":1.5},"4,13\n\n\n3,5"],[{"x":2.5,"w":1.5,"d":true},"4,0\n\n\n3,6","4,1\n\n\n3,6",{"w":1.5},"4,2\n\n\n3,6",{"c":"#cccccc","w":6.25},"4,6\n\n\n3,6",{"c":"#aaaaaa","w":1.5},"4,11\n\n\n3,6","4,12\n\n\n3,6",{"w":2.25,"d":true},"4,13\n\n\n3,6"],[{"x":2.5,"w":1.25},"4,0\n\n\n3,7",{"w":1.25},"4,1\n\n\n3,7",{"w":1.25},"4,2\n\n\n3,7",{"c":"#cccccc","w":2.25},"4,4\n\n\n3,7",{"w":1.25},"4,6\n\n\n3,7",{"w":2.75},"4,8\n\n\n3,7",{"c":"#aaaaaa","w":1.256},"4,10\n\n\n3,7",{"x":-0.006000000000000227,"w":1.256},"4,11\n\n\n3,7",{"x":-0.006000000000000227,"w":1.256},"4,13\n\n\n3,7",{"x":-0.006000000000000227,"w":1.256},"4,14\n\n\n3,7"],[{"x":2.5,"w":1.25},"4,0\n\n\n3,8",{"w":1.25},"4,1\n\n\n3,8",{"w":1.25},"4,2\n\n\n3,8",{"c":"#cccccc","w":2.75},"4,8\n\n\n3,8",{"w":1.25},"4,6\n\n\n3,8",{"w":2.25},"4,4\n\n\n3,8",{"c":"#aaaaaa","w":1.256},"4,10\n\n\n3,8",{"x":-0.006000000000000227,"w":1.256},"4,11\n\n\n3,8",{"x":-0.006000000000000227,"w":1.256},"4,13\n\n\n3,8",{"x":-0.006000000000000227,"w":1.256},"4,14\n\n\n3,8"]]},"Model F B104":{"name":"leyden_jar/B104","source":"the board itself (Vial), tests/ModelFDefinition.h","labels":["Split Backspace","Full Left Shift","Split Right Shift",["Enter","ISO Enter","ANSI Enter"],"Split Numpad Zero","Full Nav Cluster"],"keymap":[[{"x":15.5},"6,5\n\n\n0,1","6,11\n\n\n0,1"],[{"x":2.5,"y":0.25},"0,0",{"x":1.0},"0,1","0,3","0,14","0,16",{"x":0.5},"0,2","0,15","6,15","0,13",{"x":0.5},"0,4","0,12","0,5","0,11",{"x":0.25},"0,10","0,9","0,8"],[{"x":2.5,"y":0.5},"6,0","6,1","5,1","6,3","6,14","6,16","5,16","6,2","5,15","6,13","5,4","6,4","6,12",{"w":2.0},"6,11\n\n\n0,0",{"x":0.25},"0,6\n\n\n5,0","0,7\n\n\n5,0","6,7\n\n\n5,0",{"x":0.25},"6,10","5,10","6,9","6,8",{"x":2.75},"0,6\n\n\n5,1","0,7\n\n\n5,1","6,7\n\n\n5,1"],[{"x":2.5,"w":1.5},"5,0","4,1","4,3","5,3","5,14","4,16","4,2","5,2","4,15","5,13","4,4","5,12","5,5",{"x":0.25,"w":1.25,"h":2.0,"w2":1.5,"h2":1.0,"x2":-0.25},"4,11\n\n\n3,0",{"x":0.25},"5,6\n\n\n5,0","6,6\n\n\n5,0","5,7\n\n\n5,0",{"x":0.25},"4,10","4,9","5,9",{"h":2.0},"5,8",{"x":1.0,"w":1.5},"5,11\n\n\n3,1",{"x":0.25},"5,6\n\n\n5,1","6,6\n\n\n5,1","5,7\n\n\n5,1"],[{"x":2.5,"w":1.75},"4,0","3,1","3,3","4,14","3,14","3,16","3,2","3,15","4,13","3,13","3,4","4,12","4,5\n\n\n3,0",{"x":4.75},"3,10","3,9","4,8",{"x":1.25,"w":2.25},"4,5\n\n\n3,1",{"x":0.25},"3,11\n\n\n5,1","4,6\n\n\n5,1","4,7\n\n\n5,1"],[{"w":2.25},"2,1\n\n\n1,1",{"x":0.25,"w":1.25},"2,0\n\n\n1,0","2,1\n\n\n1,0","2,3","2,14","1,14","1,16","2,16","2,2","1,15","1,13","2,4","2,12",{"w":2.75},"2,5\n\n\n2,0",{"x":1.25},"3,6\n\n\n5,0",{"x":1.25},"2,10","2,9","2,8",{"h":2.0},"3,8",{"x":2.75},"2,6\n\n\n5,1","3,6\n\n\n5,1","3,7\n\n\n5,1"],[{"x":2.5,"w":1.25},"1,0",{"w":1.25},"1,1",{"w":1.25},"1,3",{"w":6.25},"1,2",{"w":1.25},"1,4",{"w":1.25},"1,12",{"w":1.25},"1,5",{"w":1.25},"1,11",{"x":0.25},"1,6\n\n\n5,0","2,7\n\n\n5,0","1,7\n\n\n5,0",{"x":0.25,"w":2.0},"1,10\n\n\n4,0","1,8",{"x":3.75},"1,6\n\n\n5,1","2,7\n\n\n5,1","1,7\n\n\n5,1"],[{"x":14.75,"y":0.25,"w":1.75},"3,12\n\n\n2,1","2,11\n\n\n2,1",{"x":3.5},"1,10\n\n\n4,1","1,9\n\n\n4,1"]]},"Cypher":{"name":"Cypher","source":"VIA registry, v3/1107274393.json","labels":["Split Backspace",["Enter Key","ANSI","ISO"],["Left Shift","ANSI","ISO"],"Split Numpad Plus","Split Numpad Enter",["Bottom Row","6U","7U","6.25U","Split Space"]],"keymap":[[{"x":15.5},"5,3\n\n\n0,1","5,4\n\n\n0,1"],[{"y":0.25,"x":2.5,"c":"#777777"},"0,0",{"c":"#cccccc"},"0,1","0,2","0,3","0,4","0,5","0,6","0,7","0,8","0,9","5,0","5,1","5,2",{"c":"#aaaaaa","w":2},"5,3\n\n\n0,0",{"x":0.5,"c":"#cccccc"},"5,5","5,6","5,7","5,8"],[{"x":2.5,"c":"#aaaaaa","w":1.5},"1,0",{"c":"#cccccc"},"1,1","1,2","1,3","1,4","1,5","1,6","1,7","1,8","1,9","6,0","6,1","6,2",{"w":1.5},"6,3\n\n\n1,0",{"x":0.5},"6,5","6,6","6,7",{"h":2},"6,8\n\n\n3,0",{"x":0.25},"6,8\n\n\n3,1"],[{"x":2.5,"c":"#aaaaaa","w":1.75},"2,0",{"c":"#cccccc"},"2,1","2,2","2,3","2,4","2,5","2,6","2,7","2,8","2,9","7,0","7,1",{"c":"#777777","w":2.25},"7,3\n\n\n1,0",{"x":0.5,"c":"#cccccc"},"7,5","7,6","7,7",{"x":1.25},"7,8\n\n\n3,1"],[{"c":"#aaaaaa","w":1.25},"3,0\n\n\n2,1",{"c":"#cccccc"},"3,1\n\n\n2,1",{"x":0.25,"c":"#aaaaaa","w":2.25},"3,0\n\n\n2,0",{"c":"#cccccc"},"3,2","3,3","3,4","3,5","3,6","3,7","3,8","3,9","8,0","8,1",{"c":"#aaaaaa","w":1.75},"8,2",{"x":1.5,"c":"#cccccc"},"8,5","8,6","8,7",{"c":"#777777","h":2},"8,8\n\n\n4,0",{"x":0.25,"c":"#cccccc"},"8,8\n\n\n4,1"],[{"y":-0.75,"x":16.75},"8,3"],[{"y":-0.25,"x":2.5,"c":"#aaaaaa","w":1.25},"4,0\n\n\n5,0","4,1\n\n\n5,0",{"w":1.25},"4,2\n\n\n5,0",{"c":"#cccccc","w":6},"4,6\n\n\n5,0",{"c":"#aaaaaa","w":1.25},"4,9\n\n\n5,0","9,0\n\n\n5,0",{"w":1.25},"9,1\n\n\n5,0",{"x":3.5,"c":"#cccccc"},"9,6","9,7",{"x":1.25},"9,8\n\n\n4,1"],[{"y":-0.75,"x":15.75},"9,2","9,3","9,5"],[{"x":2.5,"c":"#aaaaaa","w":1.5},"4,0\n\n\n5,1",{"w":1.5},"4,2\n\n\n5,1",{"w":7},"4,6\n\n\n5,1",{"w":1.5},"9,0\n\n\n5,1",{"w":1.5},"9,1\n\n\n5,1"],[{"y":-0.75,"x":16.75,"c":"#777777","w":1.25,"h":2,"w2":1.5,"h2":1,"x2":-0.25},"7,3\n\n\n1,1"],[{"y":-0.25,"x":2.5,"c":"#aaaaaa","w":1.25},"4,0\n\n\n5,2",{"w":1.25},"4,1\n\n\n5,2",{"w":1.25},"4,2\n\n\n5,2",{"w":6.25},"4,6\n\n\n5,2",{"w":1.5},"9,0\n\n\n5,2",{"w":1.5},"9,1\n\n\n5,2"],[{"y":-0.75,"x":15.75,"c":"#cccccc"},"7,2\n\n\n1,1"],[{"y":-0.25,"x":2.5,"c":"#aaaaaa","w":1.25},"4,0\n\n\n5,3",{"w":1.25},"4,1\n\n\n5,3",{"w":1.25},"4,2\n\n\n5,3",{"w":2.75},"4,4\n\n\n5,3",{"w":1.25},"4,6\n\n\n5,3",{"w":2.25},"4,7\n\n\n5,3",{"w":1.5},"9,0\n\n\n5,3",{"w":1.5},"9,1\n\n\n5,3"]]},"Promenade RP24S":{"name":"Promenade RP24S","source":"VIA registry, v3/1265781613.json","labels":[["Center Column L","1u","1.5u","Encoders"],["Center Column R","1u","1.5u","Encoders"],["Spacebars","1u x6","3u-3u","2u-2u","2u-2u-2u","7u","3u-1u-3u","3u-Enc-3u","6.25u","2u-2u-1u-1u","2u-1-2u"],["Row0","Normal","50XT","50XT Enc"],["Row1","Normal","50XT","50XT Enc"],["Row2","Normal","50XT","50XT Enc","Enter Alt"],["Row3","Normal","50XT","50XT Enc"],["Row4","Normal","Normal Enc","50XT","50XT Enc","Arrows 65","Tsangan","Tsangan Enc"],"Win Enc",["Alt","1u","Alt Enc","1.5u Alt"],["Fn","1u","Enc","Off"]],"keymap":[[{"c":"#aaaaaa"},"0,6\n\n\n0,2\n\n\n\n\n\ne0","0,6\n\n\n0,1","0,7\n\n\n1,1","0,7\n\n\n1,2\n\n\n\n\n\ne1",{"x":0.25,"w":1.5},"0,0",{"c":"#cccccc"},"0,1","0,2","0,3","0,4","0,5","0,6\n\n\n0,0","0,7\n\n\n1,0","0,8","0,9","0,10","0,11\n\n\n3,0","0,12\n\n\n3,0",{"c":"#aaaaaa","w":1.5},"0,13\n\n\n3,0",{"x":0.75,"w":1.5},"0,11\n\n\n3,1","0,12\n\n\n3,1","0,13\n\n\n3,1",{"x":0.75,"w":1.5},"0,11\n\n\n3,2","0,12\n\n\n3,2",{"c":"#777777"},"0,13\n\n\n3,2\n\n\n\n\n\ne1"],[{"c":"#aaaaaa"},"1,6\n\n\n0,2\n\n\n\n\n\ne2",{"h":1.5},"1,6\n\n\n0,1",{"h":1.5},"1,7\n\n\n1,1","1,7\n\n\n1,2\n\n\n\n\n\ne3",{"x":0.25,"w":1.5},"1,0",{"c":"#cccccc"},"1,1","1,2","1,3","1,4","1,5","1,6\n\n\n0,0","1,7\n\n\n1,0","1,8","1,9","1,10","1,11\n\n\n4,0","1,12\n\n\n4,0",{"c":"#aaaaaa","w":1.5},"1,13\n\n\n4,0",{"x":0.75,"w":1.5},"1,11\n\n\n4,1","1,12\n\n\n4,1","1,13\n\n\n4,1",{"x":0.75,"w":1.5},"1,11\n\n\n4,2","1,12\n\n\n4,2",{"c":"#777777"},"1,13\n\n\n4,2\n\n\n\n\n\ne3"],[{"c":"#aaaaaa"},"2,6\n\n\n0,2\n\n\n\n\n\ne4",{"x":2},"2,7\n\n\n1,2\n\n\n\n\n\ne5",{"x":0.25,"w":1.5},"2,0",{"c":"#cccccc"},"2,1","2,2","2,3","2,4","2,5","2,6\n\n\n0,0","2,7\n\n\n1,0","2,8","2,9","2,10","2,11\n\n\n5,0","2,12\n\n\n5,0",{"c":"#aaaaaa","w":1.5},"2,13\n\n\n5,0",{"x":0.75,"w":1.5},"2,11\n\n\n5,1","2,12\n\n\n5,1","2,13\n\n\n5,1",{"x":0.75,"w":1.5},"2,11\n\n\n5,2",{"c":"#777777"},"2,12\n\n\n5,2\n\n\n\n\n\ne4","2,13\n\n\n5,2\n\n\n\n\n\ne5",{"x":0.25,"c":"#cccccc"},"2,11\n\n\n5,3",{"c":"#aaaaaa","w":1.5},"2,12\n\n\n5,3","2,13\n\n\n5,3"],[{"y":-0.5,"x":1,"h":1.5},"3,6\n\n\n0,1",{"h":1.5},"3,7\n\n\n1,1"],[{"y":-0.5},"3,6\n\n\n0,2\n\n\n\n\n\ne6",{"x":2},"3,7\n\n\n1,2\n\n\n\n\n\ne7",{"x":0.25,"w":1.5},"3,0",{"c":"#cccccc"},"3,1","3,2","3,3","3,4","3,5","3,6\n\n\n0,0","3,7\n\n\n1,0","3,8","3,9","3,10","3,11\n\n\n6,0","3,12\n\n\n6,0",{"c":"#aaaaaa","w":1.5},"3,13\n\n\n6,0",{"x":0.75,"w":1.5},"3,11\n\n\n6,1","3,12\n\n\n6,1","3,13\n\n\n6,1",{"x":0.75,"w":1.5},"3,11\n\n\n6,2","3,12\n\n\n6,2",{"c":"#777777"},"3,13\n\n\n6,2\n\n\n\n\n\ne7"],[{"x":4.25,"c":"#aaaaaa","w":1.5},"4,0","4,1\n\n\n8,0","4,2\n\n\n9,0","4,3\n\n\n10,0",{"x":-1,"w":0.5,"d":true},"\n\n\n9,0",{"x":-0.5,"d":true},"\n\n\n2,0","4,4\n\n\n2,0","4,5\n\n\n2,0","4,6\n\n\n2,0","4,7\n\n\n2,0","4,8\n\n\n2,0","4,9\n\n\n2,0",{"x":-0.5,"c":"#cccccc","w":0.5,"d":true},"\n\n\n7,0",{"c":"#aaaaaa"},"4,10\n\n\n7,0","4,11\n\n\n7,0","4,12\n\n\n7,0",{"w":1.5},"4,13\n\n\n7,0",{"c":"#cccccc","w":0.5,"d":true},"\n\n\n7,1",{"c":"#aaaaaa"},"4,10\n\n\n7,1","4,11\n\n\n7,1",{"c":"#777777"},"4,12\n\n\n7,1\n\n\n\n\n\ne7",{"c":"#aaaaaa","w":1.5},"4,13\n\n\n7,1",{"c":"#cccccc","w":0.5,"d":true},"\n\n\n7,2",{"c":"#aaaaaa"},"4,10\n\n\n7,2",{"w":1.5},"4,11\n\n\n7,2","4,12\n\n\n7,2","4,13\n\n\n7,2",{"c":"#cccccc","w":0.5,"d":true},"\n\n\n7,3",{"c":"#aaaaaa"},"4,10\n\n\n7,3",{"w":1.5},"4,11\n\n\n7,3","4,12\n\n\n7,3",{"c":"#777777"},"4,13\n\n\n7,3\n\n\n\n\n\ne0",{"c":"#cccccc","w":0.75,"d":true},"\n\n\n7,4",{"c":"#aaaaaa","w":1.25},"4,10\n\n\n7,4","4,11\n\n\n7,4","4,12\n\n\n7,4","4,13\n\n\n7,4",{"c":"#cccccc","d":true},"\n\n\n7,5",{"c":"#aaaaaa","w":1.5},"4,11\n\n\n7,5","4,12\n\n\n7,5",{"w":1.5},"4,13\n\n\n7,5",{"c":"#cccccc","d":true},"\n\n\n7,6",{"c":"#aaaaaa","w":1.5},"4,11\n\n\n7,6",{"c":"#777777"},"4,12\n\n\n7,6\n\n\n\n\n\ne7",{"c":"#aaaaaa","w":1.5},"4,13\n\n\n7,6"],[{"x":5.75,"c":"#777777"},"4,1\n\n\n8,1\n\n\n\n\n\ne6","4,2\n\n\n9,1\n\n\n\n\n\ne6","4,3\n\n\n10,1\n\n\n\n\n\ne6",{"x":-1,"c":"#aaaaaa","w":0.5,"d":true},"\n\n\n9,1",{"x":-0.5,"c":"#cccccc","d":true},"\n\n\n2,1",{"w":3},"4,5\n\n\n2,1",{"w":3},"4,8\n\n\n2,1"],[{"x":6.75,"c":"#aaaaaa","w":1.5},"4,2\n\n\n9,2",{"x":-0.5,"d":true},"\n\n\n2,2",{"x":-1,"d":true},"\n\n\n10,2","4,4\n\n\n2,2",{"c":"#cccccc","w":2},"4,6\n\n\n2,2",{"w":2},"4,7\n\n\n2,2",{"c":"#aaaaaa"},"4,9\n\n\n2,2"],[{"x":7.75,"d":true},"\n\n\n2,3",{"c":"#cccccc","w":2},"4,4\n\n\n2,3",{"w":2},"4,6\n\n\n2,3",{"w":2},"4,8\n\n\n2,3"],[{"x":7.75,"w":0.5,"d":true},"\n\n\n2,4",{"w":7},"4,6\n\n\n2,4"],[{"x":7.75,"w":0.5,"d":true},"\n\n\n2,5",{"w":3},"4,4\n\n\n2,5","4,6\n\n\n2,5",{"w":3},"4,9\n\n\n2,5"],[{"x":7.75,"w":0.5,"d":true},"\n\n\n2,6",{"w":3},"4,4\n\n\n2,6",{"c":"#777777"},"4,6\n\n\n2,6\n\n\n\n\n\ne3",{"c":"#cccccc","w":3},"4,9\n\n\n2,6"],[{"x":7.75,"w":6.25},"4,6\n\n\n2,7",{"c":"#aaaaaa"},"4,9\n\n\n2,7"],[{"x":7.75,"d":true},"\n\n\n2,8",{"c":"#cccccc","w":2},"4,4\n\n\n2,8",{"w":2},"4,6\n\n\n2,8",{"c":"#aaaaaa"},"4,8\n\n\n2,8","4,9\n\n\n2,8"],[{"x":7.75,"d":true},"\n\n\n2,9",{"c":"#cccccc","w":2},"4,4\n\n\n2,9","4,6\n\n\n2,9",{"w":2},"4,7\n\n\n2,9",{"c":"#aaaaaa","w":1.25},"4,9\n\n\n2,9"]]}};
+
+// ---------------------------------------------------------------------------------------------
+// KLE: the keys, each with its matrix cell (legend position 0) and its layout option (position
+// 3, "group,option"). Legend-only keys are left out; decals kept, for the pivot, never drawn.
+function parseKle(rows) {
+  const keys = [];
+  let x = 0, y = 0, rx = 0, ry = 0, r = 0, p = {};
+  const pair = s => { const m = /^\s*(\d+)\s*,\s*(\d+)\s*$/.exec(s || ''); return m ? [+m[1], +m[2]] : null; };
+  for (const row of rows) {
+    if (!Array.isArray(row)) continue;
+    for (const item of row) {
+      if (typeof item === 'object') {
+        if ('r' in item) r = item.r;
+        if ('rx' in item || 'ry' in item) { if ('rx' in item) rx = item.rx; if ('ry' in item) ry = item.ry; x = rx; y = ry; }
+        if ('x' in item) x += item.x;
+        if ('y' in item) y += item.y;
+        for (const k of ['w', 'h', 'x2', 'y2', 'w2', 'h2', 'd']) if (k in item) p[k] = item[k];
+        continue;
+      }
+      const w = p.w || 1, h = p.h || 1;
+      const labels = String(item).split('\n');
+      const cell = pair(labels[0]), option = pair(labels[3]);
+      if (cell || p.d)
+        keys.push({ x, y, w, h, x2: p.x2 || 0, y2: p.y2 || 0, w2: p.w2 || w, h2: p.h2 || h, r, rx, ry, decal: !!p.d,
+                    cell, g: option ? option[0] : -1, o: option ? option[1] : 0 });
+      x += w;
+      p = {};
+    }
+    y += 1;
+    x = rx;
+  }
+  return keys;
+}
+
+// A label: a string is a toggle, an array names a group and its options.
+const groupOf = label => Array.isArray(label) ? { name: label[0], options: label.slice(1) } : { name: label, options: [] };
+const countOf = g => g.options.length ? g.options.length : 2;
+const optionName = (g, o) => g.options.length ? g.options[o] : (o ? 'On' : 'Off');
+
+// VIA's pivot rule, as PlaceKeys() has it: each chosen option moved onto option 0's place.
+const pivotPoint = k => (k.y2 === 0 ? k.x2 < 0 : k.y2 < 0) ? [k.x + k.x2, k.y + k.y2] : [k.x, k.y];
+function findPivot(keys, g, o) {
+  let best = null;
+  for (const k of keys) if (k.g === g && k.o === o && (!best || k.y < best.y || (k.y === best.y && k.x < best.x))) best = k;
+  return best;
+}
+function shiftOf(keys, g, o) {
+  const home = findPivot(keys, g, 0), chosen = findPivot(keys, g, o);
+  if (!home || !chosen) return [0, 0];
+  const a = pivotPoint(home), b = pivotPoint(chosen);
+  return [a[0] - b[0], a[1] - b[1]];
+}
+function placeKeys(keys, groups, sel) {
+  const out = [];
+  for (const k of keys) {
+    if (k.g >= 0 && k.g < groups.length && sel[k.g] !== k.o) continue;
+    const s = k.g >= 0 && k.g < groups.length ? shiftOf(keys, k.g, k.o) : [0, 0];
+    out.push({ ...k, x: k.x + s[0], y: k.y + s[1] });
+  }
+  return out;
+}
+
+// As the board stores it: the first group in the most significant bits.
+function packed(groups, sel) {
+  let value = 0;
+  groups.forEach((g, i) => { let bits = 1; while ((1 << bits) < countOf(g)) bits++; value = (value << bits) | sel[i]; });
+  return '0x' + (value >>> 0).toString(16).toUpperCase().padStart(8, '0');
+}
+
+// ---------------------------------------------------------------------------------------------
+const NS = 'http://www.w3.org/2000/svg';
+function keyShapes(svg, k, u, ox, oy, cls) {
+  const g = document.createElementNS(NS, 'g');
+  if (k.r) g.setAttribute('transform', `rotate(${k.r} ${(k.rx - ox) * u} ${(k.ry - oy) * u})`);
+  const gap = Math.max(1, u * 0.06), rad = Math.max(2, u * 0.1);
+  const rect = (x, y, w, h) => {
+    const e = document.createElementNS(NS, 'rect');
+    e.setAttribute('x', (x - ox) * u + gap); e.setAttribute('y', (y - oy) * u + gap);
+    e.setAttribute('width', Math.max(1, w * u - 2 * gap)); e.setAttribute('height', Math.max(1, h * u - 2 * gap));
+    e.setAttribute('rx', rad);
+    e.setAttribute('class', cls);
+    g.appendChild(e);
+  };
+  rect(k.x, k.y, k.w, k.h);
+  if (k.w2 !== k.w || k.h2 !== k.h || k.x2 || k.y2) rect(k.x + k.x2, k.y + k.y2, k.w2, k.h2);
+  svg.appendChild(g);
+  return g;
+}
+const boundsOf = keys => keys.reduce((b, k) => ({
+  x0: Math.min(b.x0, k.x, k.x + k.x2), y0: Math.min(b.y0, k.y, k.y + k.y2),
+  x1: Math.max(b.x1, k.x + k.w, k.x + k.x2 + k.w2), y1: Math.max(b.y1, k.y + k.h, k.y + k.y2 + k.h2) }),
+  { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity });
+
+// ---------------------------------------------------------------------------------------------
+const VARIANTS = ['Drop-downs', 'Buttons'];
+const state = { board: 'ZX60', variant: 'Drop-downs', drawing: 'On', preview: 'On', highlight: 'Off', theme: 'Light',
+                sel: {}, hover: null, boardHover: null, open: null, written: null };
+for (const name of Object.keys(BOARDS)) state.sel[name] = BOARDS[name].labels.map(() => 0);
+const parsed = {};
+const keysOf = name => parsed[name] || (parsed[name] = parseKle(BOARDS[name].keymap));
+
+// The drawing an option shows on hover: its own keys, moved to option 0's place, at the scale of
+// the whole group -- so a group's options compare -- beside what it is hovered on.
+const pop = document.getElementById('pop');
+function showDrawing(gi, oi, rect) {
+  if (state.drawing !== 'On') return;
+  const keys = keysOf(state.board), g = groupOf(BOARDS[state.board].labels[gi]);
+  const all = [];
+  for (let o = 0; o < countOf(g); o++) {
+    const s = shiftOf(keys, gi, o);
+    all.push(keys.filter(k => k.g === gi && k.o === o && !k.decal).map(k => ({ ...k, x: k.x + s[0], y: k.y + s[1] })));
+  }
+  const bd = boundsOf(all.flat());
+  const u = Math.min(20, 300 / Math.max(1, bd.x1 - bd.x0), 90 / Math.max(1, bd.y1 - bd.y0));
+  const w = (bd.x1 - bd.x0) * u, h = (bd.y1 - bd.y0) * u;
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('width', w); svg.setAttribute('height', h);
+  svg.innerHTML = `<style>.k{fill:var(--key);stroke:var(--keyline)}</style>`;
+  for (const k of all[oi]) keyShapes(svg, k, u, bd.x0, bd.y0, 'k');
+  pop.innerHTML = '';
+  pop.appendChild(svg);
+  pop.insertAdjacentHTML('beforeend', `<div class="cap">${optionName(g, oi)}</div>`);
+  pop.hidden = false;
+  // Always inside the window (Rico): beside the option where there is room, else on its other
+  // side, then pushed back in from every edge.
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(v, hi));
+  const room  = window.innerWidth - rect.right;
+  const left  = room > pop.offsetWidth + 16 ? rect.right + 8 : rect.left - pop.offsetWidth - 8;
+  pop.style.left = clamp(left, 8, window.innerWidth - pop.offsetWidth - 8) + 'px';
+  pop.style.top  = clamp(rect.top + rect.height / 2 - pop.offsetHeight / 2, 8, window.innerHeight - pop.offsetHeight - 8) + 'px';
+}
+function hideDrawing() { pop.hidden = true; }
+
+function render() {
+  document.documentElement.dataset.theme = state.theme.toLowerCase();
+  renderControls();
+  const b = BOARDS[state.board], keys = keysOf(state.board), groups = b.labels.map(groupOf);
+  const sel = state.sel[state.board];
+
+  // What the board shows: the stored choice, or the hovered option as a preview.
+  const shown = sel.slice();
+  if (state.preview === 'On' && state.hover && state.hover.o !== undefined) shown[state.hover.g] = state.hover.o;
+  const litGroup = state.highlight === 'On' ? (state.hover ? state.hover.g : state.boardHover) : null;
+
+  const frame = document.getElementById('frame');
+  frame.innerHTML = `<div class="menubar"><span class="board">${b.name} ▾</span><span class="muted">${state.board === 'Model F B104' ? 'Vial' : 'VIA'}</span><span class="right">Settings</span></div>`;
+  const body = document.createElement('div'); body.className = 'body';
+  body.innerHTML = `<div class="col"><div class="entry">Keymap</div><div class="entry on">Layout</div><div class="entry">Macros</div></div>`;
+  const main = document.createElement('div'); main.className = 'main';
+
+  // The board.
+  const placed = placeKeys(keys, groups, shown).filter(k => !k.decal);
+  const bd = boundsOf(placed), avail = 1160 - 180 - 28 - 30;
+  const u = Math.min(54, Math.floor(avail / (bd.x1 - bd.x0 + 0.7)));
+  const m = u * 0.35;
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('class', 'board');
+  svg.setAttribute('width', (bd.x1 - bd.x0) * u + 2 * m); svg.setAttribute('height', (bd.y1 - bd.y0) * u + 2 * m);
+  svg.innerHTML = `<style>.plate{fill:var(--plate)}.k{fill:var(--key);stroke:var(--keyline)}.k.lit{fill:var(--lit);stroke:var(--litline);stroke-width:1.5}</style>`;
+  const plate = document.createElementNS(NS, 'rect');
+  plate.setAttribute('width', '100%'); plate.setAttribute('height', '100%'); plate.setAttribute('rx', 12); plate.setAttribute('class', 'plate');
+  svg.appendChild(plate);
+  const inner = document.createElementNS(NS, 'g'); inner.setAttribute('transform', `translate(${m} ${m})`); svg.appendChild(inner);
+  for (const k of placed) {
+    const node = keyShapes(inner, k, u, bd.x0, bd.y0, 'k' + (litGroup !== null && k.g === litGroup ? ' lit' : ''));
+    if (k.g >= 0 && k.g < groups.length) {
+      node.addEventListener('mouseenter', () => { if (state.boardHover !== k.g) { state.boardHover = k.g; render(); } });
+      node.addEventListener('mouseleave', () => { if (state.boardHover !== null) { state.boardHover = null; render(); } });
+      const t = document.createElementNS(NS, 'title');
+      t.textContent = groups[k.g].name + ': ' + optionName(groups[k.g], shown[k.g]);
+      node.appendChild(t);
+    }
+  }
+  const area = document.createElement('div'); area.className = 'boardarea'; area.appendChild(svg);
+  main.appendChild(area);
+
+  // The panel: one line per group.
+  const panel = document.createElement('div'); panel.className = 'panel';
+  const list = document.createElement('div'); list.className = 'groups';
+  groups.forEach((g, gi) => list.appendChild(groupEl(g, gi, sel)));
+  panel.appendChild(list);
+  const status = document.createElement('div'); status.className = 'status';
+  status.innerHTML = state.written
+    ? `<span class="ok">Stored</span> <span class="muted">-- ${state.written}, read back the same. The keymap is untouched: a key hidden by an option keeps its keycode.</span>`
+    : `<span class="muted">Each choice is written to the board at once.</span>`;
+  panel.appendChild(status);
+  main.appendChild(panel);
+  body.appendChild(main);
+  frame.appendChild(body);
+}
+
+function choose(gi, o) {
+  const groups = BOARDS[state.board].labels.map(groupOf);
+  state.sel[state.board][gi] = o;
+  state.open = null;
+  state.hover = null;
+  hideDrawing();
+  state.written = `${groups[gi].name}: ${optionName(groups[gi], o)} (${packed(groups, state.sel[state.board])})`;
+  render();
+}
+function hoverOn(gi, o) { if (state.hover && state.hover.g === gi && state.hover.o === o) return; state.hover = { g: gi, o }; render(); }
+function hoverOff() { hideDrawing(); if (!state.hover) return; state.hover = null; render(); }
+// An option hovered: its drawing beside `el`, the board previewing it.
+function hoverOption(el, gi, oi) { const rect = el.getBoundingClientRect(); hoverOn(gi, oi); showDrawing(gi, oi, rect); }
+
+function groupEl(g, gi, sel) {
+  const el = document.createElement('div');
+  const lit = state.highlight === 'On' && ((state.hover && state.hover.g === gi) || state.boardHover === gi);
+  el.className = 'lg' + (lit ? ' lit' : '');
+  el.addEventListener('mouseenter', () => { if (!state.hover || state.hover.g !== gi) hoverOn(gi, undefined); });
+  el.addEventListener('mouseleave', () => { if (state.open !== gi) hoverOff(); });
+  const isToggle = !g.options.length;
+
+  // A toggle, in both panels: a checkbox; hovered, the drawing of the state a click gives.
+  if (isToggle) {
+    const l = document.createElement('label');
+    l.innerHTML = `<input type="checkbox" ${sel[gi] ? 'checked' : ''}> ${g.name}`;
+    l.querySelector('input').addEventListener('change', e => choose(gi, e.target.checked ? 1 : 0));
+    l.addEventListener('mouseenter', () => hoverOption(l, gi, sel[gi] ? 0 : 1));
+    el.appendChild(l);
+    return el;
+  }
+
+  el.insertAdjacentHTML('beforeend', `<span class="gname" title="${g.name}">${g.name}</span>`);
+  if (state.variant === 'Buttons') {
+    const seg = document.createElement('div'); seg.className = 'seg';
+    g.options.forEach((n, oi) => {
+      const bt = document.createElement('button');
+      bt.textContent = n; if (oi === sel[gi]) bt.className = 'on';
+      bt.addEventListener('click', () => choose(gi, oi));
+      bt.addEventListener('mouseenter', () => hoverOption(bt, gi, oi));
+      seg.appendChild(bt);
+    });
+    el.appendChild(seg);
+    return el;
+  }
+
+  // A combo, as ImGui draws one: the choice, and its list once clicked -- hovering an item shows it.
+  const combo = document.createElement('div'); combo.className = 'combo';
+  const bt = document.createElement('button');
+  bt.textContent = g.options[sel[gi]];
+  bt.addEventListener('click', e => { e.stopPropagation(); state.open = state.open === gi ? null : gi; hideDrawing(); render(); });
+  combo.appendChild(bt);
+  if (state.open === gi) {
+    const items = document.createElement('div'); items.className = 'list';
+    g.options.forEach((n, oi) => {
+      const it = document.createElement('div');
+      it.className = 'item' + (oi === sel[gi] ? ' on' : '');
+      it.textContent = n;
+      it.addEventListener('click', e => { e.stopPropagation(); choose(gi, oi); });
+      it.addEventListener('mouseenter', () => hoverOption(it, gi, oi));
+      items.appendChild(it);
+    });
+    combo.appendChild(items);
+  }
+  el.appendChild(combo);
+  return el;
+}
+document.addEventListener('click', () => { if (state.open !== null) { state.open = null; hoverOff(); render(); } });
+
+function renderControls() {
+  const c = document.getElementById('controls');
+  c.innerHTML = '';
+  [['board', 'Board', Object.keys(BOARDS)], ['variant', 'Panel', VARIANTS], ['drawing', 'Drawing on hover', ['On', 'Off']],
+   ['preview', 'Preview on the board', ['On', 'Off']], ['highlight', 'Light the group\'s keys', ['On', 'Off']],
+   ['theme', 'Theme', ['Light', 'Dark']]].forEach(([key, name, values]) => {
+    const g = document.createElement('div'); g.className = 'group';
+    g.innerHTML = `<span class="name">${name}</span>`;
+    values.forEach(v => {
+      const bt = document.createElement('button'); bt.textContent = v;
+      if (state[key] === v) bt.className = 'on';
+      bt.onclick = e => { e.stopPropagation(); state[key] = v; if (key === 'board') { state.written = null; state.open = null; } render(); };
+      g.appendChild(bt);
+    });
+    c.appendChild(g);
+  });
+}
+
+document.getElementById('notes').innerHTML = `
+<p><b>What it shows.</b> The Layout section in the column, the board drawn with the options chosen, the panel listing
+every option group of the definition on one line each: a plain label is a toggle, an array a choice among named
+options. A choice is written to the board at once -- VIA's set keyboard value, then read back -- as Keymap writes a key.
+Nothing in the keymap changes: keys an option hides keep their keycodes.</p>
+<p><b>The two panels.</b> <b>Drop-downs</b>: a checkbox per toggle, a combo per choice, one line each whatever the
+number of options -- what VIA and Vial show, and what ImGui draws. <b>Buttons</b>: every option of a choice at once,
+wrapping on ZX60's ten.</p>
+<p><b>On hover</b>, an option -- a combo's item, a button, a toggle -- shows <b>its drawing</b> beside it, the
+group's own keys in that option, every option of a group at one scale; and can <b>preview</b> it on the board, as
+hovering a layer in Keymap's strip does. <b>Light the group's keys</b> marks the keys a group changes, and hovering
+such a key lights its group in the panel. The first round drew every option all the time: too much room (Rico).</p>
+<p><b>The worst case is real</b>: Promenade RP24S has 11 groups, one of ten options, named in the author's
+shorthand. Model F B104 is Rico's board, its definition the one it serves.</p>`;
+
+render();
+</script>
+</body>
+</html>

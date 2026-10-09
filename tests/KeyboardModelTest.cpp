@@ -191,6 +191,31 @@ namespace
               "a five-option group takes three bits, leaving one for the toggle");
     }
 
+    // The Layout section writes back what DecodeLayoutOptions() reads.
+    void TestLayoutOptionEncoding()
+    {
+        std::printf("layout option encoding\n");
+
+        std::vector<LayoutOptionGroup> modelF(6);
+        Check(nazg::EncodeLayoutOptions({ 1, 0, 0, 0, 0, 0 }, modelF) == 0x20,
+              "the first of six toggles is bit 5, as the Model F reported");
+
+        std::vector<LayoutOptionGroup> wide(3);
+        wide[0].options = { "a", "b", "c", "d", "e" };   // 3 bits
+        wide[2].options = { "x", "y", "z" };             // 2 bits
+        bool roundTrips = true;
+        for (uint32_t raw = 0; raw < (1u << 6); ++raw)
+        {
+            const std::vector<uint8_t> selection = DecodeLayoutOptions(raw, wide);
+            roundTrips = roundTrips && nazg::EncodeLayoutOptions(selection, wide) == raw;
+        }
+        Check(roundTrips, "every packed value decodes and encodes back to itself");
+
+        Check(nazg::EncodeLayoutOptions({ 9, 1, 3 }, wide) == ((1u << 3) | (1u << 2) | 3u),
+              "a choice too large for its bits is cut to them");
+        Check(nazg::EncodeLayoutOptions({ 4 }, wide) == (4u << 3), "a group with no choice is 0");
+    }
+
     void TestKeyVisibility()
     {
         std::printf("key visibility\n");
@@ -315,6 +340,14 @@ namespace
               "and with choice 1");
 
         Check(PlaceKeys(source, {}).size() == 11, "with no selection every key is kept, unmoved");
+
+        // What the Layout section draws on hover: one choice's keys, on choice 0's place.
+        const std::vector<DefinitionKey> first  = nazg::OptionKeys(source, 0, 0);
+        const std::vector<DefinitionKey> second = nazg::OptionKeys(source, 0, 1);
+        Check(first.size() == 2, "choice 0: its two keys");
+        const DefinitionKey* moved = FindPlaced(second, 2, 2);
+        Check(second.size() == 1 && moved != nullptr && moved->x == 1.5f && moved->y == 1.0f,
+              "choice 1: its key, moved as PlaceKeys() moves it, its decal left out");
     }
 }
 
@@ -326,6 +359,7 @@ int main()
     TestKeymapDecode();
     TestLayoutGroups();
     TestLayoutOptionDecoding();
+    TestLayoutOptionEncoding();
     TestKeyVisibility();
     TestBuildFromRealDefinition();
     TestPlaceKeys();

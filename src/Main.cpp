@@ -29,6 +29,7 @@
 #include "ui/NazgDefinitionPicker.h"
 #include "ui/NazgKeyboardList.h"
 #include "ui/NazgKeymapSection.h"
+#include "ui/NazgLayoutSection.h"
 #include "ui/NazgMatrixView.h"
 #include "ui/NazgPlaceholderSection.h"
 #include "ui/NazgSectionPlan.h"
@@ -1668,7 +1669,7 @@ int main(int, char**)
                 else if (boardState.keyboard && !boardState.isLoading)
                 {
                     // The sections of a board just loaded: every one it should have, from what the
-                    // load read (ui/NazgSectionPlan.h) -- Keymap built, the rest placeholders.
+                    // load read (ui/NazgSectionPlan.h) -- Keymap and Layout built, the rest placeholders.
                     if (boardState.sections.empty())
                         for (nazg::PlannedSection& planned : nazg::PlanSections(*boardState.keyboard))
                         {
@@ -1676,6 +1677,9 @@ int main(int, char**)
                                 boardState.sections.push_back(std::make_unique<nazg::KeymapSection>(
                                     transport, boardState.path, *boardState.keyboard, settings.legends,
                                     settings.moveToNextKey, settings.advancedTools));
+                            else if (planned.kind == nazg::SectionKind::Layout)
+                                boardState.sections.push_back(std::make_unique<nazg::LayoutSection>(
+                                    transport, boardState.path, *boardState.keyboard, settings.legends));
                             else
                                 boardState.sections.push_back(
                                     std::make_unique<nazg::PlaceholderSection>(std::move(planned)));

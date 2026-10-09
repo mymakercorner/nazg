@@ -139,6 +139,10 @@ namespace nazg
         // know the value -- KeycodesVersion, for instance, needs protocol 13.
         [[nodiscard]] Task<uint32_t> GetKeyboardValue(ViaKeyboardValue value);
 
+        // 0x03: the value, big-endian from byte 2 as GetKeyboardValue() reads it. The board
+        // echoes the request; read the value back to know what it kept.
+        [[nodiscard]] Task<void> SetKeyboardValue(ViaKeyboardValue value, uint32_t data);
+
         // 0x11 / 0x04 / 0x05. Layers, and one key at a time.
         [[nodiscard]] Task<uint8_t>  GetLayerCount();
         [[nodiscard]] Task<uint16_t> GetKeycode(uint8_t layer, uint8_t row, uint8_t column);

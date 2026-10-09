@@ -164,6 +164,32 @@ namespace nazg
         return selection;
     }
 
+    uint32_t EncodeLayoutOptions(const std::vector<uint8_t>& selection, const std::vector<LayoutOptionGroup>& groups)
+    {
+        // The first group in the most significant bits: each group shifts the ones before it up.
+        uint32_t raw = 0;
+        for (size_t i = 0; i < groups.size(); ++i)
+        {
+            const uint32_t bits   = BitsForGroup(groups[i].Count());
+            const uint32_t choice = i < selection.size() ? selection[i] : 0u;
+            raw                   = (raw << bits) | (choice & ((1u << bits) - 1u));
+        }
+        return raw;
+    }
+
+    std::vector<DefinitionKey> OptionKeys(const KeyboardDefinition& definition, size_t group, uint8_t choice)
+    {
+        // Every group before it at choice 0, so PlaceKeys() moves this one only.
+        std::vector<uint8_t> selection(group + 1, 0);
+        selection[group] = choice;
+
+        std::vector<DefinitionKey> keys;
+        for (const DefinitionKey& key : PlaceKeys(definition, selection))
+            if (key.layoutIndex == static_cast<int>(group) && !key.decal)
+                keys.push_back(key);
+        return keys;
+    }
+
     std::vector<DefinitionKey> PlaceKeys(const KeyboardDefinition& definition, const std::vector<uint8_t>& selection)
     {
         // One shift per group: from the selected choice's pivot to choice 0's.
