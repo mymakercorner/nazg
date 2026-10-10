@@ -69,7 +69,9 @@ the count coming from the firmware's EEPROM. Each has **Save** and **Revert** �
 keymap, these are not written until saved.
 
 - Macros: actions Text, Tap, Down, Up, Delay, reorderable; **Add action**, **Tap Enter**,
-  **Record macro**; memory use shown.
+  **Record macro**; memory use shown. Drawn beside VIA's with the same example macros, from
+  both apps' source, in [ui-design/macro-editors-vial-via.html](ui-design/macro-editors-vial-via.html);
+  what a macro can hold is in via-vial-commands.md, "Macros — the buffer and its byte format".
 - Tap Dance: On tap · On hold · On double tap · On tap + hold, plus tapping term.
 - Combos: up to four keys and an output.
 - QMK Settings: groups (Magic, Grave Escape, Tap-hold, Auto Shift, Combos, One Shot Keys,

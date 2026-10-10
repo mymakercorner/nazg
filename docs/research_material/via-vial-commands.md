@@ -317,6 +317,61 @@ support from version 6.
 
 ---
 
+## Macros — the buffer and its byte format
+
+Read 2026-10-10 in mainline QMK (`quantum/dynamic_keymap.c`, `quantum/send_string/send_string.c`,
+`quantum/via.c`, Rico's fork at 2026-09-19) and vial-qmk (`quantum/dynamic_keymap.c`,
+`quantum/vial.c`, Rico's fork at 2026-08-23), with vial-gui's `protocol/macro.py` and
+`macro/macro_action.py` and the VIA app's `utils/macro-api/` as readers of the same bytes.
+
+**One buffer, every macro in it.** `id_dynamic_keymap_macro_get_buffer_size` is whatever EEPROM
+the keymap (and on Vial, tap dance, combos and key overrides) leaves — a static assert demands at
+least 100 bytes. `get_count` is `DYNAMIC_KEYMAP_MACRO_COUNT`, 16 unless the board sets it; the
+keycodes `QK_MACRO_0..127` (`0x7700..0x777F`) allow 128 since VIA protocol 12, where 11 had
+VIA's own `MACRO00..15`. Macro *n* is the *n*-th NUL-terminated
+string: one long macro takes room from all the others, and a client rewrites the whole buffer.
+
+**Playing one** (`QK_MACRO_n` pressed — on press only, nothing on release, no repeat while held)
+walks the string. A plain byte is a character, typed through `ascii_to_keycode_lut[128]`: a
+**US layout** table unless the firmware was built with a `keymap_extras/sendstring_<lang>.h`,
+which no client can see. Bytes ≥ 0x80 index past the table — non-ASCII text is garbage, though
+vial-gui writes its text as UTF-8. `\n`, `\t`, `\b` and ESC are Enter, Tab, Backspace and Escape.
+**Playback blocks the firmware**: delays are `wait_ms`, so the keyboard scans nothing until the
+macro ends.
+
+`0x01` (`SS_QMK_PREFIX`) introduces an action:
+
+| Bytes | Action | Mainline QMK | vial-qmk |
+|---|---|---|---|
+| `01 01 kc` | tap | `tap_code(kc)` — 8-bit, basic keycodes only | same |
+| `01 02 kc` / `01 03 kc` | down / up | `register_code` / `unregister_code`, 8-bit | same |
+| `01 04 …` | delay | **ASCII digits, ended by `\|`**: `01 04 '1' '0' '0' '\|'` is 100 ms; the VIA app caps it at 9999 | **two bytes** `d0 d1`, ms = `(d0-1) + (d1-1)*255`, up to 65 024; vial-gui caps it at 64 000 |
+| `01 05 lo hi` / `06` / `07` | tap / down / up, 16-bit | — | any keycode, run through `action_exec` like a key press — modified keys, layer keys, even `QK_BOOT` or another macro; a low byte of 0 is sent as `FF hi` |
+
+**The two delay encodings are incompatible**: a VIA-written delay on a Vial board is read as two
+wrong bytes, and the reverse stops at the first non-digit. The format is chosen by protocol:
+
+| Board | Format |
+|---|---|
+| Vial protocol ≥ 5 | prefixed, Vial delays, 16-bit actions |
+| Vial protocol 2–4 | prefixed, Vial delays, 8-bit actions only |
+| Vial protocol 0–1 | **unprefixed**: `01 kc` tap, `02 kc` down, `03 kc` up, no delay |
+| VIA protocol ≥ 11 | prefixed, ASCII delays, 8-bit actions |
+| VIA protocol ≤ 10 | unprefixed, as Vial 0–1 — what the VIA app writes; QMK firmware since #8244 (2020-02) reads the prefixed form, so an old-protocol board with newer firmware may disagree |
+
+**An interrupted write.** Playback refuses to run anything while the buffer's last byte is not 0.
+The VIA app sets that byte to `0xFF` before writing and clears it last, so a write cut short
+disables macros rather than playing half of one; vial-gui writes in order without the guard.
+
+**Locking.** vial-qmk refuses `macro_set_buffer` while locked (see "What the lock gates") but
+**not `macro_reset`**, which zeroes the buffer unlocked. Mainline VIA gates neither.
+
+**Not the same feature: QMK's Dynamic Macros** (`DM_REC1`, `DM_REC2`, `DM_RSTP`, `DM_PLY1`,
+`DM_PLY2`) record keystrokes on the keyboard itself into RAM — lost at power off, invisible to
+any client. A configurator only places their keys.
+
+---
+
 ## Implications for the Nazg backend
 
 1. **One backend, a Vial branch — confirmed at the wire level.** Vial reuses VIA's keymap,
