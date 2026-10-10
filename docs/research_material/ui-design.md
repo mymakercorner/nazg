@@ -1426,7 +1426,8 @@ drawn today and once read. A TD(n) key is drawn from its slot:
 
 - **A tap and a hold: as a tap-hold** (decided 2026-10-03, "Short forms and command keys") -- tap
   Space, hold L1 is drawn exactly as LT(1, KC_SPC); the hold one line, in the colour of what it does,
-  so Boot held behind Esc shows red, Ctrl+C held is Host's.
+  so Boot held behind Esc shows red, Ctrl+C held is Host's. A Shift chord held reads the same way:
+  tap A, hold Shift+A -- "Shift+A" over A (open point below).
 - **A tap without a hold: the tap under a "Dance" header** (Rico) -- what a press types, the violet
   header and band saying the key waits for a second tap. A tap that is a command keeps its own
   header; "Dance" then takes the hold's place, top right. Set aside: "Dance / TD n" unchanged, and
@@ -1719,6 +1720,10 @@ Studio backend needs anyway. Flashing, QMK Toolbox's other job, is not part of t
 column, row labels on rows that share a line, the matrix view's layout options -- wait until the
 look is built** (Rico, 2026-10-03): they are judged on the real thing, not on a mockup.
 
+- **A tap dance holding a Shift chord** (Rico, 2026-10-10, on the Model F: tap A, hold Shift+A) --
+  drawn "Shift+A" over A, as any shortcut held. Kept for now, Rico not sure it is right. The other
+  choice: a Shift-only hold shows the character it types ("!" for Shift+1), letters staying
+  "Shift+A".
 - **Plugin delivery** — see "Plugins".
 - **Hotplug** -- checked 2026-09-26:
   - **hidapi has none, pinned or released.** 0.15.0 has no hotplug API, nor does upstream
