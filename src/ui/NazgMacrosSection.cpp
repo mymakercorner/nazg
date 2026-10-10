@@ -192,6 +192,7 @@ namespace nazg
         {
             strip.entries.push_back("M" + std::to_string(macro));
             strip.changed.push_back(IsChanged(macro));
+            strip.empty.push_back(m_IsLoaded && macro < m_Macros.size() && m_Macros[macro].empty());
         }
         strip.chosen = m_Macro;
         return strip;

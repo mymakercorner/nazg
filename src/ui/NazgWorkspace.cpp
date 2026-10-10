@@ -8,6 +8,7 @@
 #include <cmath>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "imgui.h"
 #include "imgui_internal.h"   // RenderTextEllipsis(), to cut a section's name
@@ -261,6 +262,46 @@ namespace nazg
             DrawColumnEdge(layout, left, ImGui::GetItemRectSize().y);
         }
 
+        // A rounded rectangle outlined in dashes, which ImGui does not draw: its outline as ImGui
+        // paths it, then every other stretch of it.
+        void DrawDashedRect(ImVec2 p0, ImVec2 p1, float rounding, ImU32 colour, float thickness)
+        {
+            ImDrawList* list = ImGui::GetWindowDrawList();
+            const float scale = ImGui::GetStyle().FontScaleDpi;
+            const float dash  = 4.0f * scale, gap = 3.0f * scale;
+
+            const ImVec2 inset(thickness / 2, thickness / 2);
+            list->PathRect(ImVec2(p0.x + inset.x, p0.y + inset.y), ImVec2(p1.x - inset.x, p1.y - inset.y), rounding);
+            std::vector<ImVec2> outline(list->_Path.Data, list->_Path.Data + list->_Path.Size);
+            list->PathClear();
+            if (outline.empty())
+                return;
+            outline.push_back(outline.front());
+
+            float along = 0.0f;   // into the current dash and gap
+            for (size_t index = 0; index + 1 < outline.size(); ++index)
+            {
+                const ImVec2 a = outline[index], b = outline[index + 1];
+                const float  length = std::sqrt((b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y));
+                float        done   = 0.0f;
+                while (done < length)
+                {
+                    const bool  drawing = along < dash;
+                    const float step    = std::min(length - done, drawing ? dash - along : dash + gap - along);
+                    if (drawing && step > 0.0f)
+                    {
+                        const float t0 = done / length, t1 = (done + step) / length;
+                        list->AddLine(ImVec2(a.x + (b.x - a.x) * t0, a.y + (b.y - a.y) * t0),
+                                      ImVec2(a.x + (b.x - a.x) * t1, a.y + (b.y - a.y) * t1), colour, thickness);
+                    }
+                    done += step;
+                    along += step;
+                    if (along >= dash + gap)
+                        along = 0.0f;
+                }
+            }
+        }
+
         // A strip is always one row (ui-design.md, "Sections, and the strip that belongs to them"):
         // when its entries do not fit, it scrolls sideways -- the mouse wheel over it, or the arrows
         // at its ends, shown only then -- keeping the chosen entry in view, a fade on the side with
@@ -327,11 +368,26 @@ namespace nazg
                 ImGui::PushID(static_cast<int>(index));
 
                 const bool isChosen = index == strip.chosen;
+                const bool isEmpty  = !isChosen && index < strip.empty.size() && strip.empty[index];
                 if (isChosen)
                     ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+                if (isEmpty)
+                {
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+                    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
+                }
 
                 if (ImGui::Button(strip.entries[index].c_str(), ImVec2(widths[index], 0.0f)) && !isChosen)
                     section.OnStripChosen(index);
+
+                if (isEmpty)
+                {
+                    ImGui::PopStyleVar();
+                    ImGui::PopStyleColor(2);
+                    DrawDashedRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), style.FrameRounding,
+                                   ImGui::GetColorU32(ImGuiCol_Border), std::max(1.0f, style.FrameBorderSize));
+                }
 
                 // Changes not written yet: a dot on the top right corner, as in the mockup.
                 if (index < strip.changed.size() && strip.changed[index])

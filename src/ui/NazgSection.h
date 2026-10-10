@@ -41,9 +41,13 @@ namespace nazg
         std::vector<std::string> entries;   // none: the strip is absent
         size_t                   chosen = 0;
 
-        // Entries holding changes not written to the board yet: a dot in their corner, in the
+        // Entries holding changes not written to the board yet: a dot on their corner, in the
         // warning's colour -- Macros' unsaved slots. Shorter than `entries`: the rest are not.
         std::vector<bool> changed;
+
+        // Entries holding nothing -- an empty macro slot: outlined dashed, unfilled, their words
+        // muted, unless chosen. Shorter than `entries`: the rest are not.
+        std::vector<bool> empty;
     };
 
     // The column's groups (ui-design.md, "Nazg's sections, then the board's menus"): the sections
