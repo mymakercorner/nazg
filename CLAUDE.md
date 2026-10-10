@@ -7,267 +7,83 @@ Name: Black Speech for "ring" (*ash nazg durbatulûk*). Tagline: *one keyboard c
 
 # Status
 
-Early development. The design phase is finished (see below) and the pipeline runs end to end:
-CMake build, SDL3 + ImGui window, `Task<T>` coroutines, a HID transport offering
-enumerate / open / request / close, and the protocol layer on top of it — the VIA command
-set in `adapters/via`, with the Vial branch deriving from it in `adapters/vial`. Protocol
-code talks to a `DeviceChannel` rather than the transport, so it is testable with scripted
-bytes; five CTest executables cover `Task<T>`, the transport and both protocol halves.
+Early development, design phase finished: VIA and Vial boards load, draw and edit end to end.
+Details live in the code's header comments, [ui-design.md](docs/research_material/ui-design.md)
+(every screen and section, with Rico's decisions) and the git history -- this section says what
+exists, where, and how far it has been proven.
 
-Verified against real hardware (see the VIA half of the adapter reading a keymap off The
-Aquanaut). **The Vial-specific half is tested only against scripted bytes** — detection, the
-paged definition download, entry counts, unlock status and encoders have never met a
-vial-qmk board.
+## What is built
 
-The keyboard definition decodes end to end. The JSON parser is **shared**: the document
-Vial embeds IS a VIA keyboard definition, so `adapters/via/NazgKeyboardDefinition.*` parses
-it for both and only the sourcing differs -- Vial inflates XZ off the device
-(`adapters/vial/NazgVialDefinition.*`), VIA will fetch it from a registry or a file.
-Verified against a Model F Labs B104 -- 704 bytes compressed, 129 keys -- whose real
-definition is the fixture in `tests/ModelFDefinition.h`.
+- **Pipeline.** `Task<T>` coroutines, a hidapi transport (`transport/`), the VIA command set
+  (`adapters/via`) with the Vial branch deriving from it (`adapters/vial`). Protocol code talks to
+  a `DeviceChannel`, so it tests with scripted bytes; the tests are plain CTest executables in `tests/`.
+- **Definitions.** One parser for both protocols (`adapters/via/NazgKeyboardDefinition.*`) --
+  Vial's embedded document IS a VIA definition, inflated from XZ (`adapters/NazgXz.*`). Both
+  forms: KLE source and VIA's converted `layouts.keys`. Layout options placed by `PlaceKeys()`
+  with VIA's pivot rule; KLE rotation drawn.
+- **Model.** A board loads into a plain `Keyboard` (`model/NazgKeyboard.h`) with a `BoardReport`
+  of what it supports. `Keycode` (`model/NazgKeycode.h`) is a variant; `adapters/qmk/` encodes
+  and decodes every QMK keycode version 0.0.1-0.0.9 plus the two pre-renumbering `Legacy` ones,
+  round trip exact. A full Vial load is ~65 round trips, 890 ms on the Model F -- nothing above
+  the transport may block the frame loop.
+- **VIA definition sourcing.** VIA's registry ships as a pinned bundle (`tools/update_via_bundle.py`,
+  read by `adapters/via/NazgViaBundle.*`: inflated once at start, ~40 ms, 28 MB kept). User
+  definitions live in a library (`library/`) in the data folder
+  `SDL_GetPrefPath("mymakercorner", "Nazg")`, beside `imgui.ini`. Several candidates for a board:
+  Nazg asks once and remembers the choice per device (via-registry.md).
+- **Workspace.** One window: a menu bar header (board menu, protocol, Vial lock, Settings), then
+  the keyboard list, the open board or Settings. Screens report clicks; `Main.cpp` acts. *Advanced tools*, off by default,
+  shows designer and debugging tools only. The board
+  screen is a section column, a strip, the board and a panel (`ui/NazgWorkspace.*`).
+- **Board look** (ui-design.md, "How the board's look is built"): steps 1-4 and part of 5 --
+  key shapes, themes, Arimo legends for 69 host layouts, command keys with category headers and
+  bands, colours from `ui/NazgPalette.*`, fallthrough marks ▽ ✕. `legend_font` and `palette`
+  tests check every keycode and theme.
+- **Sections** (`ui/NazgSection.h`; the column planned by `PlanSections()`):
+  - **Keymap** -- edit one key, written and read back; the keycode picker (tabs, search, 1u
+    tiles, the key line with the Any entry and When held / Sent with).
+  - **Layout** -- option groups, written at once.
+  - **Macros** -- a chain edited in place, text typed with the host layout, Save / Revert.
+  - **Tap Dance** -- four actions with gesture drawings and fallbacks, Save / Revert.
+  - **Matrix view** (Tools, with *Advanced tools* on) -- wiring and a live test.
+  - Every other planned section is a `PlaceholderSection`.
+  - Shared panel parts: `ui/NazgKeycodePicker.*`, `ui/NazgKeyLine.*` (Sent with and its popup).
 
-A whole board now loads into a plain `Keyboard` value (`model/NazgKeyboard.h`): geometry,
-layer count, layout options and a flat `Keymap` addressed by `At(layer, row, column)`.
-`LoadVialKeyboard()` is the only coroutine above the protocol -- everything it feeds is
-pure synchronous code, so the model tests with literals. Measured on the Model F: **890 ms**
-for the ~65 round trips a full load costs, which is why none of it can block the frame loop.
+## Proven on hardware, and not
 
-Keycodes have a model of their own: `Keycode` (`model/NazgKeycode.h`) is a variant --
-named key, modified key, mod-tap, layer-tap, layer action, macro, tap dance, unknown -- and
-`adapters/qmk/` turns a QMK board's 16-bit values into it and back, per QMK keycode version,
-from a committed table of every keycode 0.0.1 to 0.0.9. The round trip is exact for every
-value in every version.
+Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make the writes),
+**Aquanaut** (VIA 12, definition in Rico's QMK fork), **Phoenix Project No 1** (VIA registry),
+**Concordia** (VIA).
 
-The keymap holds `Keycode`, never a raw value: `adapters/via/NazgViaKeymap.*` decodes the
-keymap buffer for the board's keycode version, which the Vial loader picks from the Vial
-protocol (6 -> 0.0.7) and records in `Keyboard::keycodeVersion` for writing back. Verified on
-the Model F 2026-09-23: all three layers decode to named keycodes -- including `HF_TOGG`,
-`HF_DWLD`, `HF_DWLU` on layer 2 -- with no unknown values, and every one encodes back.
+| Seen working | Never met real hardware |
+|---|---|
+| Vial and VIA loads, keymap decode, one-key edit (Model F, Aquanaut) | Vial unlock and lock -- the Model F is `VIAL_INSECURE` |
+| All 2029 VIA V3 definitions parse and draw as VIA does (test) | The matrix live test reading keys -- stock firmware answers zeroes |
+| Official bundle, user library, choice (Phoenix) | Rotated keys on a real board (a forged definition only) |
+| Picker, board look, matrix wiring (Model F, Concordia) | Pre-renumbering keycodes (`Legacy`) |
+| Macros: save and read-back (Concordia), creation on a Leyden Jar board | A Vial board playing a macro; locked-board writes |
+| Tap Dance (Model F) | `QueryQmkSettings()`; lighting hover notes |
 
-The board draws: "Open" on a raw-HID row of the device list loads it through the Vial loader,
-and the Keymap section shows it (see "Sections" below). **The board's look is being built** from
-ui-design.md, "How the board's look is built", in five steps. Step 1 is done (2026-10-03,
-verified by Rico): one contour per key (`ui/NazgKeyShape.*`, pure, tested -- an ISO Enter is one
-outline), the plate, Outlined or Bottom lip keycaps, colour classes from the base layer's
-keycodes (`KeycapClassOf()`), Light / Dark / Dracula themes for the board and the window, the
-9 px text floor with sideways scrolling, and the settings for all of it plus the legend style
-(Cylindrical / Spherical, not used until step 3). Step 2 too: legends are set in Arimo, with Noto
-Sans Arabic, Math and Symbols 2 merged behind -- committed in `resources/fonts/` with their OFL
-licences and a README of sources and coverage, copied beside the executable by the build; the
-interface keeps a system font. Step 3, the standard keys' legends, is done (2026-10-03, verified by
-Rico: "it works and it is gorgeous"). A key's legends are a variant (`BoardKey::legends`): *keycap
-legends* -- what the key is, `ui/NazgKeycapLegend.*`, filled by `DescribeLegends()` -- or the twelve
-*slot legends*. Three layers: content (`ui/NazgKeycapLegend.*`: the host layout -- plain + Shift +
-AltGr, Bépo's fourth level, 69 layouts from QMK's keymap extras in `ui/NazgHostLayoutTable.cpp` --
-the legend set's words and placement classes, modifier names by a new *Modifier names* setting,
-default from `SDL_GetPlatform()`, and by the key's side of the space bar, `SideLine()`), layout
-(`ui/NazgKeycapLayout.*`, pure: both families, never scaled -- one line, two, short form, cut --
-drawn arrows, ink offsets, numpad second legends, a header top right) and drawing (`NazgBoardView`,
-through `ui/NazgLegendFont.*`'s ImGui measurer). The `legend_font` test loads Arimo through ImGui's
-core and lays out every standard keycode and every layout's characters on 1u at every size: none
-cut, overlapping or leaving the face. Legends are UTF-8 (`/utf-8` on MSVC). Step 4, the command
-keys, is done (2026-10-03, checked by Rico on the Model F): a header over a main legend, a band,
-both in one of four category colours (ui-design.md, "Step 4 as built"). Words from the command table
-`ui/NazgCommandTable.cpp`, written from short-forms.md; a key carries a `hold` and a `header`, each
-with its category, the band the hold's else the header's; lighting headers by the board's systems
-(`LightingSystemsOf()`: Vial's or VIA V2's `lighting`, VIA V3's `keycodes` and `menus`, which the
-parser now keeps, LM_* keys). Colours are pure code in `ui/NazgPalette.*` -- the theme tables, moved
-out of `NazgTheme.cpp`, and the category solver -- checked by the `palette` test over every theme,
-keycap class and category, and under simulated colour blindness, where Dark's slate accent caps and
-Dracula's alphas fall short -- accepted by Rico 2026-10-04: the header's words carry the category,
-colour is a second cue (ui-design.md, "Settled: accepted as they are"). `legend_font` lays out every keycode, the
-parameterised ones and long holds on 1u: none cut, none overlapping. Step 5 in part (2026-10-04,
-verified by Rico): a transparent or `KC_NO` key shows the keycode below it, faint, with a small ▽
-or ✕ in the corner -- `ResolveKey()` walks down the layers (`ui/NazgBoardDescription.*`, tested),
-`BoardKey::fallthrough` says which, hover names the layer; the strike line was dropped, and the
-marks are small (an open point). Peek is the layer itself: hovering a layer in the strip shows
-it until the mouse leaves (`Section::OnStripHovered()`); second legends were built and dropped,
-they collided. Nazg remembers its window's place in `imgui.ini`. The lighting policy is done
-(2026-10-09): the state (`LightingFirmwareOf()`) chooses what the picker offers, and hover says
-when a lighting key may do nothing on the firmware, or drives two systems (`LightingNoteOf()`);
-with *Advanced tools* on, the picker lists every lighting key, the doubtful ones faint.
+## Traps already found
 
-One key can be edited: click it, pick a keycode, and `WriteKeycode()`
-(`adapters/via/NazgViaKeymap.h`) encodes it for the board's version, sets it, reads the cell
-back and returns what the board really stored -- the read-back is what exposes Vial's keycode
-firewall. **The keycode picker is built** (2026-10-04, seen working by Rico) from ui-design.md,
-"The keycode picker", and its mockup `docs/research_material/ui-design/picker-look.html`: a key
-line (the Any entry, read by `adapters/qmk/NazgQmkExpression.*`, and the When held / Sent with
-composer), category tabs with one search, 1u tiles drawn as the board's keys (`LayOutTile()`,
-checked in `legend_font`), what each tab holds in `ui/NazgKeycodeCatalogue.*` (pure, tested --
-from what the board can store and reports: `BoardReport`, read by `ReadBoardReport()` after a
-load, and `LightingFirmwareOf()`, the lighting policy's state), a remembered splitter
-(`WorkspaceLayout`), and the "move to the next key" preference in Settings, off by default.
-A definition's `customKeycodes` now name QK_KB_n keys. With it: MIDI, steno and the sequencer
-in Host's colour, user keys in Board's, and Shift alone drawn as any modifier, "Shift+" over "! 1".
+- **No board is opened while protocols are being probed**: HID gives every open handle a copy of
+  each reply, and the transport drains leftovers only at open.
+- A Vial board's keycode version comes from its **Vial** protocol (vial-qmk always reports VIA 9); a VIA board's from its VIA protocol
+  (`adapters/via/NazgViaLoader.*`, keycodes.md).
+- Vial replies overwrite the buffer and echo unsupported commands: see via-vial-commands.md.
 
-**Sections** -- ui-design.md's contract, begun 2026-09-26. A board's screen is filled by
-sections (`ui/NazgSection.h`): each gives its strip entries, what the board shows, its panel,
-and later its match rule. A section says what each key *means* -- legends at KLE's twelve
-positions, a fill by meaning, marks for states, lines, edge labels, hover both ways
-(`ui/NazgBoardDescription.h`, pure, in `nazg_core`) -- and `ui/NazgBoardView.*` decides how it
-looks, with every colour in `ui/NazgTheme.*` (the panels' four named colours included).
-`ui/NazgWorkspace.*` lays out the column (hidden with one section), strip, board and panel.
-`ui/NazgKeymapSection.*` is the first
-implementation: layers in the strip, the write-and-read-back in its own coroutine. **The column
-is built** (2026-10-09, from ui-design.md's open points and the mockups `section-column.html`,
-`section-icons.html`): every section a board should have, in two groups -- Nazg's, headed VIA or
-Vial, then the definition's custom menus, headed Board -- each with its Tabler icon
-(`ui/NazgIcons.h`, code points of `resources/fonts/tabler-icons.ttf`, Tabler 3.47.0, loaded as
-its own ImFont) or a monogram; resizable by its edge, 120-200 px, folding to icons only below
-100 px or on a double-click, the width in `imgui.ini`. Which sections: `PlanSections()`
-(`ui/NazgSectionPlan.*`, pure, tested), from the definition -- layout options, lighting, VIA V3's
-`qmk_audio` and custom menus, whose labels and sub-section labels the parser now keeps -- and the
-board report, which now has combo and key override counts and a QMK settings query
-(`QueryQmkSettings()`, tested on scripted bytes only). Keymap is built, and **Layout**
-(2026-10-09, ui-design.md "The Layout section", mockup `layout-section.html`; `ui/NazgLayoutSection.*`):
-one line per option group -- checkbox or combo -- hovering an option drawing its keys in a tooltip
-(`OptionKeys()`), the board changing only once a choice is written -- at once, with
-`SetKeyboardValue()` and read back (`EncodeLayoutOptions()`, tested). Every other section is a
-`PlaceholderSection` saying "Not built yet", a custom menu's listing its sections. So the match
-rule is the plan, for now. **Macros is built** (2026-10-10; ui-design.md "The Macros section",
-mockup `macros-section.html`, the byte formats in via-vial-commands.md) -- **not yet run against a
-board**: `ui/NazgMacrosSection.*` draws the macro as a chain edited in place over Keymap's picker,
-press / release as steps of their own, Save / Revert, and Main asks Save / Discard before the board
-is left or Nazg quits with macros unwritten. Below it, all tested on scripted bytes: the buffer's
-four formats and its guarded write (`adapters/via/NazgViaMacro.*`), text typed with the host layout
--- dead keys composing, every character of 69 layouts read back (`ui/NazgHostTyping.*`, the
-layout table's new dead masks) -- and steps to actions and back (`ui/NazgMacroSteps.*`). Every
-strip is now one row, scrolling sideways with arrows when it overflows. **Tap Dance is built**
-(2026-10-10; ui-design.md "The Tap Dance section", mockup `tap-dance-section.html`) -- **seen working
-by Rico on the Model F** the same day: `ui/NazgTapDanceSection.*` shows a slot's four actions side by side, each with a
-drawing of its gesture, an empty one its fallback faint, the tapping term, a line saying when the
-tap is sent, Keymap's picker, Save / Revert. What the firmware does is `model/NazgTapDance.*` (pure,
-tested); `VialProtocol::GetTapDance()` / `SetTapDance()`, also tested on scripted bytes. Keymap does
-not yet draw a tap dance as a tap-hold. The Leyden Jar diagnostics, planned as
-the second, are **deferred far later** (Rico, 2026-09-26: they bring many design questions).
-Already decided for them: the device stays open while a view polls, and key output is disabled
-while they show -- RAM only on the firmware, so every close and exit path must enable it again.
+## Open, deferred, under review
 
-**The workspace frame** replaced the three floating first-draft windows (2026-09-26): one
-window filling SDL's, its menu bar the header -- the board's name is the board menu (Switch to,
-Change definition... / Forget choice, Advanced, All keyboards), the protocol, and
-Settings on the right. **Advanced** -- Export definition... -- appears only
-with the *Advanced tools* setting on, off by default and saved in `imgui.ini` (2026-09-29, Rico:
-designer and debugging tools stay out of an ordinary user's way). Under it, one of three screens: the keyboard list
-(`ui/NazgKeyboardList.*`: each keyboard's protocol, probed after enumeration, "Show all HID
-devices" off at every start), the open board (sections, or the definition picker), or settings
-(`ui/NazgSettingsScreen.*`: host layout, official and user definitions, advanced tools, about). A lone keyboard
-at start is opened directly. The screens only report clicks; `Main.cpp` acts on them. **No
-board is opened while protocols are being probed**: HID gives every open handle a copy of each
-reply, and the transport drains leftovers only at open. The header shows a Vial board's lock
-state, read once on load, and clicking it unlocks (`ui/NazgVialUnlock.*`: the combo outlined on
-the board, a poll every 150 ms) or locks again. **Untested on hardware** -- no secure-mode
-Vial firmware at hand; the Model F is `VIAL_INSECURE` and shows no lock. Not done: noticing an unplugged board -- the
-list needs Refresh (hotplug, deferred: ui-design.md, "Open points").
+- **Under review**: the user library's one-version backup ("Restore previous") -- Rico weighs its
+  value against its complexity. "Export definition..." is for debugging only.
+- **Not done**: Keymap drawing a tap dance with a tap and a hold as a tap-hold; noticing an
+  unplugged board (hotplug); the rest of step 5 of the board look.
+- **Deferred**: the Leyden Jar diagnostics (far later -- already decided: the device stays open
+  while a view polls, and key output is disabled while they show, RAM only, so every close and
+  exit path must enable it again); library export / import (a web-build need).
 
-**The matrix view** (2026-09-29), a section in the column's Tools group while *Advanced tools* is on
-(2026-10-09; it was the board menu's Advanced > "Show matrix..." before): the structure only,
-from the definition. `ui/NazgMatrixDescription.*` (pure, tested) fills the board through the
-section contract -- rulers, the row and column in focus lit in two colours
-(`Mark::HighlightedSecond` was added for it), their keys joined by the shortest links rather
-than in number order, which zigzagged on the Model F -- and `ui/NazgMatrixView.*` is the
-`Section`, its live test stopped by `WhileHidden()` once another section shows. It draws the board's layout
-choice only. Verified by Rico on the Model F and a VIA board, the Concordia.
-
-**The live test** (2026-09-29), the matrix view's strip *Wiring | Live test*: a view of its own
--- no hover, no wiring -- where keys turn green once seen and ruler labels once their whole row
-or column is. `ViaProtocol::GetSwitchMatrixState()` reads both reply layouts (paged: VIA 12+;
-whole: older VIA and every vial-qmk -- via-vial-commands.md); the view keeps the board open,
-polls every 20 ms, and keyboard navigation is off meanwhile, since the board under test types
-into Nazg. A Vial board is asked its lock first. **Untested on hardware** -- only the view was
-seen, on the Concordia, whose stock firmware answers all zeroes: mainline VIA sends the matrix
-only with `VIA_INSECURE = yes` in `rules.mk`, or `SECURE_ENABLE` and unlocked, both off by
-default.
-
-**What the definition says about its matrix** (2026-09-29; ui-design.md, the section of that
-name): reported in the matrix view's panel, never refused. Keys sharing a position are a fact
--- switches in parallel, legitimate (Rico) -- so `MatrixCounts::keysAt` lists them all; keys
-drawn exactly on top of each other are a note, keys outside the matrix a warning, both from
-`FindInDefinition()` (pure, tested). A key outside the matrix is left out of the live test's
-count, and the Keymap section no longer selects one: the keymap has no cell for it, and
-selecting it read past the end.
-
-VIA boards load too: `adapters/via/NazgViaLoader.*` takes the definition from the caller and
-picks the keycode version from the protocol (13+: asked with `id_keycodes_version`; 12 ->
-0.0.8; 11 -> 0.0.1; 10 -> LegacyVia10; <=9 -> Legacy). Sourcing is a
-first draft -- "Load VIA definition..." (SDL's file dialog) in the device list, paths saved
-in `imgui.ini`, matched to a board by VID:PID. Verified on the Aquanaut 2026-09-23 with its
-`via.json` from Rico's QMK fork: 108 keys, 4 layers, 0.0.8, no unknown values.
-
-Keycodes from before QMK's renumbering are covered too: two `Legacy` versions in the same
-table, from the 316 keycodes VIA pinned with static asserts, differing only in how `TO(n)` is
-encoded (keycodes.md, "Before the renumbering"). Tested against scripted bytes only -- no
-pre-renumbering board is at hand.
-
-Definitions are read in both forms: the source (KLE `layouts.keymap`, what Vial embeds and
-vendors ship) and VIA's converted form (`layouts.keys` + `optionKeys`, what its registry
-serves). Layout options are placed by `PlaceKeys()` (`model/NazgKeyboard.h`) with VIA's pivot
-rule, decals counted. Verified 2026-09-24 against all 2029 of VIA's V3 definitions: every one
-parses, and every board draws the same from its source and from VIA's conversion, in every
-layout choice -- after fixing six KLE-parser bugs the comparison found (via-registry.md,
-"The converted-form entry"); the Model F and the Aquanaut still draw correctly on hardware.
-KLE rotation is drawn too -- 214 of those boards use it, ortho splits and Alice-style boards;
-angle and origin match VIA's for all of them. No rotated board is at hand, so it was verified
-in the app with the Aquanaut and a copy of its `via.json` with the bottom row turned 6°:
-drawing, hover and editing a tilted key all work.
-
-VIA's official definitions ship as one solid `.xz` of a tar -- 0.3 MB for all 3513 V2 and V3
-definitions, the source files of `the-via/keyboards` at a pinned commit -- built by
-`tools/update_via_bundle.py` (see "Build tooling" above). Its reader is
-`adapters/via/NazgViaBundle.*`: `ViaDefinitionBundle` inflates it once at start -- ~40 ms on a
-fast desktop, on the main thread -- keeps it (28 MB) and indexes every file, so a board's
-definition by VID:PID and protocol is a lookup. XZ decoding is shared with Vial's definitions
-in `adapters/NazgXz.*`. `Main.cpp` reads `via_definitions.tar.xz` from beside the executable
-and, when no user definition matches a VIA board, takes the official one from it; hovering
-the board's name says where the definition came from. Verified 2026-09-24 on Rico's
-**Phoenix Project No 1** (`0x21C0:0x9901`, in VIA's registry) with a bundle of VIA's converted
-files, then again with the source-form bundle; every definition of it parses, and is found by
-its ids, in the `via_bundle_contents` test.
-
-**User definitions** -- the ones the user imports, as opposed to the **official** ones in
-VIA's bundle; the UI says so in those words -- live in a library, `library/NazgDefinitionLibrary.*`,
-in Nazg's data folder `SDL_GetPrefPath("mymakercorner", "Nazg")` (`%APPDATA%\mymakercorner\Nazg`
-on Windows), all in one folder: `user_definitions/index.json` plus
-`user_definitions/<id>-r<revision>.json`, each stored byte for byte after it parses; the index is replaced whole by rename, orphans are cleaned on
-open, numbers are never reused, and an unreadable index is left untouched while the app runs
-without it. "Import VIA definition..." copies a file in. A VIA board's **candidates** are the user
-definitions for its VID:PID and the official one; with more than one, Nazg asks once and
-remembers the answer per device -- a **choice**, kept in the same index, keyed on VID:PID, HID
-strings, release number and serial, matched exactly first and then by VID:PID and strings alone
-(`library/NazgDefinitionChoice.*`; via-registry.md, "Choosing a definition on connect"). The
-picker (`ui/NazgDefinitionPicker.*`, a first draft) draws each candidate small; the board
-always says which definition draws it, with "Change definition..." and "Forget choice".
-Verified by Rico on the Phoenix 2026-09-25, with a forged ortho definition on its VID:PID
-beside the official one. `imgui.ini` -- window layout and Nazg's
-settings -- is in the data folder too, so every build and working directory shares it; the
-first run copies the working directory's one there. Paths older builds kept in `imgui.ini` are
-imported once and dropped. Verified by Rico 2026-09-24.
-
-A definition is **replaced**, never watched: "Re-import" on an entry reads its file again, and
-importing a file for the same VID:PID and name asks Replace or Keep both. A replacement keeps
-the entry's number -- so its choices follow and a board drawn with it reloads -- and keeps the
-version before as one backup, which "Restore previous" swaps back; a change in layout options
-is warned about. Nazg never polls files, and there are no linked entries -- both dropped with
-Rico 2026-09-25 (via-registry.md, "User definitions: a local library"). Verified by
-Rico on the Phoenix 2026-09-25 with edited versions of the forged ortho definition. **The
-backup is under review**: Rico will judge its real value against the complexity it adds before
-keeping it. "Export definition..." (board menu, Advanced) writes the definition drawing it back out,
-byte for byte as Nazg has it -- user, official or Vial -- **for investigation and debugging
-only** (Rico), not a user workflow. It is the only export: one in the library list was removed
-as redundant. Deferred:
-export/import of the whole library -- a web-build need (via-registry.md, "Storage").
-
-Next: **implementing the UI design**, replacing the first-draft screens -- the design was
-finished 2026-10-03 (chosen by Rico 2026-09-25): workspace, board look, legends and short forms,
-lighting keycodes. The workspace is decided in
-[docs/research_material/ui-design.md](docs/research_material/ui-design.md), with wireframes;
-the survey of Vial, VIA and ZMK Studio behind it is
-[docs/research_material/ui-inventory.md](docs/research_material/ui-inventory.md). Its first
-implementation step: the section contract as a C++ interface, Keymap and the Leyden Jar
-diagnostics compiled in -- Keymap done (see "Sections" above), the Leyden Jar deferred. Still
-open behind it: the rest of the library, layout options
-editing, step 5.
+**Next**: the placeholder sections, each researched, mocked up with variants, chosen by Rico,
+then built -- Combos, Key Overrides, Alt Repeat Key, QMK Settings, Lighting, Audio, custom menus.
 
 # Prior research — read before re-researching anything
 
