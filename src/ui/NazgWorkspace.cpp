@@ -290,6 +290,7 @@ namespace nazg
             ImGuiStorage* storage   = ImGui::GetStateStorage();
             const ImGuiID pendingId = ImGui::GetID("strip.pending");
             const ImGuiID chosenId  = ImGui::GetID("strip.chosen");
+            const ImGuiID scrollId  = ImGui::GetID("strip.scroll");   // read before the strip, written inside it
 
             const float available = ImGui::GetContentRegionAvail().x;
             const bool  overflows = total > available;
@@ -299,7 +300,7 @@ namespace nazg
             float scroll = 0.0f, scrollMax = 0.0f;
             if (overflows)
             {
-                const bool atStart = storage->GetFloat(ImGui::GetID("strip.scroll"), 0.0f) <= 0.5f;
+                const bool atStart = storage->GetFloat(scrollId, 0.0f) <= 0.5f;
                 ImGui::BeginDisabled(atStart);
                 if (ImGui::ArrowButton("##earlier", ImGuiDir_Left))
                     storage->SetFloat(pendingId, -(inside - 3 * minWidth));
@@ -345,7 +346,7 @@ namespace nazg
                 }
                 scroll    = ImGui::GetScrollX();
                 scrollMax = ImGui::GetScrollMaxX();
-                storage->SetFloat(ImGui::GetID("strip.scroll"), scroll);
+                storage->SetFloat(scrollId, scroll);
 
                 // The fades, from the window's own colour: there is more that way.
                 ImDrawList*  list  = ImGui::GetWindowDrawList();
