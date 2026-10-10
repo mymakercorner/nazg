@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- Mockup of the Macros section (ui-design.md, "Sections, and the strip that belongs to them"):
+     the slots M0..M15 in the strip, the selected macro in the panel.
+
+     First round (2026-10-10). Rico compared Vial's and VIA's editors
+     (macro-editors-vial-via.html): VIA's chain is more visual, and Vial's rows take the height
+     while leaving the width empty -- Nazg's panel is wide and short, so the chain, VIA's way.
+     Already decided: no macro names (the board stores none) and no macro contents on hover in
+     Keymap. VIA's chain only records; here it is edited: click a step to select it, click
+     between two steps to add there, and the keycode picker below gives the keys, as in Keymap.
+
+     Variants: how a held key looks (a bracket around what happens while it is held, or VIA's
+     press and release marks), whether the board stays drawn to show where the macro is, writing
+     at once or Save / Revert, a script line, and how text is stored -- the firmware's US table,
+     or the host layout's keys, which Nazg knows and neither app uses.
+
+     Settled 2026-10-10 (Rico), and opened on: press / release marks, the board shown, Save /
+     Revert, text stored as the host layout's keys (ui-design.md, "The Macros section"). The
+     script line is not chosen yet.
+
+     Second round, the same day. Rico: with every feature in the chain, the script needs no
+     editing -- it is a tooltip on the macro's name, read-only. Press and release are steps of
+     their own, as the board stores them, paired only for reading; a lone one is said.
+
+     Third round, the same day: one rule for text. The firmware's "characters" are keys of a US
+     layout in disguise, so text is shown as what it types with the host layout and stored as
+     whatever makes that layout type it -- one byte where the US table reaches the key, dead keys
+     composing accents (Rico: every character the host layout can type, on every layout Nazg
+     supports). The "Text stored as" toggle is gone. The layouts are QMK's extras for US, US
+     International, French, Bépo and German, generated with their dead keys.
+
+     The boards are real definitions, drawn with Nazg's placement rule: the Model F B104 (Vial 6,
+     Rico's board, its definition the one it serves) and ZX60 (VIA's registry, GPL-3.0), the
+     latter also as an older firmware on VIA protocol 10, which has no delays. Byte counts follow
+     via-vial-commands.md, "Macros -- the buffer and its byte format"; the buffer sizes are
+     examples, a board reports its own. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Macros section mockup</title>
+<style>
+:root{--window:#f3f3f5;--menubar:#e3e4e9;--text:#1d1e22;--muted:#6b6e78;--control:#ffffff;--border:#c8cad2;--accent:#3b82f6;--accent-text:#fff;--panel:#f8f8fa;--column:#ebecf0;--hover:rgba(0,0,0,.06);--selected:rgba(59,130,246,.16);
+--plate:#d3d4d8;--key:#ffffff;--keyline:#b4b7c2;--lit:#dbe7fb;--litline:#3b82f6;--ok:#15803d;--warn:#c2410c;--err:#dc2626;
+--host:#0891b2;--hostface:#e6f6fa;--textchip:#f1f5ef;--textline:#9bb48f;--waitchip:#fdf6e7;--waitline:#d6b56a;--hold:rgba(59,130,246,.07);--link:#9aa3b5}
+:root[data-theme="dark"]{--window:#0f0f11;--menubar:#24252b;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--accent:#4296fa;--accent-text:#fff;--panel:#16171b;--column:#16171b;--hover:rgba(255,255,255,.07);--selected:rgba(66,150,250,.22);
+--plate:#1c1d23;--key:#3a3c48;--keyline:#4b4e5c;--lit:#2a4a78;--litline:#4296fa;--ok:#4ade80;--warn:#fb923c;--err:#f87171;
+--host:#22d3ee;--hostface:#173a44;--textchip:#1d2a1b;--textline:#55704b;--waitchip:#2f2816;--waitline:#8a7135;--hold:rgba(66,150,250,.10);--link:#5b6275}
+*{box-sizing:border-box}
+body{margin:0;background:var(--window);color:var(--text);font-family:Arimo,"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+.controls{display:flex;flex-wrap:wrap;gap:8px 22px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.group .name{color:var(--muted);margin-right:4px}
+button{font:inherit;padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--control);color:var(--text);cursor:pointer}
+button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+button:disabled{opacity:.45;cursor:default}
+.stage{padding:16px;overflow-x:auto}
+.frame{margin:0 auto;width:1160px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--window);box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.menubar{display:flex;gap:18px;align-items:center;background:var(--menubar);padding:5px 14px}
+.menubar .board{font-weight:600}
+.muted{color:var(--muted)}
+.menubar .right{margin-left:auto;color:var(--muted)}
+.menubar .lock{color:var(--warn)}
+.body{display:flex;min-height:560px}
+.col{flex:none;width:180px;background:var(--column);border-right:1px solid var(--border);padding:6px 5px;display:flex;flex-direction:column;gap:2px}
+.entry{padding:7px 10px;border-radius:6px;color:var(--muted)}
+.entry.on{background:var(--selected);color:var(--text);box-shadow:inset 3px 0 0 var(--accent)}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;padding:10px 14px 14px;gap:10px}
+.strip{display:flex;gap:3px;flex-wrap:wrap;align-items:center}
+.strip button{padding:2px 0;width:40px;font-size:12px;position:relative}
+.strip button.empty:not(.on){color:var(--muted);border-style:dashed}
+.strip button .dot{position:absolute;top:-3px;right:-3px;width:7px;height:7px;border-radius:50%;background:var(--warn)}
+.boardarea{display:flex;justify-content:center}
+svg.board{display:block}
+.panel{border:1px solid var(--border);border-radius:6px;background:var(--panel)}
+.mline{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;padding:6px 12px;border-bottom:1px solid var(--border);min-height:41px}
+.mline .title{font-weight:700}
+.gauge{display:inline-flex;align-items:center;gap:7px;color:var(--muted);font-size:12px}
+.gauge .bar{width:120px;height:6px;border-radius:3px;background:var(--border);overflow:hidden;position:relative}
+.gauge .bar i{position:absolute;left:0;top:0;bottom:0;background:var(--accent)}
+.gauge .bar b{position:absolute;top:0;bottom:0;background:var(--muted);opacity:.55}
+.msg{font-size:12px}
+.msg .ok{color:var(--ok)} .msg .warn{color:var(--warn)} .msg .err{color:var(--err)}
+.mline .right{margin-left:auto;display:flex;gap:6px}
+.script{padding:6px 12px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center}
+.script input{flex:1;font:13px Consolas,"Cascadia Mono",monospace;padding:4px 7px;border:1px solid var(--border);border-radius:6px;background:var(--control);color:var(--text)}
+.chainarea{padding:14px 12px 8px;min-height:92px;position:relative}
+.chain{display:flex;flex-wrap:wrap;align-items:center;row-gap:28px;position:relative}
+svg.links{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+svg.links path{fill:none;stroke:var(--link);stroke-width:2}
+.chain.ro{opacity:.6;pointer-events:none}
+.ip{width:22px;height:46px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;position:relative;flex:none}
+.ip:before{content:"";position:absolute;left:0;right:0;top:50%;border-top:2px solid var(--link)}
+.ip.first:before,.ip.last:before{display:none}
+.ip span{position:relative;width:16px;height:16px;border-radius:50%;border:1px solid var(--border);background:var(--control);color:var(--muted);font-size:12px;line-height:14px;text-align:center;opacity:0}
+.ip:hover span{opacity:1}
+.ip.caret span{opacity:1;background:var(--accent);border-color:var(--accent);color:#fff}
+.ip.caret:after{content:"";position:absolute;top:2px;bottom:2px;left:50%;border-left:2px solid var(--accent)}
+.ip.caret span{z-index:1}
+.chip{position:relative;cursor:pointer;flex:none}
+.chip.sel{outline:2px solid var(--accent);outline-offset:2px;border-radius:7px}
+.cap{width:58px;height:50px;border-radius:6px;background:var(--key);border:1px solid var(--keyline);box-shadow:inset 0 -3px 0 rgba(0,0,0,.08);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.15;text-align:center}
+.cap .h{font-size:10px;color:var(--muted)}
+.cap .m{font-size:13px}
+.cap.wide{width:auto;min-width:58px;padding:0 8px}
+.cap.host{background:var(--hostface);border-color:var(--host)}
+.cap.down{border-bottom:3px solid var(--accent)}
+.mark{position:absolute;left:50%;margin-left:-6px;border-left:6px solid transparent;border-right:6px solid transparent}
+.mark.dn{top:100%;margin-top:3px;border-top:7px solid var(--accent)}
+.mark.up{bottom:100%;margin-bottom:3px;border-bottom:7px solid var(--accent)}
+.textchip{height:50px;display:flex;align-items:center;gap:6px;padding:0 10px;border-radius:6px;background:var(--textchip);border:1px solid var(--textline)}
+.textchip .k{font-size:10px;color:var(--muted)}
+.textchip input{font:14px Arimo,"Segoe UI",Arial,sans-serif;border:none;background:transparent;color:var(--text);padding:2px 0;outline:none;border-bottom:1px dotted var(--textline);letter-spacing:.5px}
+.textchip.bad{border-color:var(--err)}
+.waitchip{height:50px;display:flex;align-items:center;gap:4px;padding:0 10px;border-radius:6px;background:var(--waitchip);border:1px solid var(--waitline)}
+.waitchip input{width:52px;font:14px Arimo,"Segoe UI",Arial,sans-serif;border:none;border-bottom:1px dotted var(--waitline);background:transparent;color:var(--text);text-align:right;outline:none}
+.waitchip.bad{border-color:var(--err)}
+.chip.pairhl .cap{background:var(--lit);border-color:var(--litline)}
+.chip.lone .cap{border-style:dashed;border-color:var(--warn)}
+.chip.lone .mark.dn{border-top-color:var(--warn)} .chip.lone .mark.up{border-bottom-color:var(--warn)}
+.mline .title{cursor:help;border-bottom:1px dotted var(--muted)}
+.endadd{display:inline-flex;gap:4px;margin-left:4px}
+.problems{padding:0 12px 6px;font-size:12px;line-height:1.6}
+.problems div{color:var(--warn)} .problems div.err{color:var(--err)}
+.tools{display:flex;align-items:center;gap:6px 10px;flex-wrap:wrap;padding:6px 12px;border-top:1px solid var(--border);min-height:39px}
+.tools .seg{display:inline-flex;gap:3px;align-items:center}
+.tools .seg button{padding:2px 8px}
+.invite{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 12px 8px;padding:7px 10px;border:1px solid var(--accent);border-radius:6px;background:var(--selected)}
+select{font:inherit;padding:2px 6px;border:1px solid var(--border);border-radius:6px;background:var(--control);color:var(--text)}
+.banner{padding:10px 12px;border-top:1px solid var(--border);color:var(--warn)}
+.tabs{display:flex;align-items:flex-end;gap:2px;padding:8px 10px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.tabs .tab{border:1px solid transparent;border-bottom:none;border-radius:5px 5px 0 0;padding:5px 9px 4px;cursor:pointer;color:var(--muted)}
+.tabs .tab.on{background:var(--window);border-color:var(--border);color:var(--text);margin-bottom:-1px}
+.tabs .tab .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.tabs input{margin-left:auto;margin-bottom:5px;width:220px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--control);color:var(--text);font:inherit}
+.tiles{display:flex;flex-wrap:wrap;gap:4px;padding:10px;background:var(--window)}
+.tiles .cap{cursor:pointer}
+.tiles .cap.off{opacity:.35;cursor:default}
+.notes{max-width:1160px;margin:0 auto;padding:4px 16px 30px;color:var(--muted);line-height:1.55}
+.notes b{color:var(--text);font-weight:600}
+.notes p{margin:0 0 8px}
+</style>
+</head>
+<body>
+<div class="controls" id="controls"></div>
+<div class="stage"><div class="frame" id="frame"></div></div>
+<div class="notes" id="notes"></div>
+<script>
+"use strict";
+// The boards' `layouts`, taken from layout-section.html: labels and KLE keymap.
+const BOARDS = {"Model F B104":{"name":"leyden_jar/B104","source":"the board itself (Vial), tests/ModelFDefinition.h","labels":["Split Backspace","Full Left Shift","Split Right Shift",["Enter","ISO Enter","ANSI Enter"],"Split Numpad Zero","Full Nav Cluster"],"keymap":[[{"x":15.5},"6,5\n\n\n0,1","6,11\n\n\n0,1"],[{"x":2.5,"y":0.25},"0,0",{"x":1.0},"0,1","0,3","0,14","0,16",{"x":0.5},"0,2","0,15","6,15","0,13",{"x":0.5},"0,4","0,12","0,5","0,11",{"x":0.25},"0,10","0,9","0,8"],[{"x":2.5,"y":0.5},"6,0","6,1","5,1","6,3","6,14","6,16","5,16","6,2","5,15","6,13","5,4","6,4","6,12",{"w":2.0},"6,11\n\n\n0,0",{"x":0.25},"0,6\n\n\n5,0","0,7\n\n\n5,0","6,7\n\n\n5,0",{"x":0.25},"6,10","5,10","6,9","6,8",{"x":2.75},"0,6\n\n\n5,1","0,7\n\n\n5,1","6,7\n\n\n5,1"],[{"x":2.5,"w":1.5},"5,0","4,1","4,3","5,3","5,14","4,16","4,2","5,2","4,15","5,13","4,4","5,12","5,5",{"x":0.25,"w":1.25,"h":2.0,"w2":1.5,"h2":1.0,"x2":-0.25},"4,11\n\n\n3,0",{"x":0.25},"5,6\n\n\n5,0","6,6\n\n\n5,0","5,7\n\n\n5,0",{"x":0.25},"4,10","4,9","5,9",{"h":2.0},"5,8",{"x":1.0,"w":1.5},"5,11\n\n\n3,1",{"x":0.25},"5,6\n\n\n5,1","6,6\n\n\n5,1","5,7\n\n\n5,1"],[{"x":2.5,"w":1.75},"4,0","3,1","3,3","4,14","3,14","3,16","3,2","3,15","4,13","3,13","3,4","4,12","4,5\n\n\n3,0",{"x":4.75},"3,10","3,9","4,8",{"x":1.25,"w":2.25},"4,5\n\n\n3,1",{"x":0.25},"3,11\n\n\n5,1","4,6\n\n\n5,1","4,7\n\n\n5,1"],[{"w":2.25},"2,1\n\n\n1,1",{"x":0.25,"w":1.25},"2,0\n\n\n1,0","2,1\n\n\n1,0","2,3","2,14","1,14","1,16","2,16","2,2","1,15","1,13","2,4","2,12",{"w":2.75},"2,5\n\n\n2,0",{"x":1.25},"3,6\n\n\n5,0",{"x":1.25},"2,10","2,9","2,8",{"h":2.0},"3,8",{"x":2.75},"2,6\n\n\n5,1","3,6\n\n\n5,1","3,7\n\n\n5,1"],[{"x":2.5,"w":1.25},"1,0",{"w":1.25},"1,1",{"w":1.25},"1,3",{"w":6.25},"1,2",{"w":1.25},"1,4",{"w":1.25},"1,12",{"w":1.25},"1,5",{"w":1.25},"1,11",{"x":0.25},"1,6\n\n\n5,0","2,7\n\n\n5,0","1,7\n\n\n5,0",{"x":0.25,"w":2.0},"1,10\n\n\n4,0","1,8",{"x":3.75},"1,6\n\n\n5,1","2,7\n\n\n5,1","1,7\n\n\n5,1"],[{"x":14.75,"y":0.25,"w":1.75},"3,12\n\n\n2,1","2,11\n\n\n2,1",{"x":3.5},"1,10\n\n\n4,1","1,9\n\n\n4,1"]]},"ZX60":{"name":"ZX60","source":"VIA registry, v3/1078591489.json","labels":["Split Backspace","ISO Enter",["Row 4","Default","Split right shift","Arrows","Default ISO","ISO split right shift","ISO arrows","[2U] Default","[2U] Split left shift","[2U] Split right shift","[2U] Split both shifts"],["Bottom row","6.25U","7U","6.25U Arrows","6.25U Arrows B","HHKB","WKL","6.25U HHKB","Split Space Left 2.25","Split Space Left 2.75"]],"keymap":[[{"x":2.5,"c":"#777777"},"0,0",{"c":"#cccccc"},"0,1","0,2","0,3","0,4","0,5","0,6","0,7","0,8","0,9","0,10","0,11","0,12",{"c":"#aaaaaa","w":2},"0,13\n\n\n0,0",{"x":0.5,"c":"#cccccc"},"0,13\n\n\n0,1","0,14\n\n\n0,1"],[{"x":2.5,"c":"#aaaaaa","w":1.5},"1,0",{"c":"#cccccc"},"1,1","1,2","1,3","1,4","1,5","1,6","1,7","1,8","1,9","1,10","1,11","1,12",{"w":1.5},"1,13\n\n\n1,0",{"x":1.25,"c":"#777777","w":1.25,"h":2,"w2":1.5,"h2":1,"x2":-0.25},"2,13\n\n\n1,1"],[{"x":2.5,"c":"#aaaaaa","w":1.75},"2,0",{"c":"#cccccc"},"2,1","2,2","2,3","2,4","2,5","2,6","2,7","2,8","2,9","2,10","2,11",{"c":"#777777","w":2.25},"2,13\n\n\n1,0",{"x":0.25,"c":"#cccccc"},"1,13\n\n\n1,1"],[{"x":2.5,"c":"#aaaaaa","w":2.25},"3,0\n\n\n2,0",{"c":"#cccccc"},"3,2\n\n\n2,0","3,3\n\n\n2,0","3,4\n\n\n2,0","3,5\n\n\n2,0","3,6\n\n\n2,0","3,7\n\n\n2,0","3,8\n\n\n2,0","3,9\n\n\n2,0","3,10\n\n\n2,0","3,11\n\n\n2,0",{"c":"#aaaaaa","w":2.75},"3,13\n\n\n2,0"],[{"x":2.5,"w":1.25},"4,0\n\n\n3,0",{"w":1.25},"4,1\n\n\n3,0",{"w":1.25},"4,2\n\n\n3,0",{"c":"#cccccc","w":6.25},"4,6\n\n\n3,0",{"c":"#aaaaaa","w":1.25},"4,10\n\n\n3,0",{"w":1.25},"4,11\n\n\n3,0",{"w":1.25},"4,13\n\n\n3,0",{"w":1.25},"4,14\n\n\n3,0"],[{"y":0.5,"x":2.5,"w":2.25},"3,0\n\n\n2,1",{"c":"#cccccc"},"3,2\n\n\n2,1","3,3\n\n\n2,1","3,4\n\n\n2,1","3,5\n\n\n2,1","3,6\n\n\n2,1","3,7\n\n\n2,1","3,8\n\n\n2,1","3,9\n\n\n2,1","3,10\n\n\n2,1","3,11\n\n\n2,1",{"c":"#aaaaaa","w":1.75},"3,13\n\n\n2,1","3,14\n\n\n2,1"],[{"x":2.5,"w":2.25},"3,0\n\n\n2,2",{"c":"#cccccc"},"3,2\n\n\n2,2","3,3\n\n\n2,2","3,4\n\n\n2,2","3,5\n\n\n2,2","3,6\n\n\n2,2","3,7\n\n\n2,2","3,8\n\n\n2,2","3,9\n\n\n2,2","3,10\n\n\n2,2",{"w":1.75},"3,11\n\n\n2,2","3,13\n\n\n2,2","3,12\n\n\n2,2"],[{"x":2.5,"c":"#aaaaaa","w":1.25},"3,0\n\n\n2,3","3,1\n\n\n2,3",{"c":"#cccccc"},"3,2\n\n\n2,3","3,3\n\n\n2,3","3,4\n\n\n2,3","3,5\n\n\n2,3","3,6\n\n\n2,3","3,7\n\n\n2,3","3,8\n\n\n2,3","3,9\n\n\n2,3","3,10\n\n\n2,3","3,11\n\n\n2,3",{"c":"#aaaaaa","w":2.75},"3,13\n\n\n2,3"],[{"x":2.5,"w":1.25},"3,0\n\n\n2,4","3,1\n\n\n2,4",{"c":"#cccccc"},"3,2\n\n\n2,4","3,3\n\n\n2,4","3,4\n\n\n2,4","3,5\n\n\n2,4","3,6\n\n\n2,4","3,7\n\n\n2,4","3,8\n\n\n2,4","3,9\n\n\n2,4","3,10\n\n\n2,4","3,11\n\n\n2,4",{"c":"#aaaaaa","w":1.75},"3,13\n\n\n2,4","3,14\n\n\n2,4"],[{"x":2.5,"w":1.25},"3,0\n\n\n2,5","3,1\n\n\n2,5",{"c":"#cccccc"},"3,2\n\n\n2,5","3,3\n\n\n2,5","3,4\n\n\n2,5","3,5\n\n\n2,5","3,6\n\n\n2,5","3,7\n\n\n2,5","3,8\n\n\n2,5","3,9\n\n\n2,5","3,10\n\n\n2,5",{"w":1.75},"3,11\n\n\n2,5","3,13\n\n\n2,5","3,14\n\n\n2,5"],[{"x":2.5,"c":"#aaaaaa","w":2},"3,0\n\n\n2,6",{"c":"#cccccc"},"3,2\n\n\n2,6","3,3\n\n\n2,6","3,4\n\n\n2,6","3,5\n\n\n2,6","3,6\n\n\n2,6","3,7\n\n\n2,6","3,8\n\n\n2,6","3,9\n\n\n2,6","3,10\n\n\n2,6","3,11\n\n\n2,6","3,13\n\n\n2,6",{"c":"#aaaaaa","w":2},"3,14\n\n\n2,6"],[{"x":2.5},"3,0\n\n\n2,7","3,1\n\n\n2,7",{"c":"#cccccc"},"3,2\n\n\n2,7","3,3\n\n\n2,7","3,4\n\n\n2,7","3,5\n\n\n2,7","3,6\n\n\n2,7","3,7\n\n\n2,7","3,8\n\n\n2,7","3,9\n\n\n2,7","3,10\n\n\n2,7","3,11\n\n\n2,7","3,12\n\n\n2,7",{"c":"#aaaaaa","w":2},"3,13\n\n\n2,7"],[{"x":2.5,"w":2},"3,0\n\n\n2,8",{"c":"#cccccc"},"3,2\n\n\n2,8","3,3\n\n\n2,8","3,4\n\n\n2,8","3,5\n\n\n2,8","3,6\n\n\n2,8","3,7\n\n\n2,8","3,8\n\n\n2,8","3,9\n\n\n2,8","3,10\n\n\n2,8","3,11\n\n\n2,8","3,12\n\n\n2,8",{"c":"#aaaaaa"},"3,13\n\n\n2,8","3,14\n\n\n2,8"],[{"x":2.5},"3,0\n\n\n2,9","3,1\n\n\n2,9",{"c":"#cccccc"},"3,2\n\n\n2,9","3,3\n\n\n2,9","3,4\n\n\n2,9","3,5\n\n\n2,9","3,6\n\n\n2,9","3,7\n\n\n2,9","3,8\n\n\n2,9","3,9\n\n\n2,9","3,10\n\n\n2,9","3,11\n\n\n2,9","3,12\n\n\n2,9",{"c":"#aaaaaa"},"3,13\n\n\n2,9","3,14\n\n\n2,9"],[{"y":0.5,"x":2.5,"w":1.5},"4,0\n\n\n3,1","4,1\n\n\n3,1",{"w":1.5},"4,2\n\n\n3,1",{"c":"#cccccc","w":7},"4,6\n\n\n3,1",{"c":"#aaaaaa","w":1.5},"4,11\n\n\n3,1","4,13\n\n\n3,1",{"w":1.5},"4,14\n\n\n3,1"],[{"x":2.5,"w":1.25},"4,0\n\n\n3,2",{"w":1.25},"4,1\n\n\n3,2",{"w":1.25},"4,2\n\n\n3,2",{"c":"#cccccc","w":6.25},"4,6\n\n\n3,2",{"c":"#aaaaaa"},"4,10\n\n\n3,2","4,11\n\n\n3,2","4,12\n\n\n3,2","4,13\n\n\n3,2","4,14\n\n\n3,2"],[{"x":2.5,"w":1.5},"4,0\n\n\n3,3","4,1\n\n\n3,3",{"w":1.25},"4,2\n\n\n3,3",{"c":"#cccccc","w":6.25},"4,6\n\n\n3,3",{"c":"#aaaaaa"},"4,10\n\n\n3,3","4,11\n\n\n3,3","4,12\n\n\n3,3","4,13\n\n\n3,3","4,14\n\n\n3,3"],[{"x":2.5,"w":1.5,"d":true},"4,0\n\n\n3,4","4,1\n\n\n3,4",{"w":1.5},"4,2\n\n\n3,4",{"c":"#cccccc","w":7},"4,6\n\n\n3,4",{"c":"#aaaaaa","w":1.5},"4,11\n\n\n3,4","4,12\n\n\n3,4",{"w":1.5,"d":true},"4,13\n\n\n3,4"],[{"x":2.5,"w":1.5},"4,0\n\n\n3,5",{"d":true},"\n\n\n3,5",{"w":1.5},"4,2\n\n\n3,5",{"c":"#cccccc","w":7},"4,6\n\n\n3,5",{"c":"#aaaaaa","w":1.5},"4,11\n\n\n3,5",{"d":true},"\n\n\n3,5",{"w":1.5},"4,13\n\n\n3,5"],[{"x":2.5,"w":1.5,"d":true},"4,0\n\n\n3,6","4,1\n\n\n3,6",{"w":1.5},"4,2\n\n\n3,6",{"c":"#cccccc","w":6.25},"4,6\n\n\n3,6",{"c":"#aaaaaa","w":1.5},"4,11\n\n\n3,6","4,12\n\n\n3,6",{"w":2.25,"d":true},"4,13\n\n\n3,6"],[{"x":2.5,"w":1.25},"4,0\n\n\n3,7",{"w":1.25},"4,1\n\n\n3,7",{"w":1.25},"4,2\n\n\n3,7",{"c":"#cccccc","w":2.25},"4,4\n\n\n3,7",{"w":1.25},"4,6\n\n\n3,7",{"w":2.75},"4,8\n\n\n3,7",{"c":"#aaaaaa","w":1.256},"4,10\n\n\n3,7",{"x":-0.006000000000000227,"w":1.256},"4,11\n\n\n3,7",{"x":-0.006000000000000227,"w":1.256},"4,13\n\n\n3,7",{"x":-0.006000000000000227,"w":1.256},"4,14\n\n\n3,7"],[{"x":2.5,"w":1.25},"4,0\n\n\n3,8",{"w":1.25},"4,1\n\n\n3,8",{"w":1.25},"4,2\n\n\n3,8",{"c":"#cccccc","w":2.75},"4,8\n\n\n3,8",{"w":1.25},"4,6\n\n\n3,8",{"w":2.25},"4,4\n\n\n3,8",{"c":"#aaaaaa","w":1.256},"4,10\n\n\n3,8",{"x":-0.006000000000000227,"w":1.256},"4,11\n\n\n3,8",{"x":-0.006000000000000227,"w":1.256},"4,13\n\n\n3,8",{"x":-0.006000000000000227,"w":1.256},"4,14\n\n\n3,8"]]}};
+// ---------------------------------------------------------------------------------------------
+// KLE: the keys, each with its matrix cell (legend position 0) and its layout option (position
+// 3, "group,option"). Legend-only keys are left out; decals kept, for the pivot, never drawn.
+function parseKle(rows) {
+  const keys = [];
+  let x = 0, y = 0, rx = 0, ry = 0, r = 0, p = {};
+  const pair = s => { const m = /^\s*(\d+)\s*,\s*(\d+)\s*$/.exec(s || ''); return m ? [+m[1], +m[2]] : null; };
+  for (const row of rows) {
+    if (!Array.isArray(row)) continue;
+    for (const item of row) {
+      if (typeof item === 'object') {
+        if ('r' in item) r = item.r;
+        if ('rx' in item || 'ry' in item) { if ('rx' in item) rx = item.rx; if ('ry' in item) ry = item.ry; x = rx; y = ry; }
+        if ('x' in item) x += item.x;
+        if ('y' in item) y += item.y;
+        for (const k of ['w', 'h', 'x2', 'y2', 'w2', 'h2', 'd']) if (k in item) p[k] = item[k];
+        continue;
+      }
+      const w = p.w || 1, h = p.h || 1;
+      const labels = String(item).split('\n');
+      const cell = pair(labels[0]), option = pair(labels[3]);
+      if (cell || p.d)
+        keys.push({ x, y, w, h, x2: p.x2 || 0, y2: p.y2 || 0, w2: p.w2 || w, h2: p.h2 || h, r, rx, ry, decal: !!p.d,
+                    cell, g: option ? option[0] : -1, o: option ? option[1] : 0 });
+      x += w;
+      p = {};
+    }
+    y += 1;
+    x = rx;
+  }
+  return keys;
+}
+
+// A label: a string is a toggle, an array names a group and its options.
+const groupOf = label => Array.isArray(label) ? { name: label[0], options: label.slice(1) } : { name: label, options: [] };
+const countOf = g => g.options.length ? g.options.length : 2;
+const optionName = (g, o) => g.options.length ? g.options[o] : (o ? 'On' : 'Off');
+
+// VIA's pivot rule, as PlaceKeys() has it: each chosen option moved onto option 0's place.
+const pivotPoint = k => (k.y2 === 0 ? k.x2 < 0 : k.y2 < 0) ? [k.x + k.x2, k.y + k.y2] : [k.x, k.y];
+function findPivot(keys, g, o) {
+  let best = null;
+  for (const k of keys) if (k.g === g && k.o === o && (!best || k.y < best.y || (k.y === best.y && k.x < best.x))) best = k;
+  return best;
+}
+function shiftOf(keys, g, o) {
+  const home = findPivot(keys, g, 0), chosen = findPivot(keys, g, o);
+  if (!home || !chosen) return [0, 0];
+  const a = pivotPoint(home), b = pivotPoint(chosen);
+  return [a[0] - b[0], a[1] - b[1]];
+}
+function placeKeys(keys, groups, sel) {
+  const out = [];
+  for (const k of keys) {
+    if (k.g >= 0 && k.g < groups.length && sel[k.g] !== k.o) continue;
+    const s = k.g >= 0 && k.g < groups.length ? shiftOf(keys, k.g, k.o) : [0, 0];
+    out.push({ ...k, x: k.x + s[0], y: k.y + s[1] });
+  }
+  return out;
+}
+const NS = 'http://www.w3.org/2000/svg';
+const boundsOf = keys => keys.reduce((b, k) => ({
+  x0: Math.min(b.x0, k.x, k.x + k.x2), y0: Math.min(b.y0, k.y, k.y + k.y2),
+  x1: Math.max(b.x1, k.x + k.w, k.x + k.x2 + k.w2), y1: Math.max(b.y1, k.y + k.h, k.y + k.y2 + k.h2) }),
+  { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity });
+
+// ---------------------------------------------------------------------------------------------
+// The boards offered: a definition, a protocol, a buffer size (an example) and a lock state.
+const SETUPS = {
+  'Model F B104 · Vial 6': { def: 'Model F B104', proto: 'vial6', buffer: 896, label: 'Vial' },
+  'Model F B104 · locked': { def: 'Model F B104', proto: 'vial6', buffer: 896, label: 'Vial', locked: true },
+  'ZX60 · VIA 12': { def: 'ZX60', proto: 'via12', buffer: 1009, label: 'VIA' },
+  'ZX60 · VIA 10': { def: 'ZX60', proto: 'via10', buffer: 1009, label: 'VIA' },
+};
+
+// Keycodes the mockup knows: QMK name, value, legend (header, main), picker tab.
+const K = {};
+const key = (name, v, m, tab, h) => { K[name] = { name, v, m, h: h || '', tab }; };
+'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach((c, i) => key('KC_' + c, 0x04 + i, c, 'Keys'));
+'1234567890'.split('').forEach((c, i) => key('KC_' + c, 0x1E + i, c, 'Keys'));
+[['KC_ENT', 0x28, 'Enter'], ['KC_ESC', 0x29, 'Esc'], ['KC_BSPC', 0x2A, 'Bksp'], ['KC_TAB', 0x2B, 'Tab'], ['KC_SPC', 0x2C, 'Space'],
+ ['KC_COMM', 0x36, ','], ['KC_DOT', 0x37, '.'], ['KC_SCLN', 0x33, ';'], ['KC_HOME', 0x4A, 'Home'], ['KC_DEL', 0x4C, 'Del'], ['KC_END', 0x4D, 'End'],
+ ['KC_LEFT', 0x50, '←'], ['KC_DOWN', 0x51, '↓'], ['KC_UP', 0x52, '↑'], ['KC_RGHT', 0x4F, '→'],
+ ['KC_LCTL', 0xE0, 'Ctrl'], ['KC_LSFT', 0xE1, 'Shift'], ['KC_LALT', 0xE2, 'Alt'], ['KC_LGUI', 0xE3, 'Win']]
+  .forEach(([n, v, m]) => key(n, v, m, 'Keys'));
+for (let i = 1; i <= 12; i++) key('KC_F' + i, 0x39 + i, 'F' + i, 'Keys');
+[['KC_MUTE', 0xA8, 'Mute'], ['KC_VOLU', 0xA9, 'Vol +'], ['KC_VOLD', 0xAA, 'Vol −'], ['KC_MNXT', 0xAB, 'Next'], ['KC_MPRV', 0xAC, 'Prev'], ['KC_MPLY', 0xAE, 'Play']]
+  .forEach(([n, v, m]) => key(n, v, m, 'Media & mouse', 'Media'));
+[['MO(1)', 0x5221, 'L1', 'Hold'], ['TG(1)', 0x5261, 'L1', 'Toggle'], ['TO(0)', 0x5200, 'L0', 'To'], ['QK_BOOT', 0x7C00, 'Boot', '']]
+  .forEach(([n, v, m, h]) => key(n, v, m, n === 'QK_BOOT' ? 'Firmware' : 'Layers', h));
+const MODS = [['Ctrl', 'KC_LCTL', 0x0100], ['Shift', 'KC_LSFT', 0x0200], ['Alt', 'KC_LALT', 0x0400], ['Win', 'KC_LGUI', 0x0800]];
+const TABS = [['Keys', ''], ['Media & mouse', 'var(--host)'], ['Layers', '#8b5cf6'], ['Firmware', '#dc2626']];
+
+// ---------------------------------------------------------------------------------------------
+// Host layouts, from QMK's keymap extras (data/constants/keycodes/extras): per key and level --
+// 0 plain, 1 Shift, 2 AltGr, 3 Shift+AltGr -- the character, and whether the key is dead.
+const LAYOUTS = {"us":[["KC_0",0,"0",0],["KC_0",1,")",0],["KC_1",0,"1",0],["KC_1",1,"!",0],["KC_2",0,"2",0],["KC_2",1,"@",0],["KC_3",0,"3",0],["KC_3",1,"#",0],["KC_4",0,"4",0],["KC_4",1,"$",0],["KC_5",0,"5",0],["KC_5",1,"%",0],["KC_6",0,"6",0],["KC_6",1,"^",0],["KC_7",0,"7",0],["KC_7",1,"&",0],["KC_8",0,"8",0],["KC_8",1,"*",0],["KC_9",0,"9",0],["KC_9",1,"(",0],["KC_A",0,"a",0],["KC_A",1,"A",0],["KC_B",0,"b",0],["KC_B",1,"B",0],["KC_BACKSLASH",1,"|",0],["KC_BSLS",0,"\\",0],["KC_C",0,"c",0],["KC_C",1,"C",0],["KC_COMM",0,",",0],["KC_COMMA",1,"<",0],["KC_D",0,"d",0],["KC_D",1,"D",0],["KC_DOT",0,".",0],["KC_DOT",1,">",0],["KC_E",0,"e",0],["KC_E",1,"E",0],["KC_EQL",0,"=",0],["KC_EQUAL",1,"+",0],["KC_F",0,"f",0],["KC_F",1,"F",0],["KC_G",0,"g",0],["KC_G",1,"G",0],["KC_GRAVE",1,"~",0],["KC_GRV",0,"`",0],["KC_H",0,"h",0],["KC_H",1,"H",0],["KC_I",0,"i",0],["KC_I",1,"I",0],["KC_J",0,"j",0],["KC_J",1,"J",0],["KC_K",0,"k",0],["KC_K",1,"K",0],["KC_L",0,"l",0],["KC_L",1,"L",0],["KC_LBRC",0,"[",0],["KC_LEFT_BRACKET",1,"{",0],["KC_M",0,"m",0],["KC_M",1,"M",0],["KC_MINS",0,"-",0],["KC_MINUS",1,"_",0],["KC_N",0,"n",0],["KC_N",1,"N",0],["KC_O",0,"o",0],["KC_O",1,"O",0],["KC_P",0,"p",0],["KC_P",1,"P",0],["KC_Q",0,"q",0],["KC_Q",1,"Q",0],["KC_QUOT",0,"'",0],["KC_QUOTE",1,"\"",0],["KC_R",0,"r",0],["KC_R",1,"R",0],["KC_RBRC",0,"]",0],["KC_RIGHT_BRACKET",1,"}",0],["KC_S",0,"s",0],["KC_S",1,"S",0],["KC_SCLN",0,";",0],["KC_SEMICOLON",1,":",0],["KC_SLASH",1,"?",0],["KC_SLSH",0,"/",0],["KC_SPC",0," ",0],["KC_T",0,"t",0],["KC_T",1,"T",0],["KC_U",0,"u",0],["KC_U",1,"U",0],["KC_V",0,"v",0],["KC_V",1,"V",0],["KC_W",0,"w",0],["KC_W",1,"W",0],["KC_X",0,"x",0],["KC_X",1,"X",0],["KC_Y",0,"y",0],["KC_Y",1,"Y",0],["KC_Z",0,"z",0],["KC_Z",1,"Z",0]],"us_international":[["KC_0",0,"0",0],["KC_0",1,")",0],["KC_0",2,"’",0],["KC_1",0,"1",0],["KC_1",1,"!",0],["KC_1",2,"¡",0],["KC_1",3,"¹",0],["KC_2",0,"2",0],["KC_2",1,"@",0],["KC_2",2,"²",0],["KC_3",0,"3",0],["KC_3",1,"#",0],["KC_3",2,"³",0],["KC_4",0,"4",0],["KC_4",1,"$",0],["KC_4",2,"¤",0],["KC_4",3,"£",0],["KC_5",0,"5",0],["KC_5",1,"%",0],["KC_5",2,"€",0],["KC_6",0,"6",0],["KC_6",1,"^",1],["KC_6",2,"¼",0],["KC_7",0,"7",0],["KC_7",1,"&",0],["KC_7",2,"½",0],["KC_8",0,"8",0],["KC_8",1,"*",0],["KC_8",2,"¾",0],["KC_9",0,"9",0],["KC_9",1,"(",0],["KC_9",2,"‘",0],["KC_A",0,"a",0],["KC_A",1,"A",0],["KC_A",2,"á",0],["KC_A",3,"Á",0],["KC_B",0,"b",0],["KC_B",1,"B",0],["KC_BSLS",0,"\\",0],["KC_BSLS",1,"|",0],["KC_BSLS",2,"¬",0],["KC_BSLS",3,"¦",0],["KC_C",0,"c",0],["KC_C",1,"C",0],["KC_C",2,"©",0],["KC_C",3,"¢",0],["KC_COMM",0,",",0],["KC_COMM",1,"<",0],["KC_COMM",2,"ç",0],["KC_COMM",3,"Ç",0],["KC_D",0,"d",0],["KC_D",1,"D",0],["KC_D",2,"ð",0],["KC_D",3,"Ð",0],["KC_DOT",0,".",0],["KC_DOT",1,">",0],["KC_E",0,"e",0],["KC_E",1,"E",0],["KC_E",2,"é",0],["KC_E",3,"É",0],["KC_EQL",0,"=",0],["KC_EQL",1,"+",0],["KC_EQL",2,"×",0],["KC_EQL",3,"÷",0],["KC_F",0,"f",0],["KC_F",1,"F",0],["KC_G",0,"g",0],["KC_G",1,"G",0],["KC_GRV",0,"`",1],["KC_GRV",1,"~",1],["KC_H",0,"h",0],["KC_H",1,"H",0],["KC_I",0,"i",0],["KC_I",1,"I",0],["KC_I",2,"í",0],["KC_I",3,"Í",0],["KC_J",0,"j",0],["KC_J",1,"J",0],["KC_K",0,"k",0],["KC_K",1,"K",0],["KC_L",0,"l",0],["KC_L",1,"L",0],["KC_L",2,"ø",0],["KC_L",3,"Ø",0],["KC_LBRC",0,"[",0],["KC_LBRC",1,"{",0],["KC_LBRC",2,"«",0],["KC_M",0,"m",0],["KC_M",1,"M",0],["KC_M",2,"µ",0],["KC_M",3,"Μ",0],["KC_MINS",0,"-",0],["KC_MINS",1,"_",0],["KC_MINS",2,"¥",0],["KC_N",0,"n",0],["KC_N",1,"N",0],["KC_N",2,"ñ",0],["KC_N",3,"Ñ",0],["KC_O",0,"o",0],["KC_O",1,"O",0],["KC_O",2,"ó",0],["KC_O",3,"Ó",0],["KC_P",0,"p",0],["KC_P",1,"P",0],["KC_P",2,"ö",0],["KC_P",3,"Ö",0],["KC_Q",0,"q",0],["KC_Q",1,"Q",0],["KC_Q",2,"ä",0],["KC_Q",3,"Ä",0],["KC_QUOT",0,"´",1],["KC_QUOT",1,"¨",1],["KC_QUOT",2,"´",0],["KC_QUOT",3,"¨",0],["KC_R",0,"r",0],["KC_R",1,"R",0],["KC_R",2,"®",0],["KC_RBRC",0,"]",0],["KC_RBRC",1,"}",0],["KC_RBRC",2,"»",0],["KC_S",0,"s",0],["KC_S",1,"S",0],["KC_S",2,"ß",0],["KC_S",3,"§",0],["KC_SCLN",0,";",0],["KC_SCLN",1,":",0],["KC_SCLN",2,"¶",0],["KC_SCLN",3,"°",0],["KC_SLSH",0,"/",0],["KC_SLSH",1,"?",0],["KC_SLSH",2,"¿",0],["KC_SPC",0," ",0],["KC_T",0,"t",0],["KC_T",1,"T",0],["KC_T",2,"þ",0],["KC_T",3,"Þ",0],["KC_U",0,"u",0],["KC_U",1,"U",0],["KC_U",2,"ú",0],["KC_U",3,"Ú",0],["KC_V",0,"v",0],["KC_V",1,"V",0],["KC_W",0,"w",0],["KC_W",1,"W",0],["KC_W",2,"å",0],["KC_W",3,"Å",0],["KC_X",0,"x",0],["KC_X",1,"X",0],["KC_Y",0,"y",0],["KC_Y",1,"Y",0],["KC_Y",2,"ü",0],["KC_Y",3,"Ü",0],["KC_Z",0,"z",0],["KC_Z",1,"Z",0],["KC_Z",2,"æ",0],["KC_Z",3,"Æ",0]],"french":[["KC_0",0,"à",0],["KC_0",1,"0",0],["KC_0",2,"@",0],["KC_1",0,"&",0],["KC_1",1,"1",0],["KC_2",0,"é",0],["KC_2",1,"2",0],["KC_2",2,"~",1],["KC_3",0,"\"",0],["KC_3",1,"3",0],["KC_3",2,"#",0],["KC_4",0,"'",0],["KC_4",1,"4",0],["KC_4",2,"{",0],["KC_5",0,"(",0],["KC_5",1,"5",0],["KC_5",2,"[",0],["KC_6",0,"-",0],["KC_6",1,"6",0],["KC_6",2,"|",0],["KC_7",0,"è",0],["KC_7",1,"7",0],["KC_7",2,"`",1],["KC_8",0,"_",0],["KC_8",1,"8",0],["KC_8",2,"\\",0],["KC_9",0,"ç",0],["KC_9",1,"9",0],["KC_A",0,"q",0],["KC_A",1,"Q",0],["KC_B",0,"b",0],["KC_B",1,"B",0],["KC_C",0,"c",0],["KC_C",1,"C",0],["KC_COMM",0,";",0],["KC_COMM",1,".",0],["KC_D",0,"d",0],["KC_D",1,"D",0],["KC_DOT",0,":",0],["KC_DOT",1,"/",0],["KC_E",0,"e",0],["KC_E",1,"E",0],["KC_E",2,"€",0],["KC_EQL",0,"=",0],["KC_EQL",1,"+",0],["KC_EQL",2,"}",0],["KC_F",0,"f",0],["KC_F",1,"F",0],["KC_G",0,"g",0],["KC_G",1,"G",0],["KC_GRV",0,"²",0],["KC_H",0,"h",0],["KC_H",1,"H",0],["KC_I",0,"i",0],["KC_I",1,"I",0],["KC_J",0,"j",0],["KC_J",1,"J",0],["KC_K",0,"k",0],["KC_K",1,"K",0],["KC_L",0,"l",0],["KC_L",1,"L",0],["KC_LBRC",0,"^",1],["KC_LBRC",1,"¨",1],["KC_M",0,",",0],["KC_M",1,"?",0],["KC_MINS",0,")",0],["KC_MINS",1,"°",0],["KC_MINS",2,"]",0],["KC_N",0,"n",0],["KC_N",1,"N",0],["KC_NUBS",0,"<",0],["KC_NUBS",1,">",0],["KC_NUHS",0,"*",0],["KC_NUHS",1,"µ",0],["KC_O",0,"o",0],["KC_O",1,"O",0],["KC_P",0,"p",0],["KC_P",1,"P",0],["KC_Q",0,"a",0],["KC_Q",1,"A",0],["KC_QUOT",0,"ù",0],["KC_QUOT",1,"%",0],["KC_R",0,"r",0],["KC_R",1,"R",0],["KC_RBRC",0,"$",0],["KC_RBRC",1,"£",0],["KC_RBRC",2,"¤",0],["KC_S",0,"s",0],["KC_S",1,"S",0],["KC_SCLN",0,"m",0],["KC_SCLN",1,"M",0],["KC_SLSH",0,"!",0],["KC_SLSH",1,"§",0],["KC_SPC",0," ",0],["KC_T",0,"t",0],["KC_T",1,"T",0],["KC_U",0,"u",0],["KC_U",1,"U",0],["KC_V",0,"v",0],["KC_V",1,"V",0],["KC_W",0,"z",0],["KC_W",1,"Z",0],["KC_X",0,"x",0],["KC_X",1,"X",0],["KC_Y",0,"y",0],["KC_Y",1,"Y",0],["KC_Z",0,"w",0],["KC_Z",1,"W",0]],"bepo":[["KC_0",0,"*",0],["KC_0",1,"0",0],["KC_0",2,"×",0],["KC_0",3,"¾",0],["KC_1",0,"\"",0],["KC_1",1,"1",0],["KC_1",2,"—",0],["KC_1",3,"„",0],["KC_2",0,"«",0],["KC_2",1,"2",0],["KC_2",2,"<",0],["KC_2",3,"“",0],["KC_3",0,"»",0],["KC_3",1,"3",0],["KC_3",2,">",0],["KC_3",3,"”",0],["KC_4",0,"(",0],["KC_4",1,"4",0],["KC_4",2,"[",0],["KC_4",3,"≤",0],["KC_5",0,")",0],["KC_5",1,"5",0],["KC_5",2,"]",0],["KC_5",3,"≥",0],["KC_6",0,"@",0],["KC_6",1,"6",0],["KC_6",2,"^",0],["KC_7",0,"+",0],["KC_7",1,"7",0],["KC_7",2,"±",0],["KC_7",3,"¬",0],["KC_8",0,"-",0],["KC_8",1,"8",0],["KC_8",2,"−",0],["KC_8",3,"¼",0],["KC_9",0,"/",0],["KC_9",1,"9",0],["KC_9",2,"÷",0],["KC_9",3,"½",0],["KC_A",0,"a",0],["KC_A",1,"A",0],["KC_A",2,"æ",0],["KC_A",3,"Æ",0],["KC_B",0,"k",0],["KC_B",1,"K",0],["KC_B",2,"~",0],["KC_B",3,"⌨",0],["KC_BSLS",0,"ç",0],["KC_BSLS",1,"Ç",0],["KC_BSLS",2,"¸",1],["KC_BSLS",3,",",1],["KC_C",0,"x",0],["KC_C",1,"X",0],["KC_C",2,"}",0],["KC_C",3,"’",0],["KC_COMM",0,"g",0],["KC_COMM",1,"G",0],["KC_COMM",2,"µ",1],["KC_D",0,"i",0],["KC_D",1,"I",0],["KC_D",2,"¨",1],["KC_D",3,"˙",1],["KC_DOT",0,"h",0],["KC_DOT",1,"H",0],["KC_DOT",2,"†",0],["KC_DOT",3,"‡",0],["KC_E",0,"p",0],["KC_E",1,"P",0],["KC_E",2,"&",0],["KC_E",3,"§",0],["KC_EQL",0,"%",0],["KC_EQL",1,"`",0],["KC_EQL",2,"‰",0],["KC_EQL",3,"″",0],["KC_F",0,"e",0],["KC_F",1,"E",0],["KC_F",2,"€",0],["KC_F",3,"¤",1],["KC_G",0,",",0],["KC_G",1,";",0],["KC_G",3,"̛",1],["KC_GRV",0,"$",0],["KC_GRV",1,"#",0],["KC_GRV",2,"–",0],["KC_GRV",3,"¶",0],["KC_H",0,"c",0],["KC_H",1,"C",0],["KC_H",2,"©",0],["KC_H",3,"ſ",0],["KC_I",0,"d",0],["KC_I",1,"D",0],["KC_I",2,"ð",0],["KC_I",3,"Ð",0],["KC_J",0,"t",0],["KC_J",1,"T",0],["KC_J",2,"þ",0],["KC_J",3,"Þ",0],["KC_K",0,"s",0],["KC_K",1,"S",0],["KC_K",2,"ß",0],["KC_K",3,"ẞ",0],["KC_L",0,"r",0],["KC_L",1,"R",0],["KC_L",2,"®",0],["KC_L",3,"™",0],["KC_LBRC",0,"z",0],["KC_LBRC",1,"Z",0],["KC_LBRC",2,"ə",0],["KC_LBRC",3,"Ə",0],["KC_M",0,"q",0],["KC_M",1,"Q",0],["KC_M",2,"°",1],["KC_M",3,"̣",1],["KC_MINS",0,"=",0],["KC_MINS",1,"°",0],["KC_MINS",2,"≠",0],["KC_MINS",3,"′",0],["KC_N",0,"'",0],["KC_N",1,"?",0],["KC_N",3,"̉",1],["KC_NUBS",0,"ê",0],["KC_NUBS",1,"Ê",0],["KC_O",0,"l",0],["KC_O",1,"L",0],["KC_O",2,"/",1],["KC_P",0,"j",0],["KC_P",1,"J",0],["KC_P",2,"ĳ",0],["KC_P",3,"Ĳ",0],["KC_Q",0,"b",0],["KC_Q",1,"B",0],["KC_Q",2,"|",0],["KC_Q",3,"¦",0],["KC_QUOT",0,"m",0],["KC_QUOT",1,"M",0],["KC_QUOT",2,"¯",1],["KC_QUOT",3,"º",0],["KC_R",0,"o",0],["KC_R",1,"O",0],["KC_R",2,"œ",0],["KC_R",3,"Œ",0],["KC_RBRC",0,"w",0],["KC_RBRC",1,"W",0],["KC_RBRC",2,"˘",1],["KC_S",0,"u",0],["KC_S",1,"U",0],["KC_S",2,"ù",0],["KC_S",3,"Ù",0],["KC_SCLN",0,"n",0],["KC_SCLN",1,"N",0],["KC_SCLN",2,"~",1],["KC_SLSH",0,"f",0],["KC_SLSH",1,"F",0],["KC_SLSH",2,"˛",1],["KC_SLSH",3,"ª",0],["KC_SPC",0," ",0],["KC_SPC",2,"_",0],["KC_T",0,"è",0],["KC_T",1,"È",0],["KC_T",2,"`",1],["KC_U",0,"v",0],["KC_U",1,"V",0],["KC_U",2,"ˇ",1],["KC_V",0,".",0],["KC_V",1,":",0],["KC_V",2,"…",0],["KC_V",3,"·",0],["KC_W",0,"é",0],["KC_W",1,"É",0],["KC_W",2,"´",1],["KC_W",3,"˝",1],["KC_X",0,"y",0],["KC_X",1,"Y",0],["KC_X",2,"{",0],["KC_X",3,"‘",0],["KC_Y",0,"^",1],["KC_Y",1,"!",0],["KC_Y",2,"¡",0],["KC_Z",0,"à",0],["KC_Z",1,"À",0],["KC_Z",2,"\\",0]],"german":[["KC_0",0,"0",0],["KC_0",1,"=",0],["KC_0",2,"}",0],["KC_1",0,"1",0],["KC_1",1,"!",0],["KC_2",0,"2",0],["KC_2",1,"\"",0],["KC_2",2,"²",0],["KC_3",0,"3",0],["KC_3",1,"§",0],["KC_3",2,"³",0],["KC_4",0,"4",0],["KC_4",1,"$",0],["KC_5",0,"5",0],["KC_5",1,"%",0],["KC_6",0,"6",0],["KC_6",1,"&",0],["KC_7",0,"7",0],["KC_7",1,"/",0],["KC_7",2,"{",0],["KC_8",0,"8",0],["KC_8",1,"(",0],["KC_8",2,"[",0],["KC_9",0,"9",0],["KC_9",1,")",0],["KC_9",2,"]",0],["KC_A",0,"a",0],["KC_A",1,"A",0],["KC_B",0,"b",0],["KC_B",1,"B",0],["KC_C",0,"c",0],["KC_C",1,"C",0],["KC_COMM",0,",",0],["KC_COMM",1,";",0],["KC_D",0,"d",0],["KC_D",1,"D",0],["KC_DOT",0,".",0],["KC_DOT",1,":",0],["KC_E",0,"e",0],["KC_E",1,"E",0],["KC_E",2,"€",0],["KC_EQL",0,"´",1],["KC_EQL",1,"`",1],["KC_F",0,"f",0],["KC_F",1,"F",0],["KC_G",0,"g",0],["KC_G",1,"G",0],["KC_GRV",0,"^",1],["KC_GRV",1,"°",0],["KC_H",0,"h",0],["KC_H",1,"H",0],["KC_I",0,"i",0],["KC_I",1,"I",0],["KC_J",0,"j",0],["KC_J",1,"J",0],["KC_K",0,"k",0],["KC_K",1,"K",0],["KC_L",0,"l",0],["KC_L",1,"L",0],["KC_LBRC",0,"ü",0],["KC_LBRC",1,"Ü",0],["KC_M",0,"m",0],["KC_M",1,"M",0],["KC_M",2,"µ",0],["KC_M",3,"Μ",0],["KC_MINS",0,"ß",0],["KC_MINS",1,"?",0],["KC_MINS",2,"\\",0],["KC_N",0,"n",0],["KC_N",1,"N",0],["KC_NUBS",0,"<",0],["KC_NUBS",1,">",0],["KC_NUBS",2,"|",0],["KC_NUHS",0,"#",0],["KC_NUHS",1,"'",0],["KC_O",0,"o",0],["KC_O",1,"O",0],["KC_P",0,"p",0],["KC_P",1,"P",0],["KC_Q",0,"q",0],["KC_Q",1,"Q",0],["KC_Q",2,"@",0],["KC_QUOT",0,"ä",0],["KC_QUOT",1,"Ä",0],["KC_R",0,"r",0],["KC_R",1,"R",0],["KC_RBRC",0,"+",0],["KC_RBRC",1,"*",0],["KC_RBRC",2,"~",0],["KC_S",0,"s",0],["KC_S",1,"S",0],["KC_SCLN",0,"ö",0],["KC_SCLN",1,"Ö",0],["KC_SLSH",0,"-",0],["KC_SLSH",1,"_",0],["KC_SPC",0," ",0],["KC_T",0,"t",0],["KC_T",1,"T",0],["KC_U",0,"u",0],["KC_U",1,"U",0],["KC_V",0,"v",0],["KC_V",1,"V",0],["KC_W",0,"w",0],["KC_W",1,"W",0],["KC_X",0,"x",0],["KC_X",1,"X",0],["KC_Y",0,"z",0],["KC_Y",1,"Z",0],["KC_Z",0,"y",0],["KC_Z",1,"Y",0]]};
+const LAYOUT_NAMES = { us: 'US', us_international: 'US International', french: 'French', bepo: 'Bépo', german: 'German' };
+// What a dead key types before Space is not in QMK's data, which labels a dead key by the accent
+// it adds: US International's ' key adds ´ but types ' alone. Written by hand where it differs.
+const ALONE = { us_international: { '´': "'", '¨': '"' } };
+// The accent a dead key adds, as Unicode's combining mark -- how é splits into e and ´.
+const MARK = { '´': '́', '`': '̀', '^': '̂', '~': '̃', '¨': '̈', '¸': '̧', 'ˇ': '̌', '˘': '̆',
+  '¯': '̄', '°': '̊', '˛': '̨', '˝': '̋', '˙': '̇', ',': '̦', '̛': '̛', '̣': '̣', '̉': '̉' };
+const LEVEL_MODS = ['', 'Shift+', 'AltGr+', 'Shift+AltGr+'];
+
+function layoutOf(name) {
+  const direct = new Map(), dead = [], at = new Map();
+  for (const [kc, lv, ch, isDead] of LAYOUTS[name]) {
+    at.set(kc + ':' + lv, { ch, dead: !!isDead });
+    if (isDead) dead.push({ kc, lv, ch, alone: (ALONE[name] || {})[ch] || ch });
+    else if (!direct.has(ch) || lv < direct.get(ch).lv) direct.set(ch, { kc, lv });
+  }
+  return { direct, dead, at, name };
+}
+const US = layoutOf('us');
+let HOST = null;
+const host = () => (HOST && HOST.name === state.host) ? HOST : (HOST = layoutOf(state.host));
+
+// A keystroke's name for a person: its modifiers and what the key types plainly on the host.
+function strokeName(s, L) {
+  const plain = L.at.get(s.kc + ':0');
+  const face = s.kc === 'KC_SPC' ? 'Space' : plain ? plain.ch.toUpperCase() : s.kc.replace('KC_', '');
+  return LEVEL_MODS[s.lv] + face;
+}
+
+// One character -> its keystrokes on the host layout, or null: on a key directly, else its
+// accent's dead key then its base letter, else a dead key's own character, dead key then Space.
+function strokesOf(c, L) {
+  if (L.direct.has(c)) return [{ ...L.direct.get(c), c }];
+  const nfd = c.normalize('NFD');
+  if (nfd.length === 2) {
+    const d = L.dead.find(d => MARK[d.ch] === nfd[1]);
+    if (d && L.direct.has(nfd[0])) return [{ kc: d.kc, lv: d.lv, dead: d.ch, c }, { ...L.direct.get(nfd[0]), c }];
+  }
+  const alone = L.dead.find(d => d.alone === c);
+  if (alone) return [{ kc: alone.kc, lv: alone.lv, dead: alone.ch, c }, { kc: 'KC_SPC', lv: 0, c }];
+  return null;
+}
+// How a character is typed, for the tooltip: "ê: ^ then E" -- nothing when it is a plain key.
+function howTyped(c, strokes, L) {
+  if (strokes.length === 1 && strokes[0].lv <= 1) return null;
+  const name = s => { const n = strokeName(s, L); return !s.dead ? n : n === s.dead.toUpperCase() ? `${s.dead} (dead)` : `${s.dead} (dead, ${n})`; };
+  return `${c === ' ' ? 'Space' : c}: ` + strokes.map(name).join(' then ');
+}
+
+// The bytes a keystroke costs. One byte when the firmware's US table reaches the key at that
+// level -- a plain or shifted key, stored as the US character on it ('q' types a on French);
+// else an action: one 16-bit tap with its modifiers on Vial, presses and releases on VIA.
+function strokeBytes(s, proto) {
+  const us = US.at.get(s.kc + ':' + s.lv);
+  if (s.lv <= 1 && us && us.ch.charCodeAt(0) < 128) return 1;
+  const act = proto === 'via10' ? 2 : 3, mods = (s.lv & 1) + (s.lv >> 1);
+  return proto === 'vial6' ? 4 : act * (1 + 2 * mods);
+}
+function textCost(s, proto, L, problems) {
+  let n = 0;
+  const missing = new Set();
+  for (const c of s) {
+    const st = strokesOf(c, L);
+    if (!st) { missing.add(c); continue; }
+    for (const k of st) n += strokeBytes(k, proto);
+  }
+  if (missing.size) problems.push(['err', `${[...missing].join(' ')} cannot be typed with the ${LAYOUT_NAMES[L.name]} layout`]);
+  return n;
+}
+
+// Text another app wrote: characters, which the firmware types through its US table. Read
+// through the host layout, it shows what it really types here -- dead keys composing included.
+function readBack(ascii, L) {
+  const usKey = new Map();
+  for (const [kc, lv, ch] of LAYOUTS.us) if (lv <= 1 && !usKey.has(ch)) usKey.set(ch, { kc, lv });
+  let out = '', pending = null;
+  for (const b of ascii) {
+    const k = usKey.get(b), got = k && L.at.get(k.kc + ':' + k.lv);
+    if (!got) continue;
+    if (got.dead) { if (pending) out += pending.alone; pending = L.dead.find(d => d.kc === k.kc && d.lv === k.lv); continue; }
+    if (pending) {
+      if (got.ch === ' ') out += pending.alone;
+      else { const nfc = (got.ch + MARK[pending.ch]).normalize('NFC'); out += nfc.length === 1 ? nfc : pending.alone + got.ch; }
+      pending = null;
+    } else out += got.ch;
+  }
+  return out + (pending ? pending.alone : '');
+}
+// The examples, in Nazg's model -- a flat list, as the board stores it: text, a key (with
+// modifiers sent with it), a key pressed, a key released, a wait. A press and a release are
+// independent steps, paired only for reading.
+const EXAMPLES = [
+  [{ t: 'text', s: 'Best regards,' }, { t: 'key', k: 'KC_ENT', mods: [] }, { t: 'text', s: 'Rico' }],
+  [{ t: 'key', k: 'KC_R', mods: ['Win'] }, { t: 'delay', ms: 300 }, { t: 'text', s: 'cmd' }, { t: 'key', k: 'KC_ENT', mods: [] }],
+  [{ t: 'press', k: 'KC_LALT' }, { t: 'key', k: 'KC_TAB', mods: [] }, { t: 'key', k: 'KC_TAB', mods: [] }, { t: 'release', k: 'KC_LALT' }],
+  [{ t: 'key', k: 'KC_Z', mods: ['Ctrl'] }, { t: 'key', k: 'KC_Z', mods: ['Ctrl'] }],
+  [{ t: 'press', k: 'KC_LCTL' }, { t: 'press', k: 'KC_LSFT' }, { t: 'key', k: 'KC_ESC', mods: [] }, { t: 'release', k: 'KC_LCTL' }, { t: 'release', k: 'KC_LSFT' }],
+  [{ t: 'press', k: 'KC_LSFT' }, { t: 'text', s: 'abc' }],
+  [{ t: 'text', s: "Café crème, l'été même" }],
+  [{ t: 'text', ascii: "l'eau, cmd" }, { t: 'key', k: 'KC_ENT', mods: [] }],
+  [{ t: 'key', k: 'KC_R', mods: ['Win'] }, { t: 'delay', ms: 400 }, { t: 'text', s: 'cmd' }, { t: 'key', k: 'KC_ENT', mods: [] },
+   { t: 'delay', ms: 800 }, { t: 'text', s: 'cd projects' }, { t: 'key', k: 'KC_ENT', mods: [] }, { t: 'text', s: 'git pull' },
+   { t: 'key', k: 'KC_ENT', mods: [] }, { t: 'delay', ms: 2000 }, { t: 'press', k: 'KC_LALT' }, { t: 'key', k: 'KC_TAB', mods: [] },
+   { t: 'release', k: 'KC_LALT' }, { t: 'key', k: 'KC_S', mods: ['Ctrl'] }, { t: 'delay', ms: 200 }, { t: 'key', k: 'KC_F5', mods: [] },
+   { t: 'text', s: 'Done, back to work' }, { t: 'key', k: 'KC_ENT', mods: [] }],
+];
+const COUNT = 16;
+const fresh = () => { const m = JSON.parse(JSON.stringify(EXAMPLES)); while (m.length < COUNT) m.push([]); return m; };
+
+const state = { setup: 'Model F B104 · Vial 6', boardArea: 'Shown', writing: 'Save / Revert', host: 'us', hostChosen: 'No',
+                theme: 'Light',
+                macros: fresh(), saved: null, m: 2, sel: null, caret: null, tab: 'Keys', msg: null };
+state.saved = JSON.stringify(state.macros);
+const savedList = () => JSON.parse(state.saved);
+
+// ---------------------------------------------------------------------------------------------
+// Pairing, for reading only: a release goes with the last press of the same key not yet
+// released. What is left over is said.
+function pairsOf(list) {
+  const partner = new Map(), open = [];
+  list.forEach((s, i) => {
+    if (s.t === 'press') open.push(i);
+    if (s.t === 'release') {
+      for (let j = open.length - 1; j >= 0; j--)
+        if (list[open[j]].k === s.k) { partner.set(i, open[j]); partner.set(open[j], i); open.splice(j, 1); break; }
+    }
+  });
+  return partner;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Bytes, per protocol (via-vial-commands.md): Vial 6 prefixed with 16-bit actions and two-byte
+// waits; VIA 12 prefixed, 8-bit actions, waits in ASCII digits; VIA 10 unprefixed, no waits.
+function measure(list, setup, problems) {
+  const p = setup.proto, act = p === 'via10' ? 2 : 3;
+  let n = 0;
+  const keyOk = k => {
+    if (K[k].v > 0xFF && p !== 'vial6') { problems.push(['err', `A VIA macro holds basic keys only -- ${K[k].h} ${K[k].m} cannot be stored`]); return false; }
+    return true;
+  };
+  const partner = pairsOf(list);
+  list.forEach((s, i) => {
+    if (s.t === 'text') {
+      n += s.ascii !== undefined ? s.ascii.length : textCost(s.s, p, host(), problems);
+    } else if (s.t === 'key') {
+      keyOk(s.k);
+      const m = s.mods.length;
+      n += p === 'vial6' ? (m || K[s.k].v > 0xFF ? 4 : 3) : (m ? 2 * act * (m + 1) : act);
+    } else if (s.t === 'press' || s.t === 'release') {
+      keyOk(s.k);
+      n += p === 'vial6' && K[s.k].v > 0xFF ? 4 : act;
+      if (!partner.has(i)) problems.push(['warn', s.t === 'press'
+        ? `${K[s.k].m} is pressed and never released: it stays held after the macro ends`
+        : `${K[s.k].m} is released but this macro never pressed it: it releases your own ${K[s.k].m}, if you hold it`]);
+    } else if (s.t === 'delay') {
+      if (p === 'via10') problems.push(['err', 'This firmware (VIA protocol 10) has no waits: a wait cannot be stored']);
+      else n += p === 'vial6' ? 4 : 3 + String(s.ms).length;
+      if (p === 'via12' && s.ms > 9999) problems.push(['err', 'VIA waits go up to 9 999 ms']);
+      if (p === 'vial6' && s.ms > 65024) problems.push(['err', 'Vial waits go up to 65 024 ms']);
+    }
+  });
+  return n;
+}
+const sizeOf = (list, setup) => measure(list, setup, []) + 1;
+
+// VIA's script syntax, shown read-only in a tooltip for those who know it.
+const textOf = s => s.ascii !== undefined ? readBack(s.ascii, host()) : s.s;
+const scriptOf = list => list.map(s => s.t === 'text' ? textOf(s).replace(/{/g, '\\{')
+  : s.t === 'delay' ? `{${s.ms}}`
+  : s.t === 'key' ? `{${[...s.mods.map(m => MODS.find(x => x[0] === m)[1]), s.k].join(',')}}`
+  : `{${s.t === 'press' ? '+' : '-'}${s.k}}`).join('');
+
+// ---------------------------------------------------------------------------------------------
+const cur = () => state.macros[state.m];
+const locked = () => !!SETUPS[state.setup].locked;
+const dirty = i => JSON.stringify(state.macros[i]) !== JSON.stringify(savedList()[i]);
+
+function changed(what) {
+  if (state.writing === 'At once') {
+    state.saved = JSON.stringify(state.macros);
+    state.msg = ['ok', `Stored -- ${what}, M${state.m} read back the same`];
+  } else state.msg = null;
+}
+
+// ---------------------------------------------------------------------------------------------
+function legendHtml(k, mods) {
+  const kc = K[k];
+  const h = mods && mods.length ? mods.join('+') + '+' : kc.h;
+  return `${h ? `<span class="h">${h}</span>` : ''}<span class="m">${kc.m}</span>`;
+}
+function capHtml(k, mods) {
+  return `<div class="cap${K[k].tab === 'Media & mouse' ? ' host' : ''}">${legendHtml(k, mods)}</div>`;
+}
+function chainHtml(list) {
+  const partner = pairsOf(list);
+  const ip = (i, cls) => `<div class="ip${cls}${state.caret === i ? ' caret' : ''}" data-index="${i}" title="Add a step here"><span>+</span></div>`;
+  let h = '';
+  list.forEach((s, i) => {
+    const sel = state.sel === i ? ' sel' : '';
+    h += ip(i, i === 0 ? ' first' : '');
+    if (s.t === 'key') h += `<div class="chip${sel}" data-path="${i}" title="Taps ${s.mods.length ? s.mods.join('+') + '+' : ''}${K[s.k].m}">${capHtml(s.k, s.mods)}</div>`;
+    else if (s.t === 'text') {
+      const L = host(), text = textOf(s);
+      const ways = s.ascii !== undefined ? [] : [...new Set([...text].map(c => { const st = strokesOf(c, L); return st ? howTyped(c, st, L) : `${c}: not on this layout`; }).filter(Boolean))];
+      const bad = s.ascii === undefined && [...text].some(c => !strokesOf(c, L));
+      const tip = s.ascii !== undefined
+        ? `Written by another app as characters -- what they type with the ${LAYOUT_NAMES[L.name]} layout. Edit it to store it Nazg's way.`
+        : `Types this text with the ${LAYOUT_NAMES[L.name]} layout` + (ways.length ? '\n' + ways.join('\n') : '');
+      h += `<div class="chip${sel}" data-path="${i}" title="${tip.replace(/"/g, '&quot;')}"><div class="textchip${bad ? ' bad' : ''}"><span class="k">Text</span>`
+         + `<input data-text="${i}" value="${text.replace(/"/g, '&quot;')}" size="${Math.max(3, text.length)}"></div></div>`;
+    } else if (s.t === 'delay') {
+      const bad = SETUPS[state.setup].proto === 'via10';
+      h += `<div class="chip${sel}" data-path="${i}" title="Waits; the keyboard does nothing else meanwhile"><div class="waitchip${bad ? ' bad' : ''}">⏱ <input data-ms="${i}" value="${s.ms}"> ms</div></div>`;
+    } else {
+      const press = s.t === 'press', pair = partner.has(i) ? Math.min(i, partner.get(i)) : '';
+      const lone = partner.has(i) ? '' : ' lone';
+      h += `<div class="chip${sel}${lone}" data-path="${i}" data-pair="${pair}" title="${press ? 'Presses' : 'Releases'} ${K[s.k].m}${partner.has(i) ? '' : (press ? ' -- never released' : ' -- never pressed by this macro')}">`
+         + `${capHtml(s.k, [])}<i class="mark ${press ? 'dn' : 'up'}"></i></div>`;
+    }
+  });
+  h += ip(list.length, list.length ? ' last' : ' first');
+  return h;
+}
+
+const hostSelect = () => `<select data-host>${Object.entries(LAYOUT_NAMES).map(([k, n]) => `<option value="${k}"${k === state.host ? ' selected' : ''}>${n}</option>`).join('')}</select>`;
+
+function renderPanel() {
+  const setup = SETUPS[state.setup], list = cur();
+  const problems = [];
+  const mine = measure(list, setup, problems) + 1;
+  const total = state.macros.reduce((n, l) => n + sizeOf(l, setup), 0);
+  const others = total - mine;
+
+  // The macro line: which slot -- its VIA script on hover -- the room it takes, what was written.
+  let msg = '';
+  if (locked()) msg = `<span class="warn">Locked: macros can be read, not written</span>`;
+  else if (state.writing === 'Save / Revert' && state.macros.some((_, i) => dirty(i))) msg = `<span class="warn">Not written yet</span> <span class="muted">-- ${state.macros.filter((_, i) => dirty(i)).length} macro(s) changed</span>`;
+  else if (state.msg) msg = `<span class="${state.msg[0]}">${state.msg[1].split(' -- ')[0]}</span> <span class="muted">-- ${state.msg[1].split(' -- ')[1] || ''}</span>`;
+  else msg = `<span class="muted">${state.writing === 'At once' ? 'Each change is written to the board at once.' : 'Changes are written by Save.'}</span>`;
+  const place = PLACES[state.m] ? `on layer ${PLACES[state.m].layer}, row ${PLACES[state.m].cell[0]} col ${PLACES[state.m].cell[1]}` : 'on no key yet';
+  const script = scriptOf(list).replace(/"/g, '&quot;');
+  let h = `<div class="mline"><span class="title" title="${list.length ? 'As VIA writes it: ' + script : 'Empty'}">M${state.m}</span>`
+        + (state.boardArea === 'Folded' ? `<span class="muted">${place}</span>` : '')
+        + `<span class="gauge" title="All macros share the board's ${setup.buffer} bytes"><span class="bar"><b style="left:0;width:${100 * others / setup.buffer}%"></b><i style="left:${100 * others / setup.buffer}%;width:${100 * mine / setup.buffer}%"></i></span>${mine} bytes · ${setup.buffer - total} of ${setup.buffer} free</span>`
+        + `<span class="msg">${msg}</span>`;
+  if (state.writing === 'Save / Revert') {
+    const any = state.macros.some((_, i) => dirty(i));
+    h += `<span class="right"><button data-act="save" ${any && !locked() ? '' : 'disabled'}>Save</button><button data-act="revert" ${any ? '' : 'disabled'}>Revert</button></span>`;
+  }
+  h += `</div>`;
+
+  // The chain.
+  h += `<div class="chainarea"><div class="chain${locked() ? ' ro' : ''}">${chainHtml(list)}`
+     + (list.length ? '' : `<span class="muted" style="margin-left:6px">Empty: pick a key below, or add text or a wait.</span>`)
+     + `</div></div>`;
+  if (problems.length) h += `<div class="problems">${[...new Map(problems.map(p => [p[1], p])).values()].map(p => `<div class="${p[0]}">⚠ ${p[1]}</div>`).join('')}</div>`;
+
+  // Until the host layout has been chosen, text asks for it -- the same setting as Keymap's legends.
+  if (state.hostChosen === 'No' && list.some(s => s.t === 'text'))
+    h += `<div class="invite">Text is typed the way your computer types it. Which layout does your computer use? ${hostSelect()}`
+       + `<span class="muted">The same setting as Keymap's legends, in Settings too.</span></div>`;
+
+  // The tools for the selected step, or for adding at the caret.
+  if (locked()) {
+    h += `<div class="banner">This board is locked. Vial writes no macro until it is unlocked: click 🔒 in the header, then hold the two outlined keys.</div>`;
+  } else {
+    const s = state.sel !== null ? list[state.sel] : null;
+    const noDelay = setup.proto === 'via10';
+    const adds = `<span class="seg"><span class="muted">Add${s ? ' after it' : ' here'}:</span><button data-add="text">Text</button>`
+      + `<button data-add="delay" ${noDelay ? 'disabled title="This firmware (VIA protocol 10) has no waits"' : ''}>Wait</button>`
+      + `<button data-add="hold" title="A press and a release, the + between them">Held key</button><span class="muted">or a key below</span></span>`;
+    let t;
+    if (!s) t = adds;
+    else {
+      const paired = pairsOf(list).has(state.sel);
+      const name = { key: 'Key', text: 'Text', delay: 'Wait', press: 'Press', release: 'Release' }[s.t];
+      t = `<b>${name}</b>`;
+      if (s.t === 'key') t += `<span class="seg"><span class="muted">Sent with</span>${MODS.map(([m]) => `<button data-mod="${m}" class="${s.mods.includes(m) ? 'on' : ''}">${m}</button>`).join('')}</span><span class="muted">pick a key below to change it</span>`;
+      if (s.t === 'press' || s.t === 'release') t += `<span class="muted">pick a key below to change it${paired ? ', and its ' + (s.t === 'press' ? 'release' : 'press') : ''}</span>`;
+      if (s.t === 'delay') t += `<span class="muted">in ms, up to ${setup.proto === 'via12' ? '9 999' : '65 024'}; the keyboard does nothing else meanwhile</span>`;
+      if (s.t === 'text') t += `<span class="seg"><span class="muted">Typed for</span>${hostSelect()}</span><span class="muted">right on computers with this layout; hover the text for how each character is typed</span>`;
+      t += `<span class="seg"><button data-act="left" title="Move before">◀</button><button data-act="right" title="Move after">▶</button>`
+         + `<button data-act="remove" title="${paired ? 'Removes the press and its release' : 'Removes this step'}">Remove${paired ? ' both' : ''}</button></span>` + adds;
+    }
+    h += `<div class="tools">${t}</div>`;
+  }
+
+  // The picker, Keymap's own, trimmed to a few tabs here.
+  if (!locked()) {
+    h += `<div class="tabs">${TABS.map(([n, c]) => `<span class="tab${state.tab === n ? ' on' : ''}" data-tab="${n}">${c ? `<span class="dot" style="background:${c}"></span>` : ''}${n}</span>`).join('')}<input placeholder="Search"></div>`;
+    h += `<div class="tiles">${Object.values(K).filter(k => k.tab === state.tab).map(k => {
+      const off = k.v > 0xFF && setup.proto !== 'vial6';
+      return `<div class="cap${k.tab === 'Media & mouse' ? ' host' : ''}${off ? ' off' : ''}" data-key="${k.name}" title="${off ? 'A VIA macro holds basic keys only' : k.name}">${legendHtml(k.name)}</div>`;
+    }).join('')}</div>`;
+  }
+  return h;
+}
+
+// Where the macros sit on the board: a few keys of the top row hold M0..M5.
+let PLACES = {};
+function boardSvg(setup) {
+  const b = BOARDS[setup.def];
+  const groups = b.labels.map(groupOf);
+  const keys = placeKeys(parseKle(b.keymap), groups, groups.map(() => 0)).filter(k => !k.decal);
+  const top = keys.filter(k => k.y === Math.min(...keys.map(k => k.y))).sort((a, b) => a.x - b.x);
+  const holders = [[0, 0, 1], [1, 0, 2], [2, 1, 3], [3, 1, 4], [4, 1, 5], [5, 1, 6]];
+  PLACES = {};
+  const at = new Map();
+  for (const [m, layer, i] of holders) if (top[i]) { at.set(top[i], { m, layer }); PLACES[m] = { layer, cell: top[i].cell }; }
+  const unlock = [top[0], keys.reduce((a, k) => (k.y > a.y || (k.y === a.y && k.x > a.x)) ? k : a, keys[0])];
+  const bd = boundsOf(keys), avail = 1160 - 180 - 28 - 30;
+  const u = Math.min(44, Math.floor(avail / (bd.x1 - bd.x0 + 0.7))), m = u * 0.35;
+  let s = `<svg class="board" xmlns="${NS}" width="${(bd.x1 - bd.x0) * u + 2 * m}" height="${(bd.y1 - bd.y0) * u + 2 * m}">`
+        + `<style>.plate{fill:var(--plate)}.k{fill:var(--key);stroke:var(--keyline)}.k.mac{fill:var(--hostface);stroke:var(--host)}.k.cur{fill:var(--lit);stroke:var(--litline);stroke-width:2}.k.unl{stroke:var(--warn);stroke-width:2.5}.t{font:${Math.round(u * 0.27)}px Arimo,Arial;fill:var(--text);text-anchor:middle}.t.s{font-size:${Math.round(u * 0.2)}px;fill:var(--muted)}</style>`
+        + `<rect class="plate" width="100%" height="100%" rx="12"/><g transform="translate(${m} ${m})">`;
+  const gap = Math.max(1, u * 0.06);
+  for (const k of keys) {
+    const hold = at.get(k);
+    const cls = 'k' + (hold ? (hold.m === state.m ? ' cur' : ' mac') : '') + (setup.locked && unlock.includes(k) ? ' unl' : '');
+    const x = (k.x - bd.x0) * u + gap, y = (k.y - bd.y0) * u + gap, w = k.w * u - 2 * gap, hh = k.h * u - 2 * gap;
+    s += `<rect class="${cls}" x="${x}" y="${y}" width="${w}" height="${hh}" rx="${Math.max(2, u * 0.1)}"/>`;
+    if (k.w2 !== k.w || k.h2 !== k.h || k.x2 || k.y2)
+      s += `<rect class="${cls}" x="${(k.x + k.x2 - bd.x0) * u + gap}" y="${(k.y + k.y2 - bd.y0) * u + gap}" width="${k.w2 * u - 2 * gap}" height="${k.h2 * u - 2 * gap}" rx="${Math.max(2, u * 0.1)}"/>`;
+    if (hold) {
+      s += `<text class="t" x="${x + w / 2}" y="${y + hh / 2 + u * 0.1}">M${hold.m}</text>`;
+      if (hold.layer) s += `<text class="t s" x="${x + w - u * 0.08}" y="${y + u * 0.24}" style="text-anchor:end">L${hold.layer}</text>`;
+    }
+  }
+  return s + `</g></svg>`;
+}
+
+function render() {
+  document.documentElement.dataset.theme = state.theme.toLowerCase();
+  renderControls();
+  const setup = SETUPS[state.setup], b = BOARDS[setup.def];
+  const svg = boardSvg(setup);
+  const strip = state.macros.map((l, i) => `<button class="${i === state.m ? 'on' : ''}${l.length ? '' : ' empty'}" data-m="${i}">M${i}${state.writing === 'Save / Revert' && dirty(i) ? '<span class="dot"></span>' : ''}</button>`).join('');
+  document.getElementById('frame').innerHTML =
+    `<div class="menubar"><span class="board">${b.name} ▾</span><span class="muted">${setup.label}</span>${setup.locked ? '<span class="lock">🔒 Locked</span>' : ''}<span class="right">Settings</span></div>`
+  + `<div class="body"><div class="col"><div class="entry">Keymap</div><div class="entry">Layout</div><div class="entry on">Macros</div></div>`
+  + `<div class="main"><div class="strip">${strip}</div>`
+  + (state.boardArea === 'Shown' ? `<div class="boardarea">${svg}</div>` : '')
+  + `<div class="panel">${renderPanel()}</div></div></div>`;
+  linkRows();
+}
+
+// A chain longer than the panel wraps, and each row's end is linked to the next row's start: down
+// from the last step, back left through the gap between the rows, down into the first -- a
+// carriage return, so the chain still reads as one line.
+function linkRows() {
+  const chain = frame.querySelector('.chain');
+  if (!chain) return;
+  chain.querySelector('svg.links')?.remove();
+  const box = chain.getBoundingClientRect();
+  const items = [...chain.children].filter(e => e.matches('.ip,.chip')).map(e => {
+    const r = (e.querySelector('.cap,.textchip,.waitchip') || e).getBoundingClientRect();
+    const o = e.getBoundingClientRect();
+    return { l: o.left - box.left, r: o.right - box.left, t: r.top - box.top, b: r.bottom - box.top };
+  });
+  const rows = [];
+  for (const it of items) {
+    const row = rows[rows.length - 1];
+    if (row && Math.abs(row[0].t + (row[0].b - row[0].t) / 2 - (it.t + (it.b - it.t) / 2)) < 20) row.push(it); else rows.push([it]);
+  }
+  if (rows.length < 2) return;
+  const R = 7, out = 10;
+  let d = '';
+  for (let i = 0; i + 1 < rows.length; i++) {
+    const a = rows[i][rows[i].length - 1], b = rows[i + 1][0];
+    const ya = (a.t + a.b) / 2, yb = (b.t + b.b) / 2;
+    const yg = (Math.max(...rows[i].map(x => x.b)) + Math.min(...rows[i + 1].map(x => x.t))) / 2;
+    const xr = a.r + out, xl = Math.max(-out, b.l - out);
+    d += `M${a.r} ${ya} H${xr - R} Q${xr} ${ya} ${xr} ${ya + R} V${yg - R} Q${xr} ${yg} ${xr - R} ${yg} H${xl + R} Q${xl} ${yg} ${xl} ${yg + R} V${yb - R} Q${xl} ${yb} ${xl + R} ${yb} H${b.l} `;
+  }
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('class', 'links');
+  svg.innerHTML = `<path d="${d}"/>`;
+  chain.prepend(svg);
+}
+window.addEventListener('resize', linkRows);
+
+function renderControls() {
+  const c = document.getElementById('controls');
+  c.innerHTML = '';
+  [['setup', 'Board', Object.keys(SETUPS)], ['boardArea', 'Board area', ['Shown', 'Folded']],
+   ['writing', 'Writing', ['At once', 'Save / Revert']], ['hostChosen', 'Host layout chosen', ['No', 'Yes']],
+   ['theme', 'Theme', ['Light', 'Dark']]].forEach(([k, name, values]) => {
+    const g = document.createElement('div'); g.className = 'group';
+    g.innerHTML = `<span class="name">${name}</span>`;
+    values.forEach(v => {
+      const bt = document.createElement('button'); bt.textContent = v;
+      if (state[k] === v) bt.className = 'on';
+      bt.onclick = () => { state[k] = v; if (k === 'writing') state.saved = JSON.stringify(state.macros); state.msg = null; render(); };
+      g.appendChild(bt);
+    });
+    c.appendChild(g);
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Editing.
+function insertAt() {
+  return state.sel !== null ? state.sel + 1 : state.caret !== null ? state.caret : cur().length;
+}
+function insertSteps(steps, caretOffset, what) {
+  const i = insertAt();
+  cur().splice(i, 0, ...steps);
+  state.sel = null;
+  state.caret = i + caretOffset;
+  changed(what);
+}
+const frame = document.getElementById('frame');
+frame.addEventListener('click', e => {
+  const t = e.target.closest('[data-m],[data-path],[data-index],[data-key],[data-tab],[data-mod],[data-add],[data-act]');
+  if (!t) return;
+  const d = t.dataset;
+  if (d.m !== undefined) { state.m = +d.m; state.sel = null; state.caret = null; state.msg = null; }
+  else if (d.path !== undefined) {
+    state.sel = +d.path; state.caret = null;
+    if (e.target.tagName === 'INPUT') { render(); const i = document.querySelector(`[data-text="${d.path}"],[data-ms="${d.path}"]`); if (i) i.focus(); return; }
+  }
+  else if (d.index !== undefined) { state.caret = +d.index; state.sel = null; }
+  else if (d.tab !== undefined) state.tab = d.tab;
+  else if (d.key !== undefined) {
+    const kc = K[d.key];
+    if (kc.v > 0xFF && SETUPS[state.setup].proto !== 'vial6') return;
+    const s = state.sel !== null ? cur()[state.sel] : null;
+    if (s && (s.t === 'key' || s.t === 'press' || s.t === 'release')) {
+      const partner = pairsOf(cur());
+      if (partner.has(state.sel)) cur()[partner.get(state.sel)].k = d.key;
+      s.k = d.key; changed(kc.m + ' set');
+    } else insertSteps([{ t: 'key', k: d.key, mods: [] }], 1, kc.m + ' added');
+  }
+  else if (d.mod !== undefined) { const s = cur()[state.sel]; s.mods = s.mods.includes(d.mod) ? s.mods.filter(m => m !== d.mod) : MODS.map(x => x[0]).filter(m => m === d.mod || s.mods.includes(m)); changed('modifiers changed'); }
+  else if (d.add === 'text') insertSteps([{ t: 'text', s: 'text' }], 1, 'text added');
+  else if (d.add === 'delay') insertSteps([{ t: 'delay', ms: 100 }], 1, 'wait added');
+  else if (d.add === 'hold') insertSteps([{ t: 'press', k: 'KC_LSFT' }, { t: 'release', k: 'KC_LSFT' }], 1, 'held key added');
+  else if (d.act === 'save') { state.saved = JSON.stringify(state.macros); state.msg = ['ok', `Stored -- every macro, read back the same`]; }
+  else if (d.act === 'revert') { state.macros = savedList(); state.sel = null; state.caret = null; }
+  else if (d.act === 'remove') {
+    const partner = pairsOf(cur()), i = state.sel;
+    const gone = partner.has(i) ? [i, partner.get(i)].sort((a, b) => b - a) : [i];
+    gone.forEach(j => cur().splice(j, 1));
+    state.sel = null; state.caret = Math.min(...gone); changed('step removed');
+  } else if (d.act === 'left' || d.act === 'right') {
+    const l = cur(), i = state.sel, j = i + (d.act === 'left' ? -1 : 1);
+    if (j >= 0 && j < l.length) { [l[i], l[j]] = [l[j], l[i]]; state.sel = j; changed('step moved'); }
+  }
+  render();
+});
+frame.addEventListener('input', e => {
+  const d = e.target.dataset;
+  if (d.text !== undefined) { const s = cur()[+d.text]; s.s = e.target.value; delete s.ascii; e.target.size = Math.max(3, e.target.value.length); }
+  else if (d.ms !== undefined) cur()[+d.ms].ms = Math.max(0, parseInt(e.target.value) || 0);
+  linkRows();
+});
+frame.addEventListener('change', e => {
+  if (e.target.dataset.host !== undefined) { state.host = e.target.value; state.hostChosen = 'Yes'; render(); return; }
+  if (e.target.dataset.text !== undefined || e.target.dataset.ms !== undefined) { changed(e.target.dataset.text !== undefined ? 'text changed' : 'wait changed'); render(); }
+});
+// Hovering a press or a release lights its partner.
+frame.addEventListener('mouseover', e => {
+  const c = e.target.closest('[data-pair]');
+  frame.querySelectorAll('.pairhl').forEach(x => x.classList.remove('pairhl'));
+  if (c && c.dataset.pair !== '') frame.querySelectorAll(`[data-pair="${c.dataset.pair}"]`).forEach(x => x.classList.add('pairhl'));
+});
+
+document.getElementById('notes').innerHTML = `
+<p><b>What it shows.</b> The Macros section: the slots in the strip (an empty one dashed, a changed one dotted), the
+board with the keys that play a macro (the selected one's lit, "L1" when on another layer), and the panel -- a line
+saying which macro, the room it takes in the board's shared memory (the grey part is the other macros) and what was
+written; then the macro as a chain, left to right; then the tools for the selected step; then Keymap's picker, which
+gives the keys. <b>Hovering the macro's name</b> ("M2") gives it in VIA's script syntax, read-only (Rico: the chain
+edits everything, so the script needs no editing).</p>
+<p><b>A long macro wraps</b> (M8), and each row's end is linked to the next row's start -- down, back left
+through the gap, down into the first step -- so the chain still reads as one line (Rico).</p>
+<p><b>Editing.</b> Click a step to select it; click between two steps (a + shows) to add there. A key picked in the
+picker replaces the selected key or is added at the + -- several picks in a row add several keys. Text and waits are
+typed in place. <b>Sent with</b> turns R into Win+R, as in Keymap's key line: one step, whatever the board stores --
+one 16-bit action on Vial, four presses and releases on VIA.</p>
+<p><b>Press and release are steps of their own</b>, as the board stores them -- ▼ pressed, ▲ released. <b>Held key</b>
+adds a pair with the + between them; each mark then moves on its own, so they can cross (M4: Ctrl and Shift released in
+the order pressed). They are paired for reading -- a release goes with the last unreleased press of its key, hovering
+one lights the other, a picked key changes both, Remove takes both -- and one left alone is said, dashed: M5 presses
+Shift and never releases it.</p>
+<p><b>Text is typed the way the computer types it</b>, with its host layout -- every character the layout can
+type. Each character becomes its keystrokes: on a key directly (é is AltGr+E on US International), else its accent's
+dead key then its letter (ê: ^ then E), else a dead key's own character, the dead key then Space (' on US
+International). Hover a text for how each character is typed. Stored, a keystroke the firmware's US table reaches is
+one byte, the US character on that key ("q" types a on French), so "Best regards," is 13 bytes on every layout;
+AltGr keys and dead keys cost a little more. <b>M6</b> is the same sentence for every layout: try them with the layout
+choice. <b>M7</b> was written by another app, as characters: it shows what they really type here -- "l'eau" comes out
+"léau" on US International, whose ' is a dead key, and "lùequ" on French. Retyping it stores it Nazg's way.</p>
+<p><b>The host layout is asked for</b> the first time a macro holds text, until it has been chosen ("Host layout
+chosen" above replays it); afterwards a text's tools say which layout it is typed for. It is the setting Keymap's
+legends use. Five layouts here, from QMK's data like Nazg's 69, dead keys included.</p>
+<p><b>Settled</b> (Rico, 2026-10-10): the board shown and Save / Revert -- the toggles keep the alternatives.</p>
+<p><b>What the board cannot do</b> is said where it matters: ZX60 on VIA 10 has no waits (Wait greyed, M1's wait in
+red); a VIA board holds basic keys only (Layers and Firmware greyed); the locked Model F shows the macros but writes
+none, its unlock keys outlined.</p>`;
+
+render();
+</script>
+</body>
+</html>

@@ -1237,6 +1237,117 @@ wrap on ZX60's ten; **pictures**, each option drawn small all the time -- too mu
 (Rico), hence the drawing on hover; and **lighting the group's keys** on the board, with a key
 of a group lighting its line in the panel.
 
+## The Macros section
+
+The board's macros -- keys that type a sequence -- edited in the panel. What a macro can hold,
+and how each firmware stores it, is in via-vial-commands.md, "Macros — the buffer and its byte
+format". Decided with Rico 2026-10-10 on the mockup `ui-design/macros-section.html`, after
+comparing Vial's and VIA's editors, redrawn from their source with the same macros, in
+`ui-design/macro-editors-vial-via.html`. Real definitions in it: the Model F B104 (Vial 6, and
+locked) and ZX60 (VIA 12, and VIA 10, which has no waits).
+
+- **In the column** when the board reports macros (`GetMacroCount()` above zero); **the strip
+  holds the slots**, M0 to the count, an empty one dashed. **No names** (Rico): the board stores
+  none, and Nazg keeps none -- nor does hovering a macro key in Keymap show its contents.
+- **The board stays drawn** (Rico) and says where the macros are: the keys that play one are
+  marked with it, the selected macro's lit, "L1" when the key is on another layer.
+- **The panel: the macro as a chain, left to right** -- VIA's way, not Vial's rows (Rico: more
+  visual; Vial's rows take the height and leave the width empty, where Nazg's panel is wide and
+  short). Unlike VIA's chain, which only records, **it is edited in place**: a click selects a
+  step, a click between two steps places a + where the next one goes. **A chain longer than the
+  panel wraps, never clipped, and each row's end is linked to the next row's start** (Rico): the
+  line leaves the last step to the right, turns down into the gap between the rows, runs back
+  left and drops into the first step -- a carriage return, so the chain reads as one line. The
+  rows are spaced for that line to pass between a press's ▼ and the next row's ▲. Its steps:
+  - **a key**, drawn as a keycap. **Sent with** -- Ctrl, Shift, Alt, Win, as in Keymap's key line
+    -- makes Win+R one step, whatever the board stores: one 16-bit action on Vial 5 and later,
+    four presses and releases on VIA;
+  - **text**, typed in place;
+  - **a wait**, in milliseconds, typed in place;
+  - **a press** and **a release**, drawn as **VIA's two marks** (Rico): the key with ▼ under it
+    where it is pressed, with ▲ over it where it is released. They are **steps of their own**, as
+    the board stores them -- not a pair the model enforces: the firmware takes any order and any
+    number, so they may cross (Ctrl and Shift released in the order pressed) or stand alone. They
+    are **paired for reading**: a release goes with the last unreleased press of its key, hovering
+    one lights the other, a key picked for one changes both, Remove takes both. **One left alone
+    is said** and drawn dashed: a press never released leaves the key held after the macro ends;
+    a release never pressed releases the user's own key. A bracket around the held steps was the
+    other choice, and modelled the pair as one nested step -- set aside with it.
+- **Keymap's picker under the chain** gives the keys: a tile replaces the selected key or is
+  added at the +, so several picks add several keys. Between chain and picker, a line of tools
+  for the selected step -- Sent with, move before / after, Remove -- and **Add: Text, Wait, Held
+  key**, the last a press and a release with the + between them.
+- **Text is typed the way the computer types it** (Rico, 2026-10-10): every character the host
+  layout can type, on every layout Nazg supports. The firmware's "characters" are keys of a US
+  layout in disguise -- byte `q` is the key where US QWERTY has Q, which types `a` on French --
+  so Vial's and VIA's text is right on US computers only ("cmd" comes out "c,d" on French) and
+  can hold nothing outside ASCII. One rule replaces it: **a text step shows what it types with
+  the host layout, and is stored as whatever makes that layout type it.**
+  - **Each character becomes keystrokes**: on a key directly, at one of its four levels (`é` is
+    AltGr+E on US International); else its accent's dead key, then its base letter, Unicode's
+    decomposition saying which (`ê` = `e` + ◌̂: `^` then E); else a dead key's own character,
+    the dead key then Space (`'` on US International). Otherwise it cannot be typed on this
+    layout, and the panel says so. **Hovering a text shows how each character is typed.**
+  - **Stored compactly**: a keystroke the firmware's US table reaches -- a key plain or with
+    Shift -- is one byte, the US character on that key (`q` for `a` on French); AltGr keys and
+    keys outside the table (ISO's `<`) are actions -- one 16-bit tap on Vial, presses and
+    releases on VIA. "Best regards," is 13 bytes on every layout; "Café crème, l'été même" 23 to
+    34 bytes on Vial, depending on the layout.
+  - **Read back the same way**: stored bytes are read through the host layout, dead keys
+    composing, so **text another app wrote shows what it really types here** -- "l'eau" from VIA
+    reads "léau" on US International, whose `'` is a dead key, "lùequ" on French. Nothing is
+    converted; retyping it stores it Nazg's way.
+  - **The host layout is asked for** the first time a macro holds text, until the user has
+    chosen one -- the setting Keymap's legends use, in Settings too; afterwards a text's tools
+    say which layout it is typed for ("Typed for US International ▾"). Whether Nazg can guess
+    it -- SDL3 reports what each key types under the current layout -- is to be tried.
+  - **Limits, said**: the macro is right on computers with that layout only (any text macro
+    is; Vial and VIA assume US); a wrong host layout setting shows and writes wrong text, as it
+    shows wrong legends in Keymap; a firmware built with QMK's `sendstring_<lang>.h` table reads
+    the bytes differently, and no client can tell.
+  - **What the layout table needs**: Nazg's strips QMK's "(dead)" marks and draws letters as
+    capitals (a keycap's legend); typing needs the dead keys -- 49 of QMK's 70 layouts have
+    some, Bépo 19 -- and each level's real case, which a rule gives (a lone capital is the lower
+    case, its capital one level up), to be checked on all 69. **What a dead key types alone is
+    not in QMK's data**, which names a dead key by its accent: US International's `'` key adds
+    `´` but types `'` before Space -- written by hand where it differs. Compositions are mostly
+    the same on Windows, macOS and Linux, not always (Windows' US International makes `ç` of
+    `'` then C), hence the direct key first. A test can type every character of every layout
+    and read it back.
+- **Written by Save, undone by Revert** (Rico), as Vial: a dot on each changed slot, "Not
+  written yet" on the macro's line. Unlike Keymap and Layout, which write at once -- a macro is
+  typed and arranged step by step, and every write rewrites the whole buffer. **Unsaved changes
+  are kept** while the user moves between sections; Nazg asks **Save / Discard** only when the
+  board changes or Nazg closes (Rico, 2026-10-10).
+- **The macro's line** says which slot, the room it takes in the board's memory, shared by all
+  macros (a gauge, the other macros in grey: "26 bytes · 815 of 896 free"), and what was written.
+  **Hovering the macro's name gives it in VIA's script syntax**, `{KC_LGUI,KC_R}{300}cmd{KC_ENT}`,
+  read-only: the chain edits everything the board can store, so an editable script would only
+  be a second way to do the same (Rico).
+- **What the board cannot do is said where it matters**: no waits before VIA protocol 11 and
+  Vial protocol 2 (Wait greyed, a wait already there in red); basic keys only on VIA (the
+  picker's other tabs greyed); a locked Vial board shows its macros but writes none, its unlock
+  keys outlined on the board (screen 5 below).
+
+Set aside: **writing at once**, as Keymap and Layout; **text as characters**, VIA's and Vial's
+way -- and with it a choice between characters and host keys, the first being the second on a
+US computer; **the board folded away**, the panel saying where the macro is in words; **an editable
+script line** over the chain.
+
+**Recording is left out** (Rico, 2026-10-10) -- typing the computer's keyboard into a macro, as
+both apps offer. Little sign that users want it: Vial's recorder has never existed on macOS (a
+user asked in 2022, vial-gui#130: "not supported", nothing since), needs `pkexec` on Linux and a
+system-wide hook on Windows, and its one open issue is the US-layout bug the rule above solves
+(vial-gui#218); VIA's records only in full screen on Chromium, and the-via/app has no issue about
+it at all. For Nazg it would be cheap -- SDL's key events while its window has focus, no hook,
+positions as a macro stores them, the host-layout rule for free; Win and Alt+Tab need SDL's
+keyboard grab -- so it can come later as **one Record button on the macro's line**.
+
+Not to be confused with QMK's **Dynamic Macros**, recorded on the keyboard into RAM, which no
+client sees: used little -- 71 of 7660 keymaps in QMK's tree of April 2023, the last with users'
+keymaps, and 6 of vial-qmk's 573 Vial keymaps enable it -- so Nazg only offers its keys, in the
+picker's Macros tab.
+
 ## The common screens
 
 **1. No board open.** The keyboards found, each with its protocol and *Open*. No section

@@ -125,7 +125,10 @@ one line per option group -- checkbox or combo -- hovering an option drawing its
 (`OptionKeys()`), the board changing only once a choice is written -- at once, with
 `SetKeyboardValue()` and read back (`EncodeLayoutOptions()`, tested). Every other section is a
 `PlaceholderSection` saying "Not built yet", a custom menu's listing its sections. So the match
-rule is the plan, for now. The Leyden Jar diagnostics, planned as
+rule is the plan, for now. **Macros is designed, not built** (2026-10-10; ui-design.md "The
+Macros section", mockup `macros-section.html`, the byte formats in via-vial-commands.md): VIA's
+chain edited in place over Keymap's picker, press / release as steps of their own, Save /
+Revert, text typed with the host layout -- dead keys composing -- and no recording. The Leyden Jar diagnostics, planned as
 the second, are **deferred far later** (Rico, 2026-09-26: they bring many design questions).
 Already decided for them: the device stays open while a view polls, and key output is disabled
 while they show -- RAM only on the firmware, so every close and exit path must enable it again.
