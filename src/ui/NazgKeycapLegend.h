@@ -45,6 +45,10 @@ namespace nazg
         std::string_view shifted;
         std::string_view altgr;
         std::string_view shiftAltgr;
+
+        // Bit n set where the key is dead at level n -- plain, Shift, AltGr, Shift+AltGr: it types
+        // nothing until the next key (QMK's "(dead)" labels). Typing needs it, legends do not.
+        uint8_t dead = 0;
     };
 
     // A host keyboard layout: the positions whose legend depends on it. Everything else

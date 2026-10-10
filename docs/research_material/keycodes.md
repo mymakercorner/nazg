@@ -430,6 +430,22 @@ matched exactly. The rules:
    a US host.
 7. Rows sorted by position name, layouts by id; strings containing `\` or `"` are raw
    literals. `tests/KeycapLegendTest.cpp` pins the count (69) and French AZERTY.
+8. **Dead keys** (2026-10-10, for typing macro text -- ui-design.md, "The Macros section"): a
+   row's sixth field, `dead`, has bit n set where QMK labels the key `(dead...)` at level n --
+   0 plain, 1 `S(X)`, 2 `ALGR(X)` or `A(X)`, 3 their Shift -- resolved through the layout's
+   aliases as in rule 3b. Rows with no dead level leave it out. A row copied by rule 6 takes
+   the mask of the row it copies: `KC_BSLS` and `KC_NUHS` share theirs when their plain legends
+   agree, and `KC_NUBS` takes `KC_BSLS`'s when it repeats its plain and Shift legends. 238 rows
+   of 49 layouts, then 11 copied; every dead key QMK lists found its row.
+9. **The compositions** a dead key makes, `ui/NazgComposeTable.cpp`: every code point of
+   U+00C0-U+024F and U+1E00-U+1EFF whose NFD is one base letter and one combining mark, from
+   Python's `unicodedata` (Unicode 16: 383). `tests/HostTypingTest.cpp` types every character
+   of every layout and reads it back -- 14 462 on 69 layouts, 6 596 composed.
+
+Both were produced by one-off scripts, as the table was: regenerate from the rules above.
+**What a dead key types alone** is not in QMK's data, which names a dead key by the accent it
+adds; where it differs it is written by hand, in `AloneOf()` (`ui/NazgHostTyping.cpp`): US
+International's `´` and `¨` keys type `'` and `"` before Space.
 
 ## Sources
 
