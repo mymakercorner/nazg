@@ -90,7 +90,6 @@ namespace nazg
         void Move(size_t step, int by);
         void Picked(const Keycode& keycode);
 
-        const std::vector<CatalogueTab>& Catalogue();
 
         HidTransport&                          m_Transport;
         std::string                            m_Path;
@@ -125,8 +124,6 @@ namespace nazg
         bool m_FocusEdit  = false;
         std::optional<size_t> m_EditFor;
 
-        KeycodePickerState        m_Picker;
-        std::vector<CatalogueTab> m_Catalogue;
-        std::string               m_CatalogueFor;
+        KeycodePickerState m_Picker;
     };
 }

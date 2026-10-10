@@ -79,7 +79,6 @@ namespace nazg
 
         // What the picker offers this board, built again when the legends' settings change: its
         // group titles are words in the host's modifier names.
-        const std::vector<CatalogueTab>& Catalogue();
 
         // The key line over the tabs (ui-design.md, "The key line"): where the key is, its keycode
         // in QMK's words -- editable, the Any entry -- and the composer, whose choices open in
@@ -96,9 +95,6 @@ namespace nazg
         std::optional<uint8_t> m_Peek;   // a layer hovered in the strip, shown meanwhile
         std::optional<Cell> m_Selected;
         KeycodePickerState  m_Picker;
-
-        std::vector<CatalogueTab> m_Catalogue;
-        std::string               m_CatalogueFor;   // the settings it was built with
 
         // What a click on the tile under the mouse would write, shown on the selected key meanwhile.
         std::optional<Keycode> m_Preview;

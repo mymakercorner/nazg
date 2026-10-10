@@ -23,6 +23,7 @@
 #include "transport/NazgDeviceChannel.h"
 #include "ui/NazgBoardDescription.h"
 #include "ui/NazgKeycapLegend.h"
+#include "ui/NazgKeyLine.h"
 #include "ui/NazgKeycodeCatalogue.h"
 #include "ui/NazgTheme.h"
 
@@ -116,18 +117,6 @@ namespace nazg
         }
     }
 
-    const std::vector<CatalogueTab>& KeymapSection::Catalogue()
-    {
-        const std::string settings = m_Legends.hostLayout + "/" + std::string(IdOf(m_Legends.modifierNames)) +
-                                     (m_AdvancedTools ? "/advanced" : "");
-        if (m_Catalogue.empty() || settings != m_CatalogueFor)
-        {
-            m_Catalogue    = BuildKeycodeCatalogue(m_Keyboard, m_Legends, m_AdvancedTools);
-            m_CatalogueFor = settings;
-        }
-        return m_Catalogue;
-    }
-
     void KeymapSection::OnBoardEvents(const BoardDescription& board, const BoardEvents& events)
     {
         if (!events.hoveredKey)
@@ -144,15 +133,7 @@ namespace nazg
         }
 
         // QMK's name and label, so a short form on the key may be terse (short-forms.md, rule 10).
-        const auto nameOf = [&](const Keycode& keycode)
-        {
-            std::string name = FormatKeycode(keycode);
-            if (const auto* named = std::get_if<NamedKey>(&keycode))
-                if (const QmkKeycode* row = FindQmkKeycodeByName(named->name, m_Keyboard.keycodeVersion);
-                    row != nullptr && row->label[0] != '\0' && name != row->label)
-                    name += std::string(" -- ") + row->label;
-            return name;
-        };
+        const auto nameOf = [&](const Keycode& keycode) { return KeycodeHoverText(keycode, m_Keyboard.keycodeVersion); };
 
         // A transparent or KC_NO key wears the keycode below it: hover says which, and from where.
         const Keycode     own      = m_Keyboard.KeycodeFor(key, m_Layer);
@@ -202,7 +183,7 @@ namespace nazg
 
         ImGui::BeginDisabled(IsBusy());
         const KeycodePickerEvents events =
-            DrawKeycodePicker(m_Picker, { Catalogue(), context, m_Keyboard.keycodeVersion, current, &m_Keyboard });
+            DrawKeycodePicker(m_Picker, { CatalogueOf(m_Picker, m_Keyboard, m_Legends, m_AdvancedTools), context, m_Keyboard.keycodeVersion, current, &m_Keyboard });
         ImGui::EndDisabled();
         m_Preview = events.preview;
 
@@ -250,82 +231,6 @@ namespace nazg
                     row != nullptr && row->value >= 0x04 && row->value <= 0xFF)
                     return named->name;
             return std::nullopt;
-        }
-
-        // The four modifiers by the host's names, each as a bit on either side.
-        struct Modifier
-        {
-            uint8_t     left;
-            uint8_t     right;
-            const char* name;
-        };
-
-        std::array<Modifier, 4> ModifiersFor(ModifierNames names)
-        {
-            const bool mac = names == ModifierNames::Mac;
-            return { { { Mod::LeftCtrl, Mod::RightCtrl, "Ctrl" },
-                       { Mod::LeftShift, Mod::RightShift, "Shift" },
-                       { Mod::LeftAlt, Mod::RightAlt, mac ? "Option" : "Alt" },
-                       { Mod::LeftGui, Mod::RightGui, mac ? "Cmd" : names == ModifierNames::Linux ? "Super" : "Win" } } };
-        }
-
-        bool IsRight(uint8_t mods) { return (mods & 0xF0) != 0; }
-
-        // A toggle in a popup or on the line: on, it looks pressed.
-        bool Toggle(const char* label, bool on, bool enabled = true)
-        {
-            ImGui::BeginDisabled(!enabled);
-            if (on)
-                ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
-            const bool clicked = ImGui::Button(label);
-            if (on)
-                ImGui::PopStyleColor();
-            ImGui::EndDisabled();
-            return clicked;
-        }
-
-        // Its popup opens under the button just drawn.
-        void OpenUnder(const char* popup)
-        {
-            ImGui::SetNextWindowPos(ImVec2(ImGui::GetItemRectMin().x, ImGui::GetItemRectMax().y));
-            ImGui::OpenPopup(popup);
-        }
-
-        // The modifier toggles and the side, editing `mods` -- one at least stays on unless `none`
-        // is offered. Returns the new set when something was clicked.
-        std::optional<uint8_t> ModifierChoices(uint8_t mods, ModifierNames names, bool none)
-        {
-            std::optional<uint8_t> changed;
-            const bool             right = IsRight(mods);
-
-            if (none)
-            {
-                if (Toggle("None", mods == 0) && mods != 0)
-                    changed = uint8_t{ 0 };
-            }
-
-            const std::array<Modifier, 4> modifiers = ModifiersFor(names);
-            for (size_t index = 0; index < modifiers.size(); ++index)
-            {
-                const Modifier& modifier = modifiers[index];
-                if (none || index > 0)
-                    ImGui::SameLine();
-                const uint8_t bit = right ? modifier.right : modifier.left;
-                if (Toggle(modifier.name, (mods & bit) != 0))
-                {
-                    const uint8_t next = static_cast<uint8_t>(mods ^ bit);
-                    if (next != 0 || none)
-                        changed = next;
-                }
-            }
-
-            // QMK holds one side only: the side moves every modifier set.
-            if (Toggle("Left", mods != 0 && !right, mods != 0) && right)
-                changed = static_cast<uint8_t>(mods >> 4);
-            ImGui::SameLine();
-            if (Toggle("Right", mods != 0 && right, mods != 0) && !right)
-                changed = static_cast<uint8_t>(mods << 4);
-            return changed;
         }
     }
 
@@ -402,7 +307,6 @@ namespace nazg
 
         const auto* modTap   = std::get_if<ModTapKey>(&current);
         const auto* layerTap = std::get_if<LayerTapKey>(&current);
-        const auto* modified = std::get_if<ModifiedKey>(&current);
         const ModifierNames names = m_Legends.modifierNames;
 
         // The modifiers' words as the board prints them: "Ctrl", "Ctrl Sft", "Hyper".
@@ -415,16 +319,16 @@ namespace nazg
         ImGui::AlignTextToFramePadding();
         ImGui::TextDisabled("When held");
         ImGui::SameLine();
-        if (Toggle("Nothing", modTap == nullptr && layerTap == nullptr) && (modTap != nullptr || layerTap != nullptr))
+        if (ToggleButton("Nothing", modTap == nullptr && layerTap == nullptr) && (modTap != nullptr || layerTap != nullptr))
             Write(NamedKey{ *tap });
 
         ImGui::SameLine();
         const std::string holdMods = modTap != nullptr ? wordsOf(modTap->mods) + " \xE2\x96\xBE###holdmods" : "Modifiers###holdmods";
-        if (Toggle(holdMods.c_str(), modTap != nullptr))
+        if (ToggleButton(holdMods.c_str(), modTap != nullptr))
         {
             if (modTap == nullptr)
                 Write(ModTapKey{ Mod::LeftCtrl, *tap });
-            OpenUnder("##holdmods");
+            OpenPopupUnder("##holdmods");
         }
         if (ImGui::BeginPopup("##holdmods"))
         {
@@ -437,11 +341,11 @@ namespace nazg
         ImGui::SameLine();
         const std::string holdLayer = layerTap != nullptr ? "Layer " + std::to_string(layerTap->layer) + " \xE2\x96\xBE###holdlayer"
                                                           : "Layer###holdlayer";
-        if (Toggle(holdLayer.c_str(), layerTap != nullptr))
+        if (ToggleButton(holdLayer.c_str(), layerTap != nullptr))
         {
             if (layerTap == nullptr)
                 Write(LayerTapKey{ static_cast<uint8_t>(m_Keyboard.keymap.Layers() > 1 ? 1 : 0), *tap });
-            OpenUnder("##holdlayer");
+            OpenPopupUnder("##holdlayer");
         }
         if (ImGui::BeginPopup("##holdlayer"))
         {
@@ -452,7 +356,7 @@ namespace nazg
                 if (layer > 0)
                     ImGui::SameLine();
                 const std::string label = "L" + std::to_string(layer);
-                if (Toggle(label.c_str(), layerTap != nullptr && layerTap->layer == layer) && layerTap != nullptr)
+                if (ToggleButton(label.c_str(), layerTap != nullptr && layerTap->layer == layer) && layerTap != nullptr)
                     Write(LayerTapKey{ static_cast<uint8_t>(layer), layerTap->key });
             }
             ImGui::EndPopup();
@@ -462,24 +366,10 @@ namespace nazg
         if (modTap == nullptr && layerTap == nullptr)
         {
             ImGui::SameLine();
-            ImGui::TextDisabled("Sent with");
-            ImGui::SameLine();
-            const std::string sent = (modified != nullptr ? wordsOf(modified->mods) : std::string("nothing")) +
-                                     " \xE2\x96\xBE###sentwith";
-            if (Toggle(sent.c_str(), modified != nullptr))
-                OpenUnder("##sentwith");
-            if (ImGui::BeginPopup("##sentwith"))
-            {
-                // None first: back to the plain key in one click (Rico, 2026-10-04).
-                if (const std::optional<uint8_t> mods = ModifierChoices(modified != nullptr ? modified->mods : 0, names, true))
-                {
-                    if (*mods == 0)
-                        Write(NamedKey{ *tap });
-                    else
-                        Write(ModifiedKey{ *mods, *tap });
-                }
-                ImGui::EndPopup();
-            }
+            Keycode sent = current;
+            DrawSentWith(sent, m_Legends, version);
+            if (sent != current)
+                Write(sent);
         }
 
         ImGui::EndDisabled();

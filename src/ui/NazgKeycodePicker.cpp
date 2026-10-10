@@ -264,6 +264,27 @@ namespace nazg
         return text;
     }
 
+    std::string KeycodeLabel(const Keycode& keycode, QmkKeycodeVersion version)
+    {
+        if (const auto* named = std::get_if<NamedKey>(&keycode))
+            if (const QmkKeycode* row = FindQmkKeycodeByName(named->name, version); row != nullptr && row->label[0] != '\0')
+                return row->label;
+        return FormatKeycode(keycode);
+    }
+
+    const std::vector<CatalogueTab>& CatalogueOf(KeycodePickerState& state, const Keyboard& keyboard,
+                                                 const LegendSettings& legends, bool advancedTools)
+    {
+        const std::string settings = legends.hostLayout + "/" + std::string(IdOf(legends.modifierNames)) +
+                                     (advancedTools ? "/advanced" : "");
+        if (state.catalogue.empty() || settings != state.catalogueFor)
+        {
+            state.catalogue    = BuildKeycodeCatalogue(keyboard, legends, advancedTools);
+            state.catalogueFor = settings;
+        }
+        return state.catalogue;
+    }
+
     KeycodeTile TileOf(const Keycode& keycode, const LegendContext& context, bool selected)
     {
         return TileFor(keycode, context, false, selected);

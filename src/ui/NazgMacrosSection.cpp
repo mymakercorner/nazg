@@ -21,6 +21,7 @@
 #include "ui/NazgBoardDescription.h"
 #include "ui/NazgBoardView.h"
 #include "ui/NazgHostTyping.h"
+#include "ui/NazgKeyLine.h"
 #include "ui/NazgKeycapLegend.h"
 #include "ui/NazgKeycodeCatalogue.h"
 #include "ui/NazgTheme.h"
@@ -43,27 +44,6 @@ namespace nazg
         {
             return step.kind == MacroStep::Kind::Key || step.kind == MacroStep::Kind::Press ||
                    step.kind == MacroStep::Kind::Release;
-        }
-
-        // A key for people: QMK's label when it has one -- "Left Shift" -- else its expression.
-        std::string KeyName(const Keycode& keycode, QmkKeycodeVersion version)
-        {
-            if (const auto* named = std::get_if<NamedKey>(&keycode))
-                if (const QmkKeycode* row = FindQmkKeycodeByName(named->name, version); row && row->label[0] != '\0')
-                    return row->label;
-            return FormatKeycode(keycode);
-        }
-
-        // The words of a modifier on the host: Ctrl, Shift, Alt or Option, Win or Cmd or Super.
-        const char* ModifierWord(uint8_t mod, ModifierNames names)
-        {
-            switch (mod)
-            {
-            case Mod::LeftCtrl:  return "Ctrl";
-            case Mod::LeftShift: return "Shift";
-            case Mod::LeftAlt:   return names == ModifierNames::Mac ? "Option" : "Alt";
-            default:             return names == ModifierNames::Mac ? "Cmd" : names == ModifierNames::Linux ? "Super" : "Win";
-            }
         }
 
         // How each character of a text is typed, for its tooltip: "é: AltGr+E", "ê: ^ (dead, Shift+6)
@@ -468,18 +448,6 @@ namespace nazg
         Insert({ { MacroStep::Kind::Key, {}, keycode } }, 1);
     }
 
-    const std::vector<CatalogueTab>& MacrosSection::Catalogue()
-    {
-        const std::string settings = m_Legends.hostLayout + "/" + std::string(IdOf(m_Legends.modifierNames)) +
-                                     (m_AdvancedTools ? "/advanced" : "");
-        if (m_Catalogue.empty() || settings != m_CatalogueFor)
-        {
-            m_Catalogue    = BuildKeycodeCatalogue(m_Keyboard, m_Legends, m_AdvancedTools);
-            m_CatalogueFor = settings;
-        }
-        return m_Catalogue;
-    }
-
     // ------------------------------------------------------------------------------------------
     // The panel.
 
@@ -814,7 +782,7 @@ namespace nazg
                                                                             : "Releases";
                     const std::string name = std::holds_alternative<ModifiedKey>(step.key)
                                                  ? FormatKeycode(step.key)
-                                                 : KeyName(step.key, m_Keyboard.keycodeVersion);
+                                                 : KeycodeLabel(step.key, m_Keyboard.keycodeVersion);
                     ImGui::SetTooltip("%s %s%s", what, name.c_str(),
                                       lone ? (step.kind == MacroStep::Kind::Press ? "\nnever released: it stays held after the macro"
                                                                                   : "\nnever pressed by this macro")
@@ -909,7 +877,7 @@ namespace nazg
         {
             if (partner[step] != step || !IsKeyStep(macro[step]) || macro[step].kind == MacroStep::Kind::Key)
                 continue;
-            const std::string name = KeyName(macro[step].key, m_Keyboard.keycodeVersion);
+            const std::string name = KeycodeLabel(macro[step].key, m_Keyboard.keycodeVersion);
             const std::string what = macro[step].kind == MacroStep::Kind::Press
                                          ? name + " is pressed and never released: it stays held after the macro ends"
                                          : name + " is released but this macro never pressed it: it releases your own " + name +
@@ -942,32 +910,9 @@ namespace nazg
 
             if (step.kind == MacroStep::Kind::Key)
             {
-                // Sent with: a basic key, or one already sent with modifiers -- as Keymap's key line.
-                const auto* named    = std::get_if<NamedKey>(&step.key);
-                const auto* modified = std::get_if<ModifiedKey>(&step.key);
-                const std::optional<uint16_t> value =
-                    named ? std::optional<uint16_t>(EncodeQmkKeycode(step.key, m_Keyboard.keycodeVersion)) : std::nullopt;
-                if (modified || (named && value && *value >= 0x04 && *value <= 0xFF))
-                {
-                    ImGui::TextDisabled("Sent with");
-                    for (uint8_t mod : { Mod::LeftCtrl, Mod::LeftShift, Mod::LeftAlt, Mod::LeftGui })
-                    {
-                        const uint8_t mods = modified ? modified->mods : 0;
-                        const bool    on   = (mods & mod) != 0;
-                        ImGui::SameLine();
-                        if (on)
-                            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
-                        if (ImGui::SmallButton(ModifierWord(mod, m_Legends.modifierNames)))
-                        {
-                            const uint8_t          now = static_cast<uint8_t>(mods ^ mod);
-                            const std::string_view key = modified ? modified->key : named->name;
-                            step.key = now ? Keycode{ ModifiedKey{ now, key } } : Keycode{ NamedKey{ key } };
-                        }
-                        if (on)
-                            ImGui::PopStyleColor();
-                    }
+                // Sent with, as Keymap's key line: Win+R is one step.
+                if (DrawSentWith(step.key, m_Legends, m_Keyboard.keycodeVersion))
                     ImGui::SameLine();
-                }
                 ImGui::TextDisabled("pick a key below to change it");
             }
             else if (step.kind == MacroStep::Kind::Press || step.kind == MacroStep::Kind::Release)
@@ -1069,7 +1014,7 @@ namespace nazg
             };
 
         const KeycodePickerEvents events = DrawKeycodePicker(
-            m_Picker, { Catalogue(), context, m_Keyboard.keycodeVersion, current, &m_Keyboard, unavailable });
+            m_Picker, { CatalogueOf(m_Picker, m_Keyboard, m_Legends, m_AdvancedTools), context, m_Keyboard.keycodeVersion, current, &m_Keyboard, unavailable });
         if (events.picked)
             Picked(*events.picked);
     }

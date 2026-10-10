@@ -57,7 +57,6 @@ namespace nazg
     private:
         [[nodiscard]] bool        IsLocked() const;
         [[nodiscard]] bool        IsChanged(size_t dance) const;
-        [[nodiscard]] std::string KeyName(const Keycode& keycode) const;
         [[nodiscard]] size_t      KeysHolding(size_t dance) const;
 
         [[nodiscard]] TapDance          DanceOf(const VialTapDanceEntry& entry) const;
@@ -73,7 +72,6 @@ namespace nazg
         void DrawTools();
         void DrawPicker();
 
-        const std::vector<CatalogueTab>& Catalogue();
 
         HidTransport&                          m_Transport;
         std::string                            m_Path;
@@ -94,8 +92,6 @@ namespace nazg
         size_t      m_Dance  = 0;
         DanceAction m_Action = DanceAction::Tap;
 
-        KeycodePickerState        m_Picker;
-        std::vector<CatalogueTab> m_Catalogue;
-        std::string               m_CatalogueFor;
+        KeycodePickerState m_Picker;
     };
 }

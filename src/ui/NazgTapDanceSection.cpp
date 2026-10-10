@@ -18,6 +18,7 @@
 #include "transport/NazgDeviceChannel.h"
 #include "ui/NazgBoardDescription.h"
 #include "ui/NazgBoardView.h"
+#include "ui/NazgKeyLine.h"
 #include "ui/NazgKeycapLegend.h"
 #include "ui/NazgKeycodeCatalogue.h"
 #include "ui/NazgTheme.h"
@@ -45,18 +46,6 @@ namespace nazg
         const char* NameOf(DanceAction action)
         {
             return c_ActionNames[static_cast<size_t>(action)];
-        }
-
-        // The words of a modifier on the host: Ctrl, Shift, Alt or Option, Win or Cmd or Super.
-        const char* ModifierWord(uint8_t mod, ModifierNames names)
-        {
-            switch (mod)
-            {
-            case Mod::LeftCtrl:  return "Ctrl";
-            case Mod::LeftShift: return "Shift";
-            case Mod::LeftAlt:   return names == ModifierNames::Mac ? "Option" : "Alt";
-            default:             return names == ModifierNames::Mac ? "Cmd" : names == ModifierNames::Linux ? "Super" : "Win";
-            }
         }
 
         // The gesture, schematic and centred: the key held as bars on a time line -- a short bar a
@@ -132,15 +121,6 @@ namespace nazg
         for (size_t index = 0; index < changed.size(); ++index)
             summary += (index == 0 ? "" : index + 1 == changed.size() ? " and " : ", ") + changed[index];
         return summary;
-    }
-
-    // A key for people: QMK's label when it has one -- "Escape" -- else its expression.
-    std::string TapDanceSection::KeyName(const Keycode& keycode) const
-    {
-        if (const auto* named = std::get_if<NamedKey>(&keycode))
-            if (const QmkKeycode* row = FindQmkKeycodeByName(named->name, m_Keyboard.keycodeVersion); row && row->label[0] != '\0')
-                return row->label;
-        return FormatKeycode(keycode);
     }
 
     // How many keys, on every layer, hold TD(dance) -- by matrix position, so a key drawn in several
@@ -358,18 +338,6 @@ namespace nazg
         m_Dances = m_Saved;
     }
 
-    const std::vector<CatalogueTab>& TapDanceSection::Catalogue()
-    {
-        const std::string settings = m_Legends.hostLayout + "/" + std::string(IdOf(m_Legends.modifierNames)) +
-                                     (m_AdvancedTools ? "/advanced" : "");
-        if (m_Catalogue.empty() || settings != m_CatalogueFor)
-        {
-            m_Catalogue    = BuildKeycodeCatalogue(m_Keyboard, m_Legends, m_AdvancedTools);
-            m_CatalogueFor = settings;
-        }
-        return m_Catalogue;
-    }
-
     // ------------------------------------------------------------------------------------------
     // The panel.
 
@@ -524,13 +492,13 @@ namespace nazg
                 KeycodeTile keyTile = TileOf(fallback->held, legends, false);
                 keyTile.isFaint     = true;
                 DrawKeycodeTile(keyTile, box);
-                const std::string held = KeyName(fallback->held);
+                const std::string held = KeycodeLabel(fallback->held, m_Keyboard.keycodeVersion);
                 if (!fallback->tappedFirst)
                     words = held + ", held";
                 else if (*fallback->tappedFirst == fallback->held && action == DanceAction::DoubleTap)
                     words = held + " twice";
                 else
-                    words = KeyName(*fallback->tappedFirst) + ", then " + held + " held";
+                    words = KeycodeLabel(*fallback->tappedFirst, m_Keyboard.keycodeVersion) + ", then " + held + " held";
                 tip += "\nEmpty: the board does " + words;
             }
             else
@@ -581,7 +549,7 @@ namespace nazg
     {
         const TapDance&   dance = m_Dances[m_Dance];
         const unsigned    term  = dance.tappingTerm;
-        const auto        name  = [&](DanceAction action) { return KeyName(*dance[action]); };
+        const auto        name  = [&](DanceAction action) { return KeycodeLabel(*dance[action], m_Keyboard.keycodeVersion); };
         switch (TimingOf(dance))
         {
         case TapTiming::Empty:
@@ -623,32 +591,9 @@ namespace nazg
         }
         else
         {
-            // Sent with: a basic key, or one already sent with modifiers -- as Keymap's key line.
-            const auto* named    = std::get_if<NamedKey>(&*key);
-            const auto* modified = std::get_if<ModifiedKey>(&*key);
-            const std::optional<uint16_t> value =
-                named ? EncodeQmkKeycode(*key, m_Keyboard.keycodeVersion) : std::nullopt;
-            if (modified || (named && value && *value >= 0x04 && *value <= 0xFF))
-            {
-                ImGui::TextDisabled("Sent with");
-                for (uint8_t mod : { Mod::LeftCtrl, Mod::LeftShift, Mod::LeftAlt, Mod::LeftGui })
-                {
-                    const uint8_t mods = modified ? modified->mods : 0;
-                    const bool    on   = (mods & mod) != 0;
-                    ImGui::SameLine();
-                    if (on)
-                        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
-                    if (ImGui::SmallButton(ModifierWord(mod, m_Legends.modifierNames)))
-                    {
-                        const uint8_t          now  = static_cast<uint8_t>(mods ^ mod);
-                        const std::string_view base = modified ? modified->key : named->name;
-                        key = now ? Keycode{ ModifiedKey{ now, base } } : Keycode{ NamedKey{ base } };
-                    }
-                    if (on)
-                        ImGui::PopStyleColor();
-                }
+            // Sent with, as Keymap's key line: Ctrl+C is one action.
+            if (DrawSentWith(*key, m_Legends, m_Keyboard.keycodeVersion))
                 ImGui::SameLine();
-            }
             if (ImGui::SmallButton("Empty it"))
                 key.reset();
             ImGui::SetItemTooltip(m_Action == DanceAction::Tap ? "A quick press then sends nothing"
@@ -682,7 +627,7 @@ namespace nazg
 
         const std::optional<Keycode>& current = m_Dances[m_Dance][m_Action];
         const KeycodePickerEvents     events  = DrawKeycodePicker(
-            m_Picker, { Catalogue(), context, m_Keyboard.keycodeVersion, current, &m_Keyboard, unavailable });
+            m_Picker, { CatalogueOf(m_Picker, m_Keyboard, m_Legends, m_AdvancedTools), context, m_Keyboard.keycodeVersion, current, &m_Keyboard, unavailable });
         if (events.picked)
             m_Dances[m_Dance][m_Action] =
                 current ? ComposeWithKey(*events.picked, *current, m_Keyboard.keycodeVersion) : *events.picked;

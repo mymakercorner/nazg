@@ -43,7 +43,16 @@ namespace nazg
         std::string                 searched;
         const void*                 searchedTabs = nullptr;
         std::vector<CatalogueGroup> results;
+
+        // The tabs, built by CatalogueOf() again only when the settings they depend on change.
+        std::vector<CatalogueTab> catalogue;
+        std::string               catalogueFor;
     };
+
+    // The picker's tabs for `keyboard` (BuildKeycodeCatalogue()), kept in `state` until the host
+    // layout, the modifier names or Advanced tools change.
+    [[nodiscard]] const std::vector<CatalogueTab>& CatalogueOf(KeycodePickerState& state, const Keyboard& keyboard,
+                                                               const LegendSettings& legends, bool advancedTools);
 
     // What the picker draws with this frame.
     struct KeycodePickerInput
@@ -80,4 +89,8 @@ namespace nazg
 
     // QMK's name and label, for a tooltip: "KC_MPLY -- Play/Pause".
     [[nodiscard]] std::string KeycodeHoverText(const Keycode& keycode, QmkKeycodeVersion version);
+
+    // A keycode for people, in a sentence: QMK's label when it has one -- "Escape" -- else its
+    // expression, "MO(1)".
+    [[nodiscard]] std::string KeycodeLabel(const Keycode& keycode, QmkKeycodeVersion version);
 }

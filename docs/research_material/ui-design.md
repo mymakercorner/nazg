@@ -1270,8 +1270,8 @@ locked) and ZX60 (VIA 12, and VIA 10, which has no waits).
   line leaves the last step to the right, turns down into the gap between the rows, runs back
   left and drops into the first step -- a carriage return, so the chain reads as one line. The
   rows are spaced for that line to pass between a press's ▼ and the next row's ▲. Its steps:
-  - **a key**, drawn as a keycap. **Sent with** -- Ctrl, Shift, Alt, Win, as in Keymap's key line
-    -- makes Win+R one step, whatever the board stores: one 16-bit action on Vial 5 and later,
+  - **a key**, drawn as a keycap. **Sent with** -- Keymap's own control, its popup of None, the four
+    modifiers and the side (Rico, 2026-10-10, over the four toggles built first) -- makes Win+R one step, whatever the board stores: one 16-bit action on Vial 5 and later,
     four presses and releases on VIA;
   - **text**, typed in place;
   - **a wait**, in milliseconds, typed in place;
@@ -1408,8 +1408,7 @@ The section:
 - **A line says when the tap is sent**, since that delay is what surprises users: "Space is sent
   as soon as the key is released; held past 200 ms, it is L1", or "A tap waits 200 ms before Esc
   is sent"; a dance with only a tap, with no tap, or a term under 100 ms is warned about.
-- **The tools** for the selected action: Sent with Ctrl / Shift / Alt / Win (Ctrl+C, as in
-  Keymap's key line), Empty it; then **Keymap's picker**. TD keys are greyed (a tap dance cannot
+- **The tools** for the selected action: Sent with (Ctrl+C), Keymap's own popup, Empty it; then **Keymap's picker**. TD keys are greyed (a tap dance cannot
   play another), and Boot on a locked board, said in a line over the picker with the unlock keys
   outlined.
 - **Written by Save, undone by Revert** (Rico), as Macros: a dot on each changed slot, "Not

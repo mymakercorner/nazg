@@ -184,6 +184,8 @@ set(NAZG_SOURCES
   src/ui/NazgVialUnlock.cpp
   src/ui/NazgKeycodePicker.h
   src/ui/NazgKeycodePicker.cpp
+  src/ui/NazgKeyLine.h
+  src/ui/NazgKeyLine.cpp
   src/ui/NazgMacrosSection.h
   src/ui/NazgMacrosSection.cpp
   src/ui/NazgTapDanceSection.h
