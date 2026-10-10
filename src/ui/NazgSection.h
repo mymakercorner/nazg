@@ -40,6 +40,10 @@ namespace nazg
         std::string              label;     // "Layer"
         std::vector<std::string> entries;   // none: the strip is absent
         size_t                   chosen = 0;
+
+        // Entries holding changes not written to the board yet: a dot in their corner, in the
+        // warning's colour -- Macros' unsaved slots. Shorter than `entries`: the rest are not.
+        std::vector<bool> changed;
     };
 
     // The column's groups (ui-design.md, "Nazg's sections, then the board's menus"): the sections

@@ -189,7 +189,10 @@ namespace nazg
         Strip strip;
         strip.label = "Macro";
         for (size_t macro = 0; macro < m_Keyboard.report.macroCount; ++macro)
-            strip.entries.push_back("M" + std::to_string(macro) + (IsChanged(macro) ? " •" : ""));
+        {
+            strip.entries.push_back("M" + std::to_string(macro));
+            strip.changed.push_back(IsChanged(macro));
+        }
         strip.chosen = m_Macro;
         return strip;
     }

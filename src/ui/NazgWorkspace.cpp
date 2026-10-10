@@ -324,6 +324,17 @@ namespace nazg
 
                 if (ImGui::Button(strip.entries[index].c_str(), ImVec2(widths[index], 0.0f)) && !isChosen)
                     section.OnStripChosen(index);
+
+                // Changes not written yet: a dot inside the top right corner -- inside, since the
+                // strip's scrolling area would cut one straddling the edge.
+                if (index < strip.changed.size() && strip.changed[index])
+                {
+                    const float radius = 3.5f * ImGui::GetStyle().FontScaleDpi;
+                    const ImVec2 corner = ImGui::GetItemRectMax();
+                    ImGui::GetWindowDrawList()->AddCircleFilled(
+                        ImVec2(corner.x - 2.2f * radius, ImGui::GetItemRectMin().y + 2.2f * radius), radius,
+                        ImGui::ColorConvertFloat4ToU32(ColourOf(PanelColour::Warning)));
+                }
                 if (ImGui::IsItemHovered())
                     hovered = index;
                 if (isChosen && chosenChanged && overflows)
