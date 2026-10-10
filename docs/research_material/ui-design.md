@@ -1665,7 +1665,8 @@ with Repeat and Alt Repeat on its thumbs, and the Model F B104 with no Alt Repea
 as it would report rebuilt on today's vial-qmk):
 
 - **In the column** when the board reports alt repeat slots (`VialEntryCounts::altRepeatKey`
-  above zero); **the strip holds the slots, numbered** -- AR 0 to the count, an empty one
+  above zero) -- **kept there though few use it** (Rico, 2026-10-10: not hidden until an Alt
+  Repeat key or an entry is in use); **the strip holds the slots, numbered** -- AR 0 to the count, an empty one
   outlined, an entry off struck through, as Key Overrides. Set aside: named by their keys.
 - **The board shows the selected entry**: the keys typing its last key lit, a tag under the
   first -- the modifiers held with it and what Alt Repeat sends, "Ctrl → Ctrl+Y" -- and, both
