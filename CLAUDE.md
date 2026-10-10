@@ -125,10 +125,15 @@ one line per option group -- checkbox or combo -- hovering an option drawing its
 (`OptionKeys()`), the board changing only once a choice is written -- at once, with
 `SetKeyboardValue()` and read back (`EncodeLayoutOptions()`, tested). Every other section is a
 `PlaceholderSection` saying "Not built yet", a custom menu's listing its sections. So the match
-rule is the plan, for now. **Macros is designed, not built** (2026-10-10; ui-design.md "The
-Macros section", mockup `macros-section.html`, the byte formats in via-vial-commands.md): VIA's
-chain edited in place over Keymap's picker, press / release as steps of their own, Save /
-Revert, text typed with the host layout -- dead keys composing -- and no recording. The Leyden Jar diagnostics, planned as
+rule is the plan, for now. **Macros is built** (2026-10-10; ui-design.md "The Macros section",
+mockup `macros-section.html`, the byte formats in via-vial-commands.md) -- **not yet run against a
+board**: `ui/NazgMacrosSection.*` draws the macro as a chain edited in place over Keymap's picker,
+press / release as steps of their own, Save / Revert, and Main asks Save / Discard before the board
+is left or Nazg quits with macros unwritten. Below it, all tested on scripted bytes: the buffer's
+four formats and its guarded write (`adapters/via/NazgViaMacro.*`), text typed with the host layout
+-- dead keys composing, every character of 69 layouts read back (`ui/NazgHostTyping.*`, the
+layout table's new dead masks) -- and steps to actions and back (`ui/NazgMacroSteps.*`). Every
+strip is now one row, scrolling sideways with arrows when it overflows. The Leyden Jar diagnostics, planned as
 the second, are **deferred far later** (Rico, 2026-09-26: they bring many design questions).
 Already decided for them: the device stays open while a view polls, and key output is disabled
 while they show -- RAM only on the firmware, so every close and exit path must enable it again.

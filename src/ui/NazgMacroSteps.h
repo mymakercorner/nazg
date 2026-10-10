@@ -54,4 +54,10 @@ namespace nazg
     // The bytes the macro takes in the buffer, its 0 included -- what the actions that can be stored
     // cost.
     [[nodiscard]] size_t BytesOf(const MacroActions& actions, MacroFormat format) noexcept;
+
+    // The macro in VIA's script syntax, read-only, for those who know it (ui-design.md, "The macro's
+    // line"): text as it is, '{' as "\{"; {KC_ENT} a key, {KC_LGUI,KC_R} one sent with modifiers,
+    // {+KC_LALT} and {-KC_LALT} a press and a release, {300} a wait. A key VIA cannot hold is
+    // written in QMK's words: {MO(1)}.
+    [[nodiscard]] std::string ViaScriptOf(const Macro& macro);
 }

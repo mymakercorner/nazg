@@ -88,5 +88,14 @@ namespace nazg
         // Every frame another section is shown instead: time to stop what runs only while this one
         // shows -- the matrix view's live test, which keeps the board open.
         virtual void WhileHidden() {}
+
+        // Changes not written to the board yet -- Macros writes by Save (ui-design.md, "The Macros
+        // section"). Kept while the user moves between sections; before the board is closed or
+        // Nazg quits, the user is asked: Save, which starts the write -- wait for IsBusy() to end --
+        // or Discard. `UnsavedSummary()` names them: "M3 and M5".
+        [[nodiscard]] virtual bool        HasUnsavedChanges() const { return false; }
+        [[nodiscard]] virtual std::string UnsavedSummary() const { return {}; }
+        virtual void                      SaveChanges() {}
+        virtual void                      DiscardChanges() {}
     };
 }

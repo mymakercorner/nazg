@@ -188,9 +188,24 @@ namespace
     }
 }
 
+namespace
+{
+    void TestScript()
+    {
+        std::printf("VIA's script\n");
+        const Macro runCmd = { Key(nazg::ModifiedKey{ nazg::Mod::LeftGui, "KC_R" }), Wait(300), Text("cmd{x}"),
+                               Key(nazg::NamedKey{ "KC_ENT" }) };
+        Check(nazg::ViaScriptOf(runCmd) == "{KC_LGUI,KC_R}{300}cmd\\{x}{KC_ENT}", "Win+R, a wait, text, Enter");
+        Check(nazg::ViaScriptOf({ Press("KC_LALT"), Key(nazg::NamedKey{ "KC_TAB" }), Release("KC_LALT") }) ==
+                  "{+KC_LALT}{KC_TAB}{-KC_LALT}",
+              "a press and a release");
+    }
+}
+
 int main()
 {
     ConfigureCrtReporting();
+    TestScript();
     TestRoundTrips();
     TestStoredForm();
     TestReading();

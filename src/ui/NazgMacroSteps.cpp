@@ -460,6 +460,46 @@ namespace nazg
         return writing;
     }
 
+    std::string ViaScriptOf(const Macro& macro)
+    {
+        static constexpr const char* c_ModNames[] = { "KC_LCTL", "KC_LSFT", "KC_LALT", "KC_LGUI",
+                                                      "KC_RCTL", "KC_RSFT", "KC_RALT", "KC_RGUI" };
+        std::string script;
+        for (const MacroStep& step : macro)
+        {
+            switch (step.kind)
+            {
+            case MacroStep::Kind::Text:
+                for (char c : step.text)
+                    script += c == '{' ? std::string("\\{") : std::string(1, c);
+                break;
+            case MacroStep::Kind::Key:
+                script += '{';
+                if (const ModifiedKey* modified = std::get_if<ModifiedKey>(&step.key))
+                {
+                    for (uint8_t mod = 0; mod < 8; ++mod)
+                        if (modified->mods & (1u << mod))
+                            script += std::string(c_ModNames[mod]) + ",";
+                    script += std::string(modified->key);
+                }
+                else
+                {
+                    script += FormatKeycode(step.key);
+                }
+                script += '}';
+                break;
+            case MacroStep::Kind::Press:
+            case MacroStep::Kind::Release:
+                script += std::string("{") + (step.kind == MacroStep::Kind::Press ? "+" : "-") + FormatKeycode(step.key) + "}";
+                break;
+            case MacroStep::Kind::Wait:
+                script += "{" + std::to_string(step.milliseconds) + "}";
+                break;
+            }
+        }
+        return script;
+    }
+
     size_t BytesOf(const MacroActions& actions, MacroFormat format) noexcept
     {
         size_t bytes = 1;

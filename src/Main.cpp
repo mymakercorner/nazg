@@ -30,6 +30,7 @@
 #include "ui/NazgKeyboardList.h"
 #include "ui/NazgKeymapSection.h"
 #include "ui/NazgLayoutSection.h"
+#include "ui/NazgMacrosSection.h"
 #include "ui/NazgMatrixView.h"
 #include "ui/NazgPlaceholderSection.h"
 #include "ui/NazgSectionPlan.h"
@@ -154,6 +155,11 @@ namespace
         // "Hover, and after a pick").
         bool moveToNextKey = false;
 
+        // Whether the user has said which layout the computer uses -- in Settings, or when a
+        // macro first held text, which asks until then (ui-design.md, "The Macros section"). A
+        // layout other than US saved by an earlier build counts as said.
+        bool hostLayoutChosen = false;
+
         // Where the window was left: its place when not maximized, in SDL's window
         // coordinates, and whether it was maximized. A width of 0: never saved.
         struct WindowPlace
@@ -218,8 +224,16 @@ namespace
             constexpr char c_ColumnFolded[]  = "ColumnFolded=";
             constexpr char c_MoveToNextKey[] = "MoveToNextKey=";
 
-            if (std::strncmp(line, c_HostLayout, sizeof(c_HostLayout) - 1) == 0)
+            constexpr char c_HostLayoutChosen[] = "HostLayoutChosen=";
+
+            if (std::strncmp(line, c_HostLayoutChosen, sizeof(c_HostLayoutChosen) - 1) == 0)
+                loaded.hostLayoutChosen = loaded.hostLayoutChosen ||
+                                          std::strcmp(line + sizeof(c_HostLayoutChosen) - 1, "1") == 0;
+            else if (std::strncmp(line, c_HostLayout, sizeof(c_HostLayout) - 1) == 0)
+            {
                 loaded.legends.hostLayout = line + sizeof(c_HostLayout) - 1;
+                loaded.hostLayoutChosen   = loaded.hostLayoutChosen || loaded.legends.hostLayout != "us";
+            }
             else if (std::strncmp(line, c_ModifierNames, sizeof(c_ModifierNames) - 1) == 0)
                 loaded.legends.modifierNames = nazg::ModifierNamesFromId(line + sizeof(c_ModifierNames) - 1)
                                                    .value_or(loaded.legends.modifierNames);
@@ -284,6 +298,7 @@ namespace
             out->appendf("ColumnWidth=%.0f\nColumnFolded=%d\n", saved.workspace.columnWidth,
                          saved.workspace.isColumnFolded ? 1 : 0);
             out->appendf("MoveToNextKey=%d\n", saved.moveToNextKey ? 1 : 0);
+            out->appendf("HostLayoutChosen=%d\n", saved.hostLayoutChosen ? 1 : 0);
             out->append("\n");
         };
 
@@ -1121,6 +1136,31 @@ int main(int, char**)
     nazg::Task<void> loadTask;
     nazg::Task<void> lockTask;
 
+    // Leaving the board -- for another, the list, another definition, or quitting -- while a section
+    // holds changes not written yet: the user is asked, Save, Discard or Cancel, and the leaving
+    // waits in `pendingLeave` (ui-design.md, "The Macros section"). Saving first runs it once every
+    // write is done and nothing is left unsaved.
+    std::function<void()> pendingLeave;
+    bool                  savingBeforeLeave = false;
+    bool                  quitRequested     = false;   // the window's close, heard by the event loop
+    bool                  quitConfirmed     = false;   // and allowed
+
+    const auto hasUnsaved = [&]
+    {
+        return std::any_of(boardState.sections.begin(), boardState.sections.end(),
+                           [](const auto& section) { return section->HasUnsavedChanges(); });
+    };
+    const auto leaveBoard = [&](std::function<void()> leave)
+    {
+        if (!hasUnsaved())
+        {
+            leave();
+            return;
+        }
+        pendingLeave      = std::move(leave);
+        savingBeforeLeave = false;
+    };
+
     Library            library = OpenLibrary(dataFolder, dataFolderError);
     PendingDialogPaths pendingPaths;    // must outlive any open dialog: main() scope
     PendingExport      pendingExport;   // likewise
@@ -1427,16 +1467,22 @@ int main(int, char**)
 
             if (headerAction.switchTo && !isBusy)
             {
-                const nazg::HidDeviceInfo& device = deviceListState.devices[others[*headerAction.switchTo]];
-                showSettings = false;
-                startLoad(device.path, IdentityOf(device), std::nullopt);
+                const nazg::HidDeviceInfo& device   = deviceListState.devices[others[*headerAction.switchTo]];
+                const std::string          path     = device.path;
+                const nazg::DeviceIdentity identity = IdentityOf(device);
+                leaveBoard([&, path, identity]
+                {
+                    showSettings = false;
+                    startLoad(path, identity, std::nullopt);
+                });
             }
 
             if (headerAction.changeDefinition && !isBusy)
-            {
-                showSettings          = false;
-                boardState.isChoosing = true;
-            }
+                leaveBoard([&]
+                {
+                    showSettings          = false;
+                    boardState.isChoosing = true;
+                });
 
             if (headerAction.forgetChoice && library.library)
             {
@@ -1469,10 +1515,79 @@ int main(int, char**)
 
             // Closes the board, and lists what is plugged in now.
             if (headerAction.allKeyboards && !isBusy)
+                leaveBoard([&]
+                {
+                    boardState   = BoardState{};
+                    showSettings = false;
+                    startRefresh();
+                });
+
+            // Quitting, once the board may be left.
+            if (quitRequested)
             {
-                boardState   = BoardState{};
-                showSettings = false;
-                startRefresh();
+                quitRequested = false;
+                leaveBoard([&] { quitConfirmed = true; });
+            }
+
+            // --- Leaving with changes not written ---------------------------------------------
+
+            if (pendingLeave)
+            {
+                // Saving first: once the writes are done, leave -- unless one failed and left
+                // something unsaved, which is then asked about again.
+                if (savingBeforeLeave && !isBoardBusy())
+                {
+                    savingBeforeLeave = false;
+                    if (!hasUnsaved())
+                    {
+                        std::function<void()> leave = std::move(pendingLeave);
+                        pendingLeave                = nullptr;
+                        leave();
+                    }
+                }
+            }
+            if (pendingLeave)
+            {
+                ImGui::BeginChild("leave", ImVec2(0.0f, 0.0f), ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY);
+
+                std::string what;
+                for (const auto& section : boardState.sections)
+                    if (section->HasUnsavedChanges())
+                        what += (what.empty() ? "" : "; ") + std::string(section->Name()) + ": " + section->UnsavedSummary();
+                ImGui::TextWrapped("Changes not written to the board yet -- %s. Write them before leaving?", what.c_str());
+
+                ImGui::BeginDisabled(savingBeforeLeave);
+                if (ImGui::Button("Save"))
+                {
+                    savingBeforeLeave = true;
+                    for (const auto& section : boardState.sections)
+                        if (section->HasUnsavedChanges())
+                            section->SaveChanges();
+                }
+                ImGui::SameLine();
+                const bool discard = ImGui::Button("Discard");
+                ImGui::SameLine();
+                const bool cancel = ImGui::Button("Cancel");
+                ImGui::EndDisabled();
+                if (savingBeforeLeave)
+                {
+                    ImGui::SameLine();
+                    ImGui::TextDisabled("Writing...");
+                }
+                ImGui::EndChild();
+
+                if (discard)
+                {
+                    for (const auto& section : boardState.sections)
+                        section->DiscardChanges();
+                    std::function<void()> leave = std::move(pendingLeave);
+                    pendingLeave                = nullptr;
+                    leave();
+                }
+                else if (cancel)
+                {
+                    pendingLeave = nullptr;
+                }
             }
 
             // --- A question about an import -----------------------------------------------
@@ -1562,7 +1677,8 @@ int main(int, char**)
                 std::snprintf(line, sizeof(line), "Frame: %.3f ms (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
                 view.about.emplace_back(line);
 
-                nazg::BoardStyle           chosen = look;
+                nazg::BoardStyle           chosen     = look;
+                const std::string          hostBefore = settings.legends.hostLayout;
                 const nazg::SettingsAction action =
                     nazg::DrawSettings(view, settings.legends, chosen, settings.moveToNextKey, settings.advancedTools);
 
@@ -1574,6 +1690,8 @@ int main(int, char**)
                 }
                 if (action.back)
                     showSettings = false;
+                if (settings.legends.hostLayout != hostBefore)
+                    settings.hostLayoutChosen = true;
                 if (action.appearanceChanged || action.legendsChanged || action.advancedToolsChanged || action.keymapChanged)
                     ImGui::MarkIniSettingsDirty();
                 if (action.import && library.library)
@@ -1690,6 +1808,10 @@ int main(int, char**)
                                 boardState.sections.push_back(std::make_unique<nazg::KeymapSection>(
                                     transport, boardState.path, *boardState.keyboard, settings.legends,
                                     settings.moveToNextKey, settings.advancedTools));
+                            else if (planned.kind == nazg::SectionKind::Macros)
+                                boardState.sections.push_back(std::make_unique<nazg::MacrosSection>(
+                                    transport, boardState.path, *boardState.keyboard, settings.legends,
+                                    settings.hostLayoutChosen, boardState.lock, settings.advancedTools));
                             else if (planned.kind == nazg::SectionKind::Layout)
                                 boardState.sections.push_back(std::make_unique<nazg::LayoutSection>(
                                     transport, boardState.path, *boardState.keyboard, settings.legends));
@@ -1819,14 +1941,16 @@ int main(int, char**)
         {
             ImGui_ImplSDL3_ProcessEvent(&event);
 
+            // Asked, not done: macros not written yet are asked about first.
             if (event.type == SDL_EVENT_QUIT)
-                done = true;
+                quitRequested = true;
             if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED && event.window.windowID == SDL_GetWindowID(pWindow))
-                done = true;
+                quitRequested = true;
         }
         TrackWindowPlace(pWindow, settings.window);
 
         drawFrame(false);
+        done = quitConfirmed;
     }
 
     SDL_RemoveEventWatch(DrawDuringLiveResize, &drawFrame);
