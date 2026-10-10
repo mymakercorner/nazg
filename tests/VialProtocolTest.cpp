@@ -246,6 +246,51 @@ namespace
         Check(Throws([&] { Run(vial.GetCombo(40)); }), "a slot past the count answers a non-zero status");
     }
 
+    // A key override slot: a status byte, then the 10 bytes of vial_key_override_entry_t.
+    void TestKeyOverride()
+    {
+        std::printf("key override get and set\n");
+
+        FakeDeviceChannel channel;
+        VialProtocol      vial(channel);
+
+        // Shift + Backspace (0x2A) for Delete (0x4C), every layer, Shift held and hidden either
+        // side, not while Ctrl; on, with QMK's three activations.
+        std::vector<uint8_t> reply(nazg::c_ViaReportSize, 0x00);
+        const uint8_t entry[] = { 0x2A, 0x00,  0x4C, 0x00,  0xFF, 0xFF,  0x22,  0x11,  0x22,  0x87 };
+        std::copy(std::begin(entry), std::end(entry), reply.begin() + 1);
+        channel.ReplyRaw(reply);
+
+        const nazg::VialKeyOverrideEntry read = Run(vial.GetKeyOverride(3));
+        Check(read.trigger == 0x002A && read.replacement == 0x004C && read.layers == 0xFFFF, "the keycodes, then the layers");
+        Check(read.triggerMods == 0x22 && read.negativeModMask == 0x11 && read.suppressedMods == 0x22 && read.options == 0x87,
+              "the three masks and the options follow");
+        Check(channel.RequestAt(0)[2] == 0x05 && channel.RequestAt(0)[3] == 3, "get is the entry op's 0x05, then the slot");
+
+        channel.ReplyRaw(std::vector<uint8_t>(nazg::c_ViaReportSize, 0x00));
+        Run(vial.SetKeyOverride(9, read));
+        const std::vector<uint8_t> sent = channel.RequestAt(1);
+        Check(sent[2] == 0x06 && sent[3] == 9, "set is the entry op's 0x06, then the slot");
+        Check(std::equal(std::begin(entry), std::end(entry), sent.begin() + 4), "the entry follows, as the board stores it");
+
+        const nazg::KeyOverride decoded = nazg::DecodeKeyOverride(read, nazg::QmkKeycodeVersion::V0_0_7);
+        Check(decoded.trigger == nazg::Keycode{ nazg::NamedKey{ "KC_BSPC" } } &&
+                  decoded.replacement == nazg::Keycode{ nazg::NamedKey{ "KC_DEL" } } && decoded.IsOn() &&
+                  decoded.held == (nazg::Mod::LeftShift | nazg::Mod::RightShift),
+              "decoded: Shift + Backspace for Delete, on");
+        Check(nazg::EncodeKeyOverride(decoded, nazg::QmkKeycodeVersion::V0_0_7) == read, "and encoded back unchanged");
+
+        const nazg::VialKeyOverrideEntry reset{};
+        const nazg::KeyOverride          empty = nazg::DecodeKeyOverride(reset, nazg::QmkKeycodeVersion::V0_0_7);
+        Check(empty.IsEmpty() && !empty.trigger && !empty.replacement, "a reset slot: no key, nothing sent");
+        Check(nazg::EncodeKeyOverride(empty, nazg::QmkKeycodeVersion::V0_0_7) == reset, "written back as zeros");
+
+        std::vector<uint8_t> refused(nazg::c_ViaReportSize, 0x00);
+        refused[0] = 0xFF;
+        channel.ReplyRaw(refused);
+        Check(Throws([&] { Run(vial.GetKeyOverride(40)); }), "a slot past the count answers a non-zero status");
+    }
+
     // One QMK setting: its id little-endian; the value after a status byte, as wide as the setting
     // -- the firmware leaves the rest of the request in place.
     void TestQmkSetting()
@@ -527,6 +572,7 @@ int main()
     TestEntryCounts();
     TestTapDance();
     TestCombo();
+    TestKeyOverride();
     TestQmkSetting();
     TestQmkSettingsQuery();
     TestUnlockStatus();

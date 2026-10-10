@@ -191,6 +191,37 @@ namespace nazg
             throw ProtocolError("the board has no combo " + std::to_string(index));
     }
 
+    Task<VialKeyOverrideEntry> VialProtocol::GetKeyOverride(uint8_t index)
+    {
+        std::vector<uint8_t> reply = co_await SendVial(VialCommand::DynamicEntryOp,
+                                                       { static_cast<uint8_t>(VialDynamicEntry::KeyOverrideGet), index });
+        if (reply[0] != 0)
+            throw ProtocolError("the board has no key override " + std::to_string(index));
+
+        VialKeyOverrideEntry entry;
+        entry.trigger         = ReadLittleEndian16(reply, 1);
+        entry.replacement     = ReadLittleEndian16(reply, 3);
+        entry.layers          = ReadLittleEndian16(reply, 5);
+        entry.triggerMods     = reply[7];
+        entry.negativeModMask = reply[8];
+        entry.suppressedMods  = reply[9];
+        entry.options         = reply[10];
+        co_return entry;
+    }
+
+    Task<void> VialProtocol::SetKeyOverride(uint8_t index, const VialKeyOverrideEntry& entry)
+    {
+        const auto lo = [](uint16_t value) { return static_cast<uint8_t>(value & 0xFF); };
+        const auto hi = [](uint16_t value) { return static_cast<uint8_t>(value >> 8); };
+        std::vector<uint8_t> reply = co_await SendVial(
+            VialCommand::DynamicEntryOp,
+            { static_cast<uint8_t>(VialDynamicEntry::KeyOverrideSet), index, lo(entry.trigger), hi(entry.trigger),
+              lo(entry.replacement), hi(entry.replacement), lo(entry.layers), hi(entry.layers), entry.triggerMods,
+              entry.negativeModMask, entry.suppressedMods, entry.options });
+        if (reply[0] != 0)
+            throw ProtocolError("the board has no key override " + std::to_string(index));
+    }
+
     Task<uint32_t> VialProtocol::GetQmkSetting(uint16_t id, size_t width)
     {
         std::vector<uint8_t> reply = co_await SendVial(VialCommand::QmkSettingsGet,

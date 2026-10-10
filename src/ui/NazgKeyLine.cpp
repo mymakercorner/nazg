@@ -24,14 +24,20 @@ namespace nazg
 
         std::array<Modifier, 4> ModifiersFor(ModifierNames names)
         {
-            const bool mac = names == ModifierNames::Mac;
-            return { { { Mod::LeftCtrl, Mod::RightCtrl, "Ctrl" },
-                       { Mod::LeftShift, Mod::RightShift, "Shift" },
-                       { Mod::LeftAlt, Mod::RightAlt, mac ? "Option" : "Alt" },
-                       { Mod::LeftGui, Mod::RightGui, mac ? "Cmd" : names == ModifierNames::Linux ? "Super" : "Win" } } };
+            const std::array<const char*, 4> words = ModifierWords(names);
+            return { { { Mod::LeftCtrl, Mod::RightCtrl, words[0] },
+                       { Mod::LeftShift, Mod::RightShift, words[1] },
+                       { Mod::LeftAlt, Mod::RightAlt, words[2] },
+                       { Mod::LeftGui, Mod::RightGui, words[3] } } };
         }
 
         bool IsRight(uint8_t mods) { return (mods & 0xF0) != 0; }
+    }
+
+    std::array<const char*, 4> ModifierWords(ModifierNames names)
+    {
+        const bool mac = names == ModifierNames::Mac;
+        return { "Ctrl", "Shift", mac ? "Option" : "Alt", mac ? "Cmd" : names == ModifierNames::Linux ? "Super" : "Win" };
     }
 
     bool ToggleButton(const char* label, bool on, bool enabled)

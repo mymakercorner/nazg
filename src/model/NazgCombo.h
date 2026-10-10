@@ -57,9 +57,11 @@ namespace nazg
 
     [[nodiscard]] ComboRelation RelationOf(const Combo& first, const Combo& second);
 
-    // The first layer, from 0 up, on which a key of the selected layout sends `keycode` -- its own
-    // keycode there, as a combo matches what a key sends; none when no key does.
-    [[nodiscard]] std::optional<uint8_t> LayerSending(const Keyboard& keyboard, const Keycode& keycode);
+    // The first layer, from 0 up and among `layers` (bit n for layer n), on which a key of the
+    // selected layout sends `keycode` -- its own keycode there, as a combo or a key override
+    // matches what a key sends; none when no key does.
+    [[nodiscard]] std::optional<uint8_t> LayerSending(const Keyboard& keyboard, const Keycode& keycode,
+                                                      uint16_t layers = 0xFFFF);
 
     // A key on layer 0 that sends `keycode` only as its tap -- LGUI_T(KC_A) for KC_A, a home-row
     // modifier -- which a combo of KC_A never matches: the combo needs the whole keycode. None when

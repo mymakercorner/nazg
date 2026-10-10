@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com>
 //
-// SlotParts - what the sections editing a board's slots share: Macros, Tap Dance and Combos, each
-// its slots in the strip, read when first shown, written by Save and undone by Revert. Shared once
-// there were three (Rico, 2026-10-10, agreed to wait for the third): the line saying whether the
-// slots could be read, the slot line's write state and its Save / Revert, the names of the
-// changed slots, and the unlock keys outlined on a locked board.
+// SlotParts - what the sections editing a board's slots share: Macros, Tap Dance, Combos and Key
+// Overrides, each its slots in the strip, read when first shown, written by Save and undone by
+// Revert. Shared once there were three (Rico, 2026-10-10, agreed to wait for the third): the line
+// saying whether the slots could be read, the slot line's write state and its Save / Revert, the
+// names of the changed slots, the unlock keys outlined on a locked board, and the words of a tag
+// on the board.
 //
 // ImGui only, no SDL: compiled into the application, not into nazg_core.
 
@@ -17,11 +18,16 @@
 
 #include "adapters/vial/NazgVialProtocol.h"
 #include "ui/NazgBoardDescription.h"
+#include "ui/NazgKeycapLegend.h"
 
 namespace nazg
 {
     // "M3", "M3 and M5", "M3, M5 and M7".
     [[nodiscard]] std::string JoinNames(const std::vector<std::string>& names);
+
+    // What a board tag says of a keycode: as its keycap reads, on one line -- "Esc", "Ctrl Z", "Caps
+    // Word" -- or `label` when the keycap draws a symbol, an arrow.
+    [[nodiscard]] std::string TagText(const KeycapLegend& legend, const std::string& label);
 
     // While the slots are not read: "Reading the <what>..." while `busy`, else `failure` and a Try
     // again button. True when Try again was clicked.

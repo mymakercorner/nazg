@@ -87,13 +87,18 @@ namespace nazg
         return ComboRelation::None;
     }
 
-    std::optional<uint8_t> LayerSending(const Keyboard& keyboard, const Keycode& keycode)
+    std::optional<uint8_t> LayerSending(const Keyboard& keyboard, const Keycode& keycode, uint16_t layers)
     {
         for (int layer = 0; layer < keyboard.keymap.Layers(); ++layer)
+        {
+            // Past the sixteen bits, only "every layer" takes them.
+            if (layer < 16 ? (layers & (1u << layer)) == 0 : layers != 0xFFFF)
+                continue;
             for (const DefinitionKey& key : keyboard.definition.keys)
                 if (!key.decal && keyboard.IsKeyVisible(key) &&
                     keyboard.KeycodeFor(key, static_cast<uint8_t>(layer)) == keycode)
                     return static_cast<uint8_t>(layer);
+        }
         return std::nullopt;
     }
 

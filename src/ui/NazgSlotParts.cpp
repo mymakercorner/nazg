@@ -19,6 +19,21 @@ namespace nazg
         return joined;
     }
 
+    std::string TagText(const KeycapLegend& legend, const std::string& label)
+    {
+        std::string main = legend.placement == PlacementClass::Character
+                               ? legend.plain
+                               : (legend.cylindrical.shortForm.empty() ? legend.cylindrical.full
+                                                                        : legend.cylindrical.shortForm);
+        const Header& header = legend.hold.IsEmpty() ? legend.header : legend.hold;
+        if (!header.IsEmpty())
+        {
+            const std::string& words = header.words.shortForm.empty() ? header.words.full : header.words.shortForm;
+            main                     = main.empty() ? words : words + " " + main;
+        }
+        return main.empty() ? label : main;
+    }
+
     bool DrawReading(const char* what, bool busy, const std::string& failure)
     {
         if (busy)

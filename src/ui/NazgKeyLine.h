@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <optional>
 
@@ -24,6 +25,10 @@ namespace nazg
 
     // Opens `popup` under the item just drawn.
     void OpenPopupUnder(const char* popup);
+
+    // The four modifiers' words by the host's names, in the USB HID order: Ctrl, Shift, Alt or
+    // Option, Win, Cmd or Super.
+    [[nodiscard]] std::array<const char*, 4> ModifierWords(ModifierNames names);
 
     // The four modifiers by the host's names and the side, editing `mods` -- one at least stays on
     // unless `none` is offered, as a "None" first. The new set when something was clicked.

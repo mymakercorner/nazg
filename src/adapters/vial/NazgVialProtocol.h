@@ -113,6 +113,23 @@ namespace nazg
         bool operator==(const VialComboEntry&) const = default;
     };
 
+    // One key override slot as the board stores it, `vial_key_override_entry_t`: the trigger and
+    // the replacement, 0 where empty; the layers it acts on, one bit each; three modifier masks in
+    // the USB HID order (model/NazgKeycode.h, Mod) -- held, not held, hidden from the computer --
+    // and the options, Vial's enable flag in bit 7 (model/NazgKeyOverride.h, KeyOverrideOption).
+    struct VialKeyOverrideEntry
+    {
+        uint16_t trigger         = 0;
+        uint16_t replacement     = 0;
+        uint16_t layers          = 0;
+        uint8_t  triggerMods     = 0;
+        uint8_t  negativeModMask = 0;
+        uint8_t  suppressedMods  = 0;
+        uint8_t  options         = 0;
+
+        bool operator==(const VialKeyOverrideEntry&) const = default;
+    };
+
     // QMK Settings' id for the combo term, `combo_term`: one u16 in milliseconds for every combo.
     inline constexpr uint16_t c_QmkSettingComboTerm = 2;
 
@@ -169,6 +186,11 @@ namespace nazg
         // passes Vial's keycode firewall; the inputs are stored as sent.
         [[nodiscard]] Task<VialComboEntry> GetCombo(uint8_t index);
         [[nodiscard]] Task<void>           SetCombo(uint8_t index, const VialComboEntry& entry);
+
+        // 0xFE 0x0D 0x05 / 0x06: one key override slot, read or written, as the tap dances. Only the
+        // replacement passes Vial's keycode firewall.
+        [[nodiscard]] Task<VialKeyOverrideEntry> GetKeyOverride(uint8_t index);
+        [[nodiscard]] Task<void>                 SetKeyOverride(uint8_t index, const VialKeyOverrideEntry& entry);
 
         // 0xFE 0x0A / 0x0B: one QMK setting's value, `width` bytes little-endian (1, 2 or 4 -- the
         // setting's own; the firmware writes only that many over the request). A write sends four

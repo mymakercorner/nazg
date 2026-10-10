@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- Reference, not a Nazg design: how Vial shows key overrides, redrawn from its source so it can be
+     looked at before Nazg's Key Overrides section is mocked up (2026-10-10). VIA has no key
+     overrides; ZMK Studio neither (ZMK's mod-morph behaviour is the same idea, fixed at build time).
+
+     Vial: vial-gui at ../../../../vial-gui (aef8222, 2026-05-25) -- editor/key_override.py (the tab,
+     the grid of rows, ModsUI, LayersUI, OptionsUI and their labels), protocol/key_override.py (the
+     bits, the 10 bytes, a write only for a changed slot), keycodes/keycodes.py (key labels),
+     main_window.py (the tab order). Drawn as a Vial protocol 6 board with 32 slots.
+
+     The bytes follow via-vial-commands.md, vial_dynamic_entry_op: trigger u16, replacement u16,
+     layers u16, trigger_mods, negative_mod_mask, suppressed_mods, options -- little endian. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vial key override editor</title>
+<style>
+:root{--page:#f3f3f5;--text:#1d1e22;--muted:#6b6e78;--border:#c8cad2;--card:#fff;--accent:#3b82f6;--warn:#b45309}
+:root[data-theme="dark"]{--page:#0f0f11;--text:#ececf1;--muted:#80838f;--border:#3a3d48;--card:#16171b;--accent:#4296fa;--warn:#f59e0b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--text);font-family:"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center}
+header h1{font-size:15px;margin:0}
+header .sub{color:var(--muted)}
+.pick{display:flex;gap:4px;flex-wrap:wrap}
+.pick button,.themebtn{font:inherit;padding:3px 10px;border-radius:4px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer}
+.pick button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.themebtn{margin-left:auto}
+main{display:flex;flex-wrap:wrap;gap:24px;padding:16px;align-items:flex-start;justify-content:center}
+.col{width:640px;max-width:100%}
+.col h2{font-size:14px;margin:0 0 6px}
+.col h2 span{font-weight:normal;color:var(--muted)}
+.notes{margin:0;padding-left:18px;line-height:1.5}
+.notes li{margin-bottom:5px}
+.notes .warn{color:var(--warn);font-weight:600}
+.bytes{margin-top:10px;background:var(--card);border:1px solid var(--border);border-radius:6px;padding:8px 10px}
+.bytes .title{color:var(--muted);margin-bottom:4px}
+.bytes code{font-family:Consolas,"Cascadia Mono",monospace;font-size:12px;line-height:1.7}
+.bytes table{border-collapse:collapse;margin-top:4px}
+.bytes td{padding:1px 10px 1px 0;font-family:Consolas,"Cascadia Mono",monospace;font-size:12px}
+.bytes td:first-child{color:var(--muted);font-family:inherit}
+.said{margin-top:10px;background:var(--card);border:1px solid var(--border);border-radius:6px;padding:8px 10px;line-height:1.5}
+.said .title{color:var(--muted);margin-bottom:2px}
+
+/* ---------- Vial: a Qt Fusion window, light ---------- */
+.vial{font-family:"Segoe UI",Arial,sans-serif;font-size:12px;color:#000;background:#efefef;border:1px solid #8a8a8a;box-shadow:0 2px 10px rgba(0,0,0,.15)}
+.vial .titlebar{background:#fff;padding:6px 10px;border-bottom:1px solid #d0d0d0}
+.vial .menubar{padding:3px 8px;background:#f5f5f5;border-bottom:1px solid #d6d6d6;display:flex;gap:14px}
+.vial .devrow{display:flex;gap:6px;padding:8px}
+.qcombo{border:1px solid #a9a9a9;border-radius:3px;background:linear-gradient(#fdfdfd,#ececec);padding:3px 22px 3px 6px;position:relative;white-space:nowrap}
+.qcombo:after{content:"▾";position:absolute;right:6px;top:2px;color:#444}
+.qbtn{border:1px solid #a9a9a9;border-radius:3px;background:linear-gradient(#fdfdfd,#e6e6e6);padding:3px 10px;white-space:nowrap;cursor:default}
+.qtool{border:1px solid #a9a9a9;border-radius:3px;background:linear-gradient(#fdfdfd,#e6e6e6);padding:2px 7px;white-space:nowrap;cursor:pointer;font-size:11px}
+.qtabs{display:flex;padding:0 8px;border-bottom:1px solid #a9a9a9;flex-wrap:wrap}
+.qtab{padding:4px 9px;border:1px solid #a9a9a9;border-bottom:none;margin-right:-1px;background:linear-gradient(#f4f4f4,#e2e2e2);border-radius:3px 3px 0 0;cursor:pointer;white-space:nowrap}
+.qtab.on{background:#efefef;position:relative;top:1px;padding-bottom:5px}
+.vial .outer{padding:0 8px 8px}
+.vial .inner{border:1px solid #a9a9a9;border-top:none;background:#efefef;padding:8px}
+/* the slot tabs: a QTabWidget with 32 tabs scrolls them sideways with two arrow buttons */
+.slotbar{display:flex;align-items:flex-end;border-bottom:1px solid #a9a9a9}
+.slotbar .qtabs{padding:0;border-bottom:none;flex-wrap:nowrap;overflow:hidden;flex:1}
+.slotbar .qtab{padding:4px 6px;min-width:26px;text-align:center}
+.slotbar .arr{display:flex;gap:1px;margin-left:2px;padding-bottom:2px}
+.slotbar .arr span{border:1px solid #a9a9a9;background:linear-gradient(#fdfdfd,#e6e6e6);width:17px;height:17px;display:flex;align-items:center;justify-content:center;font-size:9px}
+.slotbody{border:1px solid #a9a9a9;border-top:none;background:#efefef;padding-bottom:2px}
+.grid{display:grid;grid-template-columns:auto auto;gap:9px 12px;align-items:start;width:max-content;margin:10px auto}
+.grid>.lab{padding-top:2px;white-space:nowrap}
+.qchk{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;cursor:pointer;user-select:none}
+.qchk i{width:13px;height:13px;border:1px solid #8f8f8f;background:#fff;border-radius:2px;display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-size:10px;line-height:1;color:#1f1f1f;flex:none}
+.qchk.on i:after{content:"✓"}
+.mods{display:grid;grid-template-columns:repeat(4,auto);gap:4px 12px}
+.layers{display:grid;grid-template-columns:repeat(8,auto);gap:4px 10px}
+.layers .btns{grid-column:1/-1;display:flex;gap:4px;margin-top:2px}
+.opts{display:flex;flex-direction:column;gap:4px}
+.vkey{width:50px;height:50px;border:1px solid #9b9b9b;border-radius:4px;background:#dcdcdc;box-shadow:inset 0 0 0 3px #e9e9e9;display:flex;align-items:center;justify-content:center;font-size:11px;text-align:center;line-height:1.15;white-space:pre;cursor:pointer}
+.vial .tray{margin:0 8px 8px;border:1px dashed #9b9b9b;padding:6px;color:#555;background:#e8e8e8;display:none}
+.vial .tray.show{display:block}
+.swapped{outline:2px solid #e8590c;outline-offset:1px;border-radius:2px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Vial's key override editor</h1>
+  <span class="sub">Redrawn from vial-gui's source, not a screenshot. VIA has no key overrides.</span>
+  <div class="pick" id="pick"></div>
+  <button class="themebtn" id="theme">Dark page</button>
+</header>
+<main>
+  <section class="col">
+    <h2>Vial <span>(vial-gui, a Vial protocol 6 board, 32 slots)</span></h2>
+    <div class="vial" id="vial"></div>
+    <div class="bytes" id="bytes"></div>
+  </section>
+  <section class="col" style="width:440px">
+    <h2>What it shows, and what it leaves out</h2>
+    <div class="said" id="said" style="margin:0 0 12px"></div>
+    <ul class="notes">
+      <li><b>Key Overrides is a tab of its own</b>, after Combos; the board is not drawn. Tabs <b>1 to 32</b> across the top, numbered from 1 (the firmware counts from 0); with 32 they scroll sideways behind two arrows. <b>Nothing marks a slot in use</b>: every tab looks the same.</li>
+      <li><b>One slot is one grid</b> of eight labelled rows, centred, scrolling when the window is short. Trigger and Replacement are Vial's key boxes: a click opens the keycode palette at the bottom of the window (click one here).</li>
+      <li><b>Each modifier mask is the same eight boxes</b>, left above right: Trigger mods, Negative mods, Suppressed mods. Ticking both Shifts means "either Shift". Nothing explains the three masks.</li>
+      <li><b>Layers: always sixteen boxes</b>, whatever the board's layer count, with <i>Enable all</i> / <i>Disable all</i>.</li>
+      <li><b>Options: six boxes</b>, worded after QMK's source comments. <span class="warn">The last two labels are swapped</span> (outlined): the box saying "Don't deactivate when another key is pressed down" sets the <code>no_reregister_trigger</code> bit, and the other one sets <code>no_unregister_on_other_key_down</code>.</li>
+      <li><b>Written at once</b>: every tick or key change writes that slot, 10 bytes, one round trip. No Save, no Revert. A Boot replacement asks for the unlock first.</li>
+      <li><b>A reset slot is all zeros</b> (the "new slot" example): disabled, no layer ticked, no option ticked. Ticking <i>Enable</i> alone is not enough: <span class="warn">with no layer it never fires</span>, and nothing says so. No option ticked is read by QMK as all three activations.</li>
+      <li><b>Suppressed mods are not filled in</b> from the trigger mods, as QMK's own <code>ko_make_basic()</code> does: forget them and Shift + Backspace sends <b>Shift + Delete</b> (a permanent delete in Windows Explorer).</li>
+      <li><b>No sentence says what the slot does</b>, and nothing warns about two slots with the same trigger (the lower slot wins).</li>
+    </ul>
+  </section>
+</main>
+<script>
+"use strict";
+const COUNT = 32;
+const MODS = ["LCtrl","LShift","LAlt","LGui","RCtrl","RShift","RAlt","RGui"];
+// ModsUI's grid: row 0 the left mods, row 1 the right ones
+const MOD_ORDER = [0,1,2,3,4,5,6,7];
+// OptionsUI: [bit, label as vial-gui writes it]
+const OPTIONS = [
+  [0, "Activate when the trigger key is pressed down"],
+  [1, "Activate when a necessary modifier is pressed down"],
+  [2, "Activate when a negative modifier is released"],
+  [3, "Activate on one modifier"],
+  [4, "Don't deactivate when another key is pressed down"],                        // sets no_reregister_trigger
+  [5, "Don't register the trigger key again after the override is deactivated"],  // sets no_unregister_on_other_key_down
+];
+const ENABLED = 1 << 7;
+const SHIFT = 0x02 | 0x20, CTRL = 0x01 | 0x10;
+
+// [label in Vial, keycode]
+const K = { NO:["",0x0000], BSPC:["Bksp",0x002A], DEL:["Del",0x004C], VOLU:["Vol +",0x00A9], BRIU:["Bright.\nUp",0x00BD] };
+
+const EXAMPLES = [
+  { name:"Shift + Backspace → Delete", slot:0,
+    ko:{ trigger:"BSPC", replacement:"DEL", layers:0xFFFF, trigger_mods:SHIFT, negative:0, suppressed:SHIFT, options:ENABLED|0x07 },
+    said:"Hold either Shift and press Backspace: Delete is sent, with Shift hidden from the computer. On every layer." },
+  { name:"Ctrl + Vol + → Brightness Up, layer 0", slot:1,
+    ko:{ trigger:"VOLU", replacement:"BRIU", layers:0x0001, trigger_mods:CTRL, negative:0, suppressed:CTRL, options:ENABLED|0x07 },
+    said:"Hold either Ctrl and press Vol +: Brightness Up is sent instead, Ctrl hidden. Only when the Vol + key is on layer 0." },
+  { name:"A new slot (reset)", slot:2,
+    ko:{ trigger:"NO", replacement:"NO", layers:0, trigger_mods:0, negative:0, suppressed:0, options:0 },
+    said:"Nothing: the slot is disabled. Enabled as it is, it would still never fire -- no layer is ticked." },
+];
+let cur = 0;
+let trayOpen = false;
+
+const hex = (v, n) => "0x" + v.toString(16).toUpperCase().padStart(n, "0");
+const chk = (on, label, cls = "") => `<span class="qchk${on ? " on" : ""} ${cls}"><i></i>${label}</span>`;
+const modsUI = mask => `<div class="mods">${MOD_ORDER.map(b => chk(mask & (1 << b), MODS[b])).join("")}</div>`;
+
+function render() {
+  const ex = EXAMPLES[cur], ko = ex.ko;
+  const main = ["Keymap","Layout","Macros","Tap Dance","Combos","Key Overrides","Alt Repeat Key","QMK Settings","Matrix tester","Firmware updater"]
+    .map(t => `<span class="qtab${t === "Key Overrides" ? " on" : ""}">${t}</span>`).join("");
+  // the selected tab is kept in view, as QTabBar does
+  const first = Math.max(0, Math.min(ex.slot - 2, COUNT - 18));
+  const slots = Array.from({length: COUNT}, (_, i) => i).slice(first)
+    .map(i => `<span class="qtab${i === ex.slot ? " on" : ""}">${i + 1}</span>`).join("");
+  const layers = Array.from({length: 16}, (_, i) => chk(ko.layers & (1 << i), String(i))).join("");
+  const opts = OPTIONS.map(([bit, label]) => chk(ko.options & (1 << bit), label, bit >= 4 ? "swapped" : "")).join("");
+  document.getElementById("vial").innerHTML =
+      `<div class="titlebar">Vial</div>`
+    + `<div class="menubar"><span>File</span><span>Keyboard layout</span><span>Security</span><span>Theme</span><span>About</span></div>`
+    + `<div class="devrow"><div class="qcombo" style="flex:1">Model F Labs B104</div><span class="qbtn">Refresh</span></div>`
+    + `<div class="qtabs">${main}</div>`
+    + `<div class="outer"><div class="inner">`
+    +   `<div class="slotbar"><div class="qtabs">${slots}</div><div class="arr"><span>◀</span><span>▶</span></div></div>`
+    +   `<div class="slotbody"><div class="grid">`
+    +     `<div class="lab">Enable</div><div>${chk(ko.options & ENABLED, "")}</div>`
+    +     `<div class="lab">Enable on layers</div><div class="layers">${layers}<div class="btns"><span class="qtool">Enable all</span><span class="qtool">Disable all</span></div></div>`
+    +     `<div class="lab">Trigger</div><div><div class="vkey">${K[ko.trigger][0]}</div></div>`
+    +     `<div class="lab">Trigger mods</div><div>${modsUI(ko.trigger_mods)}</div>`
+    +     `<div class="lab">Negative mods</div><div>${modsUI(ko.negative)}</div>`
+    +     `<div class="lab">Suppressed mods</div><div>${modsUI(ko.suppressed)}</div>`
+    +     `<div class="lab">Replacement</div><div><div class="vkey">${K[ko.replacement][0]}</div></div>`
+    +     `<div class="lab">Options</div><div class="opts">${opts}</div>`
+    +   `</div></div>`
+    + `</div></div>`
+    + `<div class="tray${trayOpen ? " show" : ""}" id="tray">The keycode palette (Basic, ISO/JIS, Layers, Quantum...) opens here when a key box is clicked.</div>`;
+  document.querySelectorAll("#vial .vkey").forEach(e => e.onclick = () => { trayOpen = !trayOpen; render(); });
+
+  const b = [];
+  const u16 = v => { b.push(v & 0xFF, v >> 8); };
+  u16(K[ko.trigger][1]); u16(K[ko.replacement][1]); u16(ko.layers);
+  b.push(ko.trigger_mods, ko.negative, ko.suppressed, ko.options);
+  document.getElementById("bytes").innerHTML =
+      `<div class="title">Slot ${ex.slot} as written (Vial's tab ${ex.slot + 1}): <code>FE 0D 06 ${hex(ex.slot, 2).slice(2)}</code> + 10 bytes</div>`
+    + `<code>${b.map(x => x.toString(16).toUpperCase().padStart(2, "0")).join(" ")}</code>`
+    + `<table>`
+    + `<tr><td>trigger</td><td>${hex(K[ko.trigger][1], 4)}</td></tr>`
+    + `<tr><td>replacement</td><td>${hex(K[ko.replacement][1], 4)}</td></tr>`
+    + `<tr><td>layers</td><td>${hex(ko.layers, 4)}</td></tr>`
+    + `<tr><td>trigger / negative / suppressed mods</td><td>${hex(ko.trigger_mods, 2)} / ${hex(ko.negative, 2)} / ${hex(ko.suppressed, 2)}</td></tr>`
+    + `<tr><td>options</td><td>${hex(ko.options, 2)}${ko.options & ENABLED ? " (enabled, bit 7)" : ""}</td></tr>`
+    + `</table>`;
+  document.getElementById("said").innerHTML = `<div class="title">What this slot does (Vial does not say it)</div>${ex.said}`;
+  document.getElementById("pick").innerHTML = EXAMPLES.map((e, i) => `<button class="${i === cur ? "on" : ""}" data-i="${i}">${e.name}</button>`).join("");
+  document.querySelectorAll("#pick button").forEach(e => e.onclick = () => { cur = +e.dataset.i; render(); });
+}
+
+const themeBtn = document.getElementById("theme");
+themeBtn.onclick = () => {
+  const dark = document.documentElement.dataset.theme !== "dark";
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  themeBtn.textContent = dark ? "Light page" : "Dark page";
+};
+render();
+</script>
+</body>
+</html>

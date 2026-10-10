@@ -257,6 +257,12 @@ A combo's `input[]` ends at the first `0` (`COMBO_END`), so an input after an em
 never matched; a slot with `input[0] == 0` is unused. Only `output` passes the keycode
 firewall; the inputs are stored as sent.
 
+A key override's three masks are QMK's 8-bit `MOD_BIT` order (Ctrl, Shift, Alt, Gui left in bits
+0-3, right in 4-7); its `options` bits 0-5 are QMK's `ko_option_t`, bit 7 Vial's enable. A reset
+slot is all zeros -- off, **no layer**: enabled as it is, it never fires. Only `replacement`
+passes the firewall, which matters little: the firmware sends it with `register_code(uint8_t)`,
+so only a basic key, with modifiers, is ever sent (ui-design.md, "The Key Overrides section").
+
 `options` carries the enable bit in each case (`vial_ko_enabled = 1 << 7`,
 `vial_arep_enabled = 1 << 3`), so "is this entry in use" is a flag in the struct, not a
 separate query.

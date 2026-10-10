@@ -343,6 +343,16 @@ namespace nazg
                 if (isEmpty)
                     ImGui::PopStyleColor(2);
 
+                // Kept but unused: the words struck through, in the text's colour.
+                if (index < strip.struck.size() && strip.struck[index])
+                {
+                    const ImVec2 min = ImGui::GetItemRectMin(), max = ImGui::GetItemRectMax();
+                    const float  half = ImGui::CalcTextSize(strip.entries[index].c_str()).x / 2 + 2 * style.FontScaleDpi;
+                    const float  mid  = (min.x + max.x) / 2, y = (min.y + max.y) / 2;
+                    ImGui::GetWindowDrawList()->AddLine(ImVec2(mid - half, y), ImVec2(mid + half, y), ImGui::GetColorU32(ImGuiCol_Text),
+                                                        std::max(1.0f, style.FontScaleDpi));
+                }
+
                 // Changes not written yet: a dot on the top right corner, as in the mockup.
                 if (index < strip.changed.size() && strip.changed[index])
                     ImGui::GetWindowDrawList()->AddCircleFilled(

@@ -48,6 +48,10 @@ namespace nazg
         // Entries holding nothing -- an empty macro slot: outlined, unfilled, their words muted,
         // unless chosen -- a solid outline (Rico, 2026-10-10: dashes added little, and cost many lines). Shorter than `entries`: the rest are not.
         std::vector<bool> empty;
+
+        // Entries kept but unused -- a key override switched off: their words struck through.
+        // Shorter than `entries`: the rest are not.
+        std::vector<bool> struck;
     };
 
     // The column's groups (ui-design.md, "Nazg's sections, then the board's menus"): the sections

@@ -1528,6 +1528,95 @@ with combos on and no QMK Settings):
 - **Read when the section first opens**, every slot: Keymap draws nothing from combos -- no key
   plays one -- so the board's load does not pay for them.
 
+## The Key Overrides section
+
+A key override sends another key when a key is pressed with some modifiers held -- Shift +
+Backspace for Delete, Shift + Esc for `~` on a 60 %. Vial only (VIA and ZMK Studio have none);
+`KEY_OVERRIDE_ENABLE ?= yes` in vial-qmk's `build_vial.mk`. Slots by EEPROM size, 4 to 32
+(`VIAL_KEY_OVERRIDE_ENTRIES`), 10 bytes each, one round trip each (via-vial-commands.md,
+`vial_dynamic_entry_op`). Research 2026-10-10.
+
+What the firmware does, from QMK's `quantum/process_keycode/process_key_override.c` and
+vial-qmk's `vial_get_key_override()` (2026-02 tree), read 2026-10-10:
+
+- **The key (trigger) is a keycode matched against what the pressed key sends** -- the whole
+  keycode, as in Combos: a key sending `LGUI_T(KC_A)` is not `KC_A`. **The layer checked is the
+  one the key was pressed on** (`read_source_layers_cache`), which must be among the override's
+  16 layer bits. An empty key means the modifiers alone.
+- **Three modifier masks**, eight bits each (Ctrl, Shift, Alt, Gui left, then right): **held**
+  -- all of them, or any one with `ko_option_one_mod`; both sides of a modifier set means either
+  side, one side means that side only; **negative** -- any of them held stops it; **suppressed**
+  -- hidden from the computer while the override is active. Forget to hide Shift and Shift +
+  Backspace sends Shift + Delete -- a permanent delete in Windows Explorer. QMK's own
+  `ko_make_basic()` hides the held modifiers; Vial leaves that to the user.
+- **The replacement is sent with `register_code(uint8_t)`**, its modifiers as weak mods: **a
+  plain key, a media key included, with modifiers** -- a layer key, Boot, a macro or a tap dance
+  sends nothing. Empty, it blocks the combination. So Vial's keycode firewall, which stores Boot
+  as nothing there, never changes what the board does.
+- **The slots are tried in order; the first that matches wins** -- the other way round from
+  Combos.
+- **It ends** when the key is released, a held modifier released, a negative one pressed, or
+  another key pressed (unless `ko_option_no_unregister_on_other_key_down`). The key still held
+  is then sent again (unless `ko_option_no_reregister_trigger`) -- 50 ms later, or 500 ms after
+  its own press (`KEY_OVERRIDE_REPEAT_DELAY`), as a key repeat would.
+- **Three options say what may start it**: the key pressed, a held modifier pressed after the
+  key, a negative modifier released. None set is read as all three.
+- **The enable flag is bit 7 of the options byte** (Vial's own, `vial_ko_enabled`): an override
+  off is kept, unused. A reset slot is all zeros -- off, no layer, no option -- so in Vial
+  ticking *Enable* alone gives an override that never fires. `KO_TOGG`, `KO_ON`, `KO_OFF`
+  switch them all, in RAM.
+
+What Vial's editor does (vial-gui `editor/key_override.py`, aef8222, redrawn in
+`ui-design/key-override-editor-vial.html`): a tab per slot numbered from 1, eight labelled rows
+-- Enable, sixteen layer boxes, the key, three grids of eight modifier boxes, the replacement,
+six option boxes -- **written at once**. **The labels of options 4 and 5 are swapped**: the box
+saying "Don't deactivate when another key is pressed down" sets `no_reregister_trigger`. Nothing
+says what a slot does, nothing marks a used slot, and any keycode is offered as the replacement.
+
+Decided with Rico 2026-10-10 on the mockup `ui-design/key-overrides-section.html` -- the Model F
+B104 (Vial 6, 32 slots) and the Corne:
+
+- **In the column** when the board reports key overrides (`VialEntryCounts::keyOverride` above
+  zero); **the strip holds the slots, numbered** -- KO 0 to the count, an empty one outlined, an
+  override off struck through. Set aside: the strip named by each override's keys.
+- **The board shows the selected override** (Rico): the keys sending its key on its layers lit
+  -- its legend there and "L1" when only another layer has it -- and a tag under the key saying
+  what is held and what is sent, "Shift → Del". A click on a key sets the key, to what it sends
+  on the first chosen layer. Set aside: every override's tag at once.
+- **The panel**: the slot's line (name, **On / Off**, Clear, what was written, Save / Revert);
+  then **the rule, left to right -- Held + Key → Sends** -- with the layers on the right, one
+  button per layer the board has and *All* (*All* writes the sixteen bits). Under it **Not while
+  held** and **Hidden from the computer**, as chips naming their modifiers.
+- **The modifiers are edited in the rule** (Rico): a click on Held or a chip selects it, and the
+  tool line edits it -- Ctrl, Shift, Alt, Win, then **Either side / Left / Right** for the whole
+  set, and for two held or more **All of them / Any one**; Hidden adds *Same as held*. **Hidden
+  follows held** while the two are the same, so a new override hides what it holds. **One side
+  per set**: a mixed set (Left Ctrl + Right Shift) cannot be built -- the firmware honours it,
+  nobody seems to need it -- but one read from the board is shown as it is and kept while edited,
+  until a side button is clicked. Set aside: a table of the three masks, L and R per modifier,
+  which can build anything.
+- **What it does, said** under the rule: "Hold Shift and press Bksp: Del is sent instead, Shift
+  hidden from the computer. On every layer.", and, muted, how it starts and ends: "Pressing Shift
+  with Bksp already held switches it too. Released first, Shift gives Bksp back."
+- **What is wrong, said** after it, each with a fix where one exists: no layer ("Every layer"),
+  a key no key sends on its layers (the layer that has it, or the mod-tap that holds it), a
+  modifier both held and not, no key and no modifier (it would fire on every press), a
+  replacement the firmware cannot send, two slots with the same key and modifiers (the first
+  wins). **Worth knowing**, not warnings: a held modifier not hidden, and what the computer then
+  gets ("Shift+` -- ~ on a US layout", with "Hide Shift"), a blocked combination, an override
+  off ("Turn it on").
+- **The start and stop options, in words, folded by default** (Rico): one line, "▸ When it starts
+  and stops -- as QMK sets it", or "changed from QMK's usual"; a click opens it -- Starts when
+  (three boxes), Ends when another key is pressed, After it the key still held is sent again: the
+  two `no_` bits turned round, so every box ticked is the usual way. **It stays as left** -- open
+  or folded, for every slot -- until folded again or Nazg closes. Set aside: always shown.
+- **The picker greys what cannot be sent** when the replacement is selected -- layers, features,
+  firmware keys -- its tooltip saying why. Sent with gives the replacement its modifiers.
+- **A new override starts usable**: on, every layer, QMK's usual options, hidden following held
+  -- where Vial's reset slot is off, on no layer.
+- **Written by Save, undone by Revert**, as the other slot sections; a dot on each changed slot.
+  **Read when the section first opens**, every slot: Keymap draws nothing from them.
+
 ## The common screens
 
 **1. No board open.** The keyboards found, each with its protocol and *Open*. No section

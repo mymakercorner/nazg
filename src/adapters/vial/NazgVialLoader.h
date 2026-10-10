@@ -32,6 +32,7 @@
 #include "adapters/vial/NazgVialProtocol.h"
 #include "async/NazgTask.h"
 #include "model/NazgCombo.h"
+#include "model/NazgKeyOverride.h"
 #include "model/NazgKeyboard.h"
 
 namespace nazg
@@ -79,4 +80,13 @@ namespace nazg
 
     // The board's `count` combos, one round trip each.
     [[nodiscard]] Task<std::vector<Combo>> ReadCombos(VialProtocol& protocol, uint8_t count, QmkKeycodeVersion version);
+
+    // A key override slot as Nazg models it, and back: a 0 keycode is no trigger or nothing sent;
+    // the masks, layers and options pass unchanged. Encoding fails for a keycode the board's
+    // version cannot store.
+    [[nodiscard]] KeyOverride                         DecodeKeyOverride(const VialKeyOverrideEntry& entry, QmkKeycodeVersion version);
+    [[nodiscard]] std::optional<VialKeyOverrideEntry> EncodeKeyOverride(const KeyOverride& keyOverride, QmkKeycodeVersion version);
+
+    // The board's `count` key overrides, one round trip each.
+    [[nodiscard]] Task<std::vector<KeyOverride>> ReadKeyOverrides(VialProtocol& protocol, uint8_t count, QmkKeycodeVersion version);
 }

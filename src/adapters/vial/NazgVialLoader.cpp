@@ -202,4 +202,55 @@ namespace nazg
             combos.push_back(DecodeCombo(co_await protocol.GetCombo(index), version));
         co_return combos;
     }
+
+    KeyOverride DecodeKeyOverride(const VialKeyOverrideEntry& entry, QmkKeycodeVersion version)
+    {
+        const auto decode = [version](uint16_t raw) -> std::optional<Keycode>
+        {
+            if (raw == 0)
+                return std::nullopt;
+            return DecodeQmkKeycode(raw, version);
+        };
+        KeyOverride keyOverride;
+        keyOverride.trigger     = decode(entry.trigger);
+        keyOverride.replacement = decode(entry.replacement);
+        keyOverride.layers      = entry.layers;
+        keyOverride.held        = entry.triggerMods;
+        keyOverride.notHeld     = entry.negativeModMask;
+        keyOverride.hidden      = entry.suppressedMods;
+        keyOverride.options     = entry.options;
+        return keyOverride;
+    }
+
+    std::optional<VialKeyOverrideEntry> EncodeKeyOverride(const KeyOverride& keyOverride, QmkKeycodeVersion version)
+    {
+        const auto encode = [version](const std::optional<Keycode>& keycode) -> std::optional<uint16_t>
+        {
+            if (!keycode)
+                return uint16_t{ 0 };
+            return EncodeQmkKeycode(*keycode, version);
+        };
+        const std::optional<uint16_t> trigger     = encode(keyOverride.trigger);
+        const std::optional<uint16_t> replacement = encode(keyOverride.replacement);
+        if (!trigger || !replacement)
+            return std::nullopt;
+
+        VialKeyOverrideEntry entry;
+        entry.trigger         = *trigger;
+        entry.replacement     = *replacement;
+        entry.layers          = keyOverride.layers;
+        entry.triggerMods     = keyOverride.held;
+        entry.negativeModMask = keyOverride.notHeld;
+        entry.suppressedMods  = keyOverride.hidden;
+        entry.options         = keyOverride.options;
+        return entry;
+    }
+
+    Task<std::vector<KeyOverride>> ReadKeyOverrides(VialProtocol& protocol, uint8_t count, QmkKeycodeVersion version)
+    {
+        std::vector<KeyOverride> keyOverrides;
+        for (uint8_t index = 0; index < count; ++index)
+            keyOverrides.push_back(DecodeKeyOverride(co_await protocol.GetKeyOverride(index), version));
+        co_return keyOverrides;
+    }
 }

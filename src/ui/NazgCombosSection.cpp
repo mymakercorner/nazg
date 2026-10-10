@@ -40,23 +40,6 @@ namespace nazg
             list->PopClipRect();
         }
 
-        // What the board's tag says: the output as its keycap reads, on one line -- "Esc", "Ctrl Z",
-        // "Caps Word" -- or its label when the keycap draws a symbol, an arrow.
-        std::string TagText(const KeycapLegend& legend, const std::string& label)
-        {
-            std::string main = legend.placement == PlacementClass::Character
-                                   ? legend.plain
-                                   : (legend.cylindrical.shortForm.empty() ? legend.cylindrical.full
-                                                                            : legend.cylindrical.shortForm);
-            const Header& header = legend.hold.IsEmpty() ? legend.header : legend.hold;
-            if (!header.IsEmpty())
-            {
-                const std::string& words = header.words.shortForm.empty() ? header.words.full : header.words.shortForm;
-                main                     = main.empty() ? words : words + " " + main;
-            }
-            return main.empty() ? label : main;
-        }
-
         bool IsNothing(const Keycode& keycode)
         {
             const auto* named = std::get_if<NamedKey>(&keycode);

@@ -27,6 +27,7 @@
 #include "transport/NazgHidTransport.h"
 #include "ui/NazgBoardView.h"
 #include "ui/NazgCombosSection.h"
+#include "ui/NazgKeyOverridesSection.h"
 #include "ui/NazgDefinitionPicker.h"
 #include "ui/NazgKeyboardList.h"
 #include "ui/NazgKeymapSection.h"
@@ -1836,6 +1837,10 @@ int main(int, char**)
                                     settings.advancedTools));
                             else if (planned.kind == nazg::SectionKind::Combos)
                                 boardState.sections.push_back(std::make_unique<nazg::CombosSection>(
+                                    transport, boardState.path, *boardState.keyboard, settings.legends, boardState.lock,
+                                    settings.advancedTools));
+                            else if (planned.kind == nazg::SectionKind::KeyOverrides)
+                                boardState.sections.push_back(std::make_unique<nazg::KeyOverridesSection>(
                                     transport, boardState.path, *boardState.keyboard, settings.legends, boardState.lock,
                                     settings.advancedTools));
                             else if (planned.kind == nazg::SectionKind::Layout)
