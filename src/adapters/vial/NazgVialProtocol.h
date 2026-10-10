@@ -130,6 +130,20 @@ namespace nazg
         bool operator==(const VialKeyOverrideEntry&) const = default;
     };
 
+    // One alt repeat key slot as the board stores it, `vial_alt_repeat_key_entry_t`: the last key
+    // and the alt key, 0 where empty; the modifiers allowed besides the last key's own, in the USB
+    // HID order (model/NazgKeycode.h, Mod); the options, the enable flag in bit 3
+    // (model/NazgAltRepeatKey.h, AltRepeatOption).
+    struct VialAltRepeatKeyEntry
+    {
+        uint16_t keycode     = 0;
+        uint16_t altKeycode  = 0;
+        uint8_t  allowedMods = 0;
+        uint8_t  options     = 0;
+
+        bool operator==(const VialAltRepeatKeyEntry&) const = default;
+    };
+
     // QMK Settings' id for the combo term, `combo_term`: one u16 in milliseconds for every combo.
     inline constexpr uint16_t c_QmkSettingComboTerm = 2;
 
@@ -191,6 +205,11 @@ namespace nazg
         // replacement passes Vial's keycode firewall.
         [[nodiscard]] Task<VialKeyOverrideEntry> GetKeyOverride(uint8_t index);
         [[nodiscard]] Task<void>                 SetKeyOverride(uint8_t index, const VialKeyOverrideEntry& entry);
+
+        // 0xFE 0x0D 0x07 / 0x08: one alt repeat key slot, read or written, as the tap dances. Both
+        // keycodes pass Vial's keycode firewall.
+        [[nodiscard]] Task<VialAltRepeatKeyEntry> GetAltRepeatKey(uint8_t index);
+        [[nodiscard]] Task<void>                  SetAltRepeatKey(uint8_t index, const VialAltRepeatKeyEntry& entry);
 
         // 0xFE 0x0A / 0x0B: one QMK setting's value, `width` bytes little-endian (1, 2 or 4 -- the
         // setting's own; the firmware writes only that many over the request). A write sends four

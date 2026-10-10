@@ -291,6 +291,50 @@ namespace
         Check(Throws([&] { Run(vial.GetKeyOverride(40)); }), "a slot past the count answers a non-zero status");
     }
 
+    // An alt repeat key slot: a status byte, then the 6 bytes of vial_alt_repeat_key_entry_t.
+    void TestAltRepeatKey()
+    {
+        std::printf("alt repeat key get and set\n");
+
+        FakeDeviceChannel channel;
+        VialProtocol      vial(channel);
+
+        // After Ctrl+Z (0x011D), Ctrl+Y (0x011C); Shift allowed either side; on, both ways, left and
+        // right alike.
+        std::vector<uint8_t> reply(nazg::c_ViaReportSize, 0x00);
+        const uint8_t entry[] = { 0x1D, 0x01,  0x1C, 0x01,  0x22,  0x0E };
+        std::copy(std::begin(entry), std::end(entry), reply.begin() + 1);
+        channel.ReplyRaw(reply);
+
+        const nazg::VialAltRepeatKeyEntry read = Run(vial.GetAltRepeatKey(2));
+        Check(read.keycode == 0x011D && read.altKeycode == 0x011C, "the last key, then the alt key");
+        Check(read.allowedMods == 0x22 && read.options == 0x0E, "the allowed modifiers and the options follow");
+        Check(channel.RequestAt(0)[2] == 0x07 && channel.RequestAt(0)[3] == 2, "get is the entry op's 0x07, then the slot");
+
+        channel.ReplyRaw(std::vector<uint8_t>(nazg::c_ViaReportSize, 0x00));
+        Run(vial.SetAltRepeatKey(5, read));
+        const std::vector<uint8_t> sent = channel.RequestAt(1);
+        Check(sent[2] == 0x08 && sent[3] == 5, "set is the entry op's 0x08, then the slot");
+        Check(std::equal(std::begin(entry), std::end(entry), sent.begin() + 4), "the entry follows, as the board stores it");
+
+        const nazg::AltRepeatKey decoded = nazg::DecodeAltRepeatKey(read, nazg::QmkKeycodeVersion::V0_0_7);
+        Check(decoded.lastKey == nazg::Keycode{ nazg::ModifiedKey{ nazg::Mod::LeftCtrl, "KC_Z" } } &&
+                  decoded.altKey == nazg::Keycode{ nazg::ModifiedKey{ nazg::Mod::LeftCtrl, "KC_Y" } } && decoded.IsOn() &&
+                  decoded.Has(nazg::AltRepeatOption::Bidirectional),
+              "decoded: Ctrl+Z, Ctrl+Y, on, both ways");
+        Check(nazg::EncodeAltRepeatKey(decoded, nazg::QmkKeycodeVersion::V0_0_7) == read, "and encoded back unchanged");
+
+        const nazg::VialAltRepeatKeyEntry reset{};
+        const nazg::AltRepeatKey          empty = nazg::DecodeAltRepeatKey(reset, nazg::QmkKeycodeVersion::V0_0_7);
+        Check(empty.IsEmpty() && !empty.lastKey && !empty.altKey, "a reset slot: no key either side");
+        Check(nazg::EncodeAltRepeatKey(empty, nazg::QmkKeycodeVersion::V0_0_7) == reset, "written back as zeros");
+
+        std::vector<uint8_t> refused(nazg::c_ViaReportSize, 0x00);
+        refused[0] = 0xFF;
+        channel.ReplyRaw(refused);
+        Check(Throws([&] { Run(vial.GetAltRepeatKey(40)); }), "a slot past the count answers a non-zero status");
+    }
+
     // One QMK setting: its id little-endian; the value after a status byte, as wide as the setting
     // -- the firmware leaves the rest of the request in place.
     void TestQmkSetting()
@@ -573,6 +617,7 @@ int main()
     TestTapDance();
     TestCombo();
     TestKeyOverride();
+    TestAltRepeatKey();
     TestQmkSetting();
     TestQmkSettingsQuery();
     TestUnlockStatus();

@@ -263,6 +263,12 @@ slot is all zeros -- off, **no layer**: enabled as it is, it never fires. Only `
 passes the firewall, which matters little: the firmware sends it with `register_code(uint8_t)`,
 so only a basic key, with modifiers, is ever sent (ui-design.md, "The Key Overrides section").
 
+An alt repeat key's `allowed_mods` is the same 8-bit order; its `options` are bit 0 default to
+this alt key, 1 bidirectional, 2 ignore mod handedness, 3 Vial's enable. A reset slot is all
+zeros, off. Both keycodes pass the firewall. **vial-qmk sends right-hand modifiers wrong** in
+what Alt Repeat sends -- an 8-bit mask where a keycode holds 5 bits (ui-design.md, "The Alt
+Repeat Key section").
+
 `options` carries the enable bit in each case (`vial_ko_enabled = 1 << 7`,
 `vial_arep_enabled = 1 << 3`), so "is this entry in use" is a flag in the struct, not a
 separate query.

@@ -222,6 +222,33 @@ namespace nazg
             throw ProtocolError("the board has no key override " + std::to_string(index));
     }
 
+    Task<VialAltRepeatKeyEntry> VialProtocol::GetAltRepeatKey(uint8_t index)
+    {
+        std::vector<uint8_t> reply = co_await SendVial(VialCommand::DynamicEntryOp,
+                                                       { static_cast<uint8_t>(VialDynamicEntry::AltRepeatKeyGet), index });
+        if (reply[0] != 0)
+            throw ProtocolError("the board has no alt repeat key " + std::to_string(index));
+
+        VialAltRepeatKeyEntry entry;
+        entry.keycode     = ReadLittleEndian16(reply, 1);
+        entry.altKeycode  = ReadLittleEndian16(reply, 3);
+        entry.allowedMods = reply[5];
+        entry.options     = reply[6];
+        co_return entry;
+    }
+
+    Task<void> VialProtocol::SetAltRepeatKey(uint8_t index, const VialAltRepeatKeyEntry& entry)
+    {
+        const auto lo = [](uint16_t value) { return static_cast<uint8_t>(value & 0xFF); };
+        const auto hi = [](uint16_t value) { return static_cast<uint8_t>(value >> 8); };
+        std::vector<uint8_t> reply = co_await SendVial(
+            VialCommand::DynamicEntryOp,
+            { static_cast<uint8_t>(VialDynamicEntry::AltRepeatKeySet), index, lo(entry.keycode), hi(entry.keycode),
+              lo(entry.altKeycode), hi(entry.altKeycode), entry.allowedMods, entry.options });
+        if (reply[0] != 0)
+            throw ProtocolError("the board has no alt repeat key " + std::to_string(index));
+    }
+
     Task<uint32_t> VialProtocol::GetQmkSetting(uint16_t id, size_t width)
     {
         std::vector<uint8_t> reply = co_await SendVial(VialCommand::QmkSettingsGet,

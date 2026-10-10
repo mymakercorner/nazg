@@ -25,6 +25,7 @@
 #include "library/NazgDefinitionLibrary.h"
 #include "transport/NazgDeviceChannel.h"
 #include "transport/NazgHidTransport.h"
+#include "ui/NazgAltRepeatKeySection.h"
 #include "ui/NazgBoardView.h"
 #include "ui/NazgCombosSection.h"
 #include "ui/NazgKeyOverridesSection.h"
@@ -1841,6 +1842,10 @@ int main(int, char**)
                                     settings.advancedTools));
                             else if (planned.kind == nazg::SectionKind::KeyOverrides)
                                 boardState.sections.push_back(std::make_unique<nazg::KeyOverridesSection>(
+                                    transport, boardState.path, *boardState.keyboard, settings.legends, boardState.lock,
+                                    settings.advancedTools));
+                            else if (planned.kind == nazg::SectionKind::AltRepeatKey)
+                                boardState.sections.push_back(std::make_unique<nazg::AltRepeatKeySection>(
                                     transport, boardState.path, *boardState.keyboard, settings.legends, boardState.lock,
                                     settings.advancedTools));
                             else if (planned.kind == nazg::SectionKind::Layout)

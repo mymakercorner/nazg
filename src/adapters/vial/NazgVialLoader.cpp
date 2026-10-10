@@ -253,4 +253,49 @@ namespace nazg
             keyOverrides.push_back(DecodeKeyOverride(co_await protocol.GetKeyOverride(index), version));
         co_return keyOverrides;
     }
+
+    AltRepeatKey DecodeAltRepeatKey(const VialAltRepeatKeyEntry& entry, QmkKeycodeVersion version)
+    {
+        const auto decode = [version](uint16_t raw) -> std::optional<Keycode>
+        {
+            if (raw == 0)
+                return std::nullopt;
+            return DecodeQmkKeycode(raw, version);
+        };
+        AltRepeatKey altRepeatKey;
+        altRepeatKey.lastKey = decode(entry.keycode);
+        altRepeatKey.altKey  = decode(entry.altKeycode);
+        altRepeatKey.allowed = entry.allowedMods;
+        altRepeatKey.options = entry.options;
+        return altRepeatKey;
+    }
+
+    std::optional<VialAltRepeatKeyEntry> EncodeAltRepeatKey(const AltRepeatKey& altRepeatKey, QmkKeycodeVersion version)
+    {
+        const auto encode = [version](const std::optional<Keycode>& keycode) -> std::optional<uint16_t>
+        {
+            if (!keycode)
+                return uint16_t{ 0 };
+            return EncodeQmkKeycode(*keycode, version);
+        };
+        const std::optional<uint16_t> keycode    = encode(altRepeatKey.lastKey);
+        const std::optional<uint16_t> altKeycode = encode(altRepeatKey.altKey);
+        if (!keycode || !altKeycode)
+            return std::nullopt;
+
+        VialAltRepeatKeyEntry entry;
+        entry.keycode     = *keycode;
+        entry.altKeycode  = *altKeycode;
+        entry.allowedMods = altRepeatKey.allowed;
+        entry.options     = altRepeatKey.options;
+        return entry;
+    }
+
+    Task<std::vector<AltRepeatKey>> ReadAltRepeatKeys(VialProtocol& protocol, uint8_t count, QmkKeycodeVersion version)
+    {
+        std::vector<AltRepeatKey> altRepeatKeys;
+        for (uint8_t index = 0; index < count; ++index)
+            altRepeatKeys.push_back(DecodeAltRepeatKey(co_await protocol.GetAltRepeatKey(index), version));
+        co_return altRepeatKeys;
+    }
 }

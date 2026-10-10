@@ -37,6 +37,7 @@ namespace nazg
     // "Sent with", and a button naming the modifiers -- "Ctrl Sft ▾", or "nothing" -- that opens
     // the choices under it, None first: back to the plain key in one click. For a basic key, or one
     // already sent with modifiers; anything else draws nothing. `key` is changed in place by a
-    // click. True when it drew.
-    bool DrawSentWith(Keycode& key, const LegendSettings& legends, QmkKeycodeVersion version);
+    // click. True when it drew. `words` name the modifiers' part: "Held with it" for a key that is
+    // matched rather than sent.
+    bool DrawSentWith(Keycode& key, const LegendSettings& legends, QmkKeycodeVersion version, const char* words = "Sent with");
 }

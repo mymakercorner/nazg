@@ -113,6 +113,8 @@ set(NAZG_CORE_SOURCES
   src/model/NazgCombo.cpp
   src/model/NazgKeyOverride.h
   src/model/NazgKeyOverride.cpp
+  src/model/NazgAltRepeatKey.h
+  src/model/NazgAltRepeatKey.cpp
   src/ui/NazgKeycapLegend.h
   src/ui/NazgKeycapLegend.cpp
   src/ui/NazgHostLayoutTable.cpp
@@ -200,6 +202,8 @@ set(NAZG_SOURCES
   src/ui/NazgCombosSection.cpp
   src/ui/NazgKeyOverridesSection.h
   src/ui/NazgKeyOverridesSection.cpp
+  src/ui/NazgAltRepeatKeySection.h
+  src/ui/NazgAltRepeatKeySection.cpp
   src/ui/NazgDefinitionPicker.h
   src/ui/NazgDefinitionPicker.cpp
 )
@@ -298,6 +302,7 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(tap_dance          tests/TapDanceTest.cpp)
     nazg_add_test(combo              tests/ComboTest.cpp)
     nazg_add_test(key_override       tests/KeyOverrideTest.cpp)
+    nazg_add_test(alt_repeat_key     tests/AltRepeatKeyTest.cpp)
     nazg_add_test(keycap_layout      tests/KeycapLayoutTest.cpp)
     nazg_add_test(palette            tests/PaletteTest.cpp)
     nazg_add_test(board_description  tests/BoardDescriptionTest.cpp)

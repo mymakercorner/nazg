@@ -31,6 +31,7 @@
 #include "adapters/qmk/NazgQmkKeycodes.h"
 #include "adapters/vial/NazgVialProtocol.h"
 #include "async/NazgTask.h"
+#include "model/NazgAltRepeatKey.h"
 #include "model/NazgCombo.h"
 #include "model/NazgKeyOverride.h"
 #include "model/NazgKeyboard.h"
@@ -89,4 +90,13 @@ namespace nazg
 
     // The board's `count` key overrides, one round trip each.
     [[nodiscard]] Task<std::vector<KeyOverride>> ReadKeyOverrides(VialProtocol& protocol, uint8_t count, QmkKeycodeVersion version);
+
+    // An alt repeat key slot as Nazg models it, and back: a 0 keycode is no key; the allowed
+    // modifiers and the options pass unchanged. Encoding fails for a keycode the board's version
+    // cannot store.
+    [[nodiscard]] AltRepeatKey                         DecodeAltRepeatKey(const VialAltRepeatKeyEntry& entry, QmkKeycodeVersion version);
+    [[nodiscard]] std::optional<VialAltRepeatKeyEntry> EncodeAltRepeatKey(const AltRepeatKey& altRepeatKey, QmkKeycodeVersion version);
+
+    // The board's `count` alt repeat keys, one round trip each.
+    [[nodiscard]] Task<std::vector<AltRepeatKey>> ReadAltRepeatKeys(VialProtocol& protocol, uint8_t count, QmkKeycodeVersion version);
 }

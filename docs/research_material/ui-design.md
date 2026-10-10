@@ -1617,6 +1617,82 @@ B104 (Vial 6, 32 slots) and the Corne:
 - **Written by Save, undone by Revert**, as the other slot sections; a dot on each changed slot.
   **Read when the section first opens**, every slot: Keymap draws nothing from them.
 
+## The Alt Repeat Key section
+
+Alt Repeat (`QK_AREP`) sends a key that goes with the last one typed -- after Ctrl+Z, Ctrl+Y.
+QMK pairs a few itself when nothing else answers: ← and →, ↑ and ↓, Home and End, Page Up and
+Down, Backspace and Delete, [ and ], and with `EXTRAKEY_ENABLE` or `MOUSEKEY_ENABLE` media,
+volume, brightness and mouse keys. Vial adds **entries**: a last key, the modifiers that may be
+held with it, and what Alt Repeat then sends. Vial only, since vial-qmk 2025-06 (Pascal
+Getreuer's #906, with no protocol bump); `REPEAT_KEY_ENABLE ?= yes` in `build_vial.mk`. Slots by
+EEPROM size, 4 to 32 (`VIAL_ALT_REPEAT_KEY_ENTRIES`), 6 bytes each, one round trip each
+(via-vial-commands.md, `vial_dynamic_entry_op`). Research 2026-10-10.
+
+What the firmware does, from vial-qmk's `get_alt_repeat_key_keycode_user()` (`quantum/vial.c`)
+and QMK's `quantum/repeat_key.c` and `process_repeat_key.c`, 2026-02 tree, read 2026-10-10:
+
+- **The last key is the last one QMK remembers** -- never a modifier (`KC_LCTL`..`KC_RGUI`,
+  Hyper, Meh), a layer key (`MO`, `TO`, `TG`, `TT`, `OSL`), a one-shot modifier, Tri Layer's
+  keys, Layer Lock or a Repeat key; a mod-tap or layer-tap counts when tapped, as its tap key.
+  The layer does not matter.
+- **An entry's last key is matched as the firmware normalises it**: a key with modifiers
+  (Ctrl+Z) is the key, its modifiers **required**; a mod-tap or layer-tap is its tap key. The
+  modifiers held with the last key must be the required ones plus only the entry's **allowed**
+  ones (8 bits, `MOD_BIT` order). **Ignore mod handedness** folds right onto left for all three
+  masks.
+- **Several entries match: the one with the most required modifiers wins, then the first slot.**
+- **Bidirectional** also matches the alt key, sending the last key back.
+- **Default to this alt key**: after a last key no entry matches, this entry's alt key is sent
+  if the modifiers held are allowed -- **whatever its own last key**; the first such entry wins.
+  QMK's own pairs are then never reached: they answer only when nothing does.
+- **What is sent is built wrong for right-hand modifiers**: `(mods << 8) | key` with the 8-bit
+  mask where a keycode holds 5 bits. Left modifiers come out right; Right Ctrl+Y sends Y, Right
+  Shift a tap-hold of Y, Right Alt a layer-tap, Right Win a Unicode character. The same goes for
+  the last key sent back by a bidirectional entry. A vial-qmk bug, not reported yet.
+- **The alt key is processed as if pressed** -- any keycode: a macro, a layer key; a mod-tap or
+  layer-tap as its tap key. Both keycodes pass Vial's keycode firewall: a locked board stores Boot
+  as nothing.
+- **The enable flag is bit 3 of the options** (`vial_arep_enabled`); a reset slot is all zeros:
+  off.
+
+What Vial's editor does (vial-gui `editor/alt_repeat_key.py`, aef8222): a tab per slot numbered
+from 1, five rows -- Enable, Last key, Alt key, eight boxes of allowed modifiers, three option
+boxes -- **written at once**. Nothing says what an entry does, that Alt Repeat is on no key, nor
+that a default stops QMK's pairs.
+
+Decided with Rico 2026-10-10 on the mockup `ui-design/alt-repeat-key-section.html` -- the Corne
+with Repeat and Alt Repeat on its thumbs, and the Model F B104 with no Alt Repeat key (32 slots,
+as it would report rebuilt on today's vial-qmk):
+
+- **In the column** when the board reports alt repeat slots (`VialEntryCounts::altRepeatKey`
+  above zero); **the strip holds the slots, numbered** -- AR 0 to the count, an empty one
+  outlined, an entry off struck through, as Key Overrides. Set aside: named by their keys.
+- **The board shows the selected entry**: the keys typing its last key lit, a tag under the
+  first -- the modifiers held with it and what Alt Repeat sends, "Ctrl → Ctrl+Y" -- and, both
+  ways, the alt key's the same way back. A click on a key sets the selected key to what it sends,
+  a tap-hold key's tap for the last key. Set aside: every entry's tags at once.
+- **The panel**: the slot's line (name, **On / Off**, Clear, what was written, Save / Revert);
+  **the rule -- Last key → Alt Repeat sends** -- **the arrow setting both ways** (Rico): a click
+  turns → into ⇄, "one way" or "both ways" under it. Set aside: a box beside the other options.
+  Under it **May also be held**, a chip naming the allowed modifiers, and two boxes in words:
+  **Left or right alike** (ignore mod handedness) and **After any other key too** (default).
+- **The modifiers**: the last key's required ones are its own, "Held with it" in the tool line
+  as Keymap's Sent with; the allowed ones edited as Key Overrides' sets -- Ctrl, Shift, Alt, Win,
+  then the side while left and right are told apart. What Alt Repeat sends has Sent with.
+- **What it does, said**: "After Ctrl+Z, Alt Repeat sends Ctrl+Y; after Ctrl+Y, Ctrl+Z.", and,
+  muted, which modifiers may be held, whether the side matters, the default.
+- **What is wrong, said**, each with a fix where one exists: nothing sent, no last key, a last
+  key QMK never remembers, one no key types, a right-hand modifier sent ("Use the left one"),
+  two entries with the same last key (the first wins), a later default. **Worth knowing**: an
+  entry off ("Turn it on"), an alt key sent as its tap key, QMK pairing the two keys already
+  while no default is set, a default stopping QMK's pairs. **No key on the board sends Alt
+  Repeat**: said once, under the rule.
+- **The picker greys** what is never the last key, and the Repeat keys as what is sent; on a
+  locked board, Boot in both.
+- **A new entry starts on, left and right alike** -- where Vial's reset slot is off.
+- **Written by Save, undone by Revert**, as the other slot sections; a dot on each changed slot.
+  **Read when the section first opens**, every slot.
+
 ## The common screens
 
 **1. No board open.** The keyboards found, each with its protocol and *Open*. No section

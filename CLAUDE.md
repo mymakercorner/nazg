@@ -52,6 +52,9 @@ exists, where, and how far it has been proven.
   - **Key Overrides** -- the rule (Held + Key -> Sends, the layers), the modifiers not allowed and
     hidden, what it does and what is wrong said, the start and stop options folded, Save / Revert.
     Read when the section opens; an override off is struck through in the strip.
+  - **Alt Repeat Key** -- the rule (Last key -> Alt Repeat sends, the arrow turning both ways),
+    the modifiers that may be held too, left or right alike, after any other key, what is wrong
+    said -- vial-qmk sends right-hand modifiers wrong -- Save / Revert. Read when the section opens.
   - **Matrix view** (Tools, with *Advanced tools* on) -- wiring and a live test.
   - Every other planned section is a `PlaceholderSection`.
   - Shared panel parts: `ui/NazgKeycodePicker.*`, `ui/NazgKeyLine.*` (Sent with and its popup),
@@ -73,6 +76,7 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
 | Tap Dance (Model F) | `QueryQmkSettings()`; lighting hover notes |
 | | Combos and the combo term, read or written |
 | | Key overrides, read or written |
+| | Alt repeat keys -- no board at hand has them |
 
 ## Traps already found
 
@@ -92,7 +96,7 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
   exit path must enable it again); library export / import (a web-build need).
 
 **Next**: the placeholder sections, each researched, mocked up with variants, chosen by Rico,
-then built -- Alt Repeat Key, QMK Settings, Lighting, Audio, custom menus.
+then built -- QMK Settings, Lighting, Audio, custom menus.
 
 # Prior research — read before re-researching anything
 

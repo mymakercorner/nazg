@@ -93,7 +93,7 @@ namespace nazg
         return changed;
     }
 
-    bool DrawSentWith(Keycode& key, const LegendSettings& legends, QmkKeycodeVersion version)
+    bool DrawSentWith(Keycode& key, const LegendSettings& legends, QmkKeycodeVersion version, const char* words)
     {
         // The basic key under the modifiers: only QMK's bottom byte, from KC_A, can be sent with any.
         const auto*      modified = std::get_if<ModifiedKey>(&key);
@@ -109,13 +109,13 @@ namespace nazg
 
         // The modifiers' words as the board prints them: "Ctrl", "Ctrl Sft", "Hyper".
         const uint8_t     mods  = modified != nullptr ? modified->mods : 0;
-        const std::string words = mods != 0 ? LegendFor(OneShotModKey{ mods }, { legends.Layout(), legends.modifierNames }).cylindrical.full
-                                            : std::string("nothing");
+        const std::string modWords = mods != 0 ? LegendFor(OneShotModKey{ mods }, { legends.Layout(), legends.modifierNames }).cylindrical.full
+                                               : std::string("nothing");
 
         ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("Sent with");
+        ImGui::TextDisabled("%s", words);
         ImGui::SameLine();
-        if (ToggleButton((words + " \xE2\x96\xBE###sentwith").c_str(), mods != 0))
+        if (ToggleButton((modWords + " \xE2\x96\xBE###sentwith").c_str(), mods != 0))
             OpenPopupUnder("##sentwith");
         if (ImGui::BeginPopup("##sentwith"))
         {
