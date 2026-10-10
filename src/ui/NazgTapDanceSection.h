@@ -7,8 +7,8 @@
 // small drawing of its gesture and its key, an empty one showing faint what the firmware does
 // instead -- its tapping term, a line saying when the tap is sent, and Keymap's picker.
 //
-// Read from the board when the section is first shown, one slot per round trip; written by Save,
-// the changed slots only, each read back -- a locked board stores Boot as nothing. Revert drops the
+// Read with the board (ReadTapDances(), Keyboard::tapDances, which Keymap draws from) -- or, if that
+// failed, when the section is first shown; written by Save, the changed slots only, each read back -- a locked board stores Boot as nothing. Revert drops the
 // changes.
 //
 // ImGui only, no SDL: compiled into the application, not into nazg_core.
@@ -59,8 +59,6 @@ namespace nazg
         [[nodiscard]] bool        IsChanged(size_t dance) const;
         [[nodiscard]] size_t      KeysHolding(size_t dance) const;
 
-        [[nodiscard]] TapDance          DanceOf(const VialTapDanceEntry& entry) const;
-        [[nodiscard]] std::optional<VialTapDanceEntry> EntryOf(const TapDance& dance) const;
 
         Task<void> Load();
         Task<void> Save(std::vector<size_t> dances);
@@ -80,8 +78,7 @@ namespace nazg
         const std::optional<VialUnlockStatus>& m_Lock;
         const bool&                            m_AdvancedTools;
 
-        std::vector<TapDance> m_Saved;    // as the board holds them
-        std::vector<TapDance> m_Dances;   // as edited
+        std::vector<TapDance> m_Dances;   // as edited; as the board holds them: m_Keyboard.tapDances
 
         bool        m_IsLoaded = false;
         Task<void>  m_Request;

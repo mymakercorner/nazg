@@ -219,7 +219,8 @@ their main legend, a band along the top of the face, both in the category's colo
   - **The board's lighting systems** are the union of what the definition says: Vial's or VIA
     V2's `lighting` preset, and VIA V3's keycode modules and standard menus, which the parser now
     keeps (their ids only). LED Matrix comes from an LM_* key on any layer.
-  - TD(n) prints "Dance", as short-forms.md's table has it; hover gives QMK's name and label.
+  - TD(n) prints "Dance" until the board's tap dances are read; then it is drawn from its slot
+    ("The Tap Dance section", "On the Keymap's keys").
 - **Checked in Arimo** (`legend_font`): about 520,000 draws on 1u, both families, every size --
   every named keycode with each modifier names, side and three lighting sets; layers 0 to 31,
   LM and OSM with every modifier set, modified keys, TD 0 to 255, macros 0 to 127; every basic
@@ -1415,12 +1416,25 @@ The section:
   written yet" on the line, and Save / Discard asked when the board changes or Nazg closes.
   Writing at once -- cheap here, one 10-byte write per slot, and Vial's way for keys (its term is
   written by Save) -- was the other choice.
-- **Read when the section first opens**, every slot, one round trip each -- some 0.45 s for 32
-  slots on the Model F.
+- **Read with the board**, every slot, one round trip each -- some 0.45 s more on the Model F's
+  32 -- so Keymap can draw them; the section reads them itself only if that failed.
 
-Already decided elsewhere ("Short forms and command keys"): in Keymap, a tap dance with a tap and
-a hold is drawn as a tap-hold once its entry is read; its double tap and tap then hold stay off
-the board -- hover and this panel.
+### On the Keymap's keys
+
+Decided with Rico 2026-10-10 on the mockup `ui-design/tap-dance-keys.html`, the six example dances
+drawn today and once read. A TD(n) key is drawn from its slot:
+
+- **A tap and a hold: as a tap-hold** (decided 2026-10-03, "Short forms and command keys") -- tap
+  Space, hold L1 is drawn exactly as LT(1, KC_SPC); the hold one line, in the colour of what it does,
+  so Boot held behind Esc shows red, Ctrl+C held is Host's.
+- **A tap without a hold: the tap under a "Dance" header** (Rico) -- what a press types, the violet
+  header and band saying the key waits for a second tap. A tap that is a command keeps its own
+  header; "Dance" then takes the hold's place, top right. Set aside: "Dance / TD n" unchanged, and
+  the tap with a small TD mark in the corner.
+- **No tap, or not read**: "Dance / TD n".
+- **The double tap and tap then hold stay off the key**, with no mark that there is more (Rico: a
+  ·· in the corner was the other choice) -- hover lists all four actions and the term.
+- The picker's TD tiles stay "Dance / TD n": they are chosen by slot.
 
 ## The common screens
 

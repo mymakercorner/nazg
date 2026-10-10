@@ -1012,7 +1012,23 @@ namespace
             // What the keycode picker offers, which lighting keycodes work on this firmware, and
             // which sections the board has.
             if (state.keyboard)
+            {
                 state.keyboard->report = co_await nazg::ReadBoardReport(protocol);
+
+                // Keymap draws a tap dance from its slot. Unread, its keys say "TD n" and the Tap
+                // Dance section reads them itself.
+                if (const uint8_t count = state.keyboard->report.tapDanceCount; count > 0)
+                {
+                    try
+                    {
+                        state.keyboard->tapDances =
+                            co_await nazg::ReadTapDances(protocol, count, state.keyboard->keycodeVersion);
+                    }
+                    catch (const nazg::ProtocolError&)
+                    {
+                    }
+                }
+            }
 
             state.activeSection = 0;
             state.exportMessage.clear();

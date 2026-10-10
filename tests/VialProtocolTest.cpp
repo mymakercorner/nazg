@@ -12,6 +12,7 @@
 
 #include "adapters/vial/NazgVialProtocol.h"
 #include "adapters/vial/NazgVialLoader.h"
+#include "model/NazgTapDance.h"
 
 #include "FakeDeviceChannel.h"
 #include "TestSupport.h"
@@ -184,6 +185,14 @@ namespace
         const std::vector<uint8_t> sent = channel.RequestAt(1);
         Check(sent[2] == 0x02 && sent[3] == 5, "set is the entry op's 0x02, then the slot");
         Check(std::equal(std::begin(entry), std::end(entry), sent.begin() + 4), "the entry follows, as the board stores it");
+
+        // As Nazg models it: 0 is an empty action, and the entry encodes back unchanged.
+        const nazg::TapDance dance = nazg::DecodeTapDance(read, nazg::QmkKeycodeVersion::V0_0_7);
+        Check(dance[nazg::DanceAction::Tap] == nazg::Keycode{ nazg::NamedKey{ "KC_ESC" } } &&
+                  dance[nazg::DanceAction::Hold] == nazg::Keycode{ nazg::LayerKey{ nazg::LayerOp::Momentary, 1 } } &&
+                  !dance[nazg::DanceAction::TapHold] && dance.tappingTerm == 200,
+              "decoded: Esc, L1 held, Caps twice, nothing tapped then held");
+        Check(nazg::EncodeTapDance(dance, nazg::QmkKeycodeVersion::V0_0_7) == read, "and encoded back unchanged");
 
         std::vector<uint8_t> refused(nazg::c_ViaReportSize, 0x00);
         refused[0] = 0xFF;

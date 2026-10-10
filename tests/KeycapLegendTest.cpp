@@ -14,8 +14,10 @@
 #include "TestSupport.h"
 #include "adapters/qmk/NazgQmkKeycodes.h"
 
+#include <optional>
 #include <set>
 #include <string>
+#include <vector>
 
 using nazg::ArrowDirection;
 using nazg::Header;
@@ -322,6 +324,49 @@ namespace
         Check(Says(unknown, "0x8123") && unknown.Band() == Category::None, "an unknown value is its hex, with no band");
     }
 
+    // A Vial tap dance once its slot is read: a tap and a hold as a tap-hold, the hold in its own
+    // category; a tap alone under "Dance"; no tap, or unread, "Dance / TD n".
+    void TestTapDances()
+    {
+        std::printf("tap dances, read\n");
+
+        const auto dance = [](std::optional<nazg::Keycode> tap, std::optional<nazg::Keycode> hold)
+        {
+            nazg::TapDance d;
+            d.actions = { tap, hold, nazg::Keycode{ nazg::NamedKey{ "KC_CAPS" } }, std::nullopt };
+            return d;
+        };
+        const std::vector<nazg::TapDance> dances = {
+            dance(nazg::NamedKey{ "KC_SPC" }, nazg::LayerKey{ nazg::LayerOp::Momentary, 1 }),
+            dance(nazg::NamedKey{ "KC_ESC" }, nazg::NamedKey{ "QK_BOOT" }),
+            dance(nazg::NamedKey{ "KC_C" }, nazg::ModifiedKey{ Mod::LeftCtrl, "KC_C" }),
+            dance(nazg::NamedKey{ "KC_ESC" }, std::nullopt),
+            dance(nazg::NamedKey{ "KC_MPLY" }, std::nullopt),
+            dance(std::nullopt, nazg::LayerKey{ nazg::LayerOp::Momentary, 1 }),
+        };
+        const auto read = [&](uint8_t index)
+        {
+            LegendContext context{ UsHostLayout(), ModifierNames::Windows, KeySide::Neither };
+            context.tapDances = dances;
+            return LegendFor(nazg::TapDanceKey{ index }, context);
+        };
+
+        const KeycapLegend layer = read(0);
+        Check(layer == Of(nazg::LayerTapKey{ 1, "KC_SPC" }), "tap Space, hold L1: drawn exactly as LT(1, KC_SPC)");
+        const KeycapLegend boot = read(1);
+        Check(Says(boot, "Esc") && boot.hold == Header{ { "Boot", "" }, Category::Firmware } && boot.Band() == Category::Firmware,
+              "Boot held behind Esc: the hold and the band in Firmware's colour");
+        Check(read(2).hold == Header{ { "Ctrl+C", "" }, Category::Host }, "a shortcut held is one line, Host's");
+        const KeycapLegend tapOnly = read(3);
+        Check(Says(tapOnly, "Esc") && tapOnly.header == Header{ { "Dance", "" }, Category::Behaviour } && tapOnly.hold.IsEmpty(),
+              "a tap without a hold: Dance over the tap");
+        const KeycapLegend media = read(4);
+        Check(media.header == Header{ { "Media", "" }, Category::Host } && media.hold == Header{ { "Dance", "" }, Category::Behaviour },
+              "a command tap keeps its header, Dance takes the hold's place");
+        Check(Says(read(5), "TD 5") && HeaderOf(read(5)) == "Dance", "no tap: Dance / TD n");
+        Check(Says(read(9), "TD 9"), "a slot not read: Dance / TD n");
+    }
+
     // The command table and the families built from parts (short-forms.md).
     void TestCommands()
     {
@@ -467,6 +512,7 @@ int main()
     TestLegendSet();
     TestModifiers();
     TestComposedKeys();
+    TestTapDances();
     TestCommands();
     TestLighting();
     TestCoverage();

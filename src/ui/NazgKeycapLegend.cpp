@@ -659,11 +659,45 @@ namespace nazg
                 return Behaviour("Once", ModsWords(k.mods, context.names));
             }
 
-            // Until Vial's tap dance entries are read and a tap dance with a tap and a hold is
-            // drawn as a tap-hold.
+            // A Vial tap dance, drawn from its slot (ui-design.md, "Short forms and command keys"):
+            // a tap and a hold as a tap-hold, the hold in the colour of what it does -- Boot behind
+            // a harmless tap shows red; a tap without a hold under a "Dance" header (Rico,
+            // 2026-10-10), which says the key waits for a second tap. The double tap and tap then
+            // hold stay off the key. Unread, or with no tap: "Dance / TD n".
             KeycapLegend operator()(const TapDanceKey& k) const
             {
-                return Behaviour("Dance", { "TD " + std::to_string(k.index), "" });
+                const auto unread = [&] { return Behaviour("Dance", { "TD " + std::to_string(k.index), "" }); };
+                if (k.index >= context.tapDances.size())
+                    return unread();
+                const TapDance&               dance = context.tapDances[k.index];
+                const std::optional<Keycode>& tap   = dance[DanceAction::Tap];
+                const std::optional<Keycode>& hold  = dance[DanceAction::Hold];
+                if (!tap || std::holds_alternative<TapDanceKey>(*tap))
+                    return unread();
+
+                LegendContext inner = context;   // a tap dance in a tap dance is drawn as unread
+                inner.tapDances     = {};
+                KeycapLegend legend = LegendFor(*tap, inner);
+                if (hold && !std::holds_alternative<TapDanceKey>(*hold))
+                    legend.hold = HoldOf(LegendFor(*hold, inner));
+                else if (legend.header.IsEmpty())
+                    legend.header = { { "Dance", "" }, CommandCategory::Behaviour };
+                else
+                    legend.hold = { { "Dance", "" }, CommandCategory::Behaviour };   // the tap's own header stays
+                return legend;
+            }
+
+            // Any keycode as a hold's header: one line, its main legend -- "L1", "Boot", "Ctrl+C" --
+            // in its own category, Behaviour's for a plain key or a modifier held.
+            static Header HoldOf(const KeycapLegend& held)
+            {
+                Words main = !held.cylindrical.full.empty() ? held.cylindrical
+                                                            : Words{ !held.plain.empty() ? held.plain : held.shifted, "" };
+                if (held.header.category == CommandCategory::Host && !held.header.IsEmpty() &&
+                    held.header.words.full.back() == '+')
+                    main = { held.header.words.full + main.full, "" };   // a shortcut, Ctrl+C
+                const CommandCategory band = held.Band();
+                return { std::move(main), band != CommandCategory::None ? band : CommandCategory::Behaviour };
             }
 
             KeycapLegend operator()(const MacroKey& k) const

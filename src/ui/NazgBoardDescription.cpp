@@ -99,7 +99,7 @@ namespace nazg
                 continue;
 
             const LegendContext context{ settings.Layout(), settings.modifierNames, SideOf(key.geometry, line),
-                                         lighting, custom };
+                                         lighting, custom, keyboard.tapDances };
             const ResolvedKey   resolved = ResolveKey(keyboard, key.geometry, layer);
             key.legends     = LegendFor(resolved.keycode, context);
             key.fallthrough = resolved.fallthrough;

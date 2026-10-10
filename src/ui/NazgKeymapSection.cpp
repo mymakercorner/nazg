@@ -107,7 +107,7 @@ namespace nazg
             if (previewing)
             {
                 const LegendContext context{ m_Legends.Layout(), m_Legends.modifierNames, SideOf(key.geometry, line),
-                                             LightingSystemsOf(m_Keyboard), custom };
+                                             LightingSystemsOf(m_Keyboard), custom, m_Keyboard.tapDances };
                 key.legends     = LegendFor(*m_Preview, context);
                 key.fallthrough = Fallthrough::None;
                 key.marks |= Mark::Highlighted;
@@ -153,6 +153,17 @@ namespace nazg
                                    : std::string("\nnothing below to disable");
         else if (const LightingNote note = LightingNoteOf(resolved.keycode, m_Keyboard); !note.text.empty())
             text += "\n" + note.text;   // a lighting key that may do nothing on this firmware, or drives two systems
+
+        // A tap dance: all four actions -- the key shows the tap and the hold only.
+        if (const auto* td = std::get_if<TapDanceKey>(&resolved.keycode); td && td->index < m_Keyboard.tapDances.size())
+        {
+            static constexpr const char* c_Actions[] = { "Tap", "Hold", "Double tap", "Tap, then hold" };
+            const TapDance& dance = m_Keyboard.tapDances[td->index];
+            for (DanceAction action : c_DanceActions)
+                text += std::string("\n") + c_Actions[static_cast<size_t>(action)] + ": " +
+                        (dance[action] ? KeycodeLabel(*dance[action], m_Keyboard.keycodeVersion) : std::string("-"));
+            text += "\nTapping term: " + std::to_string(dance.tappingTerm) + " ms";
+        }
 
         ImGui::SetTooltip("%s\nrow %d, column %d", text.c_str(), key.row, key.column);
 

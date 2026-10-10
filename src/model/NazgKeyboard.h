@@ -21,6 +21,7 @@
 #include "adapters/qmk/NazgQmkKeycodes.h"
 #include "adapters/via/NazgKeyboardDefinition.h"
 #include "model/NazgKeycode.h"
+#include "model/NazgTapDance.h"
 
 namespace nazg
 {
@@ -109,6 +110,11 @@ namespace nazg
         // The QMK keycode version the keymap was decoded with. Writing a key back must
         // encode with the same one, and a keycode picker lists what it offers.
         QmkKeycodeVersion keycodeVersion = c_LatestQmkKeycodeVersion;
+
+        // Vial's tap dances, one per slot, read after the load (ReadTapDances()) -- Keymap draws a
+        // TD(n) key from its slot. Empty on VIA, or when they could not be read. The Tap Dance
+        // section keeps them as the board stores them after each write.
+        std::vector<TapDance> tapDances;
 
         const std::string& Name() const noexcept { return definition.name; }
 

@@ -469,7 +469,7 @@ Letters, digits, punctuation, F1-F24 and the numpad print their QMK label, or wh
 | `TT(n)` | Tap tog | Ln | Behaviour |
 | `LM(n, mods)` | Hold | Ln *mods* -- "L1 Ctrl", "L1 C S" | Behaviour |
 | `OSM(mods)` | Once | *mods* -- "Ctrl", "Ctrl Sft", "Hyper" | Behaviour |
-| `TD(n)` | Dance | TD n -- or, with Vial's entries read, drawn as a tap-hold | Behaviour |
+| `TD(n)` | Dance | TD n -- or, with Vial's entries read, its tap and hold as a tap-hold, or its tap under "Dance" | Behaviour |
 | `LT(n, kc)` | hold: Ln | the tap's own legend | Behaviour |
 | `MT(mods, kc)` | hold: *mods* | the tap's own legend | Behaviour |
 | `SH_T(kc)` | hold: Swap | the tap's own legend | Behaviour |

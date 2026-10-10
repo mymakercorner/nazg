@@ -44,7 +44,8 @@ exists, where, and how far it has been proven.
     tiles, the key line with the Any entry and When held / Sent with).
   - **Layout** -- option groups, written at once.
   - **Macros** -- a chain edited in place, text typed with the host layout, Save / Revert.
-  - **Tap Dance** -- four actions with gesture drawings and fallbacks, Save / Revert.
+  - **Tap Dance** -- four actions with gesture drawings and fallbacks, Save / Revert. The dances
+    are read with the board (`Keyboard::tapDances`), so Keymap draws a TD key from its slot.
   - **Matrix view** (Tools, with *Advanced tools* on) -- wiring and a live test.
   - Every other planned section is a `PlaceholderSection`.
   - Shared panel parts: `ui/NazgKeycodePicker.*`, `ui/NazgKeyLine.*` (Sent with and its popup).
@@ -76,8 +77,7 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
 
 - **Under review**: the user library's one-version backup ("Restore previous") -- Rico weighs its
   value against its complexity. "Export definition..." is for debugging only.
-- **Not done**: Keymap drawing a tap dance with a tap and a hold as a tap-hold; noticing an
-  unplugged board (hotplug); the rest of step 5 of the board look.
+- **Not done**: noticing an unplugged board (hotplug); the rest of step 5 of the board look.
 - **Deferred**: the Leyden Jar diagnostics (far later -- already decided: the device stays open
   while a view polls, and key output is disabled while they show, RAM only, so every close and
   exit path must enable it again); library export / import (a web-build need).

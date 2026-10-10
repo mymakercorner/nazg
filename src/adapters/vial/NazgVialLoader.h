@@ -25,6 +25,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 #include "adapters/qmk/NazgQmkKeycodes.h"
@@ -60,4 +61,12 @@ namespace nazg
     // refuses -- macros compiled out, a Vial build older than its entry counts -- leaves its
     // field at zero.
     [[nodiscard]] Task<BoardReport> ReadBoardReport(VialProtocol& protocol);
+
+    // A tap dance slot as Nazg models it, and back: a 0 keycode is an empty action. Encoding fails
+    // for a keycode the board's version cannot store.
+    [[nodiscard]] TapDance                         DecodeTapDance(const VialTapDanceEntry& entry, QmkKeycodeVersion version);
+    [[nodiscard]] std::optional<VialTapDanceEntry> EncodeTapDance(const TapDance& dance, QmkKeycodeVersion version);
+
+    // The board's `count` tap dances, one round trip each -- some 0.45 s for the Model F's 32.
+    [[nodiscard]] Task<std::vector<TapDance>> ReadTapDances(VialProtocol& protocol, uint8_t count, QmkKeycodeVersion version);
 }

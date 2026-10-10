@@ -31,6 +31,7 @@
 #include <string_view>
 
 #include "model/NazgKeycode.h"
+#include "model/NazgTapDance.h"
 
 namespace nazg
 {
@@ -240,6 +241,10 @@ namespace nazg
         // The board's own keycodes as its definition names them, the first QK_KB_0's: a name
         // and its short form. An empty name, or a QK_KB_n past the end, prints its number.
         std::span<const Words> customKeycodes = {};
+
+        // The board's Vial tap dances, by slot (Keyboard::tapDances): a TD(n) key is drawn from its
+        // own. None read: "Dance / TD n".
+        std::span<const TapDance> tapDances = {};
     };
 
     [[nodiscard]] KeycapLegend LegendFor(const Keycode& keycode, const LegendContext& context);

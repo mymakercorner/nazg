@@ -13,7 +13,7 @@
 
 #include "imgui.h"
 
-#include "adapters/qmk/NazgQmkKeycodeCodec.h"
+#include "adapters/vial/NazgVialLoader.h"
 #include "adapters/qmk/NazgQmkKeycodes.h"
 #include "transport/NazgDeviceChannel.h"
 #include "ui/NazgBoardDescription.h"
@@ -86,6 +86,12 @@ namespace nazg
         : m_Transport(transport), m_Path(std::move(path)), m_Keyboard(keyboard), m_Legends(legends), m_Lock(lock),
           m_AdvancedTools(advancedTools)
     {
+        // Read with the board, as Keymap draws them; else the panel reads them when first shown.
+        if (m_Keyboard.tapDances.size() == m_Keyboard.report.tapDanceCount)
+        {
+            m_Dances   = m_Keyboard.tapDances;
+            m_IsLoaded = true;
+        }
     }
 
     bool TapDanceSection::IsLocked() const
@@ -95,7 +101,8 @@ namespace nazg
 
     bool TapDanceSection::IsChanged(size_t dance) const
     {
-        return m_IsLoaded && dance < m_Dances.size() && dance < m_Saved.size() && m_Dances[dance] != m_Saved[dance];
+        const std::vector<TapDance>& stored = m_Keyboard.tapDances;
+        return m_IsLoaded && dance < m_Dances.size() && dance < stored.size() && m_Dances[dance] != stored[dance];
     }
 
     bool TapDanceSection::IsBusy() const
@@ -136,35 +143,6 @@ namespace nazg
                     holding.insert({ layer, key.row, key.column });
             }
         return holding.size();
-    }
-
-    TapDance TapDanceSection::DanceOf(const VialTapDanceEntry& entry) const
-    {
-        const auto decode = [&](uint16_t raw) -> std::optional<Keycode>
-        {
-            if (raw == 0)
-                return std::nullopt;
-            return DecodeQmkKeycode(raw, m_Keyboard.keycodeVersion);
-        };
-        TapDance dance;
-        dance.actions     = { decode(entry.onTap), decode(entry.onHold), decode(entry.onDoubleTap), decode(entry.onTapHold) };
-        dance.tappingTerm = entry.tappingTerm;
-        return dance;
-    }
-
-    std::optional<VialTapDanceEntry> TapDanceSection::EntryOf(const TapDance& dance) const
-    {
-        uint16_t raw[4] = {};
-        for (size_t action = 0; action < 4; ++action)
-        {
-            if (!dance.actions[action])
-                continue;
-            const std::optional<uint16_t> value = EncodeQmkKeycode(*dance.actions[action], m_Keyboard.keycodeVersion);
-            if (!value)
-                return std::nullopt;
-            raw[action] = *value;
-        }
-        return VialTapDanceEntry{ raw[0], raw[1], raw[2], raw[3], dance.tappingTerm };
     }
 
     Strip TapDanceSection::DescribeStrip() const
@@ -254,11 +232,9 @@ namespace nazg
             HidDeviceChannel channel(m_Transport, device);
             VialProtocol     vial(channel);
 
-            std::vector<TapDance> dances;
-            for (uint8_t dance = 0; dance < m_Keyboard.report.tapDanceCount; ++dance)
-                dances.push_back(DanceOf(co_await vial.GetTapDance(dance)));
-            m_Saved    = dances;
-            m_Dances   = std::move(dances);
+            m_Keyboard.tapDances =
+                co_await ReadTapDances(vial, m_Keyboard.report.tapDanceCount, m_Keyboard.keycodeVersion);
+            m_Dances   = m_Keyboard.tapDances;
             m_IsLoaded = true;
         }
         catch (const std::exception& failure)
@@ -278,7 +254,7 @@ namespace nazg
         for (size_t dance = 0; dance < m_Dances.size(); ++dance)
             if (IsChanged(dance))
             {
-                if (!EntryOf(m_Dances[dance]))
+                if (!EncodeTapDance(m_Dances[dance], m_Keyboard.keycodeVersion))
                 {
                     m_Message   = "TD " + std::to_string(dance) + " holds a key this board cannot store";
                     m_IsWarning = true;
@@ -304,13 +280,13 @@ namespace nazg
             std::vector<std::string> notKept;
             for (size_t dance : dances)
             {
-                const VialTapDanceEntry entry = *EntryOf(m_Dances[dance]);
+                const VialTapDanceEntry entry = *EncodeTapDance(m_Dances[dance], m_Keyboard.keycodeVersion);
                 const uint8_t           index = static_cast<uint8_t>(dance);
                 co_await vial.SetTapDance(index, entry);
                 const VialTapDanceEntry stored = co_await vial.GetTapDance(index);
-                m_Saved[dance]                 = DanceOf(stored);
+                m_Keyboard.tapDances[dance]    = DecodeTapDance(stored, m_Keyboard.keycodeVersion);
                 if (stored == entry)
-                    m_Dances[dance] = m_Saved[dance];
+                    m_Dances[dance] = m_Keyboard.tapDances[dance];
                 else
                     notKept.push_back("TD " + std::to_string(dance));   // the edit stays, still to be written
             }
@@ -335,7 +311,7 @@ namespace nazg
 
     void TapDanceSection::DiscardChanges()
     {
-        m_Dances = m_Saved;
+        m_Dances = m_Keyboard.tapDances;
     }
 
     // ------------------------------------------------------------------------------------------

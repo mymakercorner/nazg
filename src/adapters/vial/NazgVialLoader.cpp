@@ -6,6 +6,7 @@
 #include <string>
 #include <utility>
 
+#include "adapters/qmk/NazgQmkKeycodeCodec.h"
 #include "adapters/via/NazgViaKeymap.h"
 #include "adapters/vial/NazgVialDefinition.h"
 
@@ -117,5 +118,42 @@ namespace nazg
         }
 
         co_return report;
+    }
+
+    TapDance DecodeTapDance(const VialTapDanceEntry& entry, QmkKeycodeVersion version)
+    {
+        const auto decode = [version](uint16_t raw) -> std::optional<Keycode>
+        {
+            if (raw == 0)
+                return std::nullopt;
+            return DecodeQmkKeycode(raw, version);
+        };
+        TapDance dance;
+        dance.actions     = { decode(entry.onTap), decode(entry.onHold), decode(entry.onDoubleTap), decode(entry.onTapHold) };
+        dance.tappingTerm = entry.tappingTerm;
+        return dance;
+    }
+
+    std::optional<VialTapDanceEntry> EncodeTapDance(const TapDance& dance, QmkKeycodeVersion version)
+    {
+        uint16_t raw[4] = {};
+        for (size_t action = 0; action < 4; ++action)
+        {
+            if (!dance.actions[action])
+                continue;
+            const std::optional<uint16_t> value = EncodeQmkKeycode(*dance.actions[action], version);
+            if (!value)
+                return std::nullopt;
+            raw[action] = *value;
+        }
+        return VialTapDanceEntry{ raw[0], raw[1], raw[2], raw[3], dance.tappingTerm };
+    }
+
+    Task<std::vector<TapDance>> ReadTapDances(VialProtocol& protocol, uint8_t count, QmkKeycodeVersion version)
+    {
+        std::vector<TapDance> dances;
+        for (uint8_t index = 0; index < count; ++index)
+            dances.push_back(DecodeTapDance(co_await protocol.GetTapDance(index), version));
+        co_return dances;
     }
 }
