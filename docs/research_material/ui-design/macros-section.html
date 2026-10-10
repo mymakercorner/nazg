@@ -31,6 +31,10 @@
      supports). The "Text stored as" toggle is gone. The layouts are QMK's extras for US, US
      International, French, Bépo and German, generated with their dead keys.
 
+     Later the same day: long chains wrap, each row's end linked to the next row's start; with
+     many slots (64, Rico's Leyden Jar boards) the strip stays one row and scrolls sideways --
+     ◀ ▶ at its ends chosen over a thin scrollbar (Rico).
+
      The boards are real definitions, drawn with Nazg's placement rule: the Model F B104 (Vial 6,
      Rico's board, its definition the one it serves) and ZX60 (VIA's registry, GPL-3.0), the
      latter also as an older firmware on VIA protocol 10, which has no delays. Byte counts follow
@@ -68,8 +72,17 @@ button:disabled{opacity:.45;cursor:default}
 .entry{padding:7px 10px;border-radius:6px;color:var(--muted)}
 .entry.on{background:var(--selected);color:var(--text);box-shadow:inset 3px 0 0 var(--accent)}
 .main{flex:1;min-width:0;display:flex;flex-direction:column;padding:10px 14px 14px;gap:10px}
-.strip{display:flex;gap:3px;flex-wrap:wrap;align-items:center}
-.strip button{padding:2px 0;width:40px;font-size:12px;position:relative}
+.stripwrap{display:flex;align-items:center;gap:4px;min-width:0;position:relative}
+.strip{display:flex;gap:3px;flex-wrap:nowrap;align-items:center;overflow-x:auto;overflow-y:hidden;padding:4px 0 4px;min-width:0;flex:1;scrollbar-width:thin;scroll-behavior:smooth}
+.stripwrap.arrows .strip{scrollbar-width:none}
+.stripwrap.arrows .strip::-webkit-scrollbar{display:none}
+.stripwrap .fade{position:absolute;top:0;bottom:0;width:28px;pointer-events:none;opacity:0;transition:opacity .15s}
+.stripwrap .fade.l{left:0;background:linear-gradient(90deg,var(--window),transparent)}
+.stripwrap .fade.r{right:0;background:linear-gradient(270deg,var(--window),transparent)}
+.stripwrap.arrows .fade.l{left:26px} .stripwrap.arrows .fade.r{right:26px}
+.stripwrap .fade.on{opacity:1}
+.sarrow{flex:none;padding:2px 6px;font-size:11px}
+.strip button{padding:2px 0;width:40px;font-size:12px;position:relative;flex:none}
 .strip button.empty:not(.on){color:var(--muted);border-style:dashed}
 .strip button .dot{position:absolute;top:-3px;right:-3px;width:7px;height:7px;border-radius:50%;background:var(--warn)}
 .boardarea{display:flex;justify-content:center}
@@ -354,12 +367,20 @@ const EXAMPLES = [
    { t: 'release', k: 'KC_LALT' }, { t: 'key', k: 'KC_S', mods: ['Ctrl'] }, { t: 'delay', ms: 200 }, { t: 'key', k: 'KC_F5', mods: [] },
    { t: 'text', s: 'Done, back to work' }, { t: 'key', k: 'KC_ENT', mods: [] }],
 ];
-const COUNT = 16;
-const fresh = () => { const m = JSON.parse(JSON.stringify(EXAMPLES)); while (m.length < COUNT) m.push([]); return m; };
+// As many slots as the board reports: 16 is QMK's default, 64 what Rico's Leyden Jar boards set.
+// With 64, two macros far along the strip, to be found there.
+function fresh(count) {
+  const m = JSON.parse(JSON.stringify(EXAMPLES));
+  while (m.length < count) m.push([]);
+  if (count > 37) m[37] = [{ t: 'key', k: 'KC_MPLY', mods: [] }];
+  if (count > 63) m[63] = [{ t: 'text', s: 'last slot' }];
+  return m;
+}
 
 const state = { setup: 'Model F B104 · Vial 6', boardArea: 'Shown', writing: 'Save / Revert', host: 'us', hostChosen: 'No',
                 theme: 'Light',
-                macros: fresh(), saved: null, m: 2, sel: null, caret: null, tab: 'Keys', msg: null };
+                count: '16', stripMore: 'Arrows', stripScroll: 0,
+                macros: fresh(16), saved: null, m: 2, sel: null, caret: null, tab: 'Keys', msg: null };
 state.saved = JSON.stringify(state.macros);
 const savedList = () => JSON.parse(state.saved);
 
@@ -588,10 +609,44 @@ function render() {
   document.getElementById('frame').innerHTML =
     `<div class="menubar"><span class="board">${b.name} ▾</span><span class="muted">${setup.label}</span>${setup.locked ? '<span class="lock">🔒 Locked</span>' : ''}<span class="right">Settings</span></div>`
   + `<div class="body"><div class="col"><div class="entry">Keymap</div><div class="entry">Layout</div><div class="entry on">Macros</div></div>`
-  + `<div class="main"><div class="strip">${strip}</div>`
+  + `<div class="main"><div class="stripwrap${state.stripMore === 'Arrows' ? ' arrows' : ''}">`
+  + (state.stripMore === 'Arrows' ? `<button class="sarrow" data-scroll="-1" title="Earlier slots">◀</button>` : '')
+  + `<div class="strip" id="strip">${strip}</div><span class="fade l"></span><span class="fade r"></span>`
+  + (state.stripMore === 'Arrows' ? `<button class="sarrow" data-scroll="1" title="Later slots">▶</button>` : '')
+  + `</div>`
   + (state.boardArea === 'Shown' ? `<div class="boardarea">${svg}</div>` : '')
   + `<div class="panel">${renderPanel()}</div></div></div>`;
   linkRows();
+  placeStrip();
+}
+
+// The strip is one row. When its slots do not fit, it scrolls sideways -- the wheel over it scrolls
+// it, the selected slot is kept in view, and a fade at an edge says there is more that way.
+function placeStrip() {
+  const s = document.getElementById('strip');
+  s.style.scrollBehavior = 'auto';
+  s.scrollLeft = state.stripScroll;
+  const on = s.querySelector('button.on');
+  if (on) {
+    const l = on.offsetLeft - s.offsetLeft, r = l + on.offsetWidth;
+    if (l < s.scrollLeft) s.scrollLeft = l - 30;
+    else if (r > s.scrollLeft + s.clientWidth) s.scrollLeft = r - s.clientWidth + 30;
+  }
+  s.style.scrollBehavior = '';
+  s.onscroll = stripEdges;
+  s.onwheel = e => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && s.scrollWidth > s.clientWidth) { e.preventDefault(); s.scrollLeft += e.deltaY; } };
+  stripEdges();
+}
+function stripEdges() {
+  const s = document.getElementById('strip'), w = s.parentElement;
+  state.stripScroll = s.scrollLeft;
+  const more = s.scrollWidth > s.clientWidth + 1;
+  w.querySelector('.fade.l').classList.toggle('on', more && s.scrollLeft > 1);
+  w.querySelector('.fade.r').classList.toggle('on', more && s.scrollLeft < s.scrollWidth - s.clientWidth - 1);
+  w.querySelectorAll('[data-scroll]').forEach(b => {
+    b.style.display = more ? '' : 'none';
+    b.disabled = !more || (+b.dataset.scroll < 0 ? s.scrollLeft <= 1 : s.scrollLeft >= s.scrollWidth - s.clientWidth - 1);
+  });
 }
 
 // A chain longer than the panel wraps, and each row's end is linked to the next row's start: down
@@ -633,6 +688,7 @@ function renderControls() {
   const c = document.getElementById('controls');
   c.innerHTML = '';
   [['setup', 'Board', Object.keys(SETUPS)], ['boardArea', 'Board area', ['Shown', 'Folded']],
+   ['count', 'Macro slots', ['16', '64']], ['stripMore', 'Strip overflow', ['Scrollbar', 'Arrows']],
    ['writing', 'Writing', ['At once', 'Save / Revert']], ['hostChosen', 'Host layout chosen', ['No', 'Yes']],
    ['theme', 'Theme', ['Light', 'Dark']]].forEach(([k, name, values]) => {
     const g = document.createElement('div'); g.className = 'group';
@@ -640,7 +696,12 @@ function renderControls() {
     values.forEach(v => {
       const bt = document.createElement('button'); bt.textContent = v;
       if (state[k] === v) bt.className = 'on';
-      bt.onclick = () => { state[k] = v; if (k === 'writing') state.saved = JSON.stringify(state.macros); state.msg = null; render(); };
+      bt.onclick = () => {
+        state[k] = v;
+        if (k === 'count') { state.macros = fresh(+v); state.m = Math.min(state.m, +v - 1); state.sel = null; state.caret = null; state.stripScroll = 0; }
+        if (k === 'writing' || k === 'count') state.saved = JSON.stringify(state.macros);
+        state.msg = null; render();
+      };
       g.appendChild(bt);
     });
     c.appendChild(g);
@@ -661,9 +722,10 @@ function insertSteps(steps, caretOffset, what) {
 }
 const frame = document.getElementById('frame');
 frame.addEventListener('click', e => {
-  const t = e.target.closest('[data-m],[data-path],[data-index],[data-key],[data-tab],[data-mod],[data-add],[data-act]');
+  const t = e.target.closest('[data-scroll],[data-m],[data-path],[data-index],[data-key],[data-tab],[data-mod],[data-add],[data-act]');
   if (!t) return;
   const d = t.dataset;
+  if (d.scroll !== undefined) { const s = document.getElementById('strip'); s.scrollLeft += +d.scroll * (s.clientWidth - 60); return; }
   if (d.m !== undefined) { state.m = +d.m; state.sel = null; state.caret = null; state.msg = null; }
   else if (d.path !== undefined) {
     state.sel = +d.path; state.caret = null;
@@ -722,6 +784,10 @@ saying which macro, the room it takes in the board's shared memory (the grey par
 written; then the macro as a chain, left to right; then the tools for the selected step; then Keymap's picker, which
 gives the keys. <b>Hovering the macro's name</b> ("M2") gives it in VIA's script syntax, read-only (Rico: the chain
 edits everything, so the script needs no editing).</p>
+<p><b>Many slots</b> ("Macro slots: 64", as Rico's Leyden Jar boards have): the strip stays one row and
+scrolls sideways -- the wheel over it, the selected slot kept in view, a fade on the side with more -- with ◀ ▶ at
+its ends, shown only when needed (Rico; a thin scrollbar was the other choice, "Strip overflow"). M37 and M63 hold
+macros, to be found far along.</p>
 <p><b>A long macro wraps</b> (M8), and each row's end is linked to the next row's start -- down, back left
 through the gap, down into the first step -- so the chain still reads as one line (Rico).</p>
 <p><b>Editing.</b> Click a step to select it; click between two steps (a + shows) to add there. A key picked in the

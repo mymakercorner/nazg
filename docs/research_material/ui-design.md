@@ -47,6 +47,16 @@ the section: it is the section's own row of choices.
 
 The macro, tap dance and combo slots are Vial's numbered tabs, moved into one fixed place.
 
+**A strip is always one row** (Rico, 2026-10-10): it uses the width the board leaves -- as the
+layers do over Keymap's board -- and never takes a second row's height. When its entries do not
+fit, **it scrolls sideways**: the mouse wheel over it scrolls it, the selected entry is kept in
+view, and the side with more to see says so -- a fade at that edge, and **◀ ▶ at the strip's
+ends** (Rico), each scrolling a page, greyed at its end; no scrollbar. Absent while everything
+fits. A thin scrollbar under the strip was the other choice, in the mockup
+`ui-design/macros-section.html`. Met first with Macros: Rico's Leyden Jar boards have 64 macro slots, about 2 750 px of
+strip for some 950. Wrapping into rows, and a grid of all slots behind a button, were the other
+ways; VIA lists its slots in a vertical column that scrolls, which costs a column of width.
+
 ### What a section provides
 
 Every section, built in or a plugin, supplies four things:
@@ -1247,7 +1257,8 @@ comparing Vial's and VIA's editors, redrawn from their source with the same macr
 locked) and ZX60 (VIA 12, and VIA 10, which has no waits).
 
 - **In the column** when the board reports macros (`GetMacroCount()` above zero); **the strip
-  holds the slots**, M0 to the count, an empty one dashed. **No names** (Rico): the board stores
+  holds the slots**, M0 to the count, an empty one dashed -- one row, scrolling sideways when
+  the count is large (64 on Rico's Leyden Jar boards; see "Sections, and the strip"). **No names** (Rico): the board stores
   none, and Nazg keeps none -- nor does hovering a macro key in Keymap show its contents.
 - **The board stays drawn** (Rico) and says where the macros are: the keys that play one are
   marked with it, the selected macro's lit, "L1" when the key is on another layer.
@@ -1319,6 +1330,14 @@ locked) and ZX60 (VIA 12, and VIA 10, which has no waits).
   typed and arranged step by step, and every write rewrites the whole buffer. **Unsaved changes
   are kept** while the user moves between sections; Nazg asks **Save / Discard** only when the
   board changes or Nazg closes (Rico, 2026-10-10).
+- **Read only as far as the macros go, written only from the first change.** A board's buffer
+  can be large: Rico's Leyden Jar boards (B104, B122, beamspring) have 64 macros and 16 KiB of
+  emulated EEPROM, about 15 KB of it macros -- some 540 reads of 28 bytes, 7 s at the Model F's
+  ~14 ms a round trip, which is what the VIA app costs, reading the whole buffer. Nazg reads
+  until it has seen as many terminators as there are macros, as vial-gui does (64 empty macros
+  are 64 bytes, three reads), and only when the section first opens: nothing else needs the
+  buffer. Save writes from the first changed byte to the end of the macros, inside VIA's guard
+  (the buffer's last byte `0xFF` first, `0` last).
 - **The macro's line** says which slot, the room it takes in the board's memory, shared by all
   macros (a gauge, the other macros in grey: "26 bytes · 815 of 896 free"), and what was written.
   **Hovering the macro's name gives it in VIA's script syntax**, `{KC_LGUI,KC_R}{300}cmd{KC_ENT}`,
