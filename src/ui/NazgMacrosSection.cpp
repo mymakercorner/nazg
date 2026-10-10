@@ -540,6 +540,18 @@ namespace nazg
             ImGui::SetTooltip(m_Macros[m_Macro].empty() ? "Empty" : "As VIA writes it: %s",
                               ViaScriptOf(m_Macros[m_Macro]).c_str());
 
+        // Every step at once (Rico, 2026-10-10) -- written by Save, undone by Revert, as any edit.
+        ImGui::SameLine();
+        ImGui::BeginDisabled(m_Macros[m_Macro].empty() || IsBusy() || IsLocked());
+        if (ImGui::Button("Clear"))
+        {
+            m_Macros[m_Macro].clear();
+            Select(std::nullopt);
+            m_Caret.reset();
+        }
+        ImGui::EndDisabled();
+        ImGui::SetItemTooltip("Removes every step of M%zu -- written by Save, undone by Revert", m_Macro);
+
         // The gauge: the board's memory, shared by every macro -- the others' part, then this one's.
         const float  scale = ImGui::GetStyle().FontScaleDpi;
         ImGui::SameLine();

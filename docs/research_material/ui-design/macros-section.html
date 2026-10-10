@@ -511,6 +511,7 @@ function renderPanel() {
   const place = PLACES[state.m] ? `on layer ${PLACES[state.m].layer}, row ${PLACES[state.m].cell[0]} col ${PLACES[state.m].cell[1]}` : 'on no key yet';
   const script = scriptOf(list).replace(/"/g, '&quot;');
   let h = `<div class="mline"><span class="title" title="${list.length ? 'As VIA writes it: ' + script : 'Empty'}">M${state.m}</span>`
+        + `<button data-act="clear" ${list.length && !locked() ? '' : 'disabled'} title="Removes every step -- written by Save, undone by Revert">Clear</button>`
         + (state.boardArea === 'Folded' ? `<span class="muted">${place}</span>` : '')
         + `<span class="gauge" title="All macros share the board's ${setup.buffer} bytes"><span class="bar"><b style="left:0;width:${100 * others / setup.buffer}%"></b><i style="left:${100 * others / setup.buffer}%;width:${100 * mine / setup.buffer}%"></i></span>${mine} bytes · ${setup.buffer - total} of ${setup.buffer} free</span>`
         + `<span class="msg">${msg}</span>`;
@@ -748,6 +749,7 @@ frame.addEventListener('click', e => {
   else if (d.add === 'delay') insertSteps([{ t: 'delay', ms: 100 }], 1, 'wait added');
   else if (d.add === 'hold') insertSteps([{ t: 'press', k: 'KC_LSFT' }, { t: 'release', k: 'KC_LSFT' }], 1, 'held key added');
   else if (d.act === 'save') { state.saved = JSON.stringify(state.macros); state.msg = ['ok', `Stored -- every macro, read back the same`]; }
+  else if (d.act === 'clear') { cur().length = 0; state.sel = null; state.caret = null; changed('macro cleared'); }
   else if (d.act === 'revert') { state.macros = savedList(); state.sel = null; state.caret = null; }
   else if (d.act === 'remove') {
     const partner = pairsOf(cur()), i = state.sel;

@@ -1342,7 +1342,9 @@ locked) and ZX60 (VIA 12, and VIA 10, which has no waits).
   macros (a gauge, the other macros in grey: "26 bytes · 815 of 896 free"), and what was written.
   **Hovering the macro's name gives it in VIA's script syntax**, `{KC_LGUI,KC_R}{300}cmd{KC_ENT}`,
   read-only: the chain edits everything the board can store, so an editable script would only
-  be a second way to do the same (Rico).
+  be a second way to do the same (Rico). **Clear**, right after the name, removes every step of
+  the macro at once (Rico, 2026-10-10, after trying the built section) -- written by Save, undone
+  by Revert, as any edit; greyed on an empty macro.
 - **What the board cannot do is said where it matters**: no waits before VIA protocol 11 and
   Vial protocol 2 (Wait greyed, a wait already there in red); basic keys only on VIA (the
   picker's other tabs greyed); a locked Vial board shows its macros but writes none, its unlock
