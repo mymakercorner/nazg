@@ -57,9 +57,16 @@ namespace nazg
 
     Task<std::vector<uint8_t>> ViaProtocol::Send(ViaCommand command, std::initializer_list<uint8_t> arguments)
     {
-        const uint8_t commandId = static_cast<uint8_t>(command);
+        co_return co_await SendFrame(MakeFrame(static_cast<uint8_t>(command), arguments), arguments.size() > 0);
+    }
 
-        std::vector<uint8_t> reply = co_await m_Channel.Request(MakeFrame(commandId, arguments));
+    Task<std::vector<uint8_t>> ViaProtocol::SendFrame(std::vector<uint8_t> frame, bool hasArguments)
+    {
+        const uint8_t    commandId = frame[0];
+        const ViaCommand command   = static_cast<ViaCommand>(commandId);
+        const uint8_t    subId     = frame[1];
+
+        std::vector<uint8_t> reply = co_await m_Channel.Request(std::move(frame));
 
         if (reply.size() < c_ViaReportSize)
             throw ProtocolError("short reply to command " + Hex(commandId) + ": " +
@@ -72,8 +79,8 @@ namespace nazg
         if (reply[0] == static_cast<uint8_t>(ViaCommand::Unhandled) && command != ViaCommand::Unhandled)
         {
             std::string what = "command " + Hex(commandId);
-            if (arguments.size() > 0)
-                what += " (sub-id " + Hex(*arguments.begin()) + ")";
+            if (hasArguments)
+                what += " (sub-id " + Hex(subId) + ")";
 
             throw ProtocolError(what + " is not supported by this firmware");
         }
@@ -184,6 +191,61 @@ namespace nazg
     Task<std::vector<uint8_t>> ViaProtocol::GetMacroBuffer(uint16_t offset, uint16_t length)
     {
         co_return co_await ReadChunked(ViaCommand::MacroGetBuffer, offset, length);
+    }
+
+    Task<void> ViaProtocol::SetMacroBuffer(uint16_t offset, const std::vector<uint8_t>& bytes)
+    {
+        for (size_t done = 0; done < bytes.size();)
+        {
+            const uint16_t position = static_cast<uint16_t>(offset + done);
+            const size_t   size     = std::min<size_t>(c_ViaBufferChunk, bytes.size() - done);
+
+            std::vector<uint8_t> frame = MakeFrame(static_cast<uint8_t>(ViaCommand::MacroSetBuffer),
+                                                   { static_cast<uint8_t>(position >> 8),
+                                                     static_cast<uint8_t>(position & 0xFF),
+                                                     static_cast<uint8_t>(size) });
+            std::copy(bytes.begin() + done, bytes.begin() + done + size, frame.begin() + 4);
+            co_await SendFrame(std::move(frame), true);
+            done += size;
+        }
+    }
+
+    Task<std::vector<uint8_t>> ViaProtocol::ReadMacros(uint8_t count, uint16_t bufferSize)
+    {
+        std::vector<uint8_t> bytes;
+        uint8_t              seen = 0;
+        while (seen < count && bytes.size() < bufferSize)
+        {
+            const uint16_t wanted = std::min<uint16_t>(c_ViaBufferChunk, static_cast<uint16_t>(bufferSize - bytes.size()));
+            std::vector<uint8_t> chunk = co_await GetMacroBuffer(static_cast<uint16_t>(bytes.size()), wanted);
+            for (uint8_t byte : chunk)
+            {
+                bytes.push_back(byte);
+                if (byte == 0 && ++seen == count)
+                    break;
+            }
+        }
+        co_return bytes;
+    }
+
+    Task<void> ViaProtocol::WriteMacros(const std::vector<uint8_t>& stored, const std::vector<uint8_t>& bytes,
+                                        uint16_t bufferSize)
+    {
+        if (bytes.size() > bufferSize)
+            throw ProtocolError("the macros need " + std::to_string(bytes.size()) + " bytes, the board has " +
+                                std::to_string(bufferSize));
+
+        size_t first = 0;
+        while (first < bytes.size() && first < stored.size() && bytes[first] == stored[first])
+            ++first;
+        if (first == bytes.size())
+            co_return;
+
+        const uint16_t last = static_cast<uint16_t>(bufferSize - 1);
+        co_await SetMacroBuffer(last, { 0xFF });
+        co_await SetMacroBuffer(static_cast<uint16_t>(first),
+                                std::vector<uint8_t>(bytes.begin() + static_cast<std::ptrdiff_t>(first), bytes.end()));
+        co_await SetMacroBuffer(last, { 0x00 });
     }
 
     Task<std::vector<uint8_t>> ViaProtocol::ReadChunked(ViaCommand command, uint16_t offset, uint16_t length)

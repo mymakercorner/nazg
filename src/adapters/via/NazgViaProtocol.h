@@ -158,10 +158,23 @@ namespace nazg
         [[nodiscard]] Task<SwitchMatrixState> GetSwitchMatrixState(SwitchMatrixFormat format, uint8_t rows,
                                                                    uint8_t columns);
 
-        // 0x0C / 0x0D / 0x0E.
+        // 0x0C / 0x0D / 0x0E / 0x0F.
         [[nodiscard]] Task<uint8_t>              GetMacroCount();
         [[nodiscard]] Task<uint16_t>             GetMacroBufferSize();
         [[nodiscard]] Task<std::vector<uint8_t>> GetMacroBuffer(uint16_t offset, uint16_t length);
+        [[nodiscard]] Task<void>                 SetMacroBuffer(uint16_t offset, const std::vector<uint8_t>& bytes);
+
+        // The bytes that hold `count` macros: read 28 at a time until the count-th 0, or the
+        // buffer's end -- never the whole buffer, which runs to 15 KB on some boards
+        // (ui-design.md, "The Macros section").
+        [[nodiscard]] Task<std::vector<uint8_t>> ReadMacros(uint8_t count, uint16_t bufferSize);
+
+        // Writes `bytes` over `stored`, from the first byte that differs to the end of `bytes`,
+        // inside the firmware's guard: the buffer's last byte 0xFF first -- no macro plays while it
+        // is not 0 -- then 0 last, so a write cut short leaves the macros silent rather than half
+        // written. Vial refuses the write while locked, echoing it unchanged: read back to know.
+        [[nodiscard]] Task<void> WriteMacros(const std::vector<uint8_t>& stored, const std::vector<uint8_t>& bytes,
+                                             uint16_t bufferSize);
 
         // Probe for a command this firmware may not have. Sends it and reports whether
         // the answer was anything other than 0xFF, because that is the only way to tell:
@@ -174,6 +187,10 @@ namespace nazg
         // id. Shared with the Vial branch, which needs the framing but checks its
         // replies differently -- Vial overwrites the buffer from byte 0.
         [[nodiscard]] Task<std::vector<uint8_t>> Send(ViaCommand command, std::initializer_list<uint8_t> arguments);
+
+        // The same, for a frame built whole -- one carrying data, as a buffer write does.
+        // `hasArguments` names the sub-id in the error when the firmware refuses it.
+        [[nodiscard]] Task<std::vector<uint8_t>> SendFrame(std::vector<uint8_t> frame, bool hasArguments);
 
         static std::vector<uint8_t> MakeFrame(uint8_t command, std::initializer_list<uint8_t> arguments);
 

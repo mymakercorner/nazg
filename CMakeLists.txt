@@ -85,6 +85,8 @@ set(NAZG_CORE_SOURCES
   src/adapters/via/NazgViaProtocol.cpp
   src/adapters/via/NazgViaKeymap.h
   src/adapters/via/NazgViaKeymap.cpp
+  src/adapters/via/NazgViaMacro.h
+  src/adapters/via/NazgViaMacro.cpp
   src/adapters/via/NazgViaLoader.h
   src/adapters/via/NazgViaLoader.cpp
   src/adapters/via/NazgViaBundle.h
@@ -259,6 +261,7 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(transport_shutdown tests/TransportShutdownTest.cpp)
     nazg_add_test(transport_request  tests/TransportRequestTest.cpp)
     nazg_add_test(via_protocol       tests/ViaProtocolTest.cpp)
+    nazg_add_test(via_macro          tests/ViaMacroTest.cpp)
     nazg_add_test(vial_protocol      tests/VialProtocolTest.cpp)
     nazg_add_test(definition         tests/DefinitionTest.cpp)
     nazg_add_test(keyboard_model     tests/KeyboardModelTest.cpp)

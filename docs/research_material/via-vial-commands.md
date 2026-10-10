@@ -345,7 +345,7 @@ macro ends.
 |---|---|---|---|
 | `01 01 kc` | tap | `tap_code(kc)` — 8-bit, basic keycodes only | same |
 | `01 02 kc` / `01 03 kc` | down / up | `register_code` / `unregister_code`, 8-bit | same |
-| `01 04 …` | delay | **ASCII digits, ended by `\|`**: `01 04 '1' '0' '0' '\|'` is 100 ms; the VIA app caps it at 9999 | **two bytes** `d0 d1`, ms = `(d0-1) + (d1-1)*255`, up to 65 024; vial-gui caps it at 64 000 |
+| `01 04 …` | delay | **ASCII digits, ended by `\|`**: `01 04 '1' '0' '0' '\|'` is 100 ms. **At most 9999**: QMK of protocol 12 (read in a 2023 tree) abandons the macro at a fifth digit, and the VIA app caps it there; QMK of 2026 reads any number | **two bytes** `d0 d1`, ms = `(d0-1) + (d1-1)*255`, up to 65 024; vial-gui caps it at 64 000 |
 | `01 05 lo hi` / `06` / `07` | tap / down / up, 16-bit | — | any keycode, run through `action_exec` like a key press — modified keys, layer keys, even `QK_BOOT` or another macro; a low byte of 0 is sent as `FF hi` |
 
 **The two delay encodings are incompatible**: a VIA-written delay on a Vial board is read as two
@@ -357,7 +357,7 @@ wrong bytes, and the reverse stops at the first non-digit. The format is chosen 
 | Vial protocol 2–4 | prefixed, Vial delays, 8-bit actions only |
 | Vial protocol 0–1 | **unprefixed**: `01 kc` tap, `02 kc` down, `03 kc` up, no delay |
 | VIA protocol ≥ 11 | prefixed, ASCII delays, 8-bit actions |
-| VIA protocol ≤ 10 | unprefixed, as Vial 0–1 — what the VIA app writes; QMK firmware since #8244 (2020-02) reads the prefixed form, so an old-protocol board with newer firmware may disagree |
+| VIA protocol ≤ 10 | unprefixed, as Vial 0–1 — what the VIA app writes, and what the firmware of then reads: `send_string` took the prefix with #8244 (2020-02), but `dynamic_keymap_macro_send` of protocol 9 (read in a June 2020 tree) adds it itself before each 1, 2 or 3 |
 
 **An interrupted write.** Playback refuses to run anything while the buffer's last byte is not 0.
 The VIA app sets that byte to `0xFF` before writing and clears it last, so a write cut short
