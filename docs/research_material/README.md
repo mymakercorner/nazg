@@ -26,6 +26,7 @@ registry, a browser dependency, or a firmware fork?
 | [ui-design.md](ui-design.md) | **Design decisions** — the workspace: regions, sections and plugins, the common screens, choosing among many definitions, the keyboard list *(added 2026-09-26)* |
 | [short-forms.md](short-forms.md) | **Design decisions** — what every keycode's legend says: the header / main-legend rules, the action vocabulary, the word table, and the complete table for QMK's keycodes, checked to fit 1u *(added 2026-10-03)* |
 | [build-and-release.md](build-and-release.md) | **Plan** — building on GitHub Actions for Windows, Linux and macOS, release assets, signing *(added 2026-10-05)* |
+| [upstream-reports.md](upstream-reports.md) | **To file** — bugs found in Vial and others while building Nazg, each with an issue drafted and where to file it *(added 2026-10-10)* |
 
 Each protocol document carries an **"Extending with custom features"** section; they are
 summarised under [Adding custom features](#adding-custom-features) below.
