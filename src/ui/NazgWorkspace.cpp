@@ -292,6 +292,11 @@ namespace nazg
             const ImGuiID chosenId  = ImGui::GetID("strip.chosen");
             const ImGuiID scrollId  = ImGui::GetID("strip.scroll");   // read before the strip, written inside it
 
+            // Room around the buttons for a changed entry's dot, which sits on the corner, half
+            // outside: above them, and after the last.
+            const float dotRoom = 4.0f * style.FontScaleDpi;
+            total += dotRoom;
+
             const float available = ImGui::GetContentRegionAvail().x;
             const bool  overflows = total > available;
             const float arrow     = ImGui::GetFrameHeight();
@@ -308,8 +313,11 @@ namespace nazg
                 ImGui::SameLine();
             }
 
-            ImGui::BeginChild("##strip", ImVec2(inside, ImGui::GetFrameHeight()), ImGuiChildFlags_None,
+            // Raised by the dot's room, so the buttons stay level with the label and the arrows.
+            ImGui::SetCursorPosY(ImGui::GetCursorPosY() - dotRoom);
+            ImGui::BeginChild("##strip", ImVec2(inside, ImGui::GetFrameHeight() + dotRoom), ImGuiChildFlags_None,
                               ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground);
+            ImGui::SetCursorPosY(dotRoom);
             std::optional<size_t> hovered;
             const bool chosenChanged = storage->GetInt(chosenId, -1) != static_cast<int>(strip.chosen);
             for (size_t index = 0; index < strip.entries.size(); ++index)
@@ -325,16 +333,11 @@ namespace nazg
                 if (ImGui::Button(strip.entries[index].c_str(), ImVec2(widths[index], 0.0f)) && !isChosen)
                     section.OnStripChosen(index);
 
-                // Changes not written yet: a dot inside the top right corner -- inside, since the
-                // strip's scrolling area would cut one straddling the edge.
+                // Changes not written yet: a dot on the top right corner, as in the mockup.
                 if (index < strip.changed.size() && strip.changed[index])
-                {
-                    const float radius = 3.5f * ImGui::GetStyle().FontScaleDpi;
-                    const ImVec2 corner = ImGui::GetItemRectMax();
                     ImGui::GetWindowDrawList()->AddCircleFilled(
-                        ImVec2(corner.x - 2.2f * radius, ImGui::GetItemRectMin().y + 2.2f * radius), radius,
+                        ImVec2(ImGui::GetItemRectMax().x, ImGui::GetItemRectMin().y), 3.5f * style.FontScaleDpi,
                         ImGui::ColorConvertFloat4ToU32(ColourOf(PanelColour::Warning)));
-                }
                 if (ImGui::IsItemHovered())
                     hovered = index;
                 if (isChosen && chosenChanged && overflows)
@@ -345,6 +348,8 @@ namespace nazg
                 ImGui::PopID();
             }
             storage->SetInt(chosenId, static_cast<int>(strip.chosen));
+            ImGui::SameLine(0.0f, 0.0f);
+            ImGui::Dummy(ImVec2(dotRoom, 1.0f));
 
             if (overflows)
             {
@@ -376,6 +381,7 @@ namespace nazg
             if (overflows)
             {
                 ImGui::SameLine();
+                ImGui::SetCursorPosY(ImGui::GetCursorPosY() + dotRoom);
                 ImGui::BeginDisabled(scroll >= scrollMax - 0.5f);
                 if (ImGui::ArrowButton("##later", ImGuiDir_Right))
                     storage->SetFloat(pendingId, inside - 3 * minWidth);
