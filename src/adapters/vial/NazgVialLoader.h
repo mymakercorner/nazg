@@ -31,6 +31,7 @@
 #include "adapters/qmk/NazgQmkKeycodes.h"
 #include "adapters/vial/NazgVialProtocol.h"
 #include "async/NazgTask.h"
+#include "model/NazgCombo.h"
 #include "model/NazgKeyboard.h"
 
 namespace nazg
@@ -69,4 +70,13 @@ namespace nazg
 
     // The board's `count` tap dances, one round trip each -- some 0.45 s for the Model F's 32.
     [[nodiscard]] Task<std::vector<TapDance>> ReadTapDances(VialProtocol& protocol, uint8_t count, QmkKeycodeVersion version);
+
+    // A combo slot as Nazg models it, and back: a 0 keycode is an empty input or output, kept
+    // where it is -- a gap the board holds stays one. Encoding fails for a keycode the board's
+    // version cannot store.
+    [[nodiscard]] Combo                         DecodeCombo(const VialComboEntry& entry, QmkKeycodeVersion version);
+    [[nodiscard]] std::optional<VialComboEntry> EncodeCombo(const Combo& combo, QmkKeycodeVersion version);
+
+    // The board's `count` combos, one round trip each.
+    [[nodiscard]] Task<std::vector<Combo>> ReadCombos(VialProtocol& protocol, uint8_t count, QmkKeycodeVersion version);
 }

@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- Mockup of the Combos section (ui-design.md, "The Combos section").
+
+     First round (2026-10-10). A combo is Vial's alone: up to four input keycodes pressed together
+     send an output keycode instead, 10 bytes per slot, read and written one slot per round trip
+     (via-vial-commands.md, vial_dynamic_entry_op). Vial's editor is a tab per slot numbered from 1,
+     four "Key" boxes and an "Output key" box, written at once.
+
+     What the firmware does is in ui-design.md, read from QMK's process_combo.c and vial-qmk's
+     reload_combo() on 2026-10-10: the inputs are keycodes matched against what a key sends on the
+     active layer, end at the first empty one, any order, each within the combo term of the last;
+     every combo key is held back up to the term; the output is held while the keys are; the longer
+     of two overlapping combos wins, and of two with the same keys the later slot; an empty output
+     swallows the keys; one term for all combos, in QMK Settings when the board has them.
+
+     No keycode names a combo slot, unlike M(n) and TD(n): the slot number means nothing to the
+     user. Hence the variants: how the slots are listed (numbered in the strip, named by their keys
+     in the strip, or a list in the panel), what the board shows (the selected combo, or every
+     combo as a small key between its inputs, keymap-drawer's way), whether the inputs are picked by
+     clicking the board, where the combo term is set, and a warning for letters often typed one
+     after the other.
+
+     Settled 2026-10-10 (Rico): the numbered strip, the selected combo on the board, inputs from
+     the board and the picker, the combo term in the panel, no typing-roll warning -- the toggles
+     keep the alternatives. The amber dot first drawn on every other key in a combo read as red,
+     a warning: dropped.
+
+     The boards: the Model F B104's real definition (Vial 6, Rico's board, 32 combo slots, QMK
+     Settings on), and the Corne's (vial-qmk keyboards/crkbd/keymaps/vial/vial.json, rotated thumb
+     keys), as an RP2040 build would have it: combos on, QMK Settings off, 16 slots. vial-qmk's own
+     Corne keymap turns both off for the Pro Micro's flash. The keymaps are made up: a US ANSI
+     layer on the Model F; on the Corne a usual one, Gui on A and ; when held, arrows on layer 1. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Combos section mockup</title>
+<style>
+:root{--window:#f3f3f5;--menubar:#e3e4e9;--text:#1d1e22;--muted:#6b6e78;--control:#ffffff;--border:#c8cad2;--accent:#3b82f6;--accent-text:#fff;--panel:#f8f8fa;--column:#ebecf0;--hover:rgba(0,0,0,.06);--selected:rgba(59,130,246,.16);
+--plate:#d3d4d8;--key:#ffffff;--keyline:#b4b7c2;--lit:#dbe7fb;--litline:#3b82f6;--ok:#15803d;--warn:#c2410c;--err:#dc2626;--info:#4b5563;
+--host:#0891b2;--hostface:#e6f6fa;--behav:#8b5cf6;--behavface:#f1ecfe;--fw:#dc2626;--fwface:#fdecec;--board:#b45309;--boardface:#fdf3e2;--link:#3b82f6}
+:root[data-theme="dark"]{--window:#0f0f11;--menubar:#24252b;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--accent:#4296fa;--accent-text:#fff;--panel:#16171b;--column:#16171b;--hover:rgba(255,255,255,.07);--selected:rgba(66,150,250,.22);
+--plate:#1c1d23;--key:#3a3c48;--keyline:#4b4e5c;--lit:#2a4a78;--litline:#4296fa;--ok:#4ade80;--warn:#fb923c;--err:#f87171;--info:#a1a5b2;
+--host:#22d3ee;--hostface:#173a44;--behav:#a78bfa;--behavface:#2c2442;--fw:#f87171;--fwface:#3d1e22;--board:#fbbf24;--boardface:#3a2c12;--link:#4296fa}
+*{box-sizing:border-box}
+body{margin:0;background:var(--window);color:var(--text);font-family:Arimo,"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+.controls{display:flex;flex-wrap:wrap;gap:8px 22px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.group .name{color:var(--muted);margin-right:4px}
+button,select{font:inherit;padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--control);color:var(--text);cursor:pointer}
+button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+button:disabled{opacity:.45;cursor:default}
+.stage{padding:16px;overflow-x:auto}
+.frame{margin:0 auto;width:1160px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--window);box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.menubar{display:flex;gap:18px;align-items:center;background:var(--menubar);padding:5px 14px}
+.menubar .board{font-weight:600}
+.muted{color:var(--muted)}
+.menubar .right{margin-left:auto;color:var(--muted)}
+.menubar .lock{color:var(--warn)}
+.body{display:flex;min-height:560px}
+.col{flex:none;width:180px;background:var(--column);border-right:1px solid var(--border);padding:6px 5px;display:flex;flex-direction:column;gap:2px}
+.entry{padding:7px 10px;border-radius:6px;color:var(--muted)}
+.entry.on{background:var(--selected);color:var(--text);box-shadow:inset 3px 0 0 var(--accent)}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;padding:10px 14px 14px;gap:10px}
+.stripwrap{display:flex;align-items:center;gap:4px;min-width:0;position:relative}
+.strip{display:flex;gap:3px;flex-wrap:nowrap;align-items:center;overflow-x:auto;overflow-y:hidden;padding:4px 0 4px;min-width:0;flex:1;scrollbar-width:none;scroll-behavior:smooth}
+.strip::-webkit-scrollbar{display:none}
+.stripwrap .fade{position:absolute;top:0;bottom:0;width:28px;pointer-events:none;opacity:0;transition:opacity .15s}
+.stripwrap .fade.l{left:26px;background:linear-gradient(90deg,var(--window),transparent)}
+.stripwrap .fade.r{right:26px;background:linear-gradient(270deg,var(--window),transparent)}
+.stripwrap .fade.on{opacity:1}
+.sarrow{flex:none;padding:2px 6px;font-size:11px}
+.strip button{padding:2px 0;min-width:44px;font-size:12px;position:relative;flex:none}
+.strip button.named{padding:2px 8px}
+.strip button.empty:not(.on){color:var(--muted);background:transparent}
+.strip button .dot,.lrow .dot{position:absolute;top:-3px;right:-3px;width:7px;height:7px;border-radius:50%;background:var(--warn)}
+.strip button .bang{color:var(--warn);font-weight:700;margin-left:4px}
+.boardarea{display:flex;justify-content:center}
+svg.board{display:block}
+svg.board .k.pick{cursor:pointer}
+svg.board .pill{cursor:pointer}
+.panel{border:1px solid var(--border);border-radius:6px;background:var(--panel)}
+.mline{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;padding:6px 12px;border-bottom:1px solid var(--border);min-height:41px}
+.mline .title{font-weight:700;cursor:help;border-bottom:1px dotted var(--muted)}
+.msg{font-size:12px}
+.msg .ok{color:var(--ok)} .msg .warn{color:var(--warn)} .msg .err{color:var(--err)}
+.mline .right{margin-left:auto;display:flex;gap:6px}
+.split{display:flex;align-items:stretch}
+.list{flex:none;width:250px;border-right:1px solid var(--border);padding:6px;display:flex;flex-direction:column;gap:2px;max-height:250px;overflow-y:auto}
+.lrow{position:relative;display:flex;align-items:center;gap:8px;padding:4px 8px;border-radius:6px;cursor:pointer;white-space:nowrap}
+.lrow:hover{background:var(--hover)}
+.lrow.on{background:var(--selected);box-shadow:inset 3px 0 0 var(--accent)}
+.lrow .n{color:var(--muted);font-size:11px;width:16px;text-align:right}
+.lrow .bang{color:var(--warn);font-weight:700;margin-left:auto}
+.lrow.new{color:var(--accent)}
+.editor{flex:1;min-width:0}
+.chord{display:flex;align-items:flex-start;gap:6px;padding:12px 12px 6px;flex-wrap:wrap}
+.slot{display:flex;flex-direction:column;align-items:center;gap:5px;padding:5px 5px 6px;border-radius:7px;cursor:pointer;border:1px solid transparent;min-width:76px}
+.slot:hover{background:var(--hover)}
+.slot.sel{border-color:var(--accent);background:var(--selected)}
+.slot .lbl{font-weight:600;font-size:12px}
+.slot .where{font-size:11px;color:var(--muted);min-height:14px;text-align:center}
+.slot .where.warn{color:var(--warn)}
+.join{align-self:center;margin-top:8px;font-size:18px;color:var(--muted)}
+.cap{width:58px;height:50px;border-radius:6px;background:var(--key);border:1px solid var(--keyline);box-shadow:inset 0 -3px 0 rgba(0,0,0,.08);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.15;text-align:center}
+.cap .h{font-size:10px;color:var(--muted)}
+.cap .m{font-size:13px}
+.cap.host{background:var(--hostface);border-color:var(--host)} .cap.host .h{color:var(--host)}
+.cap.behav{background:var(--behavface);border-color:var(--behav)} .cap.behav .h{color:var(--behav)}
+.cap.fw{background:var(--fwface);border-color:var(--fw)} .cap.fw .h,.cap.fw .m{color:var(--fw)}
+.cap.none{background:transparent;box-shadow:none;color:var(--muted);border-style:solid}
+.cap.add{background:transparent;box-shadow:none;color:var(--muted);font-size:20px}
+.termbox{display:flex;flex-direction:column;gap:5px;padding:6px 4px 0 14px;margin-left:auto;border-left:1px solid var(--border);align-self:stretch;width:240px}
+.termbox .lbl{font-weight:600;font-size:12px}
+.termbox .row{display:flex;align-items:center;gap:6px}
+.termbox input{width:64px;font:14px Arimo,"Segoe UI",Arial,sans-serif;padding:3px 6px;border:1px solid var(--border);border-radius:6px;background:var(--control);color:var(--text);text-align:right}
+.termbox .hint{font-size:11px;color:var(--muted);line-height:1.35}
+.says{padding:0 12px 9px;font-size:12px;line-height:1.55}
+.says .w{color:var(--warn)} .says .i{color:var(--info)}
+.says button{padding:0 8px;font-size:11px;margin-left:6px}
+.tools{display:flex;align-items:center;gap:6px 10px;flex-wrap:wrap;padding:6px 12px;border-top:1px solid var(--border);min-height:39px}
+.tools select{padding:2px 6px}
+.banner{padding:8px 12px;border-top:1px solid var(--border);color:var(--warn);font-size:12px}
+.tabs{display:flex;align-items:flex-end;gap:2px;padding:8px 10px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.tabs .tab{border:1px solid transparent;border-bottom:none;border-radius:5px 5px 0 0;padding:5px 9px 4px;cursor:pointer;color:var(--muted)}
+.tabs .tab.on{background:var(--window);border-color:var(--border);color:var(--text);margin-bottom:-1px}
+.tabs .tab .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.tabs input{margin-left:auto;margin-bottom:5px;width:220px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--control);color:var(--text);font:inherit}
+.tiles{display:flex;flex-wrap:wrap;gap:4px;padding:10px;background:var(--window)}
+.tiles .cap{cursor:pointer}
+.tiles .cap.off{opacity:.35;cursor:default}
+.notes{max-width:1160px;margin:0 auto;padding:4px 16px 30px;color:var(--muted);line-height:1.55}
+.notes b{color:var(--text);font-weight:600}
+.notes p{margin:0 0 8px}
+</style>
+</head>
+<body>
+<div class="controls" id="controls"></div>
+<div class="stage"><div class="frame" id="frame"></div></div>
+<div class="notes" id="notes"></div>
+<script>
+"use strict";
+// The boards' `layouts`: the Model F's taken from tap-dance-section.html, the Corne's from
+// vial-qmk's keyboards/crkbd/keymaps/vial/vial.json.
+const BOARDS = {"Model F B104":{"name":"leyden_jar/B104","source":"the board itself (Vial), tests/ModelFDefinition.h","labels":["Split Backspace","Full Left Shift","Split Right Shift",["Enter","ISO Enter","ANSI Enter"],"Split Numpad Zero","Full Nav Cluster"],"keymap":[[{"x":15.5},"6,5\n\n\n0,1","6,11\n\n\n0,1"],[{"x":2.5,"y":0.25},"0,0",{"x":1.0},"0,1","0,3","0,14","0,16",{"x":0.5},"0,2","0,15","6,15","0,13",{"x":0.5},"0,4","0,12","0,5","0,11",{"x":0.25},"0,10","0,9","0,8"],[{"x":2.5,"y":0.5},"6,0","6,1","5,1","6,3","6,14","6,16","5,16","6,2","5,15","6,13","5,4","6,4","6,12",{"w":2.0},"6,11\n\n\n0,0",{"x":0.25},"0,6\n\n\n5,0","0,7\n\n\n5,0","6,7\n\n\n5,0",{"x":0.25},"6,10","5,10","6,9","6,8",{"x":2.75},"0,6\n\n\n5,1","0,7\n\n\n5,1","6,7\n\n\n5,1"],[{"x":2.5,"w":1.5},"5,0","4,1","4,3","5,3","5,14","4,16","4,2","5,2","4,15","5,13","4,4","5,12","5,5",{"x":0.25,"w":1.25,"h":2.0,"w2":1.5,"h2":1.0,"x2":-0.25},"4,11\n\n\n3,0",{"x":0.25},"5,6\n\n\n5,0","6,6\n\n\n5,0","5,7\n\n\n5,0",{"x":0.25},"4,10","4,9","5,9",{"h":2.0},"5,8",{"x":1.0,"w":1.5},"5,11\n\n\n3,1",{"x":0.25},"5,6\n\n\n5,1","6,6\n\n\n5,1","5,7\n\n\n5,1"],[{"x":2.5,"w":1.75},"4,0","3,1","3,3","4,14","3,14","3,16","3,2","3,15","4,13","3,13","3,4","4,12","4,5\n\n\n3,0",{"x":4.75},"3,10","3,9","4,8",{"x":1.25,"w":2.25},"4,5\n\n\n3,1",{"x":0.25},"3,11\n\n\n5,1","4,6\n\n\n5,1","4,7\n\n\n5,1"],[{"w":2.25},"2,1\n\n\n1,1",{"x":0.25,"w":1.25},"2,0\n\n\n1,0","2,1\n\n\n1,0","2,3","2,14","1,14","1,16","2,16","2,2","1,15","1,13","2,4","2,12",{"w":2.75},"2,5\n\n\n2,0",{"x":1.25},"3,6\n\n\n5,0",{"x":1.25},"2,10","2,9","2,8",{"h":2.0},"3,8",{"x":2.75},"2,6\n\n\n5,1","3,6\n\n\n5,1","3,7\n\n\n5,1"],[{"x":2.5,"w":1.25},"1,0",{"w":1.25},"1,1",{"w":1.25},"1,3",{"w":6.25},"1,2",{"w":1.25},"1,4",{"w":1.25},"1,12",{"w":1.25},"1,5",{"w":1.25},"1,11",{"x":0.25},"1,6\n\n\n5,0","2,7\n\n\n5,0","1,7\n\n\n5,0",{"x":0.25,"w":2.0},"1,10\n\n\n4,0","1,8",{"x":3.75},"1,6\n\n\n5,1","2,7\n\n\n5,1","1,7\n\n\n5,1"],[{"x":14.75,"y":0.25,"w":1.75},"3,12\n\n\n2,1","2,11\n\n\n2,1",{"x":3.5},"1,10\n\n\n4,1","1,9\n\n\n4,1"]]},"Corne":{"name":"crkbd","source":"vial-qmk keyboards/crkbd/keymaps/vial/vial.json","labels":[],"keymap":[[{"y":1,"x":3.5},"0,3",{"x":7.5},"4,3"],[{"y":-0.875,"x":2.5},"0,2",{"x":1},"0,4",{"x":5.5},"4,4",{"x":1},"4,2"],[{"y":-0.875,"x":5.5},"0,5",{"x":3.5},"4,5"],[{"y":-0.875,"x":0.5},"0,0","0,1",{"x":11.5},"4,1","4,0"],[{"y":-0.375,"x":3.5},"1,3",{"x":7.5},"5,3"],[{"y":-0.875,"x":2.5},"1,2",{"x":1},"1,4",{"x":5.5},"5,4",{"x":1},"5,2"],[{"y":-0.875,"x":5.5},"1,5",{"x":3.5},"5,5"],[{"y":-0.875,"x":0.5},"1,0","1,1",{"x":11.5},"5,1","5,0"],[{"y":-0.375,"x":3.5},"2,3",{"x":7.5},"6,3"],[{"y":-0.875,"x":2.5},"2,2",{"x":1},"2,4",{"x":5.5},"6,4",{"x":1},"6,2"],[{"y":-0.875,"x":5.5},"2,5",{"x":3.5},"6,5"],[{"y":-0.875,"x":0.5},"2,0","2,1",{"x":11.5},"6,1","6,0"],[{"y":-0.125,"x":4},"3,3",{"x":6.5},"7,3"],[{"r":15,"rx":4.5,"ry":9.1,"y":-4.85,"x":-0.5},"3,4"],[{"r":30,"rx":5.4,"ry":9.3,"y":-5.05,"x":-1.4,"h":1.5},"3,5"],[{"r":-30,"rx":11.1,"y":-5.05,"x":0.4,"h":1.5},"7,5"],[{"r":-15,"rx":12,"ry":9.1,"y":-4.85,"x":-0.5},"7,4"]]}};
+// ---------------------------------------------------------------------------------------------
+// KLE: the keys, each with its matrix cell (legend position 0), its layout option (position 3,
+// "group,option") and its rotation. Legend-only keys are left out; decals kept, never drawn.
+function parseKle(rows) {
+  const keys = [];
+  let x = 0, y = 0, rx = 0, ry = 0, r = 0, p = {};
+  const pair = s => { const m = /^\s*(\d+)\s*,\s*(\d+)\s*$/.exec(s || ''); return m ? [+m[1], +m[2]] : null; };
+  for (const row of rows) {
+    if (!Array.isArray(row)) continue;
+    for (const item of row) {
+      if (typeof item === 'object') {
+        if ('r' in item) r = item.r;
+        if ('rx' in item || 'ry' in item) { if ('rx' in item) rx = item.rx; if ('ry' in item) ry = item.ry; x = rx; y = ry; }
+        if ('x' in item) x += item.x;
+        if ('y' in item) y += item.y;
+        for (const k of ['w', 'h', 'x2', 'y2', 'w2', 'h2', 'd']) if (k in item) p[k] = item[k];
+        continue;
+      }
+      const w = p.w || 1, h = p.h || 1;
+      const labels = String(item).split('\n');
+      const cell = pair(labels[0]), option = pair(labels[3]);
+      if (cell || p.d)
+        keys.push({ x, y, w, h, x2: p.x2 || 0, y2: p.y2 || 0, w2: p.w2 || w, h2: p.h2 || h, r, rx, ry, decal: !!p.d,
+                    cell, g: option ? option[0] : -1, o: option ? option[1] : 0 });
+      x += w;
+      p = {};
+    }
+    y += 1;
+    x = rx;
+  }
+  return keys;
+}
+const groupOf = label => Array.isArray(label) ? { name: label[0], options: label.slice(1) } : { name: label, options: [] };
+// VIA's pivot rule, as PlaceKeys() has it: each chosen option moved onto option 0's place. Every
+// group is at option 0 here, so nothing moves; the rule is kept for other choices.
+function placeKeys(keys, groups, sel) {
+  return keys.filter(k => !(k.g >= 0 && k.g < groups.length && sel[k.g] !== k.o));
+}
+const NS = 'http://www.w3.org/2000/svg';
+const rot = (px, py, k) => {
+  if (!k.r) return [px, py];
+  const a = k.r * Math.PI / 180, dx = px - k.rx, dy = py - k.ry;
+  return [k.rx + dx * Math.cos(a) - dy * Math.sin(a), k.ry + dx * Math.sin(a) + dy * Math.cos(a)];
+};
+const centreOf = k => rot(k.x + k.w / 2, k.y + k.h / 2, k);
+function boundsOf(keys) {
+  const b = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+  for (const k of keys)
+    for (const [x, y, w, h] of [[k.x, k.y, k.w, k.h], [k.x + k.x2, k.y + k.y2, k.w2, k.h2]])
+      for (const [px, py] of [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]) {
+        const [qx, qy] = rot(px, py, k);
+        b.x0 = Math.min(b.x0, qx); b.y0 = Math.min(b.y0, qy); b.x1 = Math.max(b.x1, qx); b.y1 = Math.max(b.y1, qy);
+      }
+  return b;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Keycodes the mockup knows: QMK name, legend (header, main), picker tab, the colour class a
+// keycap of it gets.
+const K = {};
+const key = (name, m, tab, h, cls) => { K[name] = { name, m, h: h || '', tab, cls: cls || '' }; };
+'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(c => key('KC_' + c, c, 'Keys'));
+'1234567890'.split('').forEach(c => key('KC_' + c, c, 'Keys'));
+[['KC_ESC', 'Esc'], ['KC_TAB', 'Tab'], ['KC_ENT', 'Enter'], ['KC_BSPC', 'Bksp'], ['KC_SPC', 'Space'], ['KC_DEL', 'Del'], ['KC_CAPS', 'Caps'],
+ ['KC_GRV', '`'], ['KC_MINS', '-'], ['KC_EQL', '='], ['KC_LBRC', '['], ['KC_RBRC', ']'], ['KC_BSLS', '\\'], ['KC_NUBS', '<'],
+ ['KC_SCLN', ';'], ['KC_QUOT', "'"], ['KC_COMM', ','], ['KC_DOT', '.'], ['KC_SLSH', '/'],
+ ['KC_INS', 'Ins'], ['KC_HOME', 'Home'], ['KC_END', 'End'], ['KC_PGUP', 'PgUp'], ['KC_PGDN', 'PgDn'],
+ ['KC_LEFT', '←'], ['KC_DOWN', '↓'], ['KC_UP', '↑'], ['KC_RGHT', '→'], ['KC_PSCR', 'PrtSc'], ['KC_SCRL', 'ScrLk'], ['KC_PAUS', 'Pause'], ['KC_APP', 'Menu'],
+ ['KC_LCTL', 'Ctrl'], ['KC_LSFT', 'Shift'], ['KC_LALT', 'Alt'], ['KC_LGUI', 'Win'], ['KC_RCTL', 'Ctrl'], ['KC_RSFT', 'Shift'], ['KC_RALT', 'AltGr'], ['KC_RGUI', 'Win']]
+  .forEach(([n, m]) => key(n, m, 'Keys'));
+for (let i = 1; i <= 13; i++) key('KC_F' + i, 'F' + i, 'Keys');
+'0123456789'.split('').forEach(c => key('KC_P' + c, c, null, 'Pad'));
+[['KC_NUM', 'Num'], ['KC_PSLS', '/'], ['KC_PAST', '*'], ['KC_PMNS', '-'], ['KC_PPLS', '+'], ['KC_PENT', 'Enter'], ['KC_PDOT', '.']].forEach(([n, m]) => key(n, m, null, 'Pad'));
+[['KC_MUTE', 'Mute'], ['KC_VOLU', 'Vol +'], ['KC_VOLD', 'Vol −'], ['KC_MNXT', 'Next'], ['KC_MPRV', 'Prev'], ['KC_MPLY', 'Play']]
+  .forEach(([n, m]) => key(n, m, 'Media & mouse', 'Media', 'host'));
+[['MO(1)', 'L1', 'Hold'], ['MO(2)', 'L2', 'Hold'], ['TG(1)', 'L1', 'Toggle'], ['TO(0)', 'L0', 'To'], ['OSL(1)', 'L1', 'Once']]
+  .forEach(([n, m, h]) => key(n, m, 'Layers', h, 'behav'));
+[['CW_TOGG', 'Caps Wd', ''], ['QK_REP', 'Repeat', ''], ['CM_TOGG', 'On/Off', 'Combos']]
+  .forEach(([n, m, h]) => key(n, m, 'Features', h, 'behav'));
+[['QK_BOOT', 'Boot', ''], ['QK_RBT', 'Reboot', ''], ['EE_CLR', 'Clear', 'EEPROM']]
+  .forEach(([n, m, h]) => key(n, m, 'Firmware', h, 'fw'));
+// The Corne's home-row Gui keys: A and ; tapped, Gui held -- LGUI_T(KC_A), RGUI_T(KC_SCLN).
+key('LGUI_T(KC_A)', 'A', null, 'Win', 'behav'); K['LGUI_T(KC_A)'].tap = 'KC_A';
+key('RGUI_T(KC_SCLN)', ';', null, 'Win', 'behav'); K['RGUI_T(KC_SCLN)'].tap = 'KC_SCLN';
+const TABS = [['Keys', ''], ['Media & mouse', 'var(--host)'], ['Layers', 'var(--behav)'], ['Features', 'var(--behav)'], ['Firmware', 'var(--fw)']];
+const MODS = ['Ctrl', 'Shift', 'Alt', 'Win'];
+
+// Each board's keys and what they send: [layer 0, layer 1], layer 1 null where transparent.
+const W = s => s.split(' ');
+const MODELF_ROWS = [
+  W('KC_ESC KC_F1 KC_F2 KC_F3 KC_F4 KC_F5 KC_F6 KC_F7 KC_F8 KC_F9 KC_F10 KC_F11 KC_F12 KC_PSCR KC_SCRL KC_PAUS'),
+  W('KC_GRV KC_1 KC_2 KC_3 KC_4 KC_5 KC_6 KC_7 KC_8 KC_9 KC_0 KC_MINS KC_EQL KC_BSPC KC_INS KC_HOME KC_PGUP KC_NUM KC_PSLS KC_PAST KC_PMNS'),
+  W('KC_TAB KC_Q KC_W KC_E KC_R KC_T KC_Y KC_U KC_I KC_O KC_P KC_LBRC KC_RBRC KC_ENT KC_DEL KC_END KC_PGDN KC_P7 KC_P8 KC_P9 KC_PPLS'),
+  W('KC_CAPS KC_A KC_S KC_D KC_F KC_G KC_H KC_J KC_K KC_L KC_SCLN KC_QUOT KC_BSLS KC_P4 KC_P5 KC_P6'),
+  W('KC_LSFT KC_NUBS KC_Z KC_X KC_C KC_V KC_B KC_N KC_M KC_COMM KC_DOT KC_SLSH KC_RSFT KC_UP KC_P1 KC_P2 KC_P3 KC_PENT'),
+  W('KC_LCTL KC_LGUI KC_LALT KC_SPC KC_RALT KC_RGUI KC_APP KC_RCTL KC_LEFT KC_DOWN KC_RGHT KC_P0 KC_PDOT')];
+// The Corne by matrix cell: rows 0-3 the left half, 4-7 the right, column 0 the outer edge.
+const CORNE = {
+  0: [W('KC_TAB KC_Q KC_W KC_E KC_R KC_T'), W('- KC_1 KC_2 KC_3 KC_4 KC_5')],
+  1: [W('KC_LCTL LGUI_T(KC_A) KC_S KC_D KC_F KC_G'), []],
+  2: [W('KC_LSFT KC_Z KC_X KC_C KC_V KC_B'), []],
+  3: [W('- - - KC_LGUI MO(1) KC_SPC'), []],
+  4: [W('KC_BSPC KC_P KC_O KC_I KC_U KC_Y'), W('- KC_0 KC_9 KC_8 KC_7 KC_6')],
+  5: [W('KC_QUOT RGUI_T(KC_SCLN) KC_L KC_K KC_J KC_H'), W('- - KC_RGHT KC_UP KC_DOWN KC_LEFT')],
+  6: [W('KC_ESC KC_SLSH KC_DOT KC_COMM KC_M KC_N'), []],
+  7: [W('- - - KC_RALT MO(2) KC_ENT'), []]};
+function sendsOf(def, keys) {
+  if (def === 'Corne') return keys.map(k => {
+    const [l0, l1] = CORNE[k.cell[0]], c = k.cell[1];
+    return [l0[c], l1[c] && l1[c] !== '-' ? l1[c] : null];
+  });
+  const rows = [...new Set(keys.map(k => k.y))].sort((a, b) => a - b);
+  const out = new Map();
+  rows.forEach((y, i) => keys.filter(k => k.y === y).sort((a, b) => a.x - b.x)
+    .forEach((k, j) => out.set(k, [(MODELF_ROWS[i] || [])[j] || 'KC_NO', null])));
+  return keys.map(k => out.get(k));
+}
+key('KC_NO', '', null);
+
+const SETUPS = {
+  'Model F B104 · Vial 6': { def: 'Model F B104', count: 32, qmkSettings: true },
+  'Corne · Vial, RP2040 build': { def: 'Corne', count: 16, qmkSettings: false },
+  'Model F B104 · locked': { def: 'Model F B104', count: 32, qmkSettings: true, locked: true },
+};
+
+// ---------------------------------------------------------------------------------------------
+// The combos. An output is a key and the modifiers sent with it (Ctrl+Z), or null.
+const O = (k, ...mods) => ({ k, mods });
+function fresh(count) {
+  const l = [];
+  for (let i = 0; i < count; i++) l.push({ ins: [null, null, null, null], out: null });
+  const set = (i, ins, out) => { if (i < count) l[i] = { ins: [...ins, null, null, null, null].slice(0, 4), out }; };
+  set(0, ['KC_J', 'KC_K'], O('KC_ESC'));              // the classic
+  set(1, ['KC_D', 'KC_F'], O('KC_TAB'));
+  set(2, ['KC_J', 'KC_K', 'KC_L'], O('CW_TOGG'));     // holds combo 0
+  set(3, ['KC_M', 'KC_COMM'], O('KC_ENT'));
+  set(4, ['KC_E', 'KC_R'], O('KC_DEL'));              // "er": rolled often in English
+  set(5, ['KC_Q', 'KC_P', 'KC_Z', 'KC_SLSH'], O('QK_BOOT'));   // the four corners: never by accident
+  set(6, ['KC_A', 'KC_S'], O('KC_LCTL'));             // Ctrl held while A and S are; on the Corne A is Gui-tap
+  set(7, ['KC_LEFT', 'KC_RGHT'], O('KC_MPLY'));       // on the Corne's layer 1
+  set(8, ['KC_Z', null, 'KC_X'], O('KC_Z', 'Ctrl'));  // as Vial lets it be stored: a gap
+  set(9, ['KC_C', 'KC_V'], null);                     // no output
+  set(12, ['KC_J', 'KC_K'], O('KC_DEL'));             // the same keys as combo 0
+  return l;
+}
+
+const state = { setup: 'Model F B104 · Vial 6', slots: 'Strip, numbered', show: 'The selected combo', from: 'Board and picker',
+                termAt: 'In the panel', roll: 'Hidden', theme: 'Light', cb: 0, sel: 'out', tab: 'Keys', stripScroll: 0, msg: null, term: 50 };
+const setupOf = () => SETUPS[state.setup];
+function reset() {
+  state.combos = fresh(setupOf().count);
+  state.saved = JSON.stringify(state.combos);
+  state.cb = 0; state.sel = 'out'; state.msg = null;
+}
+reset();
+const savedList = () => JSON.parse(state.saved);
+const cur = () => state.combos[state.cb];
+const locked = () => !!setupOf().locked;
+const dirty = i => JSON.stringify(state.combos[i]) !== JSON.stringify(savedList()[i]);
+const isEmpty = c => !c.ins.some(Boolean) && !c.out;
+// The inputs the firmware uses: up to the first empty one.
+const effective = c => { const e = []; for (const k of c.ins) { if (!k) break; e.push(k); } return e; };
+const legend = kc => K[kc] ? (K[kc].m || kc) : kc;
+const outName = o => o ? (o.mods.length ? o.mods.join('+') + '+' : '') + legend(o.k) : '';
+const joinAnd = l => l.length < 2 ? l.join('') : l.slice(0, -1).join(', ') + ' and ' + l[l.length - 1];
+const byKeys = () => state.slots !== 'Strip, numbered';
+const refOf = i => {
+  const c = state.combos[i];
+  return byKeys() ? `${effective(c).map(legend).join(' + ')} → ${outName(c.out) || 'nothing'}` : `C ${i}`;
+};
+
+// ---------------------------------------------------------------------------------------------
+// The board: its keys and where a keycode is.
+let BOARD = null;
+function buildBoard() {
+  const setup = setupOf(), b = BOARDS[setup.def];
+  const groups = b.labels.map(groupOf);
+  const keys = placeKeys(parseKle(b.keymap), groups, groups.map(() => 0)).filter(k => !k.decal);
+  const sends = sendsOf(setup.def, keys);
+  BOARD = { keys, sends, b };
+}
+function locate(kc) {
+  for (const layer of [0, 1]) {
+    const at = BOARD.keys.filter((k, i) => BOARD.sends[i][layer] === kc);
+    if (at.length) return { layer, keys: at };
+  }
+  return null;
+}
+const modTapOf = kc => BOARD.sends.map(s => s[0]).find(s => K[s] && K[s].tap === kc);
+
+// What the section says about a combo: what it does, and what is wrong with it.
+const BIGRAMS = new Set('th he in er an re on at en nd ti es or te of ed is it al ar st to nt ng se ha as ou io le ve co me de hi ri ro ic ne ea ra ce li ch ll be ma si om ur'.split(' '));
+function analyse(i) {
+  const c = state.combos[i], eff = effective(c), raw = c.ins.filter(Boolean), says = [];
+  if (isEmpty(c)) return says;
+  const term = setupOf().qmkSettings ? state.term : 50;
+  if (!eff.length) says.push({ w: 1, t: `The first input is empty: the board takes the whole combo as unused.`, fix: ['Close the gap', 'gap'] });
+  else if (raw.length > eff.length) {
+    const lost = raw.filter(k => !eff.includes(k)).map(legend);
+    says.push({ w: 1, t: `${joinAnd(lost)} ${lost.length > 1 ? 'come' : 'comes'} after an empty input: the firmware stops at the gap, so this combo is ${joinAnd(eff.map(legend))} alone.`, fix: ['Close the gap', 'gap'] });
+  }
+  const far = [];
+  for (const kc of eff) {
+    const at = locate(kc);
+    if (!at) {
+      const mt = modTapOf(kc);
+      if (mt) says.push({ w: 1, t: `No key sends ${legend(kc)}: the ${legend(kc)} key sends ${mt} -- ${K[mt].h} held, ${legend(kc)} tapped -- and a combo matches the whole keycode.`, fix: [`Use ${mt}`, 'mt:' + kc] });
+      else says.push({ w: 1, t: `No key on the board sends ${legend(kc)}: the combo can never fire.` });
+    } else if (at.layer) far.push(legend(kc));
+  }
+  if (far.length) says.push({ t: `${joinAnd(far)} ${far.length > 1 ? 'are' : 'is'} on layer 1 only: the combo works while layer 1 is on.` });
+  if (eff.length === 1) says.push({ w: 1, t: `One key alone: every press of ${legend(eff[0])} waits up to ${term} ms, then sends ${outName(c.out) || 'nothing'}. In Keymap, set on the key itself, it would not wait.` });
+  if (eff.length > 1 && !c.out) says.push({ w: 1, t: `Nothing to send: pressed together, ${joinAnd(eff.map(legend))} are swallowed and nothing is sent.` });
+  const set = new Set(eff);
+  state.combos.forEach((o, j) => {
+    if (j === i) return;
+    const e = effective(o);
+    if (!e.length || !eff.length) return;
+    const s = new Set(e), inside = e.every(k => set.has(k)), around = eff.every(k => s.has(k));
+    if (inside && around) {
+      if (j > i) says.push({ w: 1, t: `Never fires: ${refOf(j).startsWith('C ') ? 'combo ' + j : refOf(j) + ' (slot ' + j + ')'} has the same keys, and the later slot wins.` });
+      else says.push({ t: `Same keys as ${refOf(j).startsWith('C ') ? 'combo ' + j + ' (→ ' + outName(o.out) + ')' : refOf(j)}, which never fires because of this one.` });
+    } else if (around) says.push({ t: `Part of ${refOf(j).startsWith('C ') ? 'combo ' + j + ' (' + e.map(legend).join(' + ') + ' → ' + outName(o.out) + ')' : refOf(j)}: with ${joinAnd(e.filter(k => !set.has(k)).map(legend))} pressed in time too, that one wins.` });
+    else if (inside) says.push({ t: `Holds ${refOf(j).startsWith('C ') ? 'combo ' + j + ' (' + e.map(legend).join(' + ') + ' → ' + outName(o.out) + ')' : refOf(j)}: with all ${eff.length} keys pressed in time, this one wins.` });
+  });
+  const tapped = eff.map(k => (K[k] && K[k].tap) || k);   // a home-row key types its tap
+  if (state.roll === 'Shown' && tapped.length === 2 && tapped.every(k => /^KC_[A-Z]$/.test(k))) {
+    const [a, b] = tapped.map(k => k.slice(3).toLowerCase());
+    const pairs = [a + b, b + a].filter(p => BIGRAMS.has(p));
+    if (pairs.length) says.push({ w: 1, t: `${a.toUpperCase()} and ${b.toUpperCase()} are often typed one after the other in English (${pairs.map(p => '"' + p + '"').join(', ')}): fast typing may fire this combo by mistake.` });
+  }
+  return says;
+}
+const hasWarning = i => analyse(i).some(s => s.w);
+
+// ---------------------------------------------------------------------------------------------
+function capHtml(kc, mods, extra) {
+  const k = K[kc] || { m: kc, h: '', cls: '' };
+  const h = mods && mods.length ? mods.join('+') + '+' : k.h;
+  return `<div class="cap ${mods && mods.length ? 'host' : k.cls}${extra || ''}">${h ? `<span class="h">${h}</span>` : ''}<span class="m">${k.m}</span></div>`;
+}
+
+function termHtml() {
+  const s = setupOf();
+  if (state.termAt !== 'In the panel') return '';
+  if (!s.qmkSettings)
+    return `<div class="termbox"><span class="lbl">Combo term</span><span>Fixed by the firmware</span>`
+         + `<span class="hint">This board has no QMK Settings: its term is the one it was built with -- 50 ms unless its keymap says otherwise. No app can read it.</span></div>`;
+  return `<div class="termbox"><span class="lbl">Combo term</span><div class="row"><input data-term value="${state.term}"> ms <span class="muted">· every combo</span></div>`
+       + `<span class="hint">How close together the keys must come, and how long a combo key waits before it is sent alone. Also in QMK Settings.</span></div>`;
+}
+
+function editorHtml() {
+  const c = cur(), lk = locked(), s = setupOf();
+  let h = `<div class="chord">`;
+  // The inputs as stored, joined by +, a gap shown where one is, an empty one offered after the
+  // last, then the output.
+  const last = c.ins.reduce((a, k, i) => k ? i : a, -1);
+  for (let i = 0; i <= last; i++) {
+    const k = c.ins[i];
+    if (i) h += `<span class="join">+</span>`;
+    if (!k) {
+      h += `<div class="slot${state.sel === 'in' + i ? ' sel' : ''}" data-sel="in${i}"><span class="lbl">Key ${i + 1}</span><div class="cap none" style="border-color:var(--warn)"><span class="m">—</span></div><span class="where warn">empty: a gap</span></div>`;
+      continue;
+    }
+    const at = locate(k), mt = !at && modTapOf(k);
+    const where = i > effective(c).length ? 'never reached' : at ? (at.layer ? `layer ${at.layer}` : '') : (mt ? `sent by no key` : 'not on the board');
+    h += `<div class="slot${state.sel === 'in' + i ? ' sel' : ''}" data-sel="in${i}"><span class="lbl">Key ${i + 1}</span>${capHtml(k)}<span class="where${at && i <= effective(c).length ? '' : ' warn'}">${where}</span></div>`;
+  }
+  if (last < 3) {
+    const i = last + 1;
+    if (i) h += `<span class="join">+</span>`;
+    h += `<div class="slot${state.sel === 'in' + i ? ' sel' : ''}" data-sel="in${i}"><span class="lbl">${i ? 'Key ' + (i + 1) : 'Keys'}</span><div class="cap add">+</div><span class="where">${i > 1 ? 'optional' : ''}</span></div>`;
+  }
+  h += `<span class="join">→</span>`;
+  h += `<div class="slot${state.sel === 'out' ? ' sel' : ''}" data-sel="out"><span class="lbl">Sends</span>${c.out ? capHtml(c.out.k, c.out.mods) : `<div class="cap none"><span class="m">—</span></div>`}<span class="where"></span></div>`;
+  h += termHtml() + `</div>`;
+
+  // What it does, then what is wrong with it.
+  const eff = effective(c), term = s.qmkSettings ? state.term : 50;
+  const termWords = state.termAt === 'In the panel' || !s.qmkSettings ? `${term} ms` : `${term} ms, the combo term in QMK Settings`;
+  let says = '';
+  if (isEmpty(c)) says = `<span class="muted">Empty: ${state.from === 'Board and picker' ? 'click two keys or more on the board, or pick them below' : 'pick two keys or more below'}, then what they send together.</span>`;
+  else if (eff.length > 1) {
+    const names = joinAnd(eff.map(legend));
+    says = `Press ${names} together -- in any order, each within ${termWords} of the last -- and ${c.out ? outName(c.out) + ' is sent instead' : 'nothing is sent'}.`
+         + (c.out ? ` Held, ${outName(c.out)} stays held until ${eff.length > 2 ? 'all are' : 'both are'} released.` : '')
+         + ` <span class="muted">Typed alone, ${names} wait${eff.length > 1 ? '' : 's'} up to ${term} ms before being sent.</span>`;
+  }
+  for (const x of analyse(state.cb))
+    says += `<br><span class="${x.w ? 'w' : 'i'}">${x.w ? '⚠ ' : 'ⓘ '}${x.t}</span>${x.fix ? `<button data-fix="${x.fix[1]}">${x.fix[0]}</button>` : ''}`;
+  h += `<div class="says">${says}</div>`;
+  return h;
+}
+
+function toolsHtml() {
+  const c = cur();
+  let t;
+  if (state.sel === 'out') {
+    t = `<b>Sends</b>`;
+    if (c.out) t += `<span class="muted">Sent with</span><select data-mods>${['None', ...MODS].map(m => `<option${(m === 'None' ? !c.out.mods.length : c.out.mods[0] === m) ? ' selected' : ''}>${m}</option>`).join('')}</select>`
+                 + `<button data-act="empty">Empty it</button><span class="muted">or pick a key below to change it</span>`;
+    else t += `<span class="muted">pick a key below</span>`;
+  } else {
+    const i = +state.sel.slice(2), k = c.ins[i];
+    t = `<b>Key ${i + 1}</b>`;
+    if (k) t += `<button data-act="remove">Remove</button><span class="muted">pick a key below to change it${state.from === 'Board and picker' ? ' -- or click keys on the board: a click adds a key, a second click removes it' : ''}</span>`;
+    else t += `<span class="muted">${state.from === 'Board and picker' ? 'click a key on the board, or pick one below' : 'pick a key below'}</span>`;
+  }
+  return `<div class="tools">${t}</div>`;
+}
+
+function pickerHtml() {
+  const lk = locked();
+  let h = `<div class="tabs">${TABS.map(([n, c]) => `<span class="tab${state.tab === n ? ' on' : ''}" data-tab="${n}">${c ? `<span class="dot" style="background:${c}"></span>` : ''}${n}</span>`).join('')}<input placeholder="Search"></div>`;
+  h += `<div class="tiles">${Object.values(K).filter(k => k.tab === state.tab).map(k => {
+    const off = (lk && k.name === 'QK_BOOT' && state.sel === 'out') ? 'This board is locked: Vial would store Boot as nothing' : '';
+    return `<div class="cap ${k.cls}${off ? ' off' : ''}" data-key="${k.name}" title="${off || k.name}">${k.h ? `<span class="h">${k.h}</span>` : ''}<span class="m">${k.m}</span></div>`;
+  }).join('')}</div>`;
+  return h;
+}
+
+function lineHtml() {
+  const c = cur();
+  const anyDirty = state.combos.some((_, i) => dirty(i));
+  let msg;
+  if (anyDirty) msg = `<span class="warn">Not written yet</span> <span class="muted">-- ${state.combos.filter((_, i) => dirty(i)).length} combo(s) changed</span>`;
+  else if (state.msg) msg = `<span class="${state.msg[0]}">${state.msg[1]}</span>`;
+  else msg = `<span class="muted">Changes are written by Save.</span>`;
+  const title = byKeys() ? (isEmpty(c) ? 'New combo' : refOf(state.cb)) : `C ${state.cb}`;
+  return `<div class="mline"><span class="title" title="Slot ${state.cb} of ${state.combos.length}">${title}</span>`
+       + `<button data-act="clear" ${isEmpty(c) ? 'disabled' : ''} title="Empties the inputs and the output">Clear</button>`
+       + `<span class="msg">${msg}</span>`
+       + `<span class="right"><button data-act="save" ${anyDirty ? '' : 'disabled'}>Save</button><button data-act="revert" ${anyDirty ? '' : 'disabled'}>Revert</button></span></div>`;
+}
+
+function listHtml() {
+  const used = state.combos.map((c, i) => ({ c, i })).filter(x => !isEmpty(x.c) || x.i === state.cb);
+  const free = state.combos.filter(isEmpty).length;
+  let h = `<div class="list">`;
+  for (const { c, i } of used)
+    h += `<div class="lrow${i === state.cb ? ' on' : ''}" data-cb="${i}" title="Slot ${i}"><span class="n">${i}</span><span>${isEmpty(c) ? '<span class="muted">New combo</span>' : effective(c).map(legend).join(' + ') + ' → ' + (outName(c.out) || '<span class="muted">nothing</span>')}</span>`
+       + `${hasWarning(i) ? '<span class="bang">!</span>' : ''}${dirty(i) ? '<span class="dot"></span>' : ''}</div>`;
+  h += `<div class="lrow new" data-act="new" title="${free} of ${state.combos.length} slots free">+ New combo <span class="muted">· ${free} free</span></div></div>`;
+  return h;
+}
+
+function renderPanel() {
+  let h = lineHtml();
+  if (state.slots === 'List in the panel') h += `<div class="split">${listHtml()}<div class="editor">${editorHtml()}</div></div>`;
+  else h += editorHtml();
+  h += toolsHtml();
+  if (locked()) h += `<div class="banner">This board is locked: Vial stores Boot as nothing in a combo's output, so Boot is greyed when picking it. The inputs are stored as they are. To use Boot, click 🔒 in the header and hold the two outlined keys.</div>`;
+  return h + pickerHtml();
+}
+
+// ---------------------------------------------------------------------------------------------
+function boardSvg() {
+  const setup = setupOf(), keys = BOARD.keys, sends = BOARD.sends;
+  const bd = boundsOf(keys), avail = 1160 - 180 - 28 - 30;
+  const u = Math.min(46, Math.floor(avail / (bd.x1 - bd.x0 + 0.7))), m = u * 0.35;
+  const P = ([x, y]) => [(x - bd.x0) * u, (y - bd.y0) * u];
+  const sel = effective(cur());
+  // The keys of the selected combo, and a mod-tap key holding one of its inputs.
+  const lit = new Map(), mtLit = new Set();
+  sel.forEach(kc => { const at = locate(kc); if (at) at.keys.forEach(k => lit.set(k, at.layer)); else { const mt = modTapOf(kc); if (mt) keys.forEach((k, i) => { if (sends[i][0] === mt) mtLit.add(k); }); } });
+  // The B104's unlock keys, VIAL_UNLOCK_COMBO_ROWS {0, 1} / COLS {0, 1}: matrix 0,0 and 1,1.
+  const unlock = keys.filter(k => (k.cell[0] === 0 && k.cell[1] === 0) || (k.cell[0] === 1 && k.cell[1] === 1));
+  const fs = Math.round(u * 0.3);
+  let s = `<svg class="board" xmlns="${NS}" width="${(bd.x1 - bd.x0) * u + 2 * m}" height="${(bd.y1 - bd.y0) * u + 2 * m}">`
+        + `<style>.plate{fill:var(--plate)}.k{fill:var(--key);stroke:var(--keyline)}.k.cur{fill:var(--lit);stroke:var(--litline);stroke-width:2}.k.mt{stroke:var(--warn);stroke-width:2;stroke-dasharray:4 3}.k.unl{stroke:var(--warn);stroke-width:2.5}`
+        + `.t{font:${fs}px Arimo,Arial;fill:var(--text);text-anchor:middle;pointer-events:none}.t.h{font-size:${Math.round(u * 0.2)}px;fill:var(--muted)}.t.lay{font-size:${Math.round(u * 0.2)}px;fill:var(--litline);text-anchor:end}`
+        + `.ln{stroke:var(--muted);stroke-width:1.2;fill:none;opacity:.8}.ln.on{stroke:var(--link);stroke-width:2;opacity:1}`
+        + `.pill rect{fill:var(--control);stroke:var(--muted)}.pill text{font:${Math.round(u * 0.24)}px Arimo,Arial;fill:var(--text);text-anchor:middle}.pill.on rect{fill:var(--accent);stroke:var(--accent)}.pill.on text{fill:var(--accent-text)}.pill.bad rect{stroke:var(--warn);stroke-width:1.5}</style>`
+        + `<rect class="plate" width="100%" height="100%" rx="12"/><g transform="translate(${m} ${m})">`;
+  const gap = Math.max(1, u * 0.06), pick = state.from === 'Board and picker';
+  keys.forEach((k, idx) => {
+    const layer = lit.get(k);
+    const cls = 'k' + (layer !== undefined ? ' cur' : '') + (mtLit.has(k) ? ' mt' : '') + (setup.locked && unlock.includes(k) ? ' unl' : '') + (pick ? ' pick' : '');
+    const [ox, oy] = P([k.rx, k.ry]);
+    s += `<g${k.r ? ` transform="rotate(${k.r} ${ox} ${oy})"` : ''} data-kidx="${idx}">`;
+    const x = (k.x - bd.x0) * u + gap, y = (k.y - bd.y0) * u + gap, w = k.w * u - 2 * gap, hh = k.h * u - 2 * gap;
+    const tip = `<title>${sends[idx][0]}${sends[idx][1] ? ' · layer 1: ' + sends[idx][1] : ''}</title>`;
+    s += `<rect class="${cls}" x="${x}" y="${y}" width="${w}" height="${hh}" rx="${Math.max(2, u * 0.1)}">${tip}</rect>`;
+    if (k.w2 !== k.w || k.h2 !== k.h || k.x2 || k.y2)
+      s += `<rect class="${cls}" x="${(k.x + k.x2 - bd.x0) * u + gap}" y="${(k.y + k.y2 - bd.y0) * u + gap}" width="${k.w2 * u - 2 * gap}" height="${k.h2 * u - 2 * gap}" rx="${Math.max(2, u * 0.1)}">${tip}</rect>`;
+    const kc = layer ? sends[idx][1] : sends[idx][0], kk = K[kc] || { m: '', h: '' };
+    if (kk.h) s += `<text class="t h" x="${x + w / 2}" y="${y + u * 0.26}">${kk.h}</text>`;
+    s += `<text class="t" x="${x + w / 2}" y="${y + hh / 2 + fs * 0.35 + (kk.h ? u * 0.08 : 0)}">${kk.m.replace('&', '&amp;').replace('<', '&lt;')}</text>`;
+    if (layer) s += `<text class="t lay" x="${x + w - u * 0.08}" y="${y + u * 0.24}">L${layer}</text>`;
+    s += `</g>`;
+  });
+  // The links: from each input key to a small key between them that says what the combo sends.
+  const drawn = new Map();
+  const linkOf = (c, i, on) => {
+    const e = effective(c);
+    if (!e.length) return '';
+    const pts = [];
+    for (const kc of e) { const at = locate(kc); if (at) pts.push(P(centreOf(at.keys[0]))); }
+    if (!pts.length) return '';
+    let cx = pts.reduce((a, p) => a + p[0], 0) / pts.length, cy = pts.reduce((a, p) => a + p[1], 0) / pts.length;
+    if (pts.length === 1) cy += u * 0.42;   // a key alone: under it, not over its legend
+    const keyAt = Math.round(cx / 4) + ',' + Math.round(cy / 4), seen = drawn.get(keyAt) || 0;
+    drawn.set(keyAt, seen + 1);
+    cy += seen * u * 0.42;
+    const text = outName(c.out) || '—', pw = Math.max(u * 0.55, text.length * u * 0.15 + u * 0.22), ph = u * 0.36;
+    let g = '';
+    if (pts.length > 1 || seen) for (const p of pts) g += `<line class="ln${on ? ' on' : ''}" x1="${p[0]}" y1="${p[1]}" x2="${cx}" y2="${cy}"/>`;
+    return { lines: g, pill: `<g class="pill${on ? ' on' : ''}${hasWarning(i) ? ' bad' : ''}" data-cb="${i}"><title>${refOf(i).startsWith('C ') ? 'C ' + i + ': ' : ''}${e.map(legend).join(' + ')} → ${outName(c.out) || 'nothing'}</title><rect x="${cx - pw / 2}" y="${cy - ph / 2}" width="${pw}" height="${ph}" rx="${ph / 2}"/><text x="${cx}" y="${cy + u * 0.085}">${text.replace('&', '&amp;').replace('<', '&lt;')}</text></g>` };
+  };
+  const parts = [];
+  if (state.show === 'Every combo') state.combos.forEach((c, i) => { if (i !== state.cb) parts.push(linkOf(c, i, false)); });
+  parts.push(linkOf(cur(), state.cb, true));
+  const ok = parts.filter(Boolean);
+  s += ok.map(p => p.lines).join('') + ok.map(p => p.pill).join('');
+  return s + `</g></svg>`;
+}
+
+function stripHtml() {
+  if (state.slots === 'List in the panel') return '';
+  let b;
+  if (state.slots === 'Strip, numbered')
+    b = state.combos.map((c, i) => `<button class="${i === state.cb ? 'on' : ''}${isEmpty(c) ? ' empty' : ''}" data-cb="${i}" title="${isEmpty(c) ? 'Empty' : effective(c).map(legend).join(' + ') + ' → ' + (outName(c.out) || 'nothing')}">C ${i}${dirty(i) ? '<span class="dot"></span>' : ''}</button>`).join('');
+  else {
+    const free = state.combos.filter(isEmpty).length;
+    b = state.combos.map((c, i) => ({ c, i })).filter(x => !isEmpty(x.c) || x.i === state.cb)
+      .map(({ c, i }) => `<button class="named${i === state.cb ? ' on' : ''}" data-cb="${i}" title="Slot ${i} -- sends ${outName(c.out) || 'nothing'}">${isEmpty(c) ? 'New' : effective(c).map(legend).join('+') || '?'}${hasWarning(i) ? '<span class="bang">!</span>' : ''}${dirty(i) ? '<span class="dot"></span>' : ''}</button>`).join('')
+      + `<button class="named" data-act="new" title="${free} of ${state.combos.length} slots free">+ New</button>`;
+  }
+  return `<div class="stripwrap"><button class="sarrow" data-scroll="-1" title="Earlier">◀</button>`
+       + `<div class="strip" id="strip">${b}</div><span class="fade l"></span><span class="fade r"></span>`
+       + `<button class="sarrow" data-scroll="1" title="Later">▶</button></div>`;
+}
+
+function render() {
+  document.documentElement.dataset.theme = state.theme.toLowerCase();
+  renderControls();
+  buildBoard();
+  const setup = setupOf();
+  document.getElementById('frame').innerHTML =
+    `<div class="menubar"><span class="board">${BOARD.b.name} ▾</span><span class="muted">Vial</span>${setup.locked ? '<span class="lock">🔒 Locked</span>' : ''}<span class="right">Settings</span></div>`
+  + `<div class="body"><div class="col"><div class="entry">Keymap</div><div class="entry">Layout</div><div class="entry">Macros</div><div class="entry">Tap Dance</div><div class="entry on">Combos</div><div class="entry">Key Overrides</div>${setup.qmkSettings ? '<div class="entry">QMK Settings</div>' : ''}</div>`
+  + `<div class="main">${stripHtml()}<div class="boardarea">${boardSvg()}</div><div class="panel">${renderPanel()}</div></div></div>`;
+  if (document.getElementById('strip')) placeStrip();
+}
+
+// The strip is one row and scrolls sideways when its slots do not fit, as every strip in Nazg.
+function placeStrip() {
+  const s = document.getElementById('strip');
+  s.style.scrollBehavior = 'auto';
+  s.scrollLeft = state.stripScroll;
+  const on = s.querySelector('button.on');
+  if (on) {
+    const l = on.offsetLeft - s.offsetLeft, r = l + on.offsetWidth;
+    if (l < s.scrollLeft) s.scrollLeft = l - 30;
+    else if (r > s.scrollLeft + s.clientWidth) s.scrollLeft = r - s.clientWidth + 30;
+  }
+  s.style.scrollBehavior = '';
+  s.onscroll = stripEdges;
+  s.onwheel = e => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && s.scrollWidth > s.clientWidth) { e.preventDefault(); s.scrollLeft += e.deltaY; } };
+  stripEdges();
+}
+function stripEdges() {
+  const s = document.getElementById('strip'), w = s.parentElement;
+  state.stripScroll = s.scrollLeft;
+  const more = s.scrollWidth > s.clientWidth + 1;
+  w.querySelector('.fade.l').classList.toggle('on', more && s.scrollLeft > 1);
+  w.querySelector('.fade.r').classList.toggle('on', more && s.scrollLeft < s.scrollWidth - s.clientWidth - 1);
+  w.querySelectorAll('[data-scroll]').forEach(b => {
+    b.style.display = more ? '' : 'none';
+    b.disabled = !more || (+b.dataset.scroll < 0 ? s.scrollLeft <= 1 : s.scrollLeft >= s.scrollWidth - s.clientWidth - 1);
+  });
+}
+
+function renderControls() {
+  const c = document.getElementById('controls');
+  c.innerHTML = '';
+  [['setup', 'Board', Object.keys(SETUPS)],
+   ['slots', 'Slots', ['Strip, numbered', 'Strip, by their keys', 'List in the panel']],
+   ['show', 'The board shows', ['The selected combo', 'Every combo']],
+   ['from', 'Inputs from', ['Board and picker', 'Picker only']],
+   ['termAt', 'Combo term', ['In the panel', 'In QMK Settings only']],
+   ['roll', 'Typing-roll warning', ['Shown', 'Hidden']],
+   ['theme', 'Theme', ['Light', 'Dark']]].forEach(([k, name, values]) => {
+    const g = document.createElement('div'); g.className = 'group';
+    g.innerHTML = `<span class="name">${name}</span>`;
+    values.forEach(v => {
+      const bt = document.createElement('button'); bt.textContent = v;
+      if (state[k] === v) bt.className = 'on';
+      bt.onclick = () => { const was = state.setup; state[k] = v; if (k === 'setup' && was !== v) reset(); state.msg = null; render(); };
+      g.appendChild(bt);
+    });
+    c.appendChild(g);
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Editing. An input or the output is selected; a picked key sets it. A click on a board key adds
+// what it sends to the inputs, or takes it out when it is in already.
+function compact(c) { const e = c.ins.filter(Boolean); c.ins = [...e, null, null, null, null].slice(0, 4); }
+function changed() { state.msg = null; }
+const frame = document.getElementById('frame');
+frame.addEventListener('click', e => {
+  const t = e.target.closest('[data-scroll],[data-cb],[data-sel],[data-key],[data-tab],[data-act],[data-fix],[data-kidx]');
+  if (!t) return;
+  const d = t.dataset, c = cur();
+  if (d.scroll !== undefined) { const s = document.getElementById('strip'); s.scrollLeft += +d.scroll * (s.clientWidth - 60); return; }
+  if (d.cb !== undefined) { state.cb = +d.cb; state.sel = isEmpty(cur()) ? 'in0' : 'out'; state.msg = null; }
+  else if (d.sel !== undefined) state.sel = d.sel;
+  else if (d.tab !== undefined) state.tab = d.tab;
+  else if (d.kidx !== undefined) {
+    if (state.from !== 'Board and picker') return;
+    const kc = BOARD.sends[+d.kidx][0];
+    if (!kc || kc === 'KC_NO') return;
+    const at = c.ins.indexOf(kc);
+    if (at >= 0) { c.ins[at] = null; compact(c); }
+    else if (c.ins.filter(Boolean).length < 4) { compact(c); c.ins[c.ins.indexOf(null)] = kc; }
+    else { state.msg = ['warn', 'A combo takes four keys at most']; render(); return; }
+    const free = c.ins.indexOf(null);
+    state.sel = c.out ? 'out' : (effective(c).length >= 2 ? 'out' : (free >= 0 ? 'in' + free : 'out'));
+    changed();
+  }
+  else if (d.key !== undefined) {
+    if (locked() && d.key === 'QK_BOOT' && state.sel === 'out') return;
+    if (state.sel === 'out') c.out = O(d.key, ...(c.out ? c.out.mods : []));
+    else {
+      const i = +state.sel.slice(2);
+      if (c.ins.includes(d.key) && c.ins[i] !== d.key) { state.msg = ['warn', `${legend(d.key)} is in this combo already`]; render(); return; }
+      c.ins[i] = d.key; compact(c);
+      const free = c.ins.indexOf(null);
+      state.sel = effective(c).length < 2 && free >= 0 ? 'in' + free : (c.out ? 'in' + c.ins.indexOf(d.key) : 'out');
+    }
+    changed();
+  }
+  else if (d.fix !== undefined) {
+    if (d.fix === 'gap') compact(c);
+    else if (d.fix.startsWith('mt:')) { const kc = d.fix.slice(3); c.ins[c.ins.indexOf(kc)] = modTapOf(kc); }
+    changed();
+  }
+  else if (d.act === 'remove') { c.ins[+state.sel.slice(2)] = null; compact(c); state.sel = 'out'; changed(); }
+  else if (d.act === 'empty') { c.out = null; changed(); }
+  else if (d.act === 'clear') { c.ins = [null, null, null, null]; c.out = null; state.sel = 'in0'; changed(); }
+  else if (d.act === 'new') { const i = state.combos.findIndex(isEmpty); if (i < 0) { state.msg = ['warn', 'Every slot is in use']; } else { state.cb = i; state.sel = 'in0'; } }
+  else if (d.act === 'save') { state.saved = JSON.stringify(state.combos); state.msg = ['ok', 'Stored -- every changed combo, read back the same']; }
+  else if (d.act === 'revert') { state.combos = savedList(); state.msg = null; }
+  render();
+});
+frame.addEventListener('change', e => {
+  if (e.target.dataset.term !== undefined) { state.term = Math.min(10000, Math.max(0, parseInt(e.target.value) || 0)); render(); }
+  if (e.target.dataset.mods !== undefined) { const v = e.target.value; cur().out.mods = v === 'None' ? [] : [v]; changed(); render(); }
+});
+
+document.getElementById('notes').innerHTML = `
+<p><b>What a combo is.</b> Up to four keys pressed together send another key instead of themselves -- J and K for Esc.
+The inputs are <b>keycodes</b>, matched against what the keys send on the active layer, in any order, each within the
+<b>combo term</b> of the last (50 ms by default). Every key in a combo pays for it: typed alone, it waits up to the term
+before being sent. Held, the output stays held while the keys are. Vial only -- VIA has none -- 4 to 32 slots by
+EEPROM, up to 69 when a keymap says so. The facts, from QMK's process_combo.c, are in ui-design.md.</p>
+<p><b>No key names a combo slot</b>, unlike a macro (M3) or a tap dance (TD 3): the slot number means nothing to the
+user. Hence <b>Slots</b>: <b>numbered in the strip</b> as Tap Dance (C 0..C 31, an empty one outlined); <b>named by their
+keys in the strip</b>, the empty slots folded into one "+ New" -- the output on hover; or <b>a list in the panel</b>, each
+row the whole combo, and no strip. A "!" marks a combo with a warning.</p>
+<p><b>The board shows</b> where the inputs are, since a keycode alone does not say: <b>the selected combo</b> -- its keys lit
+and linked to a small key saying what it sends, nothing else marked (an amber dot on every other key in a combo read as a warning: dropped) -- or <b>every combo</b> as
+such a small key between its inputs, keymap-drawer's way (the drawings split-keyboard users share), the selected one in
+blue; a click on one selects it. An input found on layer 1 only is lit with its layer-1 legend and "L1" (the Corne's
+arrows, C 7). An input no key sends, where a home-row key sends it inside a mod-tap, outlines that key dashed (the
+Corne's A, C 6).</p>
+<p><b>Inputs from</b>: <b>the board and the picker</b> -- a click on a key adds what it sends (layer 0), a second click
+takes it out, the picker for anything else; or <b>the picker only</b>, Vial's way.</p>
+<p><b>What is said</b>, under the chord, is what Vial never says: what the combo does and costs, then what is wrong --
+an input no key sends (and the mod-tap that does, with a button to use it), an input after an empty one, which the
+firmware never reaches (C 8, as Vial lets it be stored; with a button to close the gap), one key alone, no output,
+two combos with the same keys (C 0 and C 12: the later slot wins), one combo inside another (C 0 inside C 2: the longer
+wins). <b>Typing-roll warning</b>, provisional: two letters often typed one after the other (E and R, C 4) fire the
+combo on fast typing -- English pairs only here, and which language is the question.</p>
+<p><b>Combo term</b>: one for all combos, QMK Settings' "Time out period for combos". <b>In the panel</b> beside the chord,
+also in QMK Settings; or <b>in QMK Settings only</b>, the sentence naming it. A board without QMK Settings (the Corne
+here) has a term no app can read: said, not shown as a number.</p>
+<p><b>Writing</b>: Save / Revert, as Macros and Tap Dance (not a variant here). <b>Locked</b>: Vial's firewall applies to
+the output only, so Boot is greyed there and not as an input.</p>`;
+
+render();
+</script>
+</body>
+</html>

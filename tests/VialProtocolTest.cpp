@@ -12,6 +12,7 @@
 
 #include "adapters/vial/NazgVialProtocol.h"
 #include "adapters/vial/NazgVialLoader.h"
+#include "model/NazgCombo.h"
 #include "model/NazgTapDance.h"
 
 #include "FakeDeviceChannel.h"
@@ -200,6 +201,82 @@ namespace
         Check(Throws([&] { Run(vial.GetTapDance(40)); }), "a slot past the count answers a non-zero status");
     }
 
+    // A combo slot: a status byte, then four inputs and the output, little-endian as the tap dances.
+    void TestCombo()
+    {
+        std::printf("combo get and set\n");
+
+        FakeDeviceChannel channel;
+        VialProtocol      vial(channel);
+
+        // J + K (0x0D, 0x0E) for Esc (0x29); the other two inputs empty.
+        std::vector<uint8_t> reply(nazg::c_ViaReportSize, 0x00);
+        const uint8_t entry[] = { 0x0D, 0x00,  0x0E, 0x00,  0x00, 0x00,  0x00, 0x00,  0x29, 0x00 };
+        std::copy(std::begin(entry), std::end(entry), reply.begin() + 1);
+        channel.ReplyRaw(reply);
+
+        const nazg::VialComboEntry read = Run(vial.GetCombo(2));
+        Check(read.inputs[0] == 0x000D && read.inputs[1] == 0x000E && read.inputs[2] == 0 && read.inputs[3] == 0,
+              "the four inputs, an empty one 0");
+        Check(read.output == 0x0029, "the output follows them");
+        Check(channel.RequestAt(0)[2] == 0x03 && channel.RequestAt(0)[3] == 2, "get is the entry op's 0x03, then the slot");
+
+        channel.ReplyRaw(std::vector<uint8_t>(nazg::c_ViaReportSize, 0x00));
+        Run(vial.SetCombo(7, read));
+        const std::vector<uint8_t> sent = channel.RequestAt(1);
+        Check(sent[2] == 0x04 && sent[3] == 7, "set is the entry op's 0x04, then the slot");
+        Check(std::equal(std::begin(entry), std::end(entry), sent.begin() + 4), "the entry follows, as the board stores it");
+
+        const nazg::Combo combo = nazg::DecodeCombo(read, nazg::QmkKeycodeVersion::V0_0_7);
+        Check(combo.MatchedInputs() == std::vector<nazg::Keycode>{ nazg::NamedKey{ "KC_J" }, nazg::NamedKey{ "KC_K" } } &&
+                  combo.output == nazg::Keycode{ nazg::NamedKey{ "KC_ESC" } },
+              "decoded: J and K for Esc");
+        Check(nazg::EncodeCombo(combo, nazg::QmkKeycodeVersion::V0_0_7) == read, "and encoded back unchanged");
+
+        // A gap the board holds stays one, both ways.
+        nazg::VialComboEntry gap = read;
+        gap.inputs               = { 0x001D, 0x0000, 0x001B, 0x0000 };
+        Check(nazg::DecodeCombo(gap, nazg::QmkKeycodeVersion::V0_0_7).HasGap(), "Z, nothing, X: a gap");
+        Check(nazg::EncodeCombo(nazg::DecodeCombo(gap, nazg::QmkKeycodeVersion::V0_0_7), nazg::QmkKeycodeVersion::V0_0_7) == gap,
+              "written back where it was");
+
+        std::vector<uint8_t> refused(nazg::c_ViaReportSize, 0x00);
+        refused[0] = 0xFF;
+        channel.ReplyRaw(refused);
+        Check(Throws([&] { Run(vial.GetCombo(40)); }), "a slot past the count answers a non-zero status");
+    }
+
+    // One QMK setting: its id little-endian; the value after a status byte, as wide as the setting
+    // -- the firmware leaves the rest of the request in place.
+    void TestQmkSetting()
+    {
+        std::printf("QMK setting get and set\n");
+
+        FakeDeviceChannel channel;
+        VialProtocol      vial(channel);
+
+        // The request comes back with the status and a u16 written over its start.
+        std::vector<uint8_t> reply(nazg::c_ViaReportSize, 0x00);
+        reply[0] = 0x00;                    // status
+        reply[1] = 0x2C; reply[2] = 0x01;   // 300 ms
+        reply[3] = 0x00;                    // the request's id, high byte, left in place
+        channel.ReplyRaw(reply);
+        Check(Run(vial.GetQmkSetting(nazg::c_QmkSettingComboTerm, 2)) == 300, "a u16 setting reads two bytes");
+        Check(channel.RequestAt(0)[1] == 0x0A && channel.RequestAt(0)[2] == 0x02 && channel.RequestAt(0)[3] == 0x00,
+              "get is 0x0A, then the id, little-endian");
+
+        channel.ReplyRaw(std::vector<uint8_t>(nazg::c_ViaReportSize, 0x00));
+        Run(vial.SetQmkSetting(nazg::c_QmkSettingComboTerm, 45));
+        const std::vector<uint8_t> sent = channel.RequestAt(1);
+        Check(sent[1] == 0x0B && sent[2] == 0x02 && sent[3] == 0x00, "set is 0x0B, then the id");
+        Check(sent[4] == 45 && sent[5] == 0 && sent[6] == 0 && sent[7] == 0, "then the value, little-endian");
+
+        std::vector<uint8_t> refused(nazg::c_ViaReportSize, 0x00);
+        refused[0] = 0xFF;
+        channel.ReplyRaw(refused);
+        Check(Throws([&] { Run(vial.GetQmkSetting(0x7777, 2)); }), "a setting the firmware lacks: a non-zero status");
+    }
+
     // The QMK settings a firmware has, above the id asked from: the ids, 0xFFFF filling the rest.
     void TestQmkSettingsQuery()
     {
@@ -241,9 +318,9 @@ namespace
 
         Check(!status.unlocked, "the board reports itself locked");
         Check(status.inProgress, "an unlock is in progress");
-        Check(status.combo.size() == 2, "the 0xFF fill terminates the combo list");
-        Check(status.combo[0] == std::make_pair<uint8_t, uint8_t>(3, 4), "first key is (row, column)");
-        Check(status.combo[1] == std::make_pair<uint8_t, uint8_t>(5, 6), "second key follows");
+        Check(status.unlockKeys.size() == 2, "the 0xFF fill ends the list of unlock keys");
+        Check(status.unlockKeys[0] == std::make_pair<uint8_t, uint8_t>(3, 4), "first key is (row, column)");
+        Check(status.unlockKeys[1] == std::make_pair<uint8_t, uint8_t>(5, 6), "second key follows");
     }
 
     // Start, poll, lock: start and lock answer with their own request echoed, which must
@@ -449,6 +526,8 @@ int main()
     TestImplausibleDefinitionSizeIsRefused();
     TestEntryCounts();
     TestTapDance();
+    TestCombo();
+    TestQmkSetting();
     TestQmkSettingsQuery();
     TestUnlockStatus();
     TestUnlockCommands();

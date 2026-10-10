@@ -473,6 +473,42 @@ namespace nazg
             }
         }
 
+        // Each tag over the legends: its lines first, from the keys' centres to it, then the tag --
+        // a rounded box in the picker's group-title colours, outlined in the highlight's.
+        void DrawTags(ImDrawList* drawList, const BoardDescription& board, ImVec2 origin, float unit)
+        {
+            const float scale     = ImGui::GetStyle().FontScaleDpi;
+            const float thickness = std::max(2.0f, unit * 0.05f);
+
+            for (const BoardTag& tag : board.tags)
+            {
+                std::vector<ImVec2> centres;
+                for (size_t key : tag.keys)
+                    if (key < board.keys.size())
+                        centres.push_back(CentreOnScreen(board, key, origin, unit));
+                if (centres.empty())
+                    continue;
+
+                ImVec2 at(0.0f, 0.0f);
+                for (const ImVec2& centre : centres)
+                    at = ImVec2(at.x + centre.x / centres.size(), at.y + centre.y / centres.size());
+                if (centres.size() == 1)
+                    at.y += unit * 0.42f;   // a key alone: under its legend, not over it
+
+                if (centres.size() > 1)
+                    for (const ImVec2& centre : centres)
+                        drawList->AddLine(centre, at, BoardColours::Line(Mark::Highlighted), thickness);
+
+                const ImVec2 text = ImGui::CalcTextSize(tag.text.c_str());
+                const ImVec2 half(text.x / 2 + 6 * scale, text.y / 2 + 2 * scale);
+                const ImVec2 p0(at.x - half.x, at.y - half.y), p1(at.x + half.x, at.y + half.y);
+                drawList->AddRectFilled(p0, p1, BoardColours::GroupLabel(), half.y);
+                drawList->AddRect(p0, p1, BoardColours::Highlighted(), half.y, 0, std::max(1.0f, 1.5f * scale));
+                drawList->AddText(ImVec2(at.x - text.x / 2, at.y - text.y / 2), BoardColours::GroupLabelText(),
+                                  tag.text.c_str());
+            }
+        }
+
         // Each label centred on its key nearest the edge -- a column's on its top key, a row's on
         // its leftmost, where the eye looks for it; the first of equals wins -- and nudged apart
         // so none overlaps. An average of the keys drifted: a column's keys differ in width, so
@@ -633,6 +669,7 @@ namespace nazg
         for (const BoardKey& key : board.keys)
             if (!key.geometry.decal)
                 (void)DrawKey(drawList, origin, unit, key, canHover, KeyPass::Legends);
+        DrawTags(drawList, board, origin, unit);
         DrawEdgeLabels(drawList, board, corner, origin, unit, leftMargin, canHover, events);
 
         // Claim the space drawn into, so the child scrolls around the board.

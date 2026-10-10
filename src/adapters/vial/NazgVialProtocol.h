@@ -26,6 +26,8 @@
 
 #pragma once
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <utility>
@@ -100,14 +102,29 @@ namespace nazg
         bool operator==(const VialTapDanceEntry&) const = default;
     };
 
+    // One combo slot as the board stores it, `vial_combo_entry_t`: four input keycodes -- the first
+    // 0 (COMBO_END) ending them, so an input after an empty one is never matched -- and the output,
+    // 0 where empty. A slot whose first input is 0 is unused.
+    struct VialComboEntry
+    {
+        std::array<uint16_t, 4> inputs{};
+        uint16_t                output = 0;
+
+        bool operator==(const VialComboEntry&) const = default;
+    };
+
+    // QMK Settings' id for the combo term, `combo_term`: one u16 in milliseconds for every combo.
+    inline constexpr uint16_t c_QmkSettingComboTerm = 2;
+
     struct VialUnlockStatus
     {
         bool unlocked   = false;
         bool inProgress = false;
 
-        // The matrix positions to hold down, as (row, column). Empty on a VIAL_INSECURE
-        // build, which reports itself unlocked and lists no combo.
-        std::vector<std::pair<uint8_t, uint8_t>> combo;
+        // The keys to hold down to unlock, by matrix position, as (row, column) -- Vial calls them
+        // its unlock combo, nothing to do with the Combos feature. Empty on a VIAL_INSECURE build,
+        // which reports itself unlocked and lists none.
+        std::vector<std::pair<uint8_t, uint8_t>> unlockKeys;
     };
 
     // How far an unlock has got, from 0xFE 0x07.
@@ -148,6 +165,18 @@ namespace nazg
         [[nodiscard]] Task<VialTapDanceEntry> GetTapDance(uint8_t index);
         [[nodiscard]] Task<void>              SetTapDance(uint8_t index, const VialTapDanceEntry& entry);
 
+        // 0xFE 0x0D 0x03 / 0x04: one combo slot, read or written, as the tap dances. Only the output
+        // passes Vial's keycode firewall; the inputs are stored as sent.
+        [[nodiscard]] Task<VialComboEntry> GetCombo(uint8_t index);
+        [[nodiscard]] Task<void>           SetCombo(uint8_t index, const VialComboEntry& entry);
+
+        // 0xFE 0x0A / 0x0B: one QMK setting's value, `width` bytes little-endian (1, 2 or 4 -- the
+        // setting's own; the firmware writes only that many over the request). A write sends four
+        // bytes, of which the firmware takes its width. A setting the firmware lacks answers a
+        // non-zero status, thrown as a ProtocolError; QMK settings compiled out echo the request.
+        [[nodiscard]] Task<uint32_t> GetQmkSetting(uint16_t id, size_t width);
+        [[nodiscard]] Task<void>     SetQmkSetting(uint16_t id, uint32_t value);
+
         // 0xFE 0x09, from Vial protocol 4: the QMK settings this firmware has with an id above
         // `after`, as many as one report holds -- query again from the last to have them all.
         // None when QMK settings are compiled out: the firmware fills the report with 0xFF.
@@ -158,13 +187,13 @@ namespace nazg
         // something else.
         [[nodiscard]] Task<VialUnlockStatus> GetUnlockStatus();
 
-        // 0xFE 0x06. The board starts an unlock: it counts down while the combo is held.
+        // 0xFE 0x06. The board starts an unlock: it counts down while the unlock keys are held.
         // Until it succeeds or the board restarts, the board drops every command but the few
         // an unlock needs -- echoing each back unanswered, so a keymap read returns garbage
         // and a write seems to succeed. Nothing cancels it.
         [[nodiscard]] Task<void> StartUnlock();
 
-        // 0xFE 0x07. A poll counts one step down when the combo is held and more than 100 ms
+        // 0xFE 0x07. A poll counts one step down when the unlock keys are held and more than 100 ms
         // have passed since the last step; any other poll -- a key released, or one too soon
         // -- starts the countdown over. So polls must come more than 100 ms apart, and an
         // unlock takes c_VialUnlockSteps of them.

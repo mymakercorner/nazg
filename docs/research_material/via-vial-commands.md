@@ -253,6 +253,10 @@ Entry structs are transferred **raw, little-endian, exactly as stored in EEPROM*
 | key override | 10 | `trigger` u16, `replacement` u16, `layers` u16, `trigger_mods`, `negative_mod_mask`, `suppressed_mods`, `options` (u8) |
 | alt repeat key | 6 | `keycode` u16, `alt_keycode` u16, `allowed_mods` u8, `options` u8 |
 
+A combo's `input[]` ends at the first `0` (`COMBO_END`), so an input after an empty one is
+never matched; a slot with `input[0] == 0` is unused. Only `output` passes the keycode
+firewall; the inputs are stored as sent.
+
 `options` carries the enable bit in each case (`vial_ko_enabled = 1 << 7`,
 `vial_arep_enabled = 1 << 3`), so "is this entry in use" is a flag in the struct, not a
 separate query.

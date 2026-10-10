@@ -21,6 +21,7 @@
 #include "ui/NazgKeyLine.h"
 #include "ui/NazgKeycapLegend.h"
 #include "ui/NazgKeycodeCatalogue.h"
+#include "ui/NazgSlotParts.h"
 #include "ui/NazgTheme.h"
 
 namespace nazg
@@ -124,10 +125,7 @@ namespace nazg
         for (size_t dance = 0; dance < m_Dances.size(); ++dance)
             if (IsChanged(dance))
                 changed.push_back("TD " + std::to_string(dance));
-        std::string summary;
-        for (size_t index = 0; index < changed.size(); ++index)
-            summary += (index == 0 ? "" : index + 1 == changed.size() ? " and " : ", ") + changed[index];
-        return summary;
+        return JoinNames(changed);
     }
 
     // How many keys, on every layer, hold TD(dance) -- by matrix position, so a key drawn in several
@@ -192,13 +190,10 @@ namespace nazg
                     key.marks |= Mark::Highlighted;
                 break;
             }
-
-            // Locked: the keys to hold to unlock -- for Boot, the one action a locked board refuses.
-            if (IsLocked())
-                for (const auto& [row, column] : m_Lock->combo)
-                    if (key.geometry.row == row && key.geometry.column == column)
-                        key.marks |= Mark::Warning;
         }
+
+        // Locked: the keys to hold to unlock -- for Boot, the one action a locked board refuses.
+        MarkUnlockKeys(board, m_Lock);
     }
 
     void TapDanceSection::OnBoardEvents(const BoardDescription& board, const BoardEvents& events)
@@ -323,16 +318,10 @@ namespace nazg
         {
             if (!m_Request.IsValid() && m_Message.empty())
                 m_Request = Load();
-            if (IsBusy())
-                ImGui::TextDisabled("Reading the tap dances...");
-            else if (!m_Message.empty())
+            if (DrawReading("tap dances", IsBusy(), m_Message))
             {
-                ColouredText(PanelColour::Error, "%s", m_Message.c_str());
-                if (ImGui::Button("Try again"))
-                {
-                    m_Message.clear();
-                    m_Request = Load();
-                }
+                m_Message.clear();
+                m_Request = Load();
             }
             return;
         }
@@ -383,30 +372,14 @@ namespace nazg
 
         ImGui::SameLine();
         const bool changed = HasUnsavedChanges();
-        if (IsBusy())
-            ColouredText(PanelColour::Muted, "Writing...");
-        else if (changed)
-            ColouredText(PanelColour::Warning, "Not written yet -- %s changed", UnsavedSummary().c_str());
-        else if (!m_Message.empty())
-            ColouredText(m_IsWarning ? PanelColour::Warning : PanelColour::Success, "%s", m_Message.c_str());
-        else
-            ColouredText(PanelColour::Muted, "Changes are written by Save.");
-
-        // Save and Revert, at the right.
-        const ImGuiStyle& style   = ImGui::GetStyle();
-        const float       buttons = ImGui::CalcTextSize("Save").x + ImGui::CalcTextSize("Revert").x +
-                                    4 * style.FramePadding.x + style.ItemSpacing.x;
+        DrawWriteState(IsBusy(), changed ? UnsavedSummary() : std::string(), m_Message, m_IsWarning);
         ImGui::SameLine();
-        ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), ImGui::GetWindowContentRegionMax().x - buttons));
-        ImGui::BeginDisabled(!changed || IsBusy());
-        if (ImGui::Button("Save"))
-            SaveChanges();
-        ImGui::EndDisabled();
-        ImGui::SameLine();
-        ImGui::BeginDisabled(!changed || IsBusy());
-        if (ImGui::Button("Revert"))
-            DiscardChanges();
-        ImGui::EndDisabled();
+        switch (DrawSaveRevert(changed && !IsBusy(), changed && !IsBusy()))
+        {
+        case SlotWrite::Save: SaveChanges(); break;
+        case SlotWrite::Revert: DiscardChanges(); break;
+        case SlotWrite::None: break;
+        }
     }
 
     // The four actions side by side, each a card: its name, the drawing of its gesture, its key --
@@ -424,8 +397,9 @@ namespace nazg
         ImDrawList*       list  = ImGui::GetWindowDrawList();
         const ImU32       muted = ImGui::GetColorU32(ImGuiCol_TextDisabled);
         const ImU32       text  = ImGui::GetColorU32(ImGuiCol_Text);
+        const std::vector<Words> custom = CustomKeycodeWordsOf(m_Keyboard);   // outlives the context's span
         const LegendContext legends{ m_Legends.Layout(), m_Legends.modifierNames, KeySide::Neither,
-                                     LightingSystemsOf(m_Keyboard), CustomKeycodeWordsOf(m_Keyboard) };
+                                     LightingSystemsOf(m_Keyboard), custom };
 
         ImGui::Dummy(ImVec2(0, gap / 2));
         const ImVec2 origin = ImGui::GetCursorScreenPos();

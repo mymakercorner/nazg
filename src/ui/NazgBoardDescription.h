@@ -10,7 +10,7 @@
 // (ui/NazgTheme.h), and a restyle touches only those. No pixels either: positions are in
 // key units, as in the definition. The six rules below are ui-design.md's, "How a section
 // describes the board", checked there against the Leyden Jar tool's keys, keycap colour
-// themes and sublegends.
+// themes and sublegends -- and a seventh since, the Combos section's tags.
 //
 // Pure data, no ImGui, so it tests with literals.
 
@@ -150,11 +150,21 @@ namespace nazg
         uint8_t             marks = 0;   // Highlighted, HighlightedSecond, Dimmed, Struck, Checked
     };
 
+    // Rule 7: keys joined by a small tag saying what they do together -- the Combos section's
+    // chord and what it sends. A line from the tag to each key's centre; the tag at the mean of
+    // the centres, or under a key alone, over the legends.
+    struct BoardTag
+    {
+        std::vector<size_t> keys;   // indices into BoardDescription::keys
+        std::string         text;
+    };
+
     struct BoardDescription
     {
         std::vector<BoardKey>  keys;
         std::vector<BoardLine> lines;
         std::vector<EdgeLabel> labels;
+        std::vector<BoardTag>  tags;
     };
 
     // Rule 6: hover shared both ways. What the board saw this frame, told to the section --

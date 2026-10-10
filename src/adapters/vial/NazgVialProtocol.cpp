@@ -164,6 +164,56 @@ namespace nazg
             throw ProtocolError("the board has no tap dance " + std::to_string(index));
     }
 
+    Task<VialComboEntry> VialProtocol::GetCombo(uint8_t index)
+    {
+        std::vector<uint8_t> reply = co_await SendVial(VialCommand::DynamicEntryOp,
+                                                       { static_cast<uint8_t>(VialDynamicEntry::ComboGet), index });
+        if (reply[0] != 0)
+            throw ProtocolError("the board has no combo " + std::to_string(index));
+
+        VialComboEntry entry;
+        for (size_t input = 0; input < entry.inputs.size(); ++input)
+            entry.inputs[input] = ReadLittleEndian16(reply, 1 + 2 * input);
+        entry.output = ReadLittleEndian16(reply, 9);
+        co_return entry;
+    }
+
+    Task<void> VialProtocol::SetCombo(uint8_t index, const VialComboEntry& entry)
+    {
+        const auto lo = [](uint16_t value) { return static_cast<uint8_t>(value & 0xFF); };
+        const auto hi = [](uint16_t value) { return static_cast<uint8_t>(value >> 8); };
+        const std::array<uint16_t, 4>& in = entry.inputs;
+        std::vector<uint8_t> reply = co_await SendVial(
+            VialCommand::DynamicEntryOp,
+            { static_cast<uint8_t>(VialDynamicEntry::ComboSet), index, lo(in[0]), hi(in[0]), lo(in[1]), hi(in[1]),
+              lo(in[2]), hi(in[2]), lo(in[3]), hi(in[3]), lo(entry.output), hi(entry.output) });
+        if (reply[0] != 0)
+            throw ProtocolError("the board has no combo " + std::to_string(index));
+    }
+
+    Task<uint32_t> VialProtocol::GetQmkSetting(uint16_t id, size_t width)
+    {
+        std::vector<uint8_t> reply = co_await SendVial(VialCommand::QmkSettingsGet,
+                                                       { static_cast<uint8_t>(id & 0xFF), static_cast<uint8_t>(id >> 8) });
+        if (reply[0] != 0)
+            throw ProtocolError("the board has no QMK setting " + std::to_string(id));
+
+        uint32_t value = 0;
+        for (size_t byte = 0; byte < std::min<size_t>(width, 4); ++byte)
+            value |= static_cast<uint32_t>(reply[1 + byte]) << (8 * byte);
+        co_return value;
+    }
+
+    Task<void> VialProtocol::SetQmkSetting(uint16_t id, uint32_t value)
+    {
+        const auto byte = [value](int n) { return static_cast<uint8_t>((value >> (8 * n)) & 0xFF); };
+        std::vector<uint8_t> reply = co_await SendVial(VialCommand::QmkSettingsSet,
+                                                       { static_cast<uint8_t>(id & 0xFF), static_cast<uint8_t>(id >> 8),
+                                                         byte(0), byte(1), byte(2), byte(3) });
+        if (reply[0] != 0)
+            throw ProtocolError("the board refused QMK setting " + std::to_string(id));
+    }
+
     Task<std::vector<uint16_t>> VialProtocol::QueryQmkSettings(uint16_t after)
     {
         std::vector<uint8_t> reply = co_await SendVial(VialCommand::QmkSettingsQuery,
@@ -193,7 +243,7 @@ namespace nazg
             if (reply[offset] == 0xFF)
                 break;
 
-            status.combo.emplace_back(reply[offset], reply[offset + 1]);
+            status.unlockKeys.emplace_back(reply[offset], reply[offset + 1]);
         }
 
         co_return status;

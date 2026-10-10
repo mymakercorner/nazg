@@ -24,6 +24,7 @@
 #include "ui/NazgKeyLine.h"
 #include "ui/NazgKeycapLegend.h"
 #include "ui/NazgKeycodeCatalogue.h"
+#include "ui/NazgSlotParts.h"
 #include "ui/NazgTheme.h"
 
 namespace nazg
@@ -158,10 +159,7 @@ namespace nazg
         for (size_t macro = 0; macro < m_Macros.size(); ++macro)
             if (IsChanged(macro))
                 changed.push_back("M" + std::to_string(macro));
-        std::string summary;
-        for (size_t index = 0; index < changed.size(); ++index)
-            summary += (index == 0 ? "" : index + 1 == changed.size() ? " and " : ", ") + changed[index];
-        return summary;
+        return JoinNames(changed);
     }
 
     Strip MacrosSection::DescribeStrip() const
@@ -211,13 +209,10 @@ namespace nazg
                     key.marks |= Mark::Highlighted;
                 break;
             }
-
-            // Locked: the keys to hold to unlock.
-            if (IsLocked())
-                for (const auto& [row, column] : m_Lock->combo)
-                    if (key.geometry.row == row && key.geometry.column == column)
-                        key.marks |= Mark::Warning;
         }
+
+        // Locked: the keys to hold to unlock.
+        MarkUnlockKeys(board, m_Lock);
     }
 
     void MacrosSection::OnBoardEvents(const BoardDescription& board, const BoardEvents& events)
@@ -457,16 +452,10 @@ namespace nazg
         {
             if (!m_Request.IsValid() && m_Message.empty())
                 m_Request = Load();
-            if (IsBusy())
-                ImGui::TextDisabled("Reading the macros...");
-            else if (!m_Message.empty())
+            if (DrawReading("macros", IsBusy(), m_Message))
             {
-                ColouredText(PanelColour::Error, "%s", m_Message.c_str());
-                if (ImGui::Button("Try again"))
-                {
-                    m_Message.clear();
-                    m_Request = Load();
-                }
+                m_Message.clear();
+                m_Request = Load();
             }
             return;
         }
@@ -554,30 +543,15 @@ namespace nazg
         const bool changed = HasUnsavedChanges();
         if (IsLocked())
             ColouredText(PanelColour::Warning, "Locked: macros can be read, not written");
-        else if (IsBusy())
-            ColouredText(PanelColour::Muted, "Writing...");
-        else if (changed)
-            ColouredText(PanelColour::Warning, "Not written yet -- %s changed", UnsavedSummary().c_str());
-        else if (!m_Message.empty())
-            ColouredText(m_IsWarning ? PanelColour::Warning : PanelColour::Success, "%s", m_Message.c_str());
         else
-            ColouredText(PanelColour::Muted, "Changes are written by Save.");
-
-        // Save and Revert, at the right.
-        const ImGuiStyle& style = ImGui::GetStyle();
-        const float buttons = ImGui::CalcTextSize("Save").x + ImGui::CalcTextSize("Revert").x +
-                              4 * style.FramePadding.x + style.ItemSpacing.x;
+            DrawWriteState(IsBusy(), changed ? UnsavedSummary() : std::string(), m_Message, m_IsWarning);
         ImGui::SameLine();
-        ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), ImGui::GetWindowContentRegionMax().x - buttons));
-        ImGui::BeginDisabled(!changed || IsBusy() || IsLocked() || total > m_BufferSize);
-        if (ImGui::Button("Save"))
-            SaveChanges();
-        ImGui::EndDisabled();
-        ImGui::SameLine();
-        ImGui::BeginDisabled(!changed || IsBusy());
-        if (ImGui::Button("Revert"))
-            DiscardChanges();
-        ImGui::EndDisabled();
+        switch (DrawSaveRevert(changed && !IsBusy() && !IsLocked() && total <= m_BufferSize, changed && !IsBusy()))
+        {
+        case SlotWrite::Save: SaveChanges(); break;
+        case SlotWrite::Revert: DiscardChanges(); break;
+        case SlotWrite::None: break;
+        }
     }
 
     void MacrosSection::DrawHostQuestion()

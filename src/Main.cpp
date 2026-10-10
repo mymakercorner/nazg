@@ -26,6 +26,7 @@
 #include "transport/NazgDeviceChannel.h"
 #include "transport/NazgHidTransport.h"
 #include "ui/NazgBoardView.h"
+#include "ui/NazgCombosSection.h"
 #include "ui/NazgDefinitionPicker.h"
 #include "ui/NazgKeyboardList.h"
 #include "ui/NazgKeymapSection.h"
@@ -1457,7 +1458,7 @@ int main(int, char**)
 
                     // A VIAL_INSECURE build reports itself unlocked and has no combo to unlock
                     // with: it has no lock, and the header says nothing.
-                    if (boardState.lock && !(boardState.lock->unlocked && boardState.lock->combo.empty()))
+                    if (boardState.lock && !(boardState.lock->unlocked && boardState.lock->unlockKeys.empty()))
                         header.isLocked = !boardState.lock->unlocked;
                 }
 
@@ -1522,7 +1523,7 @@ int main(int, char**)
                     boardState.matrix->StopLiveTest();
                 if (!boardState.lock->unlocked)
                     boardState.unlock = std::make_unique<nazg::VialUnlock>(
-                        transport, boardState.path, *boardState.keyboard, boardState.lock->combo, settings.legends);
+                        transport, boardState.path, *boardState.keyboard, boardState.lock->unlockKeys, settings.legends);
                 else
                     lockTask = LockBoard(transport, boardState.path, boardState);
             }
@@ -1817,7 +1818,7 @@ int main(int, char**)
                 else if (boardState.keyboard && !boardState.isLoading)
                 {
                     // The sections of a board just loaded: every one it should have, from what the
-                    // load read (ui/NazgSectionPlan.h) -- Keymap and Layout built, the rest placeholders.
+                    // load read (ui/NazgSectionPlan.h) -- those built so far, the rest placeholders.
                     if (boardState.sections.empty())
                         for (nazg::PlannedSection& planned : nazg::PlanSections(*boardState.keyboard))
                         {
@@ -1831,6 +1832,10 @@ int main(int, char**)
                                     settings.hostLayoutChosen, boardState.lock, settings.advancedTools));
                             else if (planned.kind == nazg::SectionKind::TapDance)
                                 boardState.sections.push_back(std::make_unique<nazg::TapDanceSection>(
+                                    transport, boardState.path, *boardState.keyboard, settings.legends, boardState.lock,
+                                    settings.advancedTools));
+                            else if (planned.kind == nazg::SectionKind::Combos)
+                                boardState.sections.push_back(std::make_unique<nazg::CombosSection>(
                                     transport, boardState.path, *boardState.keyboard, settings.legends, boardState.lock,
                                     settings.advancedTools));
                             else if (planned.kind == nazg::SectionKind::Layout)

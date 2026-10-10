@@ -109,6 +109,8 @@ set(NAZG_CORE_SOURCES
   src/model/NazgMacro.cpp
   src/model/NazgTapDance.h
   src/model/NazgTapDance.cpp
+  src/model/NazgCombo.h
+  src/model/NazgCombo.cpp
   src/ui/NazgKeycapLegend.h
   src/ui/NazgKeycapLegend.cpp
   src/ui/NazgHostLayoutTable.cpp
@@ -190,6 +192,10 @@ set(NAZG_SOURCES
   src/ui/NazgMacrosSection.cpp
   src/ui/NazgTapDanceSection.h
   src/ui/NazgTapDanceSection.cpp
+  src/ui/NazgCombosSection.h
+  src/ui/NazgSlotParts.h
+  src/ui/NazgSlotParts.cpp
+  src/ui/NazgCombosSection.cpp
   src/ui/NazgDefinitionPicker.h
   src/ui/NazgDefinitionPicker.cpp
 )
@@ -286,6 +292,7 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(host_typing        tests/HostTypingTest.cpp)
     nazg_add_test(macro_steps        tests/MacroStepsTest.cpp)
     nazg_add_test(tap_dance          tests/TapDanceTest.cpp)
+    nazg_add_test(combo              tests/ComboTest.cpp)
     nazg_add_test(keycap_layout      tests/KeycapLayoutTest.cpp)
     nazg_add_test(palette            tests/PaletteTest.cpp)
     nazg_add_test(board_description  tests/BoardDescriptionTest.cpp)

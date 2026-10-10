@@ -156,4 +156,50 @@ namespace nazg
             dances.push_back(DecodeTapDance(co_await protocol.GetTapDance(index), version));
         co_return dances;
     }
+
+    Combo DecodeCombo(const VialComboEntry& entry, QmkKeycodeVersion version)
+    {
+        const auto decode = [version](uint16_t raw) -> std::optional<Keycode>
+        {
+            if (raw == 0)
+                return std::nullopt;
+            return DecodeQmkKeycode(raw, version);
+        };
+        Combo combo;
+        for (size_t input = 0; input < combo.inputs.size(); ++input)
+            combo.inputs[input] = decode(entry.inputs[input]);
+        combo.output = decode(entry.output);
+        return combo;
+    }
+
+    std::optional<VialComboEntry> EncodeCombo(const Combo& combo, QmkKeycodeVersion version)
+    {
+        const auto encode = [version](const std::optional<Keycode>& keycode) -> std::optional<uint16_t>
+        {
+            if (!keycode)
+                return uint16_t{ 0 };
+            return EncodeQmkKeycode(*keycode, version);
+        };
+        VialComboEntry entry;
+        for (size_t input = 0; input < combo.inputs.size(); ++input)
+        {
+            const std::optional<uint16_t> value = encode(combo.inputs[input]);
+            if (!value)
+                return std::nullopt;
+            entry.inputs[input] = *value;
+        }
+        const std::optional<uint16_t> output = encode(combo.output);
+        if (!output)
+            return std::nullopt;
+        entry.output = *output;
+        return entry;
+    }
+
+    Task<std::vector<Combo>> ReadCombos(VialProtocol& protocol, uint8_t count, QmkKeycodeVersion version)
+    {
+        std::vector<Combo> combos;
+        for (uint8_t index = 0; index < count; ++index)
+            combos.push_back(DecodeCombo(co_await protocol.GetCombo(index), version));
+        co_return combos;
+    }
 }

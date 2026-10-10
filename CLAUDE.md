@@ -46,9 +46,13 @@ exists, where, and how far it has been proven.
   - **Macros** -- a chain edited in place, text typed with the host layout, Save / Revert.
   - **Tap Dance** -- four actions with gesture drawings and fallbacks, Save / Revert. The dances
     are read with the board (`Keyboard::tapDances`), so Keymap draws a TD key from its slot.
+  - **Combos** -- the chord (inputs picked on the board or in the picker, then what they send),
+    the combo term from QMK Settings, what is wrong said with its fix, Save / Revert. Read when
+    the section opens; the board joins the inputs with a tag (`BoardTag`).
   - **Matrix view** (Tools, with *Advanced tools* on) -- wiring and a live test.
   - Every other planned section is a `PlaceholderSection`.
-  - Shared panel parts: `ui/NazgKeycodePicker.*`, `ui/NazgKeyLine.*` (Sent with and its popup).
+  - Shared panel parts: `ui/NazgKeycodePicker.*`, `ui/NazgKeyLine.*` (Sent with and its popup),
+    `ui/NazgSlotParts.*` (what Macros, Tap Dance and Combos repeat: reading, Save / Revert).
 
 ## Proven on hardware, and not
 
@@ -64,6 +68,7 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
 | Picker, board look, matrix wiring (Model F, Concordia) | Pre-renumbering keycodes (`Legacy`) |
 | Macros: save and read-back (Concordia), creation on a Leyden Jar board | A Vial board playing a macro; locked-board writes |
 | Tap Dance (Model F) | `QueryQmkSettings()`; lighting hover notes |
+| | Combos and the combo term, read or written |
 
 ## Traps already found
 
@@ -83,7 +88,7 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
   exit path must enable it again); library export / import (a web-build need).
 
 **Next**: the placeholder sections, each researched, mocked up with variants, chosen by Rico,
-then built -- Combos, Key Overrides, Alt Repeat Key, QMK Settings, Lighting, Audio, custom menus.
+then built -- Key Overrides, Alt Repeat Key, QMK Settings, Lighting, Audio, custom menus.
 
 # Prior research — read before re-researching anything
 

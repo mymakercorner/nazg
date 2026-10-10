@@ -98,6 +98,9 @@ sublegends printed on some keycap sets (Hiragana, Hangul).
    Leyden Jar's `R0…`/`C0…` connectors.
 6. **Hover shared both ways.** The section hears which key or edge label is hovered or
    clicked, and can highlight keys from its panel — not only "a key was clicked".
+7. **Tags joining keys**, added 2026-10-10 for Combos: a small rounded label saying what some
+   keys do together, at the mean of their centres (under a key alone), a line to each — over
+   the legends, in the picker's group-title colours.
 
 **Named colours for panels**: error, warning, success, muted — placeholder values until the
 styling, and the only colours a section may use. `Main.cpp`'s hard-coded `TextColored` calls
@@ -1436,6 +1439,94 @@ drawn today and once read. A TD(n) key is drawn from its slot:
 - **The double tap and tap then hold stay off the key**, with no mark that there is more (Rico: a
   ·· in the corner was the other choice) -- hover lists all four actions and the term.
 - The picker's TD tiles stay "Dance / TD n": they are chosen by slot.
+
+## The Combos section
+
+A combo is a chord: up to four keys pressed together send another key instead of themselves --
+J+K for Esc. Vial only (VIA has none); `COMBO_ENABLE ?= yes` in vial-qmk's `build_vial.mk`, so
+on by default -- 121 of vial-qmk's 623 Vial keymaps turn it off (2026-02 tree). Slots by EEPROM
+size, 4 to 32, but 39 keymaps set their own count, up to 69. 10 bytes a slot, one round trip
+each (via-vial-commands.md, `vial_dynamic_entry_op`). Research 2026-10-10.
+
+What the firmware does, from QMK's `quantum/process_keycode/process_combo.c` (the same in
+Rico's fork and vial-qmk's 2026-02 tree) and vial-qmk's `reload_combo()`, read 2026-10-10:
+
+- **The inputs are keycodes, matched against what a key sends on the active layer** -- not key
+  positions. A combo of `KC_J`+`KC_K` fires from whichever keys send them, from either of two
+  keys sending the same one, and not on a layer where those keys send something else. A key
+  sending `LCTL_T(KC_A)` is not `KC_A`: a home-row-mod key takes its whole keycode as input.
+  (`COMBO_ONLY_FROM_LAYER` would change this; a board can set it in `config.h`, no client can
+  tell.)
+- **The inputs end at the first empty one** (`COMBO_END` is 0): `A, -, B` is a one-key combo
+  of A. A slot whose first input is empty is unused.
+- **Order does not matter**, nor do the keys need to be pressed at once: each needs to come
+  within the **combo term** of the one before (the timer restarts on every combo key; no
+  `COMBO_STRICT_TIMER`). Pressed complete but too late, the keys are sent as themselves.
+- **A combo key is held back** from the press until its combo is decided -- so every key in a
+  combo is late, by up to the term, even when typed alone. That, and fast rolls of two letters
+  firing a combo by mistake, are what users complain about.
+- **A complete combo fires at the first release, another key's press, or when the term runs
+  out**, whichever comes first: tapped, its output comes at the release; held, after the term. **The output is held
+  while the keys are**, released with the last of them -- so Ctrl, a layer key, a held anything
+  works as an output.
+- **Overlapping combos: the one with more keys wins** when both are complete (J+K and J+K+L);
+  equal sizes sharing a key (J+K, K+L, the three pressed), the one completed last.
+- **An empty output swallows the keys**: the chord sends nothing.
+- **The term is one for all combos**: QMK Settings' qsid 2, "Time out period for combos", when
+  the board has QMK Settings (`build_vial.mk` adds `COMBO_TERM_PER_COMBO` only then, and its
+  `get_combo_term()` returns the one setting); otherwise the build's `COMBO_TERM`, 50 ms by
+  default, which no client can read. 260 of the 623 keymaps turn QMK Settings off.
+- **Only the output passes Vial's firewall**: a locked board stores Boot as nothing there; the
+  inputs are stored as sent (they are only compared). `CM_ON`, `CM_OFF`, `CM_TOGG` switch all
+  combos at once, in RAM.
+
+What Vial's editor does (vial-gui `editor/combos.py`): one tab per slot numbered from 1, four
+"Key" boxes and an "Output key" box, each the generic key widget -- **written at once**, every
+change; nothing shows which keys of the board carry the inputs, nothing says what is wrong.
+
+**No keycode names a combo slot** -- unlike `M(n)` and `TD(n)`, no key plays "combo 3". The
+slot number means nothing to the user; the inputs and the output are the combo.
+
+Decided with Rico 2026-10-10 on the mockup `ui-design/combos-section.html` -- the Model F B104
+(Vial 6, 32 slots) and the Corne (crkbd's Vial definition, rotated thumbs, as an RP2040 build
+with combos on and no QMK Settings):
+
+- **In the column** when the board reports combos (`VialEntryCounts::combo` above zero); **the
+  strip holds the slots, numbered** -- C 0 to the count, an empty one outlined, as Tap Dance
+  (Rico). Set aside: the strip named by each combo's keys ("J+K", the empty slots folded into
+  one "+ New"), and a list of the combos in the panel with no strip.
+- **The board shows the selected combo**: the keys sending its inputs lit, linked to a small key
+  between them saying what it sends; a key on layer 1 only is lit with its layer-1 legend and
+  "L1"; an input no key sends but a mod-tap holds (`LGUI_T(KC_A)` for A) outlines that key in the
+  warning's colour, dashed. Nothing else is marked (Rico: a small amber dot on every other key in
+  a combo read as red, a warning, and was dropped). Set aside: every combo drawn at once as such
+  a small key (keymap-drawer's way) -- crowded on a full-size board.
+- **Inputs from the board and the picker** (Rico): a click on a board key adds what it sends on
+  layer 0 to the inputs, a second click takes it out; the picker sets the selected input or the
+  output, for anything the board does not carry. Set aside: the picker only, Vial's way.
+- **The panel**: the slot's line (name, Clear, what was written, Save / Revert); then **the
+  chord**, left to right -- the inputs as keycaps joined by +, each with where it is under it
+  ("layer 1", "sent by no key"), an outlined + offering the next one, a stored gap shown as an
+  empty input -- then → and **Sends**, the output. A click selects an input or the output; the
+  tools under it: Remove for an input, Sent with and Empty it for the output.
+- **The combo term in the panel**, right of the chord (Rico): one for every combo, written to QMK
+  Settings' qsid 2, which QMK Settings shows too. A board without QMK Settings says its term is
+  fixed by the firmware, with no number: no client can read it. Set aside: the term in QMK
+  Settings only.
+- **What it does, said** under the chord: "Press J and K together -- in any order, each within
+  50 ms of the last -- and Esc is sent instead. Held, Esc stays held until both are released.",
+  and, muted, the cost: "Typed alone, J and K wait up to 50 ms before being sent."
+- **What is wrong, said** after it, each with a fix where one exists: an input no key sends (and
+  the mod-tap that does: "Use LGUI_T(KC_A)"); an input after an empty one, never reached ("Close
+  the gap" -- Nazg never writes a gap itself); the first input empty (the slot reads as unused);
+  one key alone; no output; two combos with the same keys (the later slot wins, the other never
+  fires); one inside another (the longer wins). **No typing-roll warning** (Rico) -- two letters
+  often typed one after the other ("er") fire a combo on fast typing, but which language's pairs
+  is an open question.
+- **Written by Save, undone by Revert**, as Macros and Tap Dance; a dot on each changed slot.
+  Locked: the output passes Vial's firewall, so Boot is greyed when picking the output only.
+- **Read when the section first opens**, every slot: Keymap draws nothing from combos -- no key
+  plays one -- so the board's load does not pay for them.
 
 ## The common screens
 
