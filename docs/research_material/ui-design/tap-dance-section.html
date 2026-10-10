@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- Mockup of the Tap Dance section (ui-design.md, "Sections, and the strip that belongs to them"):
+     the slots TD0..TDn in the strip, the selected tap dance in the panel.
+
+     First round (2026-10-10). A tap dance is Vial's alone: four keycodes -- on tap, on hold, on
+     double tap, on tap then hold -- and a tapping term, 10 bytes per slot, read and written one
+     slot per round trip (via-vial-commands.md, vial_dynamic_entry_op). Vial's editor is a tab per
+     slot, a 2 x 5 grid of four key buttons and a number, keys written at once and the term by Save.
+
+     What the firmware does with them is in vial-qmk's quantum/vial.c (dance_step, on_dance_finished,
+     process_record_vial), read 2026-10-10: an empty action falls back on the others -- hold on the
+     tap held, double tap on the tap twice, tap then hold on the tap then the hold -- and a tap is
+     sent at release only when the dance has a tap and a hold and nothing else; otherwise it waits
+     out the tapping term, counted from the press, for a second tap that does not come.
+
+     Variants: whether each action carries a small timing drawing of the gesture, what an empty
+     action shows (what the firmware does instead, faint, or nothing), writing at once or Save /
+     Revert, and the board locked (Vial's keycode firewall stores Boot as nothing).
+
+     Settled 2026-10-10 (Rico): the drawings shown, an empty action showing its fallback faint,
+     Save / Revert -- the toggles keep the alternatives. The drawings centred and schematic: the
+     dashed mark of the tapping term was not needed.
+
+     The board is the Model F B104's real definition (Vial 6, Rico's board), drawn with Nazg's
+     placement rule; it reports 32 tap dances, as its EEPROM size gives. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tap Dance section mockup</title>
+<style>
+:root{--window:#f3f3f5;--menubar:#e3e4e9;--text:#1d1e22;--muted:#6b6e78;--control:#ffffff;--border:#c8cad2;--accent:#3b82f6;--accent-text:#fff;--panel:#f8f8fa;--column:#ebecf0;--hover:rgba(0,0,0,.06);--selected:rgba(59,130,246,.16);
+--plate:#d3d4d8;--key:#ffffff;--keyline:#b4b7c2;--lit:#dbe7fb;--litline:#3b82f6;--ok:#15803d;--warn:#c2410c;--err:#dc2626;
+--host:#0891b2;--hostface:#e6f6fa;--behav:#8b5cf6;--behavface:#f1ecfe;--fw:#dc2626;--fwface:#fdecec;--held:#3b82f6;--term:#c2410c;--track:#dfe1e7}
+:root[data-theme="dark"]{--window:#0f0f11;--menubar:#24252b;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--accent:#4296fa;--accent-text:#fff;--panel:#16171b;--column:#16171b;--hover:rgba(255,255,255,.07);--selected:rgba(66,150,250,.22);
+--plate:#1c1d23;--key:#3a3c48;--keyline:#4b4e5c;--lit:#2a4a78;--litline:#4296fa;--ok:#4ade80;--warn:#fb923c;--err:#f87171;
+--host:#22d3ee;--hostface:#173a44;--behav:#a78bfa;--behavface:#2c2442;--fw:#f87171;--fwface:#3d1e22;--held:#4296fa;--term:#fb923c;--track:#2c2f39}
+*{box-sizing:border-box}
+body{margin:0;background:var(--window);color:var(--text);font-family:Arimo,"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+.controls{display:flex;flex-wrap:wrap;gap:8px 22px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.group .name{color:var(--muted);margin-right:4px}
+button{font:inherit;padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--control);color:var(--text);cursor:pointer}
+button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+button:disabled{opacity:.45;cursor:default}
+.stage{padding:16px;overflow-x:auto}
+.frame{margin:0 auto;width:1160px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--window);box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.menubar{display:flex;gap:18px;align-items:center;background:var(--menubar);padding:5px 14px}
+.menubar .board{font-weight:600}
+.muted{color:var(--muted)}
+.menubar .right{margin-left:auto;color:var(--muted)}
+.menubar .lock{color:var(--warn)}
+.body{display:flex;min-height:560px}
+.col{flex:none;width:180px;background:var(--column);border-right:1px solid var(--border);padding:6px 5px;display:flex;flex-direction:column;gap:2px}
+.entry{padding:7px 10px;border-radius:6px;color:var(--muted)}
+.entry.on{background:var(--selected);color:var(--text);box-shadow:inset 3px 0 0 var(--accent)}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;padding:10px 14px 14px;gap:10px}
+.stripwrap{display:flex;align-items:center;gap:4px;min-width:0;position:relative}
+.strip{display:flex;gap:3px;flex-wrap:nowrap;align-items:center;overflow-x:auto;overflow-y:hidden;padding:4px 0 4px;min-width:0;flex:1;scrollbar-width:none;scroll-behavior:smooth}
+.strip::-webkit-scrollbar{display:none}
+.stripwrap .fade{position:absolute;top:0;bottom:0;width:28px;pointer-events:none;opacity:0;transition:opacity .15s}
+.stripwrap .fade.l{left:26px;background:linear-gradient(90deg,var(--window),transparent)}
+.stripwrap .fade.r{right:26px;background:linear-gradient(270deg,var(--window),transparent)}
+.stripwrap .fade.on{opacity:1}
+.sarrow{flex:none;padding:2px 6px;font-size:11px}
+.strip button{padding:2px 0;width:44px;font-size:12px;position:relative;flex:none}
+.strip button.empty:not(.on){color:var(--muted);border-style:dashed}
+.strip button .dot{position:absolute;top:-3px;right:-3px;width:7px;height:7px;border-radius:50%;background:var(--warn)}
+.boardarea{display:flex;justify-content:center}
+svg.board{display:block}
+.panel{border:1px solid var(--border);border-radius:6px;background:var(--panel)}
+.mline{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;padding:6px 12px;border-bottom:1px solid var(--border);min-height:41px}
+.mline .title{font-weight:700;cursor:help;border-bottom:1px dotted var(--muted)}
+.msg{font-size:12px}
+.msg .ok{color:var(--ok)} .msg .warn{color:var(--warn)} .msg .err{color:var(--err)}
+.mline .right{margin-left:auto;display:flex;gap:6px}
+.actions{display:flex;align-items:flex-start;gap:12px;padding:12px 12px 8px;flex-wrap:wrap}
+.act{display:flex;flex-direction:column;align-items:center;gap:5px;width:132px;padding:6px 4px 7px;border-radius:7px;cursor:pointer;border:1px solid transparent}
+.act:hover{background:var(--hover)}
+.act.sel{border-color:var(--accent);background:var(--selected)}
+.act .lbl{font-weight:600;font-size:12px}
+.act .why{font-size:11px;color:var(--muted);text-align:center;line-height:1.3;min-height:14px;max-width:126px}
+.act svg.gest{display:block}
+.cap{width:58px;height:50px;border-radius:6px;background:var(--key);border:1px solid var(--keyline);box-shadow:inset 0 -3px 0 rgba(0,0,0,.08);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.15;text-align:center}
+.cap .h{font-size:10px;color:var(--muted)}
+.cap .m{font-size:13px}
+.cap.host{background:var(--hostface);border-color:var(--host)} .cap.host .h{color:var(--host)}
+.cap.behav{background:var(--behavface);border-color:var(--behav)} .cap.behav .h{color:var(--behav)}
+.cap.fw{background:var(--fwface);border-color:var(--fw)} .cap.fw .h,.cap.fw .m{color:var(--fw)}
+.cap.none{background:transparent;border-style:dashed;box-shadow:none;color:var(--muted)}
+.cap.ghost{opacity:.42;border-style:dashed;box-shadow:none}
+.cap.wide{width:auto;min-width:58px;padding:0 6px}
+.termbox{display:flex;flex-direction:column;gap:5px;padding:6px 4px 0 14px;margin-left:4px;border-left:1px solid var(--border);align-self:stretch;min-width:200px}
+.termbox .lbl{font-weight:600;font-size:12px}
+.termbox .row{display:flex;align-items:center;gap:6px}
+.termbox input{width:64px;font:14px Arimo,"Segoe UI",Arial,sans-serif;padding:3px 6px;border:1px solid var(--border);border-radius:6px;background:var(--control);color:var(--text);text-align:right}
+.termbox .hint{font-size:11px;color:var(--muted);line-height:1.35;max-width:220px}
+.cost{padding:0 12px 9px;font-size:12px;line-height:1.5}
+.cost .warn{color:var(--warn)}
+.tools{display:flex;align-items:center;gap:6px 10px;flex-wrap:wrap;padding:6px 12px;border-top:1px solid var(--border);min-height:39px}
+.tools .seg{display:inline-flex;gap:3px;align-items:center}
+.tools .seg button{padding:2px 8px}
+.banner{padding:8px 12px;border-top:1px solid var(--border);color:var(--warn);font-size:12px}
+.tabs{display:flex;align-items:flex-end;gap:2px;padding:8px 10px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.tabs .tab{border:1px solid transparent;border-bottom:none;border-radius:5px 5px 0 0;padding:5px 9px 4px;cursor:pointer;color:var(--muted)}
+.tabs .tab.on{background:var(--window);border-color:var(--border);color:var(--text);margin-bottom:-1px}
+.tabs .tab .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.tabs input{margin-left:auto;margin-bottom:5px;width:220px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--control);color:var(--text);font:inherit}
+.tiles{display:flex;flex-wrap:wrap;gap:4px;padding:10px;background:var(--window)}
+.tiles .cap{cursor:pointer}
+.tiles .cap.off{opacity:.35;cursor:default}
+.notes{max-width:1160px;margin:0 auto;padding:4px 16px 30px;color:var(--muted);line-height:1.55}
+.notes b{color:var(--text);font-weight:600}
+.notes p{margin:0 0 8px}
+</style>
+</head>
+<body>
+<div class="controls" id="controls"></div>
+<div class="stage"><div class="frame" id="frame"></div></div>
+<div class="notes" id="notes"></div>
+<script>
+"use strict";
+// The boards' `layouts`, taken from layout-section.html: labels and KLE keymap.
+const BOARDS = {"Model F B104":{"name":"leyden_jar/B104","source":"the board itself (Vial), tests/ModelFDefinition.h","labels":["Split Backspace","Full Left Shift","Split Right Shift",["Enter","ISO Enter","ANSI Enter"],"Split Numpad Zero","Full Nav Cluster"],"keymap":[[{"x":15.5},"6,5\n\n\n0,1","6,11\n\n\n0,1"],[{"x":2.5,"y":0.25},"0,0",{"x":1.0},"0,1","0,3","0,14","0,16",{"x":0.5},"0,2","0,15","6,15","0,13",{"x":0.5},"0,4","0,12","0,5","0,11",{"x":0.25},"0,10","0,9","0,8"],[{"x":2.5,"y":0.5},"6,0","6,1","5,1","6,3","6,14","6,16","5,16","6,2","5,15","6,13","5,4","6,4","6,12",{"w":2.0},"6,11\n\n\n0,0",{"x":0.25},"0,6\n\n\n5,0","0,7\n\n\n5,0","6,7\n\n\n5,0",{"x":0.25},"6,10","5,10","6,9","6,8",{"x":2.75},"0,6\n\n\n5,1","0,7\n\n\n5,1","6,7\n\n\n5,1"],[{"x":2.5,"w":1.5},"5,0","4,1","4,3","5,3","5,14","4,16","4,2","5,2","4,15","5,13","4,4","5,12","5,5",{"x":0.25,"w":1.25,"h":2.0,"w2":1.5,"h2":1.0,"x2":-0.25},"4,11\n\n\n3,0",{"x":0.25},"5,6\n\n\n5,0","6,6\n\n\n5,0","5,7\n\n\n5,0",{"x":0.25},"4,10","4,9","5,9",{"h":2.0},"5,8",{"x":1.0,"w":1.5},"5,11\n\n\n3,1",{"x":0.25},"5,6\n\n\n5,1","6,6\n\n\n5,1","5,7\n\n\n5,1"],[{"x":2.5,"w":1.75},"4,0","3,1","3,3","4,14","3,14","3,16","3,2","3,15","4,13","3,13","3,4","4,12","4,5\n\n\n3,0",{"x":4.75},"3,10","3,9","4,8",{"x":1.25,"w":2.25},"4,5\n\n\n3,1",{"x":0.25},"3,11\n\n\n5,1","4,6\n\n\n5,1","4,7\n\n\n5,1"],[{"w":2.25},"2,1\n\n\n1,1",{"x":0.25,"w":1.25},"2,0\n\n\n1,0","2,1\n\n\n1,0","2,3","2,14","1,14","1,16","2,16","2,2","1,15","1,13","2,4","2,12",{"w":2.75},"2,5\n\n\n2,0",{"x":1.25},"3,6\n\n\n5,0",{"x":1.25},"2,10","2,9","2,8",{"h":2.0},"3,8",{"x":2.75},"2,6\n\n\n5,1","3,6\n\n\n5,1","3,7\n\n\n5,1"],[{"x":2.5,"w":1.25},"1,0",{"w":1.25},"1,1",{"w":1.25},"1,3",{"w":6.25},"1,2",{"w":1.25},"1,4",{"w":1.25},"1,12",{"w":1.25},"1,5",{"w":1.25},"1,11",{"x":0.25},"1,6\n\n\n5,0","2,7\n\n\n5,0","1,7\n\n\n5,0",{"x":0.25,"w":2.0},"1,10\n\n\n4,0","1,8",{"x":3.75},"1,6\n\n\n5,1","2,7\n\n\n5,1","1,7\n\n\n5,1"],[{"x":14.75,"y":0.25,"w":1.75},"3,12\n\n\n2,1","2,11\n\n\n2,1",{"x":3.5},"1,10\n\n\n4,1","1,9\n\n\n4,1"]]},"ZX60":{"name":"ZX60","source":"VIA registry, v3/1078591489.json","labels":["Split Backspace","ISO Enter",["Row 4","Default","Split right shift","Arrows","Default ISO","ISO split right shift","ISO arrows","[2U] Default","[2U] Split left shift","[2U] Split right shift","[2U] Split both shifts"],["Bottom row","6.25U","7U","6.25U Arrows","6.25U Arrows B","HHKB","WKL","6.25U HHKB","Split Space Left 2.25","Split Space Left 2.75"]],"keymap":[[{"x":2.5,"c":"#777777"},"0,0",{"c":"#cccccc"},"0,1","0,2","0,3","0,4","0,5","0,6","0,7","0,8","0,9","0,10","0,11","0,12",{"c":"#aaaaaa","w":2},"0,13\n\n\n0,0",{"x":0.5,"c":"#cccccc"},"0,13\n\n\n0,1","0,14\n\n\n0,1"],[{"x":2.5,"c":"#aaaaaa","w":1.5},"1,0",{"c":"#cccccc"},"1,1","1,2","1,3","1,4","1,5","1,6","1,7","1,8","1,9","1,10","1,11","1,12",{"w":1.5},"1,13\n\n\n1,0",{"x":1.25,"c":"#777777","w":1.25,"h":2,"w2":1.5,"h2":1,"x2":-0.25},"2,13\n\n\n1,1"],[{"x":2.5,"c":"#aaaaaa","w":1.75},"2,0",{"c":"#cccccc"},"2,1","2,2","2,3","2,4","2,5","2,6","2,7","2,8","2,9","2,10","2,11",{"c":"#777777","w":2.25},"2,13\n\n\n1,0",{"x":0.25,"c":"#cccccc"},"1,13\n\n\n1,1"],[{"x":2.5,"c":"#aaaaaa","w":2.25},"3,0\n\n\n2,0",{"c":"#cccccc"},"3,2\n\n\n2,0","3,3\n\n\n2,0","3,4\n\n\n2,0","3,5\n\n\n2,0","3,6\n\n\n2,0","3,7\n\n\n2,0","3,8\n\n\n2,0","3,9\n\n\n2,0","3,10\n\n\n2,0","3,11\n\n\n2,0",{"c":"#aaaaaa","w":2.75},"3,13\n\n\n2,0"],[{"x":2.5,"w":1.25},"4,0\n\n\n3,0",{"w":1.25},"4,1\n\n\n3,0",{"w":1.25},"4,2\n\n\n3,0",{"c":"#cccccc","w":6.25},"4,6\n\n\n3,0",{"c":"#aaaaaa","w":1.25},"4,10\n\n\n3,0",{"w":1.25},"4,11\n\n\n3,0",{"w":1.25},"4,13\n\n\n3,0",{"w":1.25},"4,14\n\n\n3,0"],[{"y":0.5,"x":2.5,"w":2.25},"3,0\n\n\n2,1",{"c":"#cccccc"},"3,2\n\n\n2,1","3,3\n\n\n2,1","3,4\n\n\n2,1","3,5\n\n\n2,1","3,6\n\n\n2,1","3,7\n\n\n2,1","3,8\n\n\n2,1","3,9\n\n\n2,1","3,10\n\n\n2,1","3,11\n\n\n2,1",{"c":"#aaaaaa","w":1.75},"3,13\n\n\n2,1","3,14\n\n\n2,1"],[{"x":2.5,"w":2.25},"3,0\n\n\n2,2",{"c":"#cccccc"},"3,2\n\n\n2,2","3,3\n\n\n2,2","3,4\n\n\n2,2","3,5\n\n\n2,2","3,6\n\n\n2,2","3,7\n\n\n2,2","3,8\n\n\n2,2","3,9\n\n\n2,2","3,10\n\n\n2,2",{"w":1.75},"3,11\n\n\n2,2","3,13\n\n\n2,2","3,12\n\n\n2,2"],[{"x":2.5,"c":"#aaaaaa","w":1.25},"3,0\n\n\n2,3","3,1\n\n\n2,3",{"c":"#cccccc"},"3,2\n\n\n2,3","3,3\n\n\n2,3","3,4\n\n\n2,3","3,5\n\n\n2,3","3,6\n\n\n2,3","3,7\n\n\n2,3","3,8\n\n\n2,3","3,9\n\n\n2,3","3,10\n\n\n2,3","3,11\n\n\n2,3",{"c":"#aaaaaa","w":2.75},"3,13\n\n\n2,3"],[{"x":2.5,"w":1.25},"3,0\n\n\n2,4","3,1\n\n\n2,4",{"c":"#cccccc"},"3,2\n\n\n2,4","3,3\n\n\n2,4","3,4\n\n\n2,4","3,5\n\n\n2,4","3,6\n\n\n2,4","3,7\n\n\n2,4","3,8\n\n\n2,4","3,9\n\n\n2,4","3,10\n\n\n2,4","3,11\n\n\n2,4",{"c":"#aaaaaa","w":1.75},"3,13\n\n\n2,4","3,14\n\n\n2,4"],[{"x":2.5,"w":1.25},"3,0\n\n\n2,5","3,1\n\n\n2,5",{"c":"#cccccc"},"3,2\n\n\n2,5","3,3\n\n\n2,5","3,4\n\n\n2,5","3,5\n\n\n2,5","3,6\n\n\n2,5","3,7\n\n\n2,5","3,8\n\n\n2,5","3,9\n\n\n2,5","3,10\n\n\n2,5",{"w":1.75},"3,11\n\n\n2,5","3,13\n\n\n2,5","3,14\n\n\n2,5"],[{"x":2.5,"c":"#aaaaaa","w":2},"3,0\n\n\n2,6",{"c":"#cccccc"},"3,2\n\n\n2,6","3,3\n\n\n2,6","3,4\n\n\n2,6","3,5\n\n\n2,6","3,6\n\n\n2,6","3,7\n\n\n2,6","3,8\n\n\n2,6","3,9\n\n\n2,6","3,10\n\n\n2,6","3,11\n\n\n2,6","3,13\n\n\n2,6",{"c":"#aaaaaa","w":2},"3,14\n\n\n2,6"],[{"x":2.5},"3,0\n\n\n2,7","3,1\n\n\n2,7",{"c":"#cccccc"},"3,2\n\n\n2,7","3,3\n\n\n2,7","3,4\n\n\n2,7","3,5\n\n\n2,7","3,6\n\n\n2,7","3,7\n\n\n2,7","3,8\n\n\n2,7","3,9\n\n\n2,7","3,10\n\n\n2,7","3,11\n\n\n2,7","3,12\n\n\n2,7",{"c":"#aaaaaa","w":2},"3,13\n\n\n2,7"],[{"x":2.5,"w":2},"3,0\n\n\n2,8",{"c":"#cccccc"},"3,2\n\n\n2,8","3,3\n\n\n2,8","3,4\n\n\n2,8","3,5\n\n\n2,8","3,6\n\n\n2,8","3,7\n\n\n2,8","3,8\n\n\n2,8","3,9\n\n\n2,8","3,10\n\n\n2,8","3,11\n\n\n2,8","3,12\n\n\n2,8",{"c":"#aaaaaa"},"3,13\n\n\n2,8","3,14\n\n\n2,8"],[{"x":2.5},"3,0\n\n\n2,9","3,1\n\n\n2,9",{"c":"#cccccc"},"3,2\n\n\n2,9","3,3\n\n\n2,9","3,4\n\n\n2,9","3,5\n\n\n2,9","3,6\n\n\n2,9","3,7\n\n\n2,9","3,8\n\n\n2,9","3,9\n\n\n2,9","3,10\n\n\n2,9","3,11\n\n\n2,9","3,12\n\n\n2,9",{"c":"#aaaaaa"},"3,13\n\n\n2,9","3,14\n\n\n2,9"],[{"y":0.5,"x":2.5,"w":1.5},"4,0\n\n\n3,1","4,1\n\n\n3,1",{"w":1.5},"4,2\n\n\n3,1",{"c":"#cccccc","w":7},"4,6\n\n\n3,1",{"c":"#aaaaaa","w":1.5},"4,11\n\n\n3,1","4,13\n\n\n3,1",{"w":1.5},"4,14\n\n\n3,1"],[{"x":2.5,"w":1.25},"4,0\n\n\n3,2",{"w":1.25},"4,1\n\n\n3,2",{"w":1.25},"4,2\n\n\n3,2",{"c":"#cccccc","w":6.25},"4,6\n\n\n3,2",{"c":"#aaaaaa"},"4,10\n\n\n3,2","4,11\n\n\n3,2","4,12\n\n\n3,2","4,13\n\n\n3,2","4,14\n\n\n3,2"],[{"x":2.5,"w":1.5},"4,0\n\n\n3,3","4,1\n\n\n3,3",{"w":1.25},"4,2\n\n\n3,3",{"c":"#cccccc","w":6.25},"4,6\n\n\n3,3",{"c":"#aaaaaa"},"4,10\n\n\n3,3","4,11\n\n\n3,3","4,12\n\n\n3,3","4,13\n\n\n3,3","4,14\n\n\n3,3"],[{"x":2.5,"w":1.5,"d":true},"4,0\n\n\n3,4","4,1\n\n\n3,4",{"w":1.5},"4,2\n\n\n3,4",{"c":"#cccccc","w":7},"4,6\n\n\n3,4",{"c":"#aaaaaa","w":1.5},"4,11\n\n\n3,4","4,12\n\n\n3,4",{"w":1.5,"d":true},"4,13\n\n\n3,4"],[{"x":2.5,"w":1.5},"4,0\n\n\n3,5",{"d":true},"\n\n\n3,5",{"w":1.5},"4,2\n\n\n3,5",{"c":"#cccccc","w":7},"4,6\n\n\n3,5",{"c":"#aaaaaa","w":1.5},"4,11\n\n\n3,5",{"d":true},"\n\n\n3,5",{"w":1.5},"4,13\n\n\n3,5"],[{"x":2.5,"w":1.5,"d":true},"4,0\n\n\n3,6","4,1\n\n\n3,6",{"w":1.5},"4,2\n\n\n3,6",{"c":"#cccccc","w":6.25},"4,6\n\n\n3,6",{"c":"#aaaaaa","w":1.5},"4,11\n\n\n3,6","4,12\n\n\n3,6",{"w":2.25,"d":true},"4,13\n\n\n3,6"],[{"x":2.5,"w":1.25},"4,0\n\n\n3,7",{"w":1.25},"4,1\n\n\n3,7",{"w":1.25},"4,2\n\n\n3,7",{"c":"#cccccc","w":2.25},"4,4\n\n\n3,7",{"w":1.25},"4,6\n\n\n3,7",{"w":2.75},"4,8\n\n\n3,7",{"c":"#aaaaaa","w":1.256},"4,10\n\n\n3,7",{"x":-0.006000000000000227,"w":1.256},"4,11\n\n\n3,7",{"x":-0.006000000000000227,"w":1.256},"4,13\n\n\n3,7",{"x":-0.006000000000000227,"w":1.256},"4,14\n\n\n3,7"],[{"x":2.5,"w":1.25},"4,0\n\n\n3,8",{"w":1.25},"4,1\n\n\n3,8",{"w":1.25},"4,2\n\n\n3,8",{"c":"#cccccc","w":2.75},"4,8\n\n\n3,8",{"w":1.25},"4,6\n\n\n3,8",{"w":2.25},"4,4\n\n\n3,8",{"c":"#aaaaaa","w":1.256},"4,10\n\n\n3,8",{"x":-0.006000000000000227,"w":1.256},"4,11\n\n\n3,8",{"x":-0.006000000000000227,"w":1.256},"4,13\n\n\n3,8",{"x":-0.006000000000000227,"w":1.256},"4,14\n\n\n3,8"]]}};
+// ---------------------------------------------------------------------------------------------
+// KLE: the keys, each with its matrix cell (legend position 0) and its layout option (position
+// 3, "group,option"). Legend-only keys are left out; decals kept, for the pivot, never drawn.
+function parseKle(rows) {
+  const keys = [];
+  let x = 0, y = 0, rx = 0, ry = 0, r = 0, p = {};
+  const pair = s => { const m = /^\s*(\d+)\s*,\s*(\d+)\s*$/.exec(s || ''); return m ? [+m[1], +m[2]] : null; };
+  for (const row of rows) {
+    if (!Array.isArray(row)) continue;
+    for (const item of row) {
+      if (typeof item === 'object') {
+        if ('r' in item) r = item.r;
+        if ('rx' in item || 'ry' in item) { if ('rx' in item) rx = item.rx; if ('ry' in item) ry = item.ry; x = rx; y = ry; }
+        if ('x' in item) x += item.x;
+        if ('y' in item) y += item.y;
+        for (const k of ['w', 'h', 'x2', 'y2', 'w2', 'h2', 'd']) if (k in item) p[k] = item[k];
+        continue;
+      }
+      const w = p.w || 1, h = p.h || 1;
+      const labels = String(item).split('\n');
+      const cell = pair(labels[0]), option = pair(labels[3]);
+      if (cell || p.d)
+        keys.push({ x, y, w, h, x2: p.x2 || 0, y2: p.y2 || 0, w2: p.w2 || w, h2: p.h2 || h, r, rx, ry, decal: !!p.d,
+                    cell, g: option ? option[0] : -1, o: option ? option[1] : 0 });
+      x += w;
+      p = {};
+    }
+    y += 1;
+    x = rx;
+  }
+  return keys;
+}
+
+// A label: a string is a toggle, an array names a group and its options.
+const groupOf = label => Array.isArray(label) ? { name: label[0], options: label.slice(1) } : { name: label, options: [] };
+const countOf = g => g.options.length ? g.options.length : 2;
+const optionName = (g, o) => g.options.length ? g.options[o] : (o ? 'On' : 'Off');
+
+// VIA's pivot rule, as PlaceKeys() has it: each chosen option moved onto option 0's place.
+const pivotPoint = k => (k.y2 === 0 ? k.x2 < 0 : k.y2 < 0) ? [k.x + k.x2, k.y + k.y2] : [k.x, k.y];
+function findPivot(keys, g, o) {
+  let best = null;
+  for (const k of keys) if (k.g === g && k.o === o && (!best || k.y < best.y || (k.y === best.y && k.x < best.x))) best = k;
+  return best;
+}
+function shiftOf(keys, g, o) {
+  const home = findPivot(keys, g, 0), chosen = findPivot(keys, g, o);
+  if (!home || !chosen) return [0, 0];
+  const a = pivotPoint(home), b = pivotPoint(chosen);
+  return [a[0] - b[0], a[1] - b[1]];
+}
+function placeKeys(keys, groups, sel) {
+  const out = [];
+  for (const k of keys) {
+    if (k.g >= 0 && k.g < groups.length && sel[k.g] !== k.o) continue;
+    const s = k.g >= 0 && k.g < groups.length ? shiftOf(keys, k.g, k.o) : [0, 0];
+    out.push({ ...k, x: k.x + s[0], y: k.y + s[1] });
+  }
+  return out;
+}
+const NS = 'http://www.w3.org/2000/svg';
+const boundsOf = keys => keys.reduce((b, k) => ({
+  x0: Math.min(b.x0, k.x, k.x + k.x2), y0: Math.min(b.y0, k.y, k.y + k.y2),
+  x1: Math.max(b.x1, k.x + k.w, k.x + k.x2 + k.w2), y1: Math.max(b.y1, k.y + k.h, k.y + k.y2 + k.h2) }),
+  { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity });
+
+
+// ---------------------------------------------------------------------------------------------
+// The boards offered: the Model F as it is (VIAL_INSECURE) and as a locked board would be.
+const SETUPS = {
+  'Model F B104 · Vial 6': { def: 'Model F B104', count: 32 },
+  'Model F B104 · locked': { def: 'Model F B104', count: 32, locked: true },
+};
+
+// Keycodes the mockup knows: QMK name, legend (header, main), picker tab, and the colour class
+// a keycap of it gets.
+const K = {};
+const key = (name, m, tab, h, cls) => { K[name] = { name, m, h: h || '', tab, cls: cls || '' }; };
+'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(c => key('KC_' + c, c, 'Keys'));
+'1234567890'.split('').forEach(c => key('KC_' + c, c, 'Keys'));
+[['KC_ENT', 'Enter'], ['KC_ESC', 'Esc'], ['KC_BSPC', 'Bksp'], ['KC_TAB', 'Tab'], ['KC_SPC', 'Space'], ['KC_CAPS', 'Caps'],
+ ['KC_SCLN', ';'], ['KC_QUOT', "'"], ['KC_HOME', 'Home'], ['KC_END', 'End'], ['KC_PGUP', 'PgUp'], ['KC_PGDN', 'PgDn'],
+ ['KC_LEFT', '←'], ['KC_DOWN', '↓'], ['KC_UP', '↑'], ['KC_RGHT', '→'],
+ ['KC_LCTL', 'Ctrl'], ['KC_LSFT', 'Shift'], ['KC_LALT', 'Alt'], ['KC_LGUI', 'Win']]
+  .forEach(([n, m]) => key(n, m, 'Keys'));
+for (let i = 1; i <= 12; i++) key('KC_F' + i, 'F' + i, 'Keys');
+[['KC_MUTE', 'Mute'], ['KC_VOLU', 'Vol +'], ['KC_VOLD', 'Vol −'], ['KC_MNXT', 'Next'], ['KC_MPRV', 'Prev'], ['KC_MPLY', 'Play']]
+  .forEach(([n, m]) => key(n, m, 'Media & mouse', 'Media', 'host'));
+[['MO(1)', 'L1', 'Hold'], ['MO(2)', 'L2', 'Hold'], ['TG(1)', 'L1', 'Toggle'], ['TO(0)', 'L0', 'To'], ['OSL(1)', 'L1', 'Once'], ['CW_TOGG', 'Caps Wd', '']]
+  .forEach(([n, m, h]) => key(n, m, 'Layers', h, 'behav'));
+[['QK_BOOT', 'Boot', ''], ['QK_RBT', 'Reboot', ''], ['EE_CLR', 'Clear', 'EEPROM']]
+  .forEach(([n, m, h]) => key(n, m, 'Firmware', h, 'fw'));
+for (let i = 0; i < 6; i++) key('TD(' + i + ')', 'TD ' + i, 'Macros', 'Dance', 'behav');
+for (let i = 0; i < 6; i++) key('MC_' + i, 'M' + i, 'Macros', 'Macro', 'host');
+const MODS = ['Ctrl', 'Shift', 'Alt', 'Win'];
+const TABS = [['Keys', ''], ['Media & mouse', 'var(--host)'], ['Layers', 'var(--behav)'], ['Firmware', 'var(--fw)'], ['Macros', 'var(--host)']];
+
+// A slot's action: a key and the modifiers sent with it (Ctrl+C), or null when empty.
+const A = (k, ...mods) => ({ k, mods });
+const ACTIONS = [['tap', 'Tap'], ['hold', 'Hold'], ['double', 'Double tap'], ['taphold', 'Tap, then hold']];
+
+// The examples. TD0 is QMK's own documentation example; TD4 a bootloader key out of reach of a
+// stray press -- the sort of thing users build tap dances for.
+function fresh(count) {
+  const l = [];
+  for (let i = 0; i < count; i++) l.push({ tap: null, hold: null, double: null, taphold: null, term: 200 });
+  Object.assign(l[0], { tap: A('KC_ESC'), double: A('KC_CAPS') });
+  Object.assign(l[1], { tap: A('KC_SPC'), hold: A('MO(1)') });
+  Object.assign(l[2], { tap: A('KC_MPLY'), double: A('KC_MNXT'), taphold: A('KC_MPRV') });
+  Object.assign(l[3], { tap: A('KC_C'), hold: A('KC_C', 'Ctrl'), double: A('KC_V', 'Ctrl'), term: 180 });
+  Object.assign(l[4], { tap: A('KC_ESC'), hold: A('QK_BOOT'), term: 1000 });
+  Object.assign(l[5], { tap: A('KC_SCLN') });
+  if (count > 20) Object.assign(l[20], { tap: A('KC_QUOT'), double: A('KC_QUOT', 'Shift') });
+  return l;
+}
+
+const state = { setup: 'Model F B104 · Vial 6', drawings: 'Shown', empty: 'What it does instead', writing: 'Save / Revert',
+                theme: 'Light', td: 0, act: 'tap', tab: 'Keys', stripScroll: 0, msg: null };
+state.dances = fresh(32);
+state.saved = JSON.stringify(state.dances);
+const savedList = () => JSON.parse(state.saved);
+const cur = () => state.dances[state.td];
+const locked = () => !!SETUPS[state.setup].locked;
+const dirty = i => JSON.stringify(state.dances[i]) !== JSON.stringify(savedList()[i]);
+const isEmpty = d => !d.tap && !d.hold && !d.double && !d.taphold;
+
+function changed(what) {
+  if (state.writing === 'At once') {
+    state.saved = JSON.stringify(state.dances);
+    state.msg = ['ok', `Stored -- ${what}, TD ${state.td} read back the same`];
+  } else state.msg = null;
+}
+
+// ---------------------------------------------------------------------------------------------
+// How an action reads: "Ctrl+C", "Esc".
+const nameOf = a => a ? (a.mods.length ? a.mods.join('+') + '+' : '') + K[a.k].m : '';
+function capHtml(a, extra) {
+  const kc = K[a.k];
+  const h = a.mods.length ? a.mods.join('+') + '+' : kc.h;
+  return `<div class="cap ${a.mods.length ? 'host' : kc.cls}${extra || ''}">${h ? `<span class="h">${h}</span>` : ''}<span class="m">${kc.m}</span></div>`;
+}
+
+// What the firmware does when an action is empty (vial-qmk, on_dance_finished): words for the
+// faint cap, and the actions it plays, for the cap's legend.
+function fallbackOf(d, act) {
+  const t = d.tap, h = d.hold;
+  if (act === 'tap') return null;
+  if (act === 'hold') return t ? { text: `${nameOf(t)}, held`, cap: t } : null;
+  if (act === 'double') return t ? { text: `${nameOf(t)} twice`, cap: t } : null;
+  if (t) return { text: `${nameOf(t)}, then ${nameOf(h || t)} held`, cap: h || t };
+  return h ? { text: `${nameOf(h)} held`, cap: h } : null;
+}
+
+// The timing drawing of a gesture: the key held as bars on a time line, centred -- a short bar a
+// tap, a long one a hold. Schematic: the term is not drawn (Rico, 2026-10-10: the dashed mark
+// that showed it was not needed).
+function gestureSvg(act) {
+  const W = 120, H = 22, y = 11;
+  const bars = { tap: [[0, 18]], hold: [[0, 70]], double: [[0, 18], [30, 48]], taphold: [[0, 18], [30, 88]] }[act];
+  const x0 = (W - bars[bars.length - 1][1]) / 2;
+  let s = `<svg class="gest" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><line x1="4" y1="${y}" x2="${W - 4}" y2="${y}" stroke="var(--track)" stroke-width="2"/>`;
+  for (const [a, b] of bars) s += `<rect x="${x0 + a}" y="${y - 5}" width="${b - a}" height="10" rx="3" fill="var(--held)"/>`;
+  return s + `</svg>`;
+}
+
+// The cost, said: when the tap is sent. vial-qmk sends it at release only for a dance with a tap
+// and a hold and nothing else; any other waits out the term from the press for a second tap.
+function costHtml(d) {
+  if (isEmpty(d)) return `<span class="muted">Empty: pick an action above, then a key below. Put TD ${state.td} on a key in Keymap to use it.</span>`;
+  const quick = d.tap && d.hold && !d.double && !d.taphold;
+  const waits = d.double || d.taphold;
+  let s;
+  if (quick) s = `${nameOf(d.tap)} is sent as soon as the key is released; held past ${d.term} ms, it is ${nameOf(d.hold)}.`;
+  else if (waits) s = `<span class="warn">A tap waits ${d.term} ms</span> before ${d.tap ? nameOf(d.tap) + ' is sent' : 'anything is sent'} -- the time for a second tap to come. Fast typing on this key may feel late.`;
+  else if (d.tap && !d.hold) s = `<span class="warn">Only a tap:</span> the key waits ${d.term} ms for nothing -- an ordinary ${nameOf(d.tap)} key does the same at once.`;
+  else s = `${d.hold ? nameOf(d.hold) + ' once held past ' + d.term + ' ms' : ''}`;
+  if (!d.tap && (d.hold || d.double || d.taphold)) s += ` <span class="warn">No tap: a quick press sends nothing.</span>`;
+  if (d.term < 100) s += ` <span class="warn">${d.term} ms is very short: most presses will count as holds.</span>`;
+  return s;
+}
+
+function renderPanel() {
+  const d = cur(), lk = locked();
+  let msg;
+  if (state.writing === 'Save / Revert' && state.dances.some((_, i) => dirty(i)))
+    msg = `<span class="warn">Not written yet</span> <span class="muted">-- ${state.dances.filter((_, i) => dirty(i)).length} tap dance(s) changed</span>`;
+  else if (state.msg) msg = `<span class="${state.msg[0]}">${state.msg[1].split(' -- ')[0]}</span> <span class="muted">-- ${state.msg[1].split(' -- ')[1] || ''}</span>`;
+  else msg = `<span class="muted">${state.writing === 'At once' ? 'Each change is written to the board at once.' : 'Changes are written by Save.'}</span>`;
+  const place = PLACES[state.td] ? `On ${PLACES[state.td].map(p => p.layer ? 'L' + p.layer + ' ' + p.name : p.name).join(', ')}` : 'On no key yet';
+  let h = `<div class="mline"><span class="title" title="TD(${state.td}) in QMK -- ${place.toLowerCase()}">TD ${state.td}</span>`
+        + `<button data-act="clear" ${isEmpty(d) ? 'disabled' : ''} title="Empties all four actions">Clear</button>`
+        + `<span class="muted">${place}</span><span class="msg">${msg}</span>`;
+  if (state.writing === 'Save / Revert') {
+    const any = state.dances.some((_, i) => dirty(i));
+    h += `<span class="right"><button data-act="save" ${any ? '' : 'disabled'}>Save</button><button data-act="revert" ${any ? '' : 'disabled'}>Revert</button></span>`;
+  }
+  h += `</div>`;
+
+  // The four actions, side by side, and the term.
+  h += `<div class="actions">`;
+  for (const [act, label] of ACTIONS) {
+    const a = d[act], sel = state.act === act ? ' sel' : '';
+    let cap, why = '';
+    if (a) cap = capHtml(a);
+    else {
+      const fb = state.empty === 'What it does instead' ? fallbackOf(d, act) : null;
+      if (fb) { cap = capHtml(fb.cap, ' ghost'); why = fb.text; }
+      else { cap = `<div class="cap none"><span class="m">—</span></div>`; why = state.empty === 'What it does instead' ? 'nothing' : ''; }
+    }
+    const tip = { tap: 'Pressed and released before the tapping term',
+                  hold: 'Held past the tapping term',
+                  double: 'Tapped twice, the second tap within the tapping term of the first',
+                  taphold: 'Tapped, then pressed again within the tapping term and held' }[act];
+    h += `<div class="act${sel}" data-act-slot="${act}" title="${tip}"><span class="lbl">${label}</span>`
+       + (state.drawings === 'Shown' ? gestureSvg(act) : '') + cap + `<span class="why">${why}</span></div>`;
+  }
+  h += `<div class="termbox"><span class="lbl">Tapping term</span><div class="row"><input data-term value="${d.term}"> ms</div>`
+     + `<span class="hint">How long a press may last to count as a tap, and how long the key waits for a second one.</span></div>`;
+  h += `</div><div class="cost">${costHtml(d)}</div>`;
+
+  // The tools for the selected action, then the picker.
+  const a = d[state.act];
+  const label = ACTIONS.find(x => x[0] === state.act)[1];
+  let t = `<b>${label}</b>`;
+  if (a) t += `<span class="seg"><span class="muted">Sent with</span>${MODS.map(m => `<button data-mod="${m}" class="${a.mods.includes(m) ? 'on' : ''}">${m}</button>`).join('')}</span>`
+            + `<button data-act="empty" title="${state.act === 'tap' ? 'A quick press then sends nothing' : 'The board then does what the faint key shows'}">Empty it</button>`
+            + `<span class="muted">or pick a key below to change it</span>`;
+  else t += `<span class="muted">pick a key below</span>`;
+  h += `<div class="tools">${t}</div>`;
+  if (lk) h += `<div class="banner">This board is locked: Vial stores Boot as nothing, so Boot is greyed. Everything else is written as usual. To use Boot, click 🔒 in the header and hold the two outlined keys.</div>`;
+
+  h += `<div class="tabs">${TABS.map(([n, c]) => `<span class="tab${state.tab === n ? ' on' : ''}" data-tab="${n}">${c ? `<span class="dot" style="background:${c}"></span>` : ''}${n}</span>`).join('')}<input placeholder="Search"></div>`;
+  h += `<div class="tiles">${Object.values(K).filter(k => k.tab === state.tab).map(k => {
+    const off = k.name.startsWith('TD(') ? 'A tap dance cannot play another'
+              : (lk && k.name === 'QK_BOOT') ? 'This board is locked: Vial would store Boot as nothing' : '';
+    return `<div class="cap ${k.cls}${off ? ' off' : ''}" data-key="${k.name}" title="${off || k.name}">${k.h ? `<span class="h">${k.h}</span>` : ''}<span class="m">${k.m}</span></div>`;
+  }).join('')}</div>`;
+  return h;
+}
+
+// Where the tap dances sit on the board: a few keys hold TD0..TD4.
+let PLACES = {};
+function boardSvg(setup) {
+  const b = BOARDS[setup.def];
+  const groups = b.labels.map(groupOf);
+  const keys = placeKeys(parseKle(b.keymap), groups, groups.map(() => 0)).filter(k => !k.decal);
+  const rows = [...new Set(keys.map(k => k.y))].sort((a, b) => a - b);
+  const row = y => keys.filter(k => k.y === y).sort((a, b) => a.x - b.x);
+  const top = row(rows[0]), bottom = row(rows[rows.length - 1]), home = row(rows[3]);
+  // TD0 on Esc, TD1 on the space bar, TD2 on a top-row key on layer 1, TD3 on C, TD4 on the last
+  // top-row key, TD5 on ;.
+  const space = bottom.reduce((a, k) => k.w > a.w ? k : a, bottom[0]);
+  const holders = [[0, 0, top[0], 'Esc'], [1, 0, space, 'Space'], [2, 1, top[6], 'F6'], [3, 0, row(rows[4])[3], 'C'],
+                   [4, 2, top[top.length - 1], 'top right'], [5, 0, home[10], ';']];
+  PLACES = {};
+  const at = new Map();
+  for (const [td, layer, k, name] of holders) if (k) { at.set(k, { td, layer }); (PLACES[td] = PLACES[td] || []).push({ layer, name }); }
+  const unlock = [top[0], keys.reduce((a, k) => (k.y > a.y || (k.y === a.y && k.x > a.x)) ? k : a, keys[0])];
+  const bd = boundsOf(keys), avail = 1160 - 180 - 28 - 30;
+  const u = Math.min(40, Math.floor(avail / (bd.x1 - bd.x0 + 0.7))), m = u * 0.35;
+  let s = `<svg class="board" xmlns="${NS}" width="${(bd.x1 - bd.x0) * u + 2 * m}" height="${(bd.y1 - bd.y0) * u + 2 * m}">`
+        + `<style>.plate{fill:var(--plate)}.k{fill:var(--key);stroke:var(--keyline)}.k.td{fill:var(--behavface);stroke:var(--behav)}.k.cur{fill:var(--lit);stroke:var(--litline);stroke-width:2}.k.unl{stroke:var(--warn);stroke-width:2.5}.t{font:${Math.round(u * 0.27)}px Arimo,Arial;fill:var(--text);text-anchor:middle}.t.s{font-size:${Math.round(u * 0.2)}px;fill:var(--muted)}</style>`
+        + `<rect class="plate" width="100%" height="100%" rx="12"/><g transform="translate(${m} ${m})">`;
+  const gap = Math.max(1, u * 0.06);
+  for (const k of keys) {
+    const hold = at.get(k);
+    const cls = 'k' + (hold ? (hold.td === state.td ? ' cur' : ' td') : '') + (setup.locked && unlock.includes(k) ? ' unl' : '');
+    const x = (k.x - bd.x0) * u + gap, y = (k.y - bd.y0) * u + gap, w = k.w * u - 2 * gap, hh = k.h * u - 2 * gap;
+    s += `<rect class="${cls}" x="${x}" y="${y}" width="${w}" height="${hh}" rx="${Math.max(2, u * 0.1)}"/>`;
+    if (k.w2 !== k.w || k.h2 !== k.h || k.x2 || k.y2)
+      s += `<rect class="${cls}" x="${(k.x + k.x2 - bd.x0) * u + gap}" y="${(k.y + k.y2 - bd.y0) * u + gap}" width="${k.w2 * u - 2 * gap}" height="${k.h2 * u - 2 * gap}" rx="${Math.max(2, u * 0.1)}"/>`;
+    if (hold) {
+      s += `<text class="t" x="${x + w / 2}" y="${y + hh / 2 + u * 0.1}">TD ${hold.td}</text>`;
+      if (hold.layer) s += `<text class="t s" x="${x + w - u * 0.08}" y="${y + u * 0.24}" style="text-anchor:end">L${hold.layer}</text>`;
+    }
+  }
+  return s + `</g></svg>`;
+}
+
+function render() {
+  document.documentElement.dataset.theme = state.theme.toLowerCase();
+  renderControls();
+  const setup = SETUPS[state.setup], b = BOARDS[setup.def];
+  const svg = boardSvg(setup);
+  const strip = state.dances.map((d, i) => `<button class="${i === state.td ? 'on' : ''}${isEmpty(d) ? ' empty' : ''}" data-td="${i}">TD ${i}${state.writing === 'Save / Revert' && dirty(i) ? '<span class="dot"></span>' : ''}</button>`).join('');
+  document.getElementById('frame').innerHTML =
+    `<div class="menubar"><span class="board">${b.name} ▾</span><span class="muted">Vial</span>${setup.locked ? '<span class="lock">🔒 Locked</span>' : ''}<span class="right">Settings</span></div>`
+  + `<div class="body"><div class="col"><div class="entry">Keymap</div><div class="entry">Layout</div><div class="entry">Macros</div><div class="entry on">Tap Dance</div><div class="entry">Combos</div><div class="entry">Key Overrides</div><div class="entry">QMK Settings</div></div>`
+  + `<div class="main"><div class="stripwrap"><button class="sarrow" data-scroll="-1" title="Earlier slots">◀</button>`
+  + `<div class="strip" id="strip">${strip}</div><span class="fade l"></span><span class="fade r"></span>`
+  + `<button class="sarrow" data-scroll="1" title="Later slots">▶</button></div>`
+  + `<div class="boardarea">${svg}</div>`
+  + `<div class="panel">${renderPanel()}</div></div></div>`;
+  placeStrip();
+}
+
+// The strip is one row and scrolls sideways when its slots do not fit, as every strip in Nazg.
+function placeStrip() {
+  const s = document.getElementById('strip');
+  s.style.scrollBehavior = 'auto';
+  s.scrollLeft = state.stripScroll;
+  const on = s.querySelector('button.on');
+  if (on) {
+    const l = on.offsetLeft - s.offsetLeft, r = l + on.offsetWidth;
+    if (l < s.scrollLeft) s.scrollLeft = l - 30;
+    else if (r > s.scrollLeft + s.clientWidth) s.scrollLeft = r - s.clientWidth + 30;
+  }
+  s.style.scrollBehavior = '';
+  s.onscroll = stripEdges;
+  s.onwheel = e => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && s.scrollWidth > s.clientWidth) { e.preventDefault(); s.scrollLeft += e.deltaY; } };
+  stripEdges();
+}
+function stripEdges() {
+  const s = document.getElementById('strip'), w = s.parentElement;
+  state.stripScroll = s.scrollLeft;
+  const more = s.scrollWidth > s.clientWidth + 1;
+  w.querySelector('.fade.l').classList.toggle('on', more && s.scrollLeft > 1);
+  w.querySelector('.fade.r').classList.toggle('on', more && s.scrollLeft < s.scrollWidth - s.clientWidth - 1);
+  w.querySelectorAll('[data-scroll]').forEach(b => {
+    b.style.display = more ? '' : 'none';
+    b.disabled = !more || (+b.dataset.scroll < 0 ? s.scrollLeft <= 1 : s.scrollLeft >= s.scrollWidth - s.clientWidth - 1);
+  });
+}
+
+function renderControls() {
+  const c = document.getElementById('controls');
+  c.innerHTML = '';
+  [['setup', 'Board', Object.keys(SETUPS)], ['drawings', 'Timing drawings', ['Shown', 'Hidden']],
+   ['empty', 'An empty action shows', ['What it does instead', 'Nothing']],
+   ['writing', 'Writing', ['At once', 'Save / Revert']], ['theme', 'Theme', ['Light', 'Dark']]].forEach(([k, name, values]) => {
+    const g = document.createElement('div'); g.className = 'group';
+    g.innerHTML = `<span class="name">${name}</span>`;
+    values.forEach(v => {
+      const bt = document.createElement('button'); bt.textContent = v;
+      if (state[k] === v) bt.className = 'on';
+      bt.onclick = () => {
+        state[k] = v;
+        if (k === 'writing') state.saved = JSON.stringify(state.dances);
+        state.msg = null; render();
+      };
+      g.appendChild(bt);
+    });
+    c.appendChild(g);
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Editing: an action is selected (Tap at first); a picked key sets it.
+const frame = document.getElementById('frame');
+frame.addEventListener('click', e => {
+  const t = e.target.closest('[data-scroll],[data-td],[data-act-slot],[data-key],[data-tab],[data-mod],[data-act]');
+  if (!t) return;
+  const d = t.dataset;
+  if (d.scroll !== undefined) { const s = document.getElementById('strip'); s.scrollLeft += +d.scroll * (s.clientWidth - 60); return; }
+  if (d.td !== undefined) { state.td = +d.td; state.act = 'tap'; state.msg = null; }
+  else if (d.actSlot !== undefined) state.act = d.actSlot;
+  else if (d.tab !== undefined) state.tab = d.tab;
+  else if (d.key !== undefined) {
+    if (d.key.startsWith('TD(') || (locked() && d.key === 'QK_BOOT')) return;
+    const old = cur()[state.act];
+    cur()[state.act] = A(d.key, ...(old ? old.mods : []));
+    changed(ACTIONS.find(x => x[0] === state.act)[1] + ' set to ' + nameOf(cur()[state.act]));
+  }
+  else if (d.mod !== undefined) {
+    const a = cur()[state.act];
+    a.mods = a.mods.includes(d.mod) ? a.mods.filter(m => m !== d.mod) : MODS.filter(m => m === d.mod || a.mods.includes(m));
+    changed('modifiers changed');
+  }
+  else if (d.act === 'empty') { cur()[state.act] = null; changed(ACTIONS.find(x => x[0] === state.act)[1] + ' emptied'); }
+  else if (d.act === 'clear') { Object.assign(cur(), { tap: null, hold: null, double: null, taphold: null }); state.act = 'tap'; changed('tap dance cleared'); }
+  else if (d.act === 'save') { state.saved = JSON.stringify(state.dances); state.msg = ['ok', `Stored -- every changed tap dance, read back the same`]; }
+  else if (d.act === 'revert') { state.dances = savedList(); }
+  render();
+});
+frame.addEventListener('change', e => {
+  if (e.target.dataset.term !== undefined) {
+    cur().term = Math.min(10000, Math.max(0, parseInt(e.target.value) || 0));
+    changed('tapping term ' + cur().term + ' ms');
+    render();
+  }
+});
+
+document.getElementById('notes').innerHTML = `
+<p><b>What a tap dance is.</b> One key that does up to four things, told apart by how it is pressed: <b>tap</b> it,
+<b>hold</b> it, <b>tap it twice</b>, or <b>tap it then hold</b>. The <b>tapping term</b> separates them: a press shorter
+than it is a tap, a longer one a hold, and a second press inside it makes a double. Vial only -- VIA has none -- with
+4 to 32 slots by the board's EEPROM (the Model F reports 32). A slot is put on a key in Keymap, as TD 0..TD 31 in the
+picker's Macros tab.</p>
+<p><b>What it shows.</b> The slots in the strip (an empty one dashed), the board with the keys that hold a tap dance
+(the selected one's lit, "L1" when on another layer), and the panel: a line saying which slot and where it is, then the
+<b>four actions side by side</b> -- the wide, short panel suits a row better than Vial's grid -- and the term, then a
+line saying <b>when the tap is sent</b>, then the tools for the selected action and Keymap's picker. Click an action to
+select it; a picked key sets it. <b>Sent with</b> makes Ctrl+C, as in Keymap's key line (TD 3).</p>
+<p><b>The cost is said</b> (the line under the actions), because it is what surprises users: Vial's firmware sends the
+tap at release only when the dance has a tap and a hold and nothing else (TD 1: Space, L1 held); with a double tap or
+a tap-then-hold it <b>waits out the term</b> for a second tap that may not come (TD 0, TD 2). A dance with only a tap
+waits for nothing (TD 5), and one with no tap sends nothing on a quick press.</p>
+<p><b>Timing drawings</b> (chosen). Each action with a small drawing of the gesture, centred -- the key held as blue
+bars on a time line, short for a tap, long for a hold. Meant for whoever does not remember what "tap, then hold"
+means. Schematic: a dashed mark for the term was tried and dropped (Rico: not needed).</p>
+<p><b>An empty action</b> (chosen: its fallback, faint). The firmware falls back on the others (vial-qmk's on_dance_finished): an empty hold
+holds the tap, an empty double tap taps it twice, an empty tap-then-hold taps then holds the hold. Shown faint and
+dashed, with the words under it -- or the action shows only a dash.</p>
+<p><b>Writing</b> (chosen: Save / Revert, Rico). One slot is one 10-byte write, so <b>at once</b> costs nothing, as in Keymap and Layout --
+Vial itself writes keys at once and the term by Save. <b>Save / Revert</b> is the Macros section's way, a dot on each
+changed slot.</p>
+<p><b>Locked</b>: Vial's keycode firewall stores Boot as nothing on a locked board, and nothing else changes -- so only
+Boot is greyed, with the unlock keys outlined. A tap dance cannot play another (TD tiles greyed).</p>
+<p><b>Not shown here, already decided</b> (ui-design.md, "Short forms and command keys"): in Keymap, a tap dance with
+a tap and a hold is drawn as a tap-hold, and the double tap and tap-then-hold stay off the board -- hover and this
+panel.</p>`;
+
+render();
+</script>
+</body>
+</html>

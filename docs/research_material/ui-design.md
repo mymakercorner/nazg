@@ -1369,6 +1369,60 @@ client sees: used little -- 71 of 7660 keymaps in QMK's tree of April 2023, the 
 keymaps, and 6 of vial-qmk's 573 Vial keymaps enable it -- so Nazg only offers its keys, in the
 picker's Macros tab.
 
+## The Tap Dance section
+
+A tap dance is one key doing up to four things, told apart by how it is pressed -- **tap**,
+**hold**, **double tap**, **tap then hold** -- with a **tapping term** in milliseconds separating
+them: a press shorter than it is a tap, a second press inside it makes a double. Vial only (VIA
+has none); 4 to 32 slots by the board's EEPROM size, 10 bytes each, read and written one slot per
+round trip (via-vial-commands.md, `vial_dynamic_entry_op`). Decided with Rico 2026-10-10 on the
+mockup `ui-design/tap-dance-section.html`, the Model F B104 (Vial 6, 32 slots).
+
+What the firmware does, from vial-qmk's `quantum/vial.c` (`dance_step`, `on_dance_finished`,
+`process_record_vial`, read 2026-10-10):
+
+- **An empty action falls back on the others**: no hold -> the tap, held; no double tap -> the
+  tap twice; no tap then hold -> the tap, then the hold held (the tap held when there is no hold);
+  no tap -> a quick press sends nothing. Three taps send the tap three times.
+- **When the tap is sent**: at release, only when the dance has a tap and a hold and nothing
+  else; with a double tap or a tap then hold, it waits out the term, counted from the press, for
+  a second tap. A dance with only a tap waits for nothing.
+- Each slot keeps its own term (`TAPPING_TERM_PER_KEY`, forced by `build_vial.mk`); a reset slot
+  has the firmware's `TAPPING_TERM`. The keycodes pass Vial's firewall: a locked board stores
+  Boot as nothing, and nothing else changes.
+
+The section:
+
+- **In the column** when the board reports tap dances (`VialEntryCounts::tapDance` above zero);
+  **the strip holds the slots**, TD 0 to the count, an empty one -- four actions empty -- dashed.
+- **The board stays drawn**, the keys holding a tap dance marked, the selected one's lit, "L1"
+  when on another layer -- as in Macros.
+- **The slot's line**: its name (hover: `TD(n)` and where it is), **Clear**, where it is on the
+  board, what was written, and Save / Revert on the right.
+- **The four actions side by side**, then the tapping term -- a row, where Vial has a grid: the
+  panel is wide and short. Each action is its name, **a small timing drawing of the gesture**,
+  centred (the key held as bars on a time line: short for a tap, long for a hold; schematic, the
+  term not drawn -- a dashed mark for it was tried and dropped, Rico), and its key. A click
+  selects an action; the picker's key sets it. **An empty action shows its fallback, faint and
+  dashed, with words under it** ("Esc, held", "Esc twice") -- set aside: a dash alone.
+- **A line says when the tap is sent**, since that delay is what surprises users: "Space is sent
+  as soon as the key is released; held past 200 ms, it is L1", or "A tap waits 200 ms before Esc
+  is sent"; a dance with only a tap, with no tap, or a term under 100 ms is warned about.
+- **The tools** for the selected action: Sent with Ctrl / Shift / Alt / Win (Ctrl+C, as in
+  Keymap's key line), Empty it; then **Keymap's picker**. TD keys are greyed (a tap dance cannot
+  play another), and Boot on a locked board, said in a line over the picker with the unlock keys
+  outlined.
+- **Written by Save, undone by Revert** (Rico), as Macros: a dot on each changed slot, "Not
+  written yet" on the line, and Save / Discard asked when the board changes or Nazg closes.
+  Writing at once -- cheap here, one 10-byte write per slot, and Vial's way for keys (its term is
+  written by Save) -- was the other choice.
+- **Read when the section first opens**, every slot, one round trip each -- some 0.45 s for 32
+  slots on the Model F.
+
+Already decided elsewhere ("Short forms and command keys"): in Keymap, a tap dance with a tap and
+a hold is drawn as a tap-hold once its entry is read; its double tap and tap then hold stay off
+the board -- hover and this panel.
+
 ## The common screens
 
 **1. No board open.** The keyboards found, each with its protocol and *Open*. No section
