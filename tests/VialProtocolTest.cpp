@@ -16,6 +16,8 @@
 #include "FakeDeviceChannel.h"
 #include "TestSupport.h"
 
+#include <algorithm>
+#include <iterator>
 #include <stdexcept>
 #include <vector>
 
@@ -155,6 +157,38 @@ namespace
 
         Check(channel.RequestAt(0)[1] == 0x0D && channel.RequestAt(0)[2] == 0x00,
               "the entry op is addressed by sub-command then operation");
+    }
+
+    // A tap dance slot: a status byte, then the entry as stored -- little-endian, keycodes too.
+    void TestTapDance()
+    {
+        std::printf("tap dance get and set\n");
+
+        FakeDeviceChannel channel;
+        VialProtocol      vial(channel);
+
+        std::vector<uint8_t> reply(nazg::c_ViaReportSize, 0x00);
+        const uint8_t entry[] = { 0x29, 0x00,  0x21, 0x52,  0x39, 0x00,  0x00, 0x00,  0xC8, 0x00 };
+        std::copy(std::begin(entry), std::end(entry), reply.begin() + 1);
+        channel.ReplyRaw(reply);
+
+        const nazg::VialTapDanceEntry read = Run(vial.GetTapDance(3));
+        Check(read.onTap == 0x0029 && read.onHold == 0x5221, "keycodes are little-endian here, unlike the keymap's");
+        Check(read.onDoubleTap == 0x0039 && read.onTapHold == 0, "an empty action is 0");
+        Check(read.tappingTerm == 200, "the slot's own term follows the keycodes");
+        Check(channel.RequestAt(0)[1] == 0x0D && channel.RequestAt(0)[2] == 0x01 && channel.RequestAt(0)[3] == 3,
+              "get is the entry op's 0x01, then the slot");
+
+        channel.ReplyRaw(std::vector<uint8_t>(nazg::c_ViaReportSize, 0x00));
+        Run(vial.SetTapDance(5, read));
+        const std::vector<uint8_t> sent = channel.RequestAt(1);
+        Check(sent[2] == 0x02 && sent[3] == 5, "set is the entry op's 0x02, then the slot");
+        Check(std::equal(std::begin(entry), std::end(entry), sent.begin() + 4), "the entry follows, as the board stores it");
+
+        std::vector<uint8_t> refused(nazg::c_ViaReportSize, 0x00);
+        refused[0] = 0xFF;
+        channel.ReplyRaw(refused);
+        Check(Throws([&] { Run(vial.GetTapDance(40)); }), "a slot past the count answers a non-zero status");
     }
 
     // The QMK settings a firmware has, above the id asked from: the ids, 0xFFFF filling the rest.
@@ -405,6 +439,7 @@ int main()
     TestDefinitionDownload();
     TestImplausibleDefinitionSizeIsRefused();
     TestEntryCounts();
+    TestTapDance();
     TestQmkSettingsQuery();
     TestUnlockStatus();
     TestUnlockCommands();

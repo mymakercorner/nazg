@@ -133,7 +133,13 @@ is left or Nazg quits with macros unwritten. Below it, all tested on scripted by
 four formats and its guarded write (`adapters/via/NazgViaMacro.*`), text typed with the host layout
 -- dead keys composing, every character of 69 layouts read back (`ui/NazgHostTyping.*`, the
 layout table's new dead masks) -- and steps to actions and back (`ui/NazgMacroSteps.*`). Every
-strip is now one row, scrolling sideways with arrows when it overflows. The Leyden Jar diagnostics, planned as
+strip is now one row, scrolling sideways with arrows when it overflows. **Tap Dance is built**
+(2026-10-10; ui-design.md "The Tap Dance section", mockup `tap-dance-section.html`) -- **not yet run
+against a board**: `ui/NazgTapDanceSection.*` shows a slot's four actions side by side, each with a
+drawing of its gesture, an empty one its fallback faint, the tapping term, a line saying when the
+tap is sent, Keymap's picker, Save / Revert. What the firmware does is `model/NazgTapDance.*` (pure,
+tested); `VialProtocol::GetTapDance()` / `SetTapDance()` tested on scripted bytes only. Keymap does
+not yet draw a tap dance as a tap-hold. The Leyden Jar diagnostics, planned as
 the second, are **deferred far later** (Rico, 2026-09-26: they bring many design questions).
 Already decided for them: the device stays open while a view polls, and key output is disabled
 while they show -- RAM only on the firmware, so every close and exit path must enable it again.

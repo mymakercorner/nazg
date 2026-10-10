@@ -87,6 +87,19 @@ namespace nazg
         bool    layerLock    = false;
     };
 
+    // One tap dance slot as the board stores it, `vial_tap_dance_entry_t`: four raw keycodes --
+    // 0 (KC_NO) where an action is empty -- and the slot's own tapping term in milliseconds.
+    struct VialTapDanceEntry
+    {
+        uint16_t onTap       = 0;
+        uint16_t onHold      = 0;
+        uint16_t onDoubleTap = 0;
+        uint16_t onTapHold   = 0;
+        uint16_t tappingTerm = 0;
+
+        bool operator==(const VialTapDanceEntry&) const = default;
+    };
+
     struct VialUnlockStatus
     {
         bool unlocked   = false;
@@ -127,6 +140,13 @@ namespace nazg
 
         // 0xFE 0x0D 0x00.
         [[nodiscard]] Task<VialEntryCounts> GetEntryCounts();
+
+        // 0xFE 0x0D 0x01 / 0x02: one tap dance slot, read or written. The entry travels as the
+        // firmware stores it, little-endian -- keycodes included, unlike the keymap's. A write
+        // passes Vial's keycode firewall, so a locked board stores Boot as 0: read it back. A slot
+        // past the board's count answers a non-zero status, thrown as a ProtocolError.
+        [[nodiscard]] Task<VialTapDanceEntry> GetTapDance(uint8_t index);
+        [[nodiscard]] Task<void>              SetTapDance(uint8_t index, const VialTapDanceEntry& entry);
 
         // 0xFE 0x09, from Vial protocol 4: the QMK settings this firmware has with an id above
         // `after`, as many as one report holds -- query again from the last to have them all.

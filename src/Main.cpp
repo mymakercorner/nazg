@@ -33,6 +33,7 @@
 #include "ui/NazgMacrosSection.h"
 #include "ui/NazgMatrixView.h"
 #include "ui/NazgPlaceholderSection.h"
+#include "ui/NazgTapDanceSection.h"
 #include "ui/NazgSectionPlan.h"
 #include "ui/NazgSettingsScreen.h"
 #include "ui/NazgVialUnlock.h"
@@ -1812,6 +1813,10 @@ int main(int, char**)
                                 boardState.sections.push_back(std::make_unique<nazg::MacrosSection>(
                                     transport, boardState.path, *boardState.keyboard, settings.legends,
                                     settings.hostLayoutChosen, boardState.lock, settings.advancedTools));
+                            else if (planned.kind == nazg::SectionKind::TapDance)
+                                boardState.sections.push_back(std::make_unique<nazg::TapDanceSection>(
+                                    transport, boardState.path, *boardState.keyboard, settings.legends, boardState.lock,
+                                    settings.advancedTools));
                             else if (planned.kind == nazg::SectionKind::Layout)
                                 boardState.sections.push_back(std::make_unique<nazg::LayoutSection>(
                                     transport, boardState.path, *boardState.keyboard, settings.legends));

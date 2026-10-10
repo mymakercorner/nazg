@@ -135,6 +135,35 @@ namespace nazg
         co_return counts;
     }
 
+    Task<VialTapDanceEntry> VialProtocol::GetTapDance(uint8_t index)
+    {
+        std::vector<uint8_t> reply = co_await SendVial(VialCommand::DynamicEntryOp,
+                                                       { static_cast<uint8_t>(VialDynamicEntry::TapDanceGet), index });
+        if (reply[0] != 0)
+            throw ProtocolError("the board has no tap dance " + std::to_string(index));
+
+        VialTapDanceEntry entry;
+        entry.onTap       = ReadLittleEndian16(reply, 1);
+        entry.onHold      = ReadLittleEndian16(reply, 3);
+        entry.onDoubleTap = ReadLittleEndian16(reply, 5);
+        entry.onTapHold   = ReadLittleEndian16(reply, 7);
+        entry.tappingTerm = ReadLittleEndian16(reply, 9);
+        co_return entry;
+    }
+
+    Task<void> VialProtocol::SetTapDance(uint8_t index, const VialTapDanceEntry& entry)
+    {
+        const auto lo = [](uint16_t value) { return static_cast<uint8_t>(value & 0xFF); };
+        const auto hi = [](uint16_t value) { return static_cast<uint8_t>(value >> 8); };
+        std::vector<uint8_t> reply = co_await SendVial(
+            VialCommand::DynamicEntryOp,
+            { static_cast<uint8_t>(VialDynamicEntry::TapDanceSet), index, lo(entry.onTap), hi(entry.onTap),
+              lo(entry.onHold), hi(entry.onHold), lo(entry.onDoubleTap), hi(entry.onDoubleTap), lo(entry.onTapHold),
+              hi(entry.onTapHold), lo(entry.tappingTerm), hi(entry.tappingTerm) });
+        if (reply[0] != 0)
+            throw ProtocolError("the board has no tap dance " + std::to_string(index));
+    }
+
     Task<std::vector<uint16_t>> VialProtocol::QueryQmkSettings(uint16_t after)
     {
         std::vector<uint8_t> reply = co_await SendVial(VialCommand::QmkSettingsQuery,
