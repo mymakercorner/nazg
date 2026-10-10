@@ -425,7 +425,12 @@ namespace nazg
         for (size_t index : gone)
             macro.erase(macro.begin() + static_cast<std::ptrdiff_t>(index));
         Select(std::nullopt);
-        m_Caret = gone.back();
+
+        // The + stays where the step was -- but an empty macro has only one place, and no + then.
+        if (macro.empty())
+            m_Caret.reset();
+        else
+            m_Caret = gone.back();
     }
 
     void MacrosSection::Move(size_t step, int by)
@@ -558,8 +563,8 @@ namespace nazg
             ColouredText(PanelColour::Error, "%zu bytes -- %zu too many for the board's %u", mine, total - m_BufferSize,
                          static_cast<unsigned>(m_BufferSize));
         else
-            ColouredText(PanelColour::Muted, "%zu bytes · %zu of %u free", mine, m_BufferSize - total,
-                         static_cast<unsigned>(m_BufferSize));
+            ColouredText(PanelColour::Muted, "%zu byte%s · %zu of %u free", mine, mine == 1 ? "" : "s",
+                         m_BufferSize - total, static_cast<unsigned>(m_BufferSize));
 
         ImGui::SameLine();
         const bool changed = HasUnsavedChanges();
@@ -733,7 +738,7 @@ namespace nazg
                     Select(std::nullopt);
                     m_Caret = item.index;
                 }
-                const bool   isCaret = !m_Selected && m_Caret == item.index;
+                const bool   isCaret = !m_Selected && m_Caret == item.index && !macro.empty();
                 const ImVec2 centre((p0.x + p1.x) / 2, (p0.y + p1.y) / 2);
                 if (isCaret)
                 {
