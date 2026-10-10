@@ -66,7 +66,7 @@ button:disabled{opacity:.45;cursor:default}
 .stripwrap .fade.on{opacity:1}
 .sarrow{flex:none;padding:2px 6px;font-size:11px}
 .strip button{padding:2px 0;width:44px;font-size:12px;position:relative;flex:none}
-.strip button.empty:not(.on){color:var(--muted);border-style:dashed}
+.strip button.empty:not(.on){color:var(--muted);background:transparent}
 .strip button .dot{position:absolute;top:-3px;right:-3px;width:7px;height:7px;border-radius:50%;background:var(--warn)}
 .boardarea{display:flex;justify-content:center}
 svg.board{display:block}
@@ -89,8 +89,8 @@ svg.board{display:block}
 .cap.host{background:var(--hostface);border-color:var(--host)} .cap.host .h{color:var(--host)}
 .cap.behav{background:var(--behavface);border-color:var(--behav)} .cap.behav .h{color:var(--behav)}
 .cap.fw{background:var(--fwface);border-color:var(--fw)} .cap.fw .h,.cap.fw .m{color:var(--fw)}
-.cap.none{background:transparent;border-style:dashed;box-shadow:none;color:var(--muted)}
-.cap.ghost{opacity:.42;border-style:dashed;box-shadow:none}
+.cap.none{background:transparent;box-shadow:none;color:var(--muted)}
+.cap.ghost{opacity:.42;box-shadow:none}
 .cap.wide{width:auto;min-width:58px;padding:0 6px}
 .termbox{display:flex;flex-direction:column;gap:5px;padding:6px 4px 0 14px;margin-left:4px;border-left:1px solid var(--border);align-self:stretch;min-width:200px}
 .termbox .lbl{font-weight:600;font-size:12px}
@@ -512,7 +512,7 @@ document.getElementById('notes').innerHTML = `
 than it is a tap, a longer one a hold, and a second press inside it makes a double. Vial only -- VIA has none -- with
 4 to 32 slots by the board's EEPROM (the Model F reports 32). A slot is put on a key in Keymap, as TD 0..TD 31 in the
 picker's Macros tab.</p>
-<p><b>What it shows.</b> The slots in the strip (an empty one dashed), the board with the keys that hold a tap dance
+<p><b>What it shows.</b> The slots in the strip (an empty one outlined and unfilled -- solid, not dashed: Rico, 2026-10-10), the board with the keys that hold a tap dance
 (the selected one's lit, "L1" when on another layer), and the panel: a line saying which slot and where it is, then the
 <b>four actions side by side</b> -- the wide, short panel suits a row better than Vial's grid -- and the term, then a
 line saying <b>when the tap is sent</b>, then the tools for the selected action and Keymap's picker. Click an action to
@@ -525,8 +525,8 @@ waits for nothing (TD 5), and one with no tap sends nothing on a quick press.</p
 bars on a time line, short for a tap, long for a hold. Meant for whoever does not remember what "tap, then hold"
 means. Schematic: a dashed mark for the term was tried and dropped (Rico: not needed).</p>
 <p><b>An empty action</b> (chosen: its fallback, faint). The firmware falls back on the others (vial-qmk's on_dance_finished): an empty hold
-holds the tap, an empty double tap taps it twice, an empty tap-then-hold taps then holds the hold. Shown faint and
-dashed, with the words under it -- or the action shows only a dash.</p>
+holds the tap, an empty double tap taps it twice, an empty tap-then-hold taps then holds the hold. Shown faint, with the
+words under it -- or the action shows only a dash.</p>
 <p><b>Writing</b> (chosen: Save / Revert, Rico). One slot is one 10-byte write, so <b>at once</b> costs nothing, as in Keymap and Layout --
 Vial itself writes keys at once and the term by Save. <b>Save / Revert</b> is the Macros section's way, a dot on each
 changed slot.</p>

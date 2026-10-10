@@ -1257,7 +1257,7 @@ comparing Vial's and VIA's editors, redrawn from their source with the same macr
 locked) and ZX60 (VIA 12, and VIA 10, which has no waits).
 
 - **In the column** when the board reports macros (`GetMacroCount()` above zero); **the strip
-  holds the slots**, M0 to the count, an empty one dashed -- one row, scrolling sideways when
+  holds the slots**, M0 to the count, an empty one outlined and unfilled -- one row, scrolling sideways when
   the count is large (64 on Rico's Leyden Jar boards; see "Sections, and the strip"). **No names** (Rico): the board stores
   none, and Nazg keeps none -- nor does hovering a macro key in Keymap show its contents.
 - **The board stays drawn** (Rico) and says where the macros are: the keys that play one are
@@ -1281,7 +1281,7 @@ locked) and ZX60 (VIA 12, and VIA 10, which has no waits).
     number, so they may cross (Ctrl and Shift released in the order pressed) or stand alone. They
     are **paired for reading**: a release goes with the last unreleased press of its key, hovering
     one lights the other, a key picked for one changes both, Remove takes both. **One left alone
-    is said** and drawn dashed: a press never released leaves the key held after the macro ends;
+    is said** and outlined in the warning's colour: a press never released leaves the key held after the macro ends;
     a release never pressed releases the user's own key. A bracket around the held steps was the
     other choice, and modelled the pair as one nested step -- set aside with it.
 - **Keymap's picker under the chain** gives the keys: a tile replaces the selected key or is
@@ -1394,7 +1394,7 @@ What the firmware does, from vial-qmk's `quantum/vial.c` (`dance_step`, `on_danc
 The section:
 
 - **In the column** when the board reports tap dances (`VialEntryCounts::tapDance` above zero);
-  **the strip holds the slots**, TD 0 to the count, an empty one -- four actions empty -- dashed.
+  **the strip holds the slots**, TD 0 to the count, an empty one -- four actions empty -- outlined and unfilled. **Solid outlines, not dashes** (Rico, 2026-10-10, after seeing both sections built: dashes added little to see and many lines to draw) -- the same for Macros' empty slots.
 - **The board stays drawn**, the keys holding a tap dance marked, the selected one's lit, "L1"
   when on another layer -- as in Macros.
 - **The slot's line**: its name (hover: `TD(n)` and where it is), **Clear**, where it is on the
@@ -1403,8 +1403,8 @@ The section:
   panel is wide and short. Each action is its name, **a small timing drawing of the gesture**,
   centred (the key held as bars on a time line: short for a tap, long for a hold; schematic, the
   term not drawn -- a dashed mark for it was tried and dropped, Rico), and its key. A click
-  selects an action; the picker's key sets it. **An empty action shows its fallback, faint and
-  dashed, with words under it** ("Esc, held", "Esc twice") -- set aside: a dash alone.
+  selects an action; the picker's key sets it. **An empty action shows its fallback, faint, with
+  words under it** ("Esc, held", "Esc twice") -- set aside: a dash alone.
 - **A line says when the tap is sent**, since that delay is what surprises users: "Space is sent
   as soon as the key is released; held past 200 ms, it is L1", or "A tap waits 200 ms before Esc
   is sent"; a dance with only a tap, with no tap, or a term under 100 ms is warned about.

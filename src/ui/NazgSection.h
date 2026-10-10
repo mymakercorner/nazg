@@ -45,8 +45,8 @@ namespace nazg
         // warning's colour -- Macros' unsaved slots. Shorter than `entries`: the rest are not.
         std::vector<bool> changed;
 
-        // Entries holding nothing -- an empty macro slot: outlined dashed, unfilled, their words
-        // muted, unless chosen. Shorter than `entries`: the rest are not.
+        // Entries holding nothing -- an empty macro slot: outlined, unfilled, their words muted,
+        // unless chosen -- a solid outline (Rico, 2026-10-10: dashes added little, and cost many lines). Shorter than `entries`: the rest are not.
         std::vector<bool> empty;
     };
 

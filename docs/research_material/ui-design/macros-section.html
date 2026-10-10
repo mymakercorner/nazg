@@ -83,7 +83,7 @@ button:disabled{opacity:.45;cursor:default}
 .stripwrap .fade.on{opacity:1}
 .sarrow{flex:none;padding:2px 6px;font-size:11px}
 .strip button{padding:2px 0;width:40px;font-size:12px;position:relative;flex:none}
-.strip button.empty:not(.on){color:var(--muted);border-style:dashed}
+.strip button.empty:not(.on){color:var(--muted);background:transparent}
 .strip button .dot{position:absolute;top:-3px;right:-3px;width:7px;height:7px;border-radius:50%;background:var(--warn)}
 .boardarea{display:flex;justify-content:center}
 svg.board{display:block}
@@ -131,7 +131,7 @@ svg.links path{fill:none;stroke:var(--link);stroke-width:2}
 .waitchip input{width:52px;font:14px Arimo,"Segoe UI",Arial,sans-serif;border:none;border-bottom:1px dotted var(--waitline);background:transparent;color:var(--text);text-align:right;outline:none}
 .waitchip.bad{border-color:var(--err)}
 .chip.pairhl .cap{background:var(--lit);border-color:var(--litline)}
-.chip.lone .cap{border-style:dashed;border-color:var(--warn)}
+.chip.lone .cap{border-color:var(--warn);border-width:2px}
 .chip.lone .mark.dn{border-top-color:var(--warn)} .chip.lone .mark.up{border-bottom-color:var(--warn)}
 .mline .title{cursor:help;border-bottom:1px dotted var(--muted)}
 .endadd{display:inline-flex;gap:4px;margin-left:4px}
@@ -780,7 +780,7 @@ frame.addEventListener('mouseover', e => {
 });
 
 document.getElementById('notes').innerHTML = `
-<p><b>What it shows.</b> The Macros section: the slots in the strip (an empty one dashed, a changed one dotted), the
+<p><b>What it shows.</b> The Macros section: the slots in the strip (an empty one outlined and unfilled -- solid, not dashed: Rico, 2026-10-10 -- a changed one dotted), the
 board with the keys that play a macro (the selected one's lit, "L1" when on another layer), and the panel -- a line
 saying which macro, the room it takes in the board's shared memory (the grey part is the other macros) and what was
 written; then the macro as a chain, left to right; then the tools for the selected step; then Keymap's picker, which
@@ -799,7 +799,7 @@ one 16-bit action on Vial, four presses and releases on VIA.</p>
 <p><b>Press and release are steps of their own</b>, as the board stores them -- ▼ pressed, ▲ released. <b>Held key</b>
 adds a pair with the + between them; each mark then moves on its own, so they can cross (M4: Ctrl and Shift released in
 the order pressed). They are paired for reading -- a release goes with the last unreleased press of its key, hovering
-one lights the other, a picked key changes both, Remove takes both -- and one left alone is said, dashed: M5 presses
+one lights the other, a picked key changes both, Remove takes both -- and one left alone is said, outlined in orange: M5 presses
 Shift and never releases it.</p>
 <p><b>Text is typed the way the computer types it</b>, with its host layout -- every character the layout can
 type. Each character becomes its keystrokes: on a key directly (é is AltGr+E on US International), else its accent's

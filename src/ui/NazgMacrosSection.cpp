@@ -793,7 +793,7 @@ namespace nazg
                 keyTile.hovered     = hovered || hoveredPartner == item.index;
                 DrawKeycodeTile(keyTile, { p0.x, p0.y, p1.x, p1.y });
 
-                // A press's mark under its key, a release's over it -- dashed in the warning's colour
+                // A press's mark under its key, a release's over it -- outlined in the warning's colour
                 // when alone.
                 const bool  lone = step.kind != MacroStep::Kind::Key && partner[item.index] == item.index;
                 const ImU32 mark = lone ? warn : accent;
