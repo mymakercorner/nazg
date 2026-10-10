@@ -14,13 +14,17 @@
 
 #pragma once
 
+#include <functional>
 #include <optional>
 #include <string>
 #include <vector>
 
+#include "imgui.h"
+
 #include "model/NazgKeyboard.h"
 #include "model/NazgKeycode.h"
 #include "ui/NazgKeycapLegend.h"
+#include "ui/NazgBoardView.h"
 #include "ui/NazgKeycodeCatalogue.h"
 
 namespace nazg
@@ -55,6 +59,10 @@ namespace nazg
         // The board, for what hover says of a lighting key and whether its tile is faint
         // (LightingNoteOf()); none on no board.
         const Keyboard* keyboard = nullptr;
+
+        // Why a keycode cannot be picked here, or nothing when it can: its tile is faint, a click
+        // on it does nothing, and hover says why -- a VIA board's macros hold basic keys only.
+        std::function<std::optional<std::string>(const Keycode&)> unavailable;
     };
 
     struct KeycodePickerEvents
@@ -64,6 +72,11 @@ namespace nazg
     };
 
     [[nodiscard]] KeycodePickerEvents DrawKeycodePicker(KeycodePickerState& state, const KeycodePickerInput& input);
+
+    // A keycode drawn as the picker draws it, 1u -- for a keycode shown elsewhere, as a macro's key
+    // steps -- and the size it is drawn at, in screen pixels.
+    [[nodiscard]] KeycodeTile TileOf(const Keycode& keycode, const LegendContext& context, bool selected);
+    [[nodiscard]] ImVec2      TileSize();
 
     // QMK's name and label, for a tooltip: "KC_MPLY -- Play/Pause".
     [[nodiscard]] std::string KeycodeHoverText(const Keycode& keycode, QmkKeycodeVersion version);

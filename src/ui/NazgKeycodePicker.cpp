@@ -178,8 +178,9 @@ namespace nazg
                     KeycodeTile        tile = TileFor(keycode, input.context, dropHeader, selected);
                     const LightingNote note = input.keyboard != nullptr ? LightingNoteOf(keycode, *input.keyboard)
                                                                         : LightingNote{};
-                    tile.hovered = hovered;
-                    tile.isFaint = note.mayDoNothing;
+                    const std::optional<std::string> refused = input.unavailable ? input.unavailable(keycode) : std::nullopt;
+                    tile.hovered = hovered && !refused;
+                    tile.isFaint = note.mayDoNothing || refused.has_value();
                     DrawKeycodeTile(tile, { p0.x, p0.y, p0.x + tileW, p0.y + tileH });
 
                     // What a click writes, the key line's hold or modifiers kept.
@@ -187,7 +188,9 @@ namespace nazg
                         input.current ? ComposeWithKey(keycode, *input.current, input.version) : keycode;
                     if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
                     {
-                        const std::string more = note.text.empty() ? std::string() : "\n" + note.text;
+                        std::string more = note.text.empty() ? std::string() : "\n" + note.text;
+                        if (refused)
+                            more += "\n" + *refused;
                         if (composed == keycode)
                             ImGui::SetTooltip("%s%s", KeycodeHoverText(keycode, input.version).c_str(), more.c_str());
                         else
@@ -205,7 +208,7 @@ namespace nazg
                         if (state.justPicked && *state.justPicked != key)
                             state.justPicked.reset();
                     }
-                    if (clicked)
+                    if (clicked && !refused)
                     {
                         events.picked    = keycode;
                         events.preview.reset();
@@ -259,6 +262,17 @@ namespace nazg
                 row != nullptr && row->label[0] != '\0' && text != row->label)
                 text += std::string(" -- ") + row->label;
         return text;
+    }
+
+    KeycodeTile TileOf(const Keycode& keycode, const LegendContext& context, bool selected)
+    {
+        return TileFor(keycode, context, false, selected);
+    }
+
+    ImVec2 TileSize()
+    {
+        const float scale = ImGui::GetStyle().FontScaleDpi * c_TileZoom;
+        return ImVec2(c_TileWidth * scale, c_TileHeight * scale);
     }
 
     KeycodePickerEvents DrawKeycodePicker(KeycodePickerState& state, const KeycodePickerInput& input)

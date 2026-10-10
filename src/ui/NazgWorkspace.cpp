@@ -261,6 +261,10 @@ namespace nazg
             DrawColumnEdge(layout, left, ImGui::GetItemRectSize().y);
         }
 
+        // A strip is always one row (ui-design.md, "Sections, and the strip that belongs to them"):
+        // when its entries do not fit, it scrolls sideways -- the mouse wheel over it, or the arrows
+        // at its ends, shown only then -- keeping the chosen entry in view, a fade on the side with
+        // more to see.
         void DrawStrip(Section& section)
         {
             const Strip strip = section.DescribeStrip();
@@ -269,29 +273,101 @@ namespace nazg
 
             ImGui::AlignTextToFramePadding();
             ImGui::TextUnformatted(strip.label.c_str());
+            ImGui::SameLine();
 
-            const float           minWidth = ImGui::GetFrameHeight() * 1.4f;
+            const ImGuiStyle& style    = ImGui::GetStyle();
+            const float       minWidth = ImGui::GetFrameHeight() * 1.4f;
+            std::vector<float> widths;
+            float total = 0.0f;
+            for (const std::string& entry : strip.entries)
+            {
+                widths.push_back(std::max(minWidth, ImGui::CalcTextSize(entry.c_str()).x + 2 * style.FramePadding.x));
+                total += widths.back() + (widths.size() > 1 ? style.ItemSpacing.x : 0.0f);
+            }
+
+            // What scrolling remembers across frames: a jump the arrows asked for, the entry chosen
+            // last -- kept in view when it changes.
+            ImGuiStorage* storage   = ImGui::GetStateStorage();
+            const ImGuiID pendingId = ImGui::GetID("strip.pending");
+            const ImGuiID chosenId  = ImGui::GetID("strip.chosen");
+
+            const float available = ImGui::GetContentRegionAvail().x;
+            const bool  overflows = total > available;
+            const float arrow     = ImGui::GetFrameHeight();
+            const float inside    = overflows ? std::max(arrow, available - 2 * (arrow + style.ItemSpacing.x)) : available;
+
+            float scroll = 0.0f, scrollMax = 0.0f;
+            if (overflows)
+            {
+                const bool atStart = storage->GetFloat(ImGui::GetID("strip.scroll"), 0.0f) <= 0.5f;
+                ImGui::BeginDisabled(atStart);
+                if (ImGui::ArrowButton("##earlier", ImGuiDir_Left))
+                    storage->SetFloat(pendingId, -(inside - 3 * minWidth));
+                ImGui::EndDisabled();
+                ImGui::SameLine();
+            }
+
+            ImGui::BeginChild("##strip", ImVec2(inside, ImGui::GetFrameHeight()), ImGuiChildFlags_None,
+                              ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground);
             std::optional<size_t> hovered;
+            const bool chosenChanged = storage->GetInt(chosenId, -1) != static_cast<int>(strip.chosen);
             for (size_t index = 0; index < strip.entries.size(); ++index)
             {
-                ImGui::SameLine();
+                if (index > 0)
+                    ImGui::SameLine();
                 ImGui::PushID(static_cast<int>(index));
 
                 const bool isChosen = index == strip.chosen;
                 if (isChosen)
                     ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
 
-                const std::string& entry = strip.entries[index];
-                const float width = std::max(minWidth, ImGui::CalcTextSize(entry.c_str()).x +
-                                                           2 * ImGui::GetStyle().FramePadding.x);
-                if (ImGui::Button(entry.c_str(), ImVec2(width, 0.0f)) && !isChosen)
+                if (ImGui::Button(strip.entries[index].c_str(), ImVec2(widths[index], 0.0f)) && !isChosen)
                     section.OnStripChosen(index);
                 if (ImGui::IsItemHovered())
                     hovered = index;
+                if (isChosen && chosenChanged && overflows)
+                    ImGui::SetScrollHereX(0.5f);
 
                 if (isChosen)
                     ImGui::PopStyleColor();
                 ImGui::PopID();
+            }
+            storage->SetInt(chosenId, static_cast<int>(strip.chosen));
+
+            if (overflows)
+            {
+                if (ImGui::IsWindowHovered() && ImGui::GetIO().MouseWheel != 0.0f)
+                    ImGui::SetScrollX(ImGui::GetScrollX() - ImGui::GetIO().MouseWheel * 3 * minWidth);
+                if (const float pending = storage->GetFloat(pendingId, 0.0f); pending != 0.0f)
+                {
+                    ImGui::SetScrollX(ImGui::GetScrollX() + pending);
+                    storage->SetFloat(pendingId, 0.0f);
+                }
+                scroll    = ImGui::GetScrollX();
+                scrollMax = ImGui::GetScrollMaxX();
+                storage->SetFloat(ImGui::GetID("strip.scroll"), scroll);
+
+                // The fades, from the window's own colour: there is more that way.
+                ImDrawList*  list  = ImGui::GetWindowDrawList();
+                const ImVec2 p0    = ImGui::GetWindowPos();
+                const ImVec2 p1(p0.x + ImGui::GetWindowWidth(), p0.y + ImGui::GetWindowHeight());
+                const float  fade  = 1.5f * minWidth;
+                const ImU32  solid = ImGui::GetColorU32(ImGuiCol_WindowBg);
+                const ImU32  clear = ImGui::GetColorU32(ImGuiCol_WindowBg, 0.0f);
+                if (scroll > 0.5f)
+                    list->AddRectFilledMultiColor(p0, ImVec2(p0.x + fade, p1.y), solid, clear, clear, solid);
+                if (scroll < scrollMax - 0.5f)
+                    list->AddRectFilledMultiColor(ImVec2(p1.x - fade, p0.y), p1, clear, solid, solid, clear);
+            }
+            ImGui::EndChild();
+
+            if (overflows)
+            {
+                ImGui::SameLine();
+                ImGui::BeginDisabled(scroll >= scrollMax - 0.5f);
+                if (ImGui::ArrowButton("##later", ImGuiDir_Right))
+                    storage->SetFloat(pendingId, inside - 3 * minWidth);
+                ImGui::EndDisabled();
             }
             section.OnStripHovered(hovered);
         }
