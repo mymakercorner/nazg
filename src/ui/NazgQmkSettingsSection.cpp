@@ -281,7 +281,6 @@ namespace nazg
         for (size_t index = 0; index < groups.size(); ++index)
         {
             strip.entries.push_back(GroupName(static_cast<int>(groups[index])));
-            strip.empty.push_back(IsIdle(groups[index]));
             if (groups[index] == m_Group)
                 strip.chosen = index;
         }

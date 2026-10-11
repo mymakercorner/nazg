@@ -3,8 +3,8 @@
 //
 // QmkSettingsSection - a Vial board's QMK Settings (ui-design.md, "The QMK Settings section", after
 // the mockup ui-design/qmk-settings-section.html): the groups in the strip -- Tap-Hold, Auto Shift,
-// One Shot Keys, Combos, Grave Escape, Magic, Mouse keys, Tap delays -- those the firmware has, one
-// no key uses muted; the board lighting the keys the group concerns, or under the pointer what one
+// One Shot Keys, Combos, Grave Escape, Magic, Mouse keys, Tap delays -- those the firmware has, all
+// alike; the board lighting the keys the group concerns, or under the pointer what one
 // line concerns -- QMK's guess of each key's hand for Chordal Hold, what a swapped key sends for
 // Magic; in the panel the group's settings under QMK's names, what each does beside it, and what
 // is wrong or worth knowing.
@@ -83,7 +83,7 @@ namespace nazg
         [[nodiscard]] uint32_t           Value(uint16_t qsid) const;
         [[nodiscard]] bool               Bit(uint16_t qsid, int bit) const { return QmkSettingBit(m_Settings, qsid, bit); }
 
-        // A group's default concern, and whether no key of the board uses it -- muted in the strip.
+        // A group's default concern, and whether no key of the board uses it -- said in the panel.
         [[nodiscard]] static Concern ConcernOf(Group group);
         [[nodiscard]] bool           IsIdle(Group group) const;
 

@@ -38,7 +38,9 @@
      Settled 2026-10-11 (Rico): the groups in the strip, the board lighting what a setting concerns,
      the tap-hold decision as one choice of three, QMK's names with what each does beside it,
      written at once -- the toggles keep the alternatives. Seen building it: Chordal Hold lights
-     every key by its hand, not only the tap-hold keys.
+     every key by its hand, not only the tap-hold keys. Dropped once seen in Nazg (Rico,
+     2026-10-11): a group no key uses muted in the strip -- it flickered as keys changed and wore
+     the empty-slot look of the slot sections; the panel's sentence says it.
 
      The boards: the Corne's real definition with home-row mods, a one-shot Shift, Grave Escape
      and mouse keys on layer 1, on today's vial-qmk; the Model F B104 with its keymap (no tap-hold
@@ -76,7 +78,6 @@ button:disabled{opacity:.45;cursor:default}
 .main{flex:1;min-width:0;display:flex;flex-direction:column;padding:10px 14px 14px;gap:10px}
 .strip{display:flex;gap:3px;flex-wrap:nowrap;align-items:center;padding:4px 0}
 .strip button{padding:2px 10px;font-size:12px;position:relative;flex:none}
-.strip button.idle:not(.on){color:var(--muted)}
 .strip button .dot{position:absolute;top:-3px;right:-3px;width:7px;height:7px;border-radius:50%;background:var(--warn)}
 .strip button .bang{color:var(--warn);font-weight:700;margin-left:4px}
 .boardarea{display:flex;justify-content:center}
@@ -598,8 +599,7 @@ function boardSvg() {
 
 function stripHtml() {
   return `<div class="strip">${groupsShown().map(g => {
-    const idle = analyse(g).some(x => /^No key on this board/.test(x.t)) || (g.id === 'autoshift' && !bit(3, 0).get(state.vals));
-    return `<button class="${g.id === state.group ? 'on' : ''}${idle ? ' idle' : ''}" data-group="${g.id}" title="${g.desc}${idle ? ' -- unused on this board' : ''}">${groupName(g)}${hasWarning(g) ? '<span class="bang">!</span>' : ''}${!atOnce() && groupChanged(g) ? '<span class="dot"></span>' : ''}</button>`;
+    return `<button class="${g.id === state.group ? 'on' : ''}" data-group="${g.id}" title="${g.desc}">${groupName(g)}${hasWarning(g) ? '<span class="bang">!</span>' : ''}${!atOnce() && groupChanged(g) ? '<span class="dot"></span>' : ''}</button>`;
   }).join('')}</div>`;
 }
 
@@ -695,7 +695,8 @@ only; 260 of vial-qmk's 623 Vial keymaps turn them off. Vial shows seven tabs of
 with Save, Undo and Reset. The facts, from vial-qmk's qmk_settings.c and QMK's tapping code, are in ui-design.md.</p>
 <p><b>Groups</b>: <b>in the strip</b> -- the section's own row of choices, as slots in Combos -- one group in the panel,
 the board lighting the keys it concerns; or <b>one page</b>, every group in two columns, scrolling. A group the firmware
-lacks is not shown; a group no key uses is greyed in the strip and says so (Grave Escape and Mouse keys on the Model F).</p>
+lacks is not shown; every other looks the same in the strip -- a group no key uses says so in the panel (Grave Escape and
+Mouse keys on the Model F).</p>
 <p><b>The board</b> lights what a group concerns: Tap-Hold the home-row mods, One Shot the one-shot Shift, Auto Shift the
 letters, numbers and symbols it shifts. Under the pointer, one line: <b>Chordal Hold</b> shows QMK's guess of each key's
 hand, L and R -- the firmware's own, from its build, may differ; <b>Keys swapped</b> tags each key with what it sends

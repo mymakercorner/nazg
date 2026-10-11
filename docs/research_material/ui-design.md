@@ -1748,8 +1748,10 @@ Model F B104 on its 2023 firmware:
 
 - **In the column** when the board lists any setting (`BoardReport::hasQmkSettings`); **the strip
   holds the groups** -- Tap-Hold, Auto Shift, One Shot Keys, Combos, Grave Escape, Magic, Mouse
-  keys, Tap delays -- those the firmware has; **a group no key uses is muted** (Auto Shift off,
-  Grave Escape with no `QK_GESC`). Set aside: every group on one page, in two columns.
+  keys, Tap delays -- those the firmware has, **all alike**. A group no key uses -- Auto Shift off, Grave Escape
+  with no `QK_GESC` -- says so in its panel only: muting it in the strip was built, then dropped
+  (Rico, 2026-10-11) -- it changed look as keys were edited, and wore the slot sections' look for
+  an empty slot, which means something else. Set aside: every group on one page, in two columns.
 - **The board lights what the group concerns** -- Tap-Hold the tap-hold keys, One Shot the
   one-shot keys, Auto Shift what it shifts, Mouse keys the mouse keys, a key on another layer
   only with that layer's legend -- and under the pointer **what one line concerns**: Chordal
