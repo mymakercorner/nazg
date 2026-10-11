@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- Mockup of a board's own menus -- VIA V3's custom menus (ui-design.md, "A board's own menus").
+
+     First round (2026-10-11). A VIA V3 definition's `menus` may hold objects besides the standard
+     ids: {label, content} menus the board's maker wrote, each a list of submenus, each a list of
+     controls bound to a [channel, value id, ...] of the custom value commands (0x07 set, 0x08 get,
+     0x09 save). Nazg draws them from the definition alone, as VIA does: the column's Board group.
+
+     What VIA does, from the VIA app (935106a, 2026-09: custom/menu-generator.tsx,
+     custom-control.tsx, store/menusSlice.ts, utils/range-constraints.ts) and @the-via/reader
+     1.14.4 (menu-types) and @the-via/pelpi 0.0.3 (showIf), read 2026-10-11:
+     - seven controls: range (a slider; two bytes, big-endian, when its maximum passes 255),
+       dropdown (names, or [name, value] pairs), toggle (0/1 or its own two values), keycode (two
+       bytes), color (hue, saturation), button (sends its one value), label (a fixed text, or a
+       string the board sends, ending at a zero);
+     - a submenu is a list in the menu's pane; every value of every custom menu is read when the
+       board connects; each change is set and saved at once (set, then save of its channel);
+     - `showIf` hides a menu, a submenu (greyed: "not available for this firmware version") or a
+       control. Its expressions: {id} -- a value's first byte -- {id.1} its second, numbers, == !=
+       < <= > >=, && ||, !, brackets. {id_firmware_version} is the board's 32-bit firmware version,
+       VIA's keyboard value 4;
+     - range `constraints`: a slider kept above or below another by an offset, either stopped
+       there (clamp) or pushing the other along (push);
+     - extra numbers after the value id are sent with it, before the value: [ch, id, slot, ...].
+
+     How they are used, from VIA's registry (2029 V3 definitions) and the vendor collection
+     (../vendor_definitions, 699 more), counted 2026-10-11:
+     - 289 registry boards carry 719 custom menus; with the vendors, 942 boards and 1373 menus.
+       872 boards have one menu, nearly always their own lighting -- 208 registry boards a single
+       "Lighting" menu, mostly RGB Matrix with the board's true effect list, on QMK's channels;
+     - cipulot's Hall effect and EC boards (about 63) carry 8-10 menus each, on channels 7-12:
+       Switch Configuration, Tap Dance, Combos, SOCD, DKS, Controller, QMK Settings, System.
+       They hold most of the controls: 386 values in the DKS menu alone, 16 slots of 24 lines;
+     - 289 boards: dropdowns 13964, keycodes 10937 (66 boards), ranges 7222 (3598 with
+       constraints), toggles 2436, buttons 707, colours 464, labels 179; color-palette never;
+     - showIf on 334 menus (all the firmware version), 1097 submenus (an "Enable" toggle) and
+       14845 controls.
+
+     The variants: submenus hidden by their condition left out of the strip or greyed; controls
+     hidden or greyed; the board lighting what the submenu concerns, plain, or folded away;
+     Keymap's picker beside the lines or under them; buttons; menus the firmware is too old for.
+
+     Settled 2026-10-11 (Rico): submenus their condition hides left out of the strip; lines hidden;
+     menus the firmware is too old for left out of the column; the board lighting the keys the
+     submenu concerns; buttons labelled, never asking ("we may change this in the future").
+     Keymap's picker under the lines, the lines in two columns to give the height back. The
+     toggles keep the
+     alternatives.
+
+     The boards (VIA registry, 2026-09 pin): the FAve65S (one "Lighting" menu, RGB Matrix, its
+     effect list), the Mode M65V2 (VIA's underglow menu and its own "Indicators"), cipulot's EC
+     Theca (eight menus). Keymaps and values made up; the EC Theca's DKS slots 1-15 are made from
+     slot 0 here, as its definition has them. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Custom menus mockup</title>
+<style>
+:root{--window:#f3f3f5;--menubar:#e3e4e9;--text:#1d1e22;--muted:#6b6e78;--control:#ffffff;--border:#c8cad2;--accent:#3b82f6;--accent-text:#fff;--panel:#f8f8fa;--column:#ebecf0;--hover:rgba(0,0,0,.06);--selected:rgba(59,130,246,.16);
+--plate:#d3d4d8;--key:#ffffff;--keyline:#b4b7c2;--lit:#dbe7fb;--litline:#3b82f6;--ok:#15803d;--warn:#c2410c;--err:#dc2626;--info:#4b5563;
+--board:#b45309;--boardface:#fdf3e2;--behav:#8b5cf6;--fw:#dc2626;--host:#0891b2}
+:root[data-theme="dark"]{--window:#0f0f11;--menubar:#24252b;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--accent:#4296fa;--accent-text:#fff;--panel:#16171b;--column:#16171b;--hover:rgba(255,255,255,.07);--selected:rgba(66,150,250,.22);
+--plate:#1c1d23;--key:#3a3c48;--keyline:#4b4e5c;--lit:#2a4a78;--litline:#4296fa;--ok:#4ade80;--warn:#fb923c;--err:#f87171;--info:#a1a5b2;
+--board:#fbbf24;--boardface:#3a2c12;--behav:#a78bfa;--fw:#f87171;--host:#22d3ee}
+*{box-sizing:border-box}
+body{margin:0;background:var(--window);color:var(--text);font-family:Arimo,"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+.controls{display:flex;flex-wrap:wrap;gap:8px 22px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.group .name{color:var(--muted);margin-right:4px}
+button,select{font:inherit;padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--control);color:var(--text);cursor:pointer}
+button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+button:disabled{opacity:.45;cursor:default}
+.stage{padding:16px;overflow-x:auto}
+.frame{margin:0 auto;width:1160px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--window);box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.menubar{display:flex;gap:18px;align-items:center;background:var(--menubar);padding:5px 14px}
+.menubar .board{font-weight:600}
+.muted{color:var(--muted)}
+.menubar .right{margin-left:auto;color:var(--muted)}
+.body{display:flex;height:760px}
+.col{flex:none;width:180px;background:var(--column);border-right:1px solid var(--border);padding:6px 5px;display:flex;flex-direction:column;gap:2px}
+.col .hdr{font-weight:700;font-size:12px;padding:6px 10px 2px}
+.col .sep{border-top:1px solid var(--border);margin:5px 4px}
+.entry{padding:7px 10px;border-radius:6px;color:var(--muted)}
+.entry.mine{cursor:pointer}
+.entry.mine:hover{background:var(--hover)}
+.entry.on{background:var(--selected);color:var(--text);box-shadow:inset 3px 0 0 var(--accent)}
+.entry.old{opacity:.45}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;padding:10px 14px 14px;gap:8px}
+.stripwrap{display:flex;align-items:center;gap:4px;flex:none}
+.strip{display:flex;gap:3px;align-items:center;padding:4px 0;overflow:hidden;flex:1;min-width:0}
+.strip button{padding:2px 10px;font-size:12px;flex:none}
+.strip button.grey{opacity:.4;cursor:default}
+.arrow{padding:2px 6px;font-size:11px;flex:none}
+.boardarea{display:flex;justify-content:center;flex:none}
+svg.board{display:block;overflow:visible}
+.panel{flex:1;min-height:0;display:flex;flex-direction:column;border:1px solid var(--border);border-radius:6px;background:var(--panel)}
+.mline{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;padding:6px 12px;border-bottom:1px solid var(--border);min-height:37px;flex:none}
+.mline .title{font-weight:700}
+.mline .desc{color:var(--muted);font-size:12px}
+.mline .right{margin-left:auto;display:flex;gap:6px;align-items:center}
+.msg{font-size:12px}
+.msg .ok{color:var(--ok)} .msg .warn{color:var(--warn)}
+.pbody{flex:1;min-height:0;display:flex;gap:12px;overflow:auto;padding:6px 6px 8px}
+.pbody.under{flex-direction:column}
+.lines{flex:none;min-width:0}
+.pbody:not(.under) .lines{width:540px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:0 24px;align-items:start}
+.cols .grid .lab{max-width:210px}
+.cols .slider{width:170px}
+.grid{display:grid;grid-template-columns:minmax(120px,max-content) auto;align-items:center;gap:5px 14px;padding:2px 6px}
+.grid .lab{max-width:300px;line-height:1.3;cursor:default}
+.grid .val{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;min-height:26px}
+.grid .dis{opacity:.38}
+.grid .dis *{pointer-events:none}
+.grid .hov{color:var(--accent)}
+.grid input[type=checkbox]{margin:0;width:15px;height:15px}
+.grid select{padding:2px 6px}
+.note{color:var(--muted);font-size:12px;line-height:1.4;max-width:420px}
+.vname{color:var(--muted);font-size:12px}
+.slider{position:relative;width:240px;height:20px;cursor:pointer;flex:none}
+.slider .track{position:absolute;left:0;right:0;top:6px;height:8px;border-radius:4px;border:1px solid var(--border);background:var(--control)}
+.slider .fill{position:absolute;left:0;top:6px;height:8px;border-radius:4px 0 0 4px;background:var(--accent)}
+.slider .knob{position:absolute;top:1px;width:12px;height:18px;margin-left:-6px;border-radius:4px;background:var(--control);border:1px solid var(--muted);box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.slider.hue .track{background:linear-gradient(90deg,#f00,#ff0 17%,#0f0 33%,#0ff 50%,#00f 67%,#f0f 83%,#f00)}
+.slider .pushed{position:absolute;top:-3px;width:2px;height:26px;margin-left:-1px;background:var(--warn)}
+.num{color:var(--muted);font-size:12px;min-width:44px}
+.swatch{width:26px;height:20px;border-radius:5px;border:1px solid var(--border);flex:none}
+.kt{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:46px;height:38px;border:1px solid var(--keyline);border-radius:5px;background:var(--key);cursor:pointer;font-size:12px;line-height:1.15;flex:none}
+.kt .h{font-size:9px;color:var(--muted)}
+.kt.none{color:var(--muted);font-size:11px}
+.kt.sel{outline:2px solid var(--accent);outline-offset:1px}
+.btn-risk{border-color:var(--warn);color:var(--warn)}
+.confirm{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;padding:4px 8px;border-radius:6px;background:var(--boardface)}
+.picker{flex:1;min-width:0;border:1px solid var(--border);border-radius:6px;padding:6px 8px;background:var(--window);align-self:flex-start}
+.picker .ptitle{font-size:12px;color:var(--muted);margin:0 0 5px}
+.picker .ptitle b{color:var(--text);font-weight:600}
+.tabs{display:flex;gap:3px;margin-bottom:6px}
+.tabs button{padding:1px 9px;font-size:12px}
+.tiles{display:flex;flex-wrap:wrap;gap:3px}
+.tiles .kt{width:38px;height:32px;font-size:11px}
+.says{padding:2px 4px;font-size:12px;line-height:1.5;color:var(--info);flex:none}
+.empty{padding:18px;color:var(--muted);line-height:1.6}
+.notes{max-width:1160px;margin:0 auto;padding:4px 16px 30px;color:var(--muted);line-height:1.55}
+.notes b{color:var(--text);font-weight:600}
+.notes p{margin:0 0 8px}
+.tip{position:fixed;z-index:9;max-width:340px;padding:6px 9px;border:1px solid var(--border);border-radius:6px;background:var(--control);color:var(--text);font-size:12px;line-height:1.45;box-shadow:0 2px 8px rgba(0,0,0,.15);pointer-events:none;display:none}
+</style>
+</head>
+<body>
+<div class="controls" id="controls"></div>
+<div class="stage"><div class="frame" id="frame"></div></div>
+<div class="notes" id="notes"></div>
+<div class="tip" id="tip"></div>
+<script>
+"use strict";
+// The three definitions as VIA's registry has them: layouts and menus, nothing else. The EC Theca's
+// DKS menu is cut to its first slot here and the other fifteen made again below.
+const DEFS = {"FAve65S":{"file":"v3/1163001873.json","labels":["Split Backspace",["Enter","ANSI","ISO"],"Split Left Shift",["Bottom Row","6.25U","7U"]],"keymap":[[{"x":2.5,"c":"#777777"},"0,0",{"c":"#cccccc"},"0,1","0,2","0,3","0,4","0,5","0,6","0,7","0,8","0,9","0,10","0,11","0,12",{"c":"#aaaaaa","w":2},"0,13\n\n\n0,0",{"c":"#cccccc"},"0,15",{"x":0.5},"0,13\n\n\n0,1","0,14\n\n\n0,1"],[{"x":2.5,"c":"#aaaaaa","w":1.5},"1,0",{"c":"#cccccc"},"1,1","1,2","1,3","1,4","1,5","1,6","1,7","1,8","1,9","1,10","1,11","1,12",{"w":1.5},"1,14\n\n\n1,0","1,15",{"x":1.25,"c":"#777777","w":1.25,"h":2,"w2":1.5,"h2":1,"x2":-0.25},"2,13\n\n\n1,1"],[{"x":2.5,"c":"#aaaaaa","w":1.75},"2,0",{"c":"#cccccc"},"2,1","2,2","2,3","2,4","2,5","2,6","2,7","2,8","2,9","2,10","2,11",{"c":"#777777","w":2.25},"2,13\n\n\n1,0",{"c":"#cccccc"},"2,15",{"x":0.25},"2,12\n\n\n1,1"],[{"c":"#aaaaaa","w":1.25},"3,0\n\n\n2,1",{"c":"#cccccc"},"3,1\n\n\n2,1",{"x":0.25,"c":"#aaaaaa","w":2.25},"3,0\n\n\n2,0",{"c":"#cccccc"},"3,2","3,3","3,4","3,5","3,6","3,7","3,8","3,9","3,10","3,11",{"c":"#aaaaaa","w":1.75},"3,12",{"c":"#777777"},"3,14",{"c":"#cccccc"},"3,15"],[{"x":2.5,"c":"#aaaaaa","w":1.25},"4,0\n\n\n3,0",{"w":1.25},"4,1\n\n\n3,0",{"w":1.25},"4,2\n\n\n3,0",{"c":"#cccccc","w":6.25},"4,5\n\n\n3,0",{"c":"#aaaaaa","w":1.25},"4,10\n\n\n3,0",{"w":1.25},"4,11\n\n\n3,0",{"x":0.5,"c":"#777777"},"4,13","4,14","4,15"],[{"y":0.5,"x":2.5,"c":"#aaaaaa","w":1.5},"4,0\n\n\n3,1","4,1\n\n\n3,1",{"w":1.5},"4,2\n\n\n3,1",{"c":"#cccccc","w":7},"4,5\n\n\n3,1",{"c":"#aaaaaa","w":1.5},"4,11\n\n\n3,1"]],"menus":[{"label":"Lighting","content":[{"label":"Backlight","content":[{"label":"Brightness","type":"range","options":[0,255],"content":["id_qmk_rgb_matrix_brightness",3,1]},{"label":"Effect","type":"dropdown","content":["id_qmk_rgb_matrix_effect",3,2],"options":[["All Off",0],["Solid Color",1],["Gradient Up/Down",3],["Gradient Left/Right",4],["Breathing",5],["Band Sat.",6],["Band Val.",7],["Pinwheel Sat.",8],["Pinwheel Val.",9],["Spiral Sat.",10],["Spiral Val.",11],["Cycle All",12],["Cycle Left/Right",13],["Cycle Up/Down",14],["Rainbow Moving Chevron",15],["Cycle Out/In",16],["Cycle Out/In Dual",17],["Cycle Pinwheel",18],["Cycle Spiral",19],["Dual Beacon",20],["Rainbow Beacon",21],["Rainbow Pinwheels",22],["Flower Blooming",23],["Raindrops",24],["Jellybean Raindrops",25],["Hue Breathing",26],["Hue Pendulum",27],["Hue Wave",28],["Pixel Rain",29],["Pixel Flow",30],["Starlight",32],["Starlight Dual Sat.",33],["Starlight Dual Hue.",34],["Riverflow",35]]},{"showIf":"{id_qmk_rgb_matrix_effect} != 0","label":"Effect Speed","type":"range","options":[0,255],"content":["id_qmk_rgb_matrix_effect_speed",3,3]},{"showIf":"{id_qmk_rgb_matrix_effect} != 0 && {id_qmk_rgb_matrix_effect} != 24 && {id_qmk_rgb_matrix_effect} != 25 && {id_qmk_rgb_matrix_effect} != 29 && {id_qmk_rgb_matrix_effect} != 30","label":"Color","type":"color","content":["id_qmk_rgb_matrix_color",3,4]}]}]}],"customKeycodes":[]},"Mode M65V2":{"file":"v3/14575205.json","labels":["Split backspace","ISO Enter","Split left shift","Tsangan bottom row"],"keymap":[[{"x":2.25,"c":"#777777"},"0,0",{"c":"#cccccc"},"0,1","0,2","0,3","0,4","0,5","0,6","0,7","0,8","0,9","0,10","0,11","0,12",{"c":"#aaaaaa","w":2},"0,13\n\n\n0,0",{"c":"#cccccc"},"0,15",{"x":0.5},"0,13\n\n\n0,1","0,14\n\n\n0,1"],[{"x":2.25,"c":"#aaaaaa","w":1.5},"1,0",{"c":"#cccccc"},"1,1","1,2","1,3","1,4","1,5","1,6","1,7","1,8","1,9","1,10","1,11","1,12",{"w":1.5},"1,14\n\n\n1,0","1,15",{"x":1.25,"c":"#777777","w":1.25,"h":2,"w2":1.5,"h2":1,"x2":-0.25},"2,14\n\n\n1,1"],[{"x":2.25,"c":"#aaaaaa","w":1.75},"2,0",{"c":"#cccccc"},"2,1","2,2","2,3","2,4","2,5","2,6","2,7","2,8","2,9","2,10","2,11",{"c":"#777777","w":2.25},"2,14\n\n\n1,0",{"c":"#cccccc"},"2,15",{"x":0.25},"2,13\n\n\n1,1"],[{"c":"#aaaaaa","w":1.25},"3,0\n\n\n2,1","3,1\n\n\n2,1",{"w":2.25},"3,0\n\n\n2,0",{"c":"#cccccc"},"3,2","3,3","3,4","5,5","5,6","5,7","5,8","5,9","5,10","5,11",{"c":"#aaaaaa","w":1.75},"5,12",{"c":"#cccccc"},"5,14","5,15"],[{"x":2.25,"c":"#aaaaaa","w":1.5},"4,0\n\n\n3,0","4,1\n\n\n3,0",{"w":1.5},"4,2\n\n\n3,0",{"c":"#cccccc","w":7},"4,6\n\n\n3,0",{"c":"#aaaaaa","w":1.5},"4,11\n\n\n3,0",{"x":0.5,"c":"#cccccc"},"4,13","4,14","4,15"],[{"x":2.25,"c":"#aaaaaa","w":1.25},"4,0\n\n\n3,1",{"w":1.25},"4,1\n\n\n3,1",{"w":1.25},"4,2\n\n\n3,1",{"c":"#cccccc","w":6.25},"4,6\n\n\n3,1",{"c":"#aaaaaa","w":1.25},"4,10\n\n\n3,1",{"w":1.25},"4,11\n\n\n3,1"]],"menus":["qmk_rgblight",{"label":"Indicators","content":[{"label":"Right indicator","content":[{"label":"Enable right indicator","type":"toggle","content":["id_ind1_enabled",0,1]},{"showIf":"{id_ind1_enabled} == 1","label":"Brightness","type":"range","options":[0,255],"content":["id_ind1_brightness",0,2]},{"showIf":"{id_ind1_enabled} == 1","label":"Color","type":"color","content":["id_ind1_color",0,3]},{"showIf":"{id_ind1_enabled} == 1","label":"Function 1","type":"dropdown","options":["None","Caps Lock","Num Lock","Scroll Lock","Layer 0","Layer 1","Layer 2","Layer 3"],"content":["id_ind1_func1",0,4]},{"showIf":"{id_ind1_enabled} == 1","label":"Function 2","type":"dropdown","options":["None","Caps Lock","Num Lock","Scroll Lock","Layer 0","Layer 1","Layer 2","Layer 3"],"content":["id_ind1_func2",0,5]}]},{"label":"Left indicator","content":[{"label":"Enable central indicator","type":"toggle","content":["id_ind2_enabled",0,6]},{"showIf":"{id_ind2_enabled} == 1","label":"Brightness","type":"range","options":[0,255],"content":["id_ind2_brightness",0,7]},{"showIf":"{id_ind2_enabled} == 1","label":"Color","type":"color","content":["id_ind2_color",0,8]},{"showIf":"{id_ind2_enabled} == 1","label":"Function 1","type":"dropdown","options":["None","Caps Lock","Num Lock","Scroll Lock","Layer 0","Layer 1","Layer 2","Layer 3"],"content":["id_ind2_func1",0,9]},{"showIf":"{id_ind2_enabled} == 1","label":"Function 2","type":"dropdown","options":["None","Caps Lock","Num Lock","Scroll Lock","Layer 0","Layer 1","Layer 2","Layer 3"],"content":["id_ind2_func2",0,10]}]}]}],"customKeycodes":[]},"EC Theca":{"file":"v3/1667853182.json","labels":[["Bottom Row","7U WKL","7U WK","6.25U"]],"keymap":[[{"c":"#777777"},"0,0",{"x":1,"c":"#cccccc"},"0,1","0,2","0,3","0,4",{"x":0.5,"c":"#aaaaaa"},"0,5","0,6","0,7","0,8",{"x":0.5,"c":"#cccccc"},"0,9","0,10","0,11","0,12",{"x":0.25,"c":"#aaaaaa"},"0,13","0,14","0,15"],[{"y":0.25,"c":"#cccccc"},"1,0","1,1","1,2","1,3","1,4","1,5","1,6","1,7","1,8","1,9","1,10","1,11","1,12",{"c":"#aaaaaa","w":2},"1,13",{"x":0.25},"1,14","1,15","2,15"],[{"w":1.5},"2,0",{"c":"#cccccc"},"2,1","2,2","2,3","2,4","2,5","2,6","2,7","2,8","2,9","2,10","2,11","2,12",{"w":1.5},"2,13",{"x":0.25,"c":"#aaaaaa"},"2,14","3,14","3,15"],[{"w":1.75},"3,0",{"c":"#cccccc"},"3,1","3,2","3,3","3,4","3,5","3,6","3,7","3,8","3,9","3,10","3,11",{"c":"#aaaaaa","w":2.25},"3,13"],[{"w":2.25},"4,0",{"c":"#cccccc"},"4,1","4,2","4,3","4,4","4,5","4,6","4,7","4,8","4,9","4,10",{"c":"#aaaaaa","w":2.75},"4,13",{"x":1.25,"c":"#cccccc"},"4,14"],[{"c":"#aaaaaa","w":1.5},"5,0\n\n\n0,0",{"d":true},"5,1\n\n\n0,0",{"w":1.5},"5,2\n\n\n0,0",{"c":"#cccccc","w":7},"5,5\n\n\n0,0",{"c":"#aaaaaa","w":1.5},"5,11\n\n\n0,0",{"d":true},"5,12\n\n\n0,0",{"w":1.5},"5,13\n\n\n0,0",{"x":0.25,"c":"#cccccc"},"5,14","5,15","4,15"],[{"y":0.25,"c":"#aaaaaa","w":1.5},"5,0\n\n\n0,1","5,1\n\n\n0,1",{"w":1.5},"5,2\n\n\n0,1",{"c":"#cccccc","w":7},"5,5\n\n\n0,1",{"c":"#aaaaaa","w":1.5},"5,11\n\n\n0,1","5,12\n\n\n0,1",{"w":1.5},"5,13\n\n\n0,1"],[{"y":0.25,"w":1.25},"5,0\n\n\n0,2",{"w":1.25},"5,1\n\n\n0,2",{"w":1.25},"5,2\n\n\n0,2",{"c":"#cccccc","w":6.25},"5,5\n\n\n0,2",{"c":"#aaaaaa","w":1.25},"5,10\n\n\n0,2",{"w":1.25},"5,11\n\n\n0,2",{"w":1.25},"5,12\n\n\n0,2",{"w":1.25},"5,13\n\n\n0,2"]],"menus":[{"label":"Switch Configuration","content":[{"label":"Actuation","content":[{"label":"Mode","type":"dropdown","options":["APC","Rapid Trigger"],"content":["id_actuation_mode",0,1]},{"showIf":"{id_actuation_mode} == 0","content":[{"label":"Actuation threshold (1-1023)","type":"range","options":[1,1023],"constraints":[{"operator":">=","reference":"id_apc_release_threshold","offset":50,"onViolation":"push"}],"content":["id_apc_actuation_threshold",0,2]},{"label":"Release threshold (1-1023)","type":"range","options":[1,1023],"constraints":[{"operator":"<=","reference":"id_apc_actuation_threshold","offset":-50,"onViolation":"push"}],"content":["id_apc_release_threshold",0,3]},{"label":"Apply & save changes","type":"button","options":[0],"content":["id_save_threshold_data",0,4]}]},{"showIf":"{id_actuation_mode} == 1","content":[{"label":"Initial deadzone offset (1-1023)","type":"range","options":[1,1023],"content":["id_rt_initial_deadzone_offset",0,5]},{"label":"Actuation offset (1-255)","type":"range","options":[1,255],"content":["id_rt_actuation_offset",0,6]},{"label":"Release offset (1-255)","type":"range","options":[1,255],"content":["id_rt_release_offset",0,7]},{"label":"Apply & save changes","type":"button","options":[1],"content":["id_save_threshold_data",0,4]}]}]},{"label":"Calibration","content":[{"label":"Board Calibration","type":"toggle","content":["id_bottoming_calibration",0,8]},{"showIf":"{id_bottoming_calibration} == 0","label":"Print calibration data to console","type":"button","options":[0],"content":["id_show_calibration_data",0,10]},{"showIf":"{id_bottoming_calibration} == 0","label":"Clear bottom-out calibration data","type":"button","options":[0],"content":["id_clear_bottoming_calibration_data",0,11]}]}]},{"showIf":"{id_firmware_version} >= 5","label":"Tap Dance","content":[{"label":"Tap Dance 0 - TD(0)","content":[{"label":"Single tap","type":"keycode","content":["id_tap_dance_single_tap[0]",9,1,0]},{"label":"Single hold","type":"keycode","content":["id_tap_dance_single_hold[0]",9,2,0]},{"label":"Double tap","type":"keycode","content":["id_tap_dance_double_tap[0]",9,3,0]},{"label":"Double hold","type":"keycode","content":["id_tap_dance_double_hold[0]",9,4,0]},{"label":"Tapping term (ms)","type":"range","content":["id_tap_dance_term[0]",9,5,0],"options":[1,1000]}]},{"label":"Tap Dance 1 - TD(1)","content":[{"label":"Single tap","type":"keycode","content":["id_tap_dance_single_tap[1]",9,1,1]},{"label":"Single hold","type":"keycode","content":["id_tap_dance_single_hold[1]",9,2,1]},{"label":"Double tap","type":"keycode","content":["id_tap_dance_double_tap[1]",9,3,1]},{"label":"Double hold","type":"keycode","content":["id_tap_dance_double_hold[1]",9,4,1]},{"label":"Tapping term (ms)","type":"range","content":["id_tap_dance_term[1]",9,5,1],"options":[1,1000]}]},{"label":"Tap Dance 2 - TD(2)","content":[{"label":"Single tap","type":"keycode","content":["id_tap_dance_single_tap[2]",9,1,2]},{"label":"Single hold","type":"keycode","content":["id_tap_dance_single_hold[2]",9,2,2]},{"label":"Double tap","type":"keycode","content":["id_tap_dance_double_tap[2]",9,3,2]},{"label":"Double hold","type":"keycode","content":["id_tap_dance_double_hold[2]",9,4,2]},{"label":"Tapping term (ms)","type":"range","content":["id_tap_dance_term[2]",9,5,2],"options":[1,1000]}]},{"label":"Tap Dance 3 - TD(3)","content":[{"label":"Single tap","type":"keycode","content":["id_tap_dance_single_tap[3]",9,1,3]},{"label":"Single hold","type":"keycode","content":["id_tap_dance_single_hold[3]",9,2,3]},{"label":"Double tap","type":"keycode","content":["id_tap_dance_double_tap[3]",9,3,3]},{"label":"Double hold","type":"keycode","content":["id_tap_dance_double_hold[3]",9,4,3]},{"label":"Tapping term (ms)","type":"range","content":["id_tap_dance_term[3]",9,5,3],"options":[1,1000]}]},{"label":"Tap Dance 4 - TD(4)","content":[{"label":"Single tap","type":"keycode","content":["id_tap_dance_single_tap[4]",9,1,4]},{"label":"Single hold","type":"keycode","content":["id_tap_dance_single_hold[4]",9,2,4]},{"label":"Double tap","type":"keycode","content":["id_tap_dance_double_tap[4]",9,3,4]},{"label":"Double hold","type":"keycode","content":["id_tap_dance_double_hold[4]",9,4,4]},{"label":"Tapping term (ms)","type":"range","content":["id_tap_dance_term[4]",9,5,4],"options":[1,1000]}]},{"label":"Tap Dance 5 - TD(5)","content":[{"label":"Single tap","type":"keycode","content":["id_tap_dance_single_tap[5]",9,1,5]},{"label":"Single hold","type":"keycode","content":["id_tap_dance_single_hold[5]",9,2,5]},{"label":"Double tap","type":"keycode","content":["id_tap_dance_double_tap[5]",9,3,5]},{"label":"Double hold","type":"keycode","content":["id_tap_dance_double_hold[5]",9,4,5]},{"label":"Tapping term (ms)","type":"range","content":["id_tap_dance_term[5]",9,5,5],"options":[1,1000]}]},{"label":"Tap Dance 6 - TD(6)","content":[{"label":"Single tap","type":"keycode","content":["id_tap_dance_single_tap[6]",9,1,6]},{"label":"Single hold","type":"keycode","content":["id_tap_dance_single_hold[6]",9,2,6]},{"label":"Double tap","type":"keycode","content":["id_tap_dance_double_tap[6]",9,3,6]},{"label":"Double hold","type":"keycode","content":["id_tap_dance_double_hold[6]",9,4,6]},{"label":"Tapping term (ms)","type":"range","content":["id_tap_dance_term[6]",9,5,6],"options":[1,1000]}]},{"label":"Tap Dance 7 - TD(7)","content":[{"label":"Single tap","type":"keycode","content":["id_tap_dance_single_tap[7]",9,1,7]},{"label":"Single hold","type":"keycode","content":["id_tap_dance_single_hold[7]",9,2,7]},{"label":"Double tap","type":"keycode","content":["id_tap_dance_double_tap[7]",9,3,7]},{"label":"Double hold","type":"keycode","content":["id_tap_dance_double_hold[7]",9,4,7]},{"label":"Tapping term (ms)","type":"range","content":["id_tap_dance_term[7]",9,5,7],"options":[1,1000]}]},{"label":"Tap Dance 8 - TD(8)","content":[{"label":"Single tap","type":"keycode","content":["id_tap_dance_single_tap[8]",9,1,8]},{"label":"Single hold","type":"keycode","content":["id_tap_dance_single_hold[8]",9,2,8]},{"label":"Double tap","type":"keycode","content":["id_tap_dance_double_tap[8]",9,3,8]},{"label":"Double hold","type":"keycode","content":["id_tap_dance_double_hold[8]",9,4,8]},{"label":"Tapping term (ms)","type":"range","content":["id_tap_dance_term[8]",9,5,8],"options":[1,1000]}]},{"label":"Tap Dance 9 - TD(9)","content":[{"label":"Single tap","type":"keycode","content":["id_tap_dance_single_tap[9]",9,1,9]},{"label":"Single hold","type":"keycode","content":["id_tap_dance_single_hold[9]",9,2,9]},{"label":"Double tap","type":"keycode","content":["id_tap_dance_double_tap[9]",9,3,9]},{"label":"Double hold","type":"keycode","content":["id_tap_dance_double_hold[9]",9,4,9]},{"label":"Tapping term (ms)","type":"range","content":["id_tap_dance_term[9]",9,5,9],"options":[1,1000]}]},{"label":"Tap Dance 10 - TD(10)","content":[{"label":"Single tap","type":"keycode","content":["id_tap_dance_single_tap[10]",9,1,10]},{"label":"Single hold","type":"keycode","content":["id_tap_dance_single_hold[10]",9,2,10]},{"label":"Double tap","type":"keycode","content":["id_tap_dance_double_tap[10]",9,3,10]},{"label":"Double hold","type":"keycode","content":["id_tap_dance_double_hold[10]",9,4,10]},{"label":"Tapping term (ms)","type":"range","content":["id_tap_dance_term[10]",9,5,10],"options":[1,1000]}]},{"label":"Tap Dance 11 - TD(11)","content":[{"label":"Single tap","type":"keycode","content":["id_tap_dance_single_tap[11]",9,1,11]},{"label":"Single hold","type":"keycode","content":["id_tap_dance_single_hold[11]",9,2,11]},{"label":"Double tap","type":"keycode","content":["id_tap_dance_double_tap[11]",9,3,11]},{"label":"Double hold","type":"keycode","content":["id_tap_dance_double_hold[11]",9,4,11]},{"label":"Tapping term (ms)","type":"range","content":["id_tap_dance_term[11]",9,5,11],"options":[1,1000]}]},{"label":"Tap Dance 12 - TD(12)","content":[{"label":"Single tap","type":"keycode","content":["id_tap_dance_single_tap[12]",9,1,12]},{"label":"Single hold","type":"keycode","content":["id_tap_dance_single_hold[12]",9,2,12]},{"label":"Double tap","type":"keycode","content":["id_tap_dance_double_tap[12]",9,3,12]},{"label":"Double hold","type":"keycode","content":["id_tap_dance_double_hold[12]",9,4,12]},{"label":"Tapping term (ms)","type":"range","content":["id_tap_dance_term[12]",9,5,12],"options":[1,1000]}]},{"label":"Tap Dance 13 - TD(13)","content":[{"label":"Single tap","type":"keycode","content":["id_tap_dance_single_tap[13]",9,1,13]},{"label":"Single hold","type":"keycode","content":["id_tap_dance_single_hold[13]",9,2,13]},{"label":"Double tap","type":"keycode","content":["id_tap_dance_double_tap[13]",9,3,13]},{"label":"Double hold","type":"keycode","content":["id_tap_dance_double_hold[13]",9,4,13]},{"label":"Tapping term (ms)","type":"range","content":["id_tap_dance_term[13]",9,5,13],"options":[1,1000]}]},{"label":"Tap Dance 14 - TD(14)","content":[{"label":"Single tap","type":"keycode","content":["id_tap_dance_single_tap[14]",9,1,14]},{"label":"Single hold","type":"keycode","content":["id_tap_dance_single_hold[14]",9,2,14]},{"label":"Double tap","type":"keycode","content":["id_tap_dance_double_tap[14]",9,3,14]},{"label":"Double hold","type":"keycode","content":["id_tap_dance_double_hold[14]",9,4,14]},{"label":"Tapping term (ms)","type":"range","content":["id_tap_dance_term[14]",9,5,14],"options":[1,1000]}]},{"label":"Tap Dance 15 - TD(15)","content":[{"label":"Single tap","type":"keycode","content":["id_tap_dance_single_tap[15]",9,1,15]},{"label":"Single hold","type":"keycode","content":["id_tap_dance_single_hold[15]",9,2,15]},{"label":"Double tap","type":"keycode","content":["id_tap_dance_double_tap[15]",9,3,15]},{"label":"Double hold","type":"keycode","content":["id_tap_dance_double_hold[15]",9,4,15]},{"label":"Tapping term (ms)","type":"range","content":["id_tap_dance_term[15]",9,5,15],"options":[1,1000]}]}]},{"showIf":"{id_firmware_version} >= 5","label":"Combos","content":[{"label":"Combo 0","content":[{"label":"Input key 1","type":"keycode","content":["id_combo_key[0][0]",10,1,0,0]},{"label":"Input key 2","type":"keycode","content":["id_combo_key[0][1]",10,1,0,1]},{"label":"Input key 3","type":"keycode","content":["id_combo_key[0][2]",10,1,0,2]},{"label":"Input key 4","type":"keycode","content":["id_combo_key[0][3]",10,1,0,3]},{"label":"Output keycode","type":"keycode","content":["id_combo_output[0]",10,2,0]},{"label":"Combo term (ms)","type":"range","content":["id_combo_slot_term[0]",10,3,0],"options":[1,1000]}]},{"label":"Combo 1","content":[{"label":"Input key 1","type":"keycode","content":["id_combo_key[1][0]",10,1,1,0]},{"label":"Input key 2","type":"keycode","content":["id_combo_key[1][1]",10,1,1,1]},{"label":"Input key 3","type":"keycode","content":["id_combo_key[1][2]",10,1,1,2]},{"label":"Input key 4","type":"keycode","content":["id_combo_key[1][3]",10,1,1,3]},{"label":"Output keycode","type":"keycode","content":["id_combo_output[1]",10,2,1]},{"label":"Combo term (ms)","type":"range","content":["id_combo_slot_term[1]",10,3,1],"options":[1,1000]}]},{"label":"Combo 2","content":[{"label":"Input key 1","type":"keycode","content":["id_combo_key[2][0]",10,1,2,0]},{"label":"Input key 2","type":"keycode","content":["id_combo_key[2][1]",10,1,2,1]},{"label":"Input key 3","type":"keycode","content":["id_combo_key[2][2]",10,1,2,2]},{"label":"Input key 4","type":"keycode","content":["id_combo_key[2][3]",10,1,2,3]},{"label":"Output keycode","type":"keycode","content":["id_combo_output[2]",10,2,2]},{"label":"Combo term (ms)","type":"range","content":["id_combo_slot_term[2]",10,3,2],"options":[1,1000]}]},{"label":"Combo 3","content":[{"label":"Input key 1","type":"keycode","content":["id_combo_key[3][0]",10,1,3,0]},{"label":"Input key 2","type":"keycode","content":["id_combo_key[3][1]",10,1,3,1]},{"label":"Input key 3","type":"keycode","content":["id_combo_key[3][2]",10,1,3,2]},{"label":"Input key 4","type":"keycode","content":["id_combo_key[3][3]",10,1,3,3]},{"label":"Output keycode","type":"keycode","content":["id_combo_output[3]",10,2,3]},{"label":"Combo term (ms)","type":"range","content":["id_combo_slot_term[3]",10,3,3],"options":[1,1000]}]},{"label":"Combo 4","content":[{"label":"Input key 1","type":"keycode","content":["id_combo_key[4][0]",10,1,4,0]},{"label":"Input key 2","type":"keycode","content":["id_combo_key[4][1]",10,1,4,1]},{"label":"Input key 3","type":"keycode","content":["id_combo_key[4][2]",10,1,4,2]},{"label":"Input key 4","type":"keycode","content":["id_combo_key[4][3]",10,1,4,3]},{"label":"Output keycode","type":"keycode","content":["id_combo_output[4]",10,2,4]},{"label":"Combo term (ms)","type":"range","content":["id_combo_slot_term[4]",10,3,4],"options":[1,1000]}]},{"label":"Combo 5","content":[{"label":"Input key 1","type":"keycode","content":["id_combo_key[5][0]",10,1,5,0]},{"label":"Input key 2","type":"keycode","content":["id_combo_key[5][1]",10,1,5,1]},{"label":"Input key 3","type":"keycode","content":["id_combo_key[5][2]",10,1,5,2]},{"label":"Input key 4","type":"keycode","content":["id_combo_key[5][3]",10,1,5,3]},{"label":"Output keycode","type":"keycode","content":["id_combo_output[5]",10,2,5]},{"label":"Combo term (ms)","type":"range","content":["id_combo_slot_term[5]",10,3,5],"options":[1,1000]}]},{"label":"Combo 6","content":[{"label":"Input key 1","type":"keycode","content":["id_combo_key[6][0]",10,1,6,0]},{"label":"Input key 2","type":"keycode","content":["id_combo_key[6][1]",10,1,6,1]},{"label":"Input key 3","type":"keycode","content":["id_combo_key[6][2]",10,1,6,2]},{"label":"Input key 4","type":"keycode","content":["id_combo_key[6][3]",10,1,6,3]},{"label":"Output keycode","type":"keycode","content":["id_combo_output[6]",10,2,6]},{"label":"Combo term (ms)","type":"range","content":["id_combo_slot_term[6]",10,3,6],"options":[1,1000]}]},{"label":"Combo 7","content":[{"label":"Input key 1","type":"keycode","content":["id_combo_key[7][0]",10,1,7,0]},{"label":"Input key 2","type":"keycode","content":["id_combo_key[7][1]",10,1,7,1]},{"label":"Input key 3","type":"keycode","content":["id_combo_key[7][2]",10,1,7,2]},{"label":"Input key 4","type":"keycode","content":["id_combo_key[7][3]",10,1,7,3]},{"label":"Output keycode","type":"keycode","content":["id_combo_output[7]",10,2,7]},{"label":"Combo term (ms)","type":"range","content":["id_combo_slot_term[7]",10,3,7],"options":[1,1000]}]},{"label":"Combo 8","content":[{"label":"Input key 1","type":"keycode","content":["id_combo_key[8][0]",10,1,8,0]},{"label":"Input key 2","type":"keycode","content":["id_combo_key[8][1]",10,1,8,1]},{"label":"Input key 3","type":"keycode","content":["id_combo_key[8][2]",10,1,8,2]},{"label":"Input key 4","type":"keycode","content":["id_combo_key[8][3]",10,1,8,3]},{"label":"Output keycode","type":"keycode","content":["id_combo_output[8]",10,2,8]},{"label":"Combo term (ms)","type":"range","content":["id_combo_slot_term[8]",10,3,8],"options":[1,1000]}]},{"label":"Combo 9","content":[{"label":"Input key 1","type":"keycode","content":["id_combo_key[9][0]",10,1,9,0]},{"label":"Input key 2","type":"keycode","content":["id_combo_key[9][1]",10,1,9,1]},{"label":"Input key 3","type":"keycode","content":["id_combo_key[9][2]",10,1,9,2]},{"label":"Input key 4","type":"keycode","content":["id_combo_key[9][3]",10,1,9,3]},{"label":"Output keycode","type":"keycode","content":["id_combo_output[9]",10,2,9]},{"label":"Combo term (ms)","type":"range","content":["id_combo_slot_term[9]",10,3,9],"options":[1,1000]}]}]},{"label":"SOCD","content":[{"label":"SOCD Settings","content":[{"label":"Pair #1 Mode","type":"dropdown","options":[["Disabled",0],["Last Priority",1],["Neutral",2],["First Key Priority",3],["Second Key Priority",4]],"content":["id_socd_pair_1_mode",0,12]},{"showIf":"{id_socd_pair_1_mode} != 0","content":[{"label":"Pair #1 First Key","type":"keycode","content":["id_socd_pair_1_key_1",0,13]},{"label":"Pair #1 Second Key","type":"keycode","content":["id_socd_pair_1_key_2",0,14]}]},{"label":"Pair #2 Mode","type":"dropdown","options":[["Disabled",0],["Last Priority",1],["Neutral",2],["First Key Priority",3],["Second Key Priority",4]],"content":["id_socd_pair_2_mode",0,15]},{"showIf":"{id_socd_pair_2_mode} != 0","content":[{"label":"Pair #2 First Key","type":"keycode","content":["id_socd_pair_2_key_1",0,16]},{"label":"Pair #2 Second Key","type":"keycode","content":["id_socd_pair_2_key_2",0,17]}]},{"label":"Pair #3 Mode","type":"dropdown","options":[["Disabled",0],["Last Priority",1],["Neutral",2],["First Key Priority",3],["Second Key Priority",4]],"content":["id_socd_pair_3_mode",0,18]},{"showIf":"{id_socd_pair_3_mode} != 0","content":[{"label":"Pair #3 First Key","type":"keycode","content":["id_socd_pair_3_key_1",0,19]},{"label":"Pair #3 Second Key","type":"keycode","content":["id_socd_pair_3_key_2",0,20]}]},{"label":"Pair #4 Mode","type":"dropdown","options":[["Disabled",0],["Last Priority",1],["Neutral",2],["First Key Priority",3],["Second Key Priority",4]],"content":["id_socd_pair_4_mode",0,21]},{"showIf":"{id_socd_pair_4_mode} != 0","content":[{"label":"Pair #4 First Key","type":"keycode","content":["id_socd_pair_4_key_1",0,22]},{"label":"Pair #4 Second Key","type":"keycode","content":["id_socd_pair_4_key_2",0,23]}]}]}]},{"showIf":"{id_firmware_version} >= 6","label":"DKS","content":[{"label":"DKS General Settings","content":[{"label":"Enable Dynamic Keystrokes","type":"toggle","content":["id_dks_enabled",11,1]},{"label":"Reset all DKS slots","type":"button","options":[0],"content":["id_dks_reset_all",11,0]}]},{"showIf":"{id_dks_enabled} == 1","label":"DKS 0 - DKS(0)","content":[{"label":"Shallow press threshold (1-1023)","type":"range","options":[1,1023],"content":["id_dks_threshold[0][0]",11,2,0,0],"constraints":[{"operator":">=","reference":"id_dks_threshold[0][3]","offset":50,"onViolation":"push"},{"operator":"<=","reference":"id_dks_threshold[0][2]","offset":-50,"onViolation":"push"}]},{"label":"Deep press threshold (1-1023)","type":"range","options":[1,1023],"content":["id_dks_threshold[0][1]",11,2,0,1],"constraints":[{"operator":">=","reference":"id_dks_threshold[0][2]","offset":50,"onViolation":"push"}]},{"label":"Deep release threshold (1-1023)","type":"range","options":[1,1023],"content":["id_dks_threshold[0][2]",11,2,0,2],"constraints":[{"operator":">=","reference":"id_dks_threshold[0][0]","offset":50,"onViolation":"push"},{"operator":"<=","reference":"id_dks_threshold[0][1]","offset":-50,"onViolation":"push"}]},{"label":"Shallow release threshold (1-1023)","type":"range","options":[1,1023],"content":["id_dks_threshold[0][3]",11,2,0,3],"constraints":[{"operator":"<=","reference":"id_dks_threshold[0][0]","offset":-50,"onViolation":"push"}]},{"label":"Output 1 keycode","type":"keycode","content":["id_dks_keycode_0_0",11,3,0,0]},{"showIf":"{id_dks_keycode_0_0.0} != 0 || {id_dks_keycode_0_0.1} != 0","label":"Output 1 - Shallow press","type":"dropdown","options":["None","Press","Release","Tap","Release and press again"],"content":["id_dks_action[0][0][0]",11,4,0,0,0]},{"showIf":"{id_dks_keycode_0_0.0} != 0 || {id_dks_keycode_0_0.1} != 0","label":"Output 1 - Deep press","type":"dropdown","options":["None","Press","Release","Tap","Release and press again"],"content":["id_dks_action[0][1][0]",11,4,0,1,0]},{"showIf":"{id_dks_keycode_0_0.0} != 0 || {id_dks_keycode_0_0.1} != 0","label":"Output 1 - Deep release","type":"dropdown","options":["None","Press","Release","Tap","Release and press again"],"content":["id_dks_action[0][2][0]",11,4,0,2,0]},{"showIf":"{id_dks_keycode_0_0.0} != 0 || {id_dks_keycode_0_0.1} != 0","label":"Output 1 - Shallow release","type":"dropdown","options":["None","Press","Release","Tap","Release and press again"],"content":["id_dks_action[0][3][0]",11,4,0,3,0]},{"label":"Output 2 keycode","type":"keycode","content":["id_dks_keycode_0_1",11,3,0,1]},{"showIf":"{id_dks_keycode_0_1.0} != 0 || {id_dks_keycode_0_1.1} != 0","label":"Output 2 - Shallow press","type":"dropdown","options":["None","Press","Release","Tap","Release and press again"],"content":["id_dks_action[0][0][1]",11,4,0,0,1]},{"showIf":"{id_dks_keycode_0_1.0} != 0 || {id_dks_keycode_0_1.1} != 0","label":"Output 2 - Deep press","type":"dropdown","options":["None","Press","Release","Tap","Release and press again"],"content":["id_dks_action[0][1][1]",11,4,0,1,1]},{"showIf":"{id_dks_keycode_0_1.0} != 0 || {id_dks_keycode_0_1.1} != 0","label":"Output 2 - Deep release","type":"dropdown","options":["None","Press","Release","Tap","Release and press again"],"content":["id_dks_action[0][2][1]",11,4,0,2,1]},{"showIf":"{id_dks_keycode_0_1.0} != 0 || {id_dks_keycode_0_1.1} != 0","label":"Output 2 - Shallow release","type":"dropdown","options":["None","Press","Release","Tap","Release and press again"],"content":["id_dks_action[0][3][1]",11,4,0,3,1]},{"label":"Output 3 keycode","type":"keycode","content":["id_dks_keycode_0_2",11,3,0,2]},{"showIf":"{id_dks_keycode_0_2.0} != 0 || {id_dks_keycode_0_2.1} != 0","label":"Output 3 - Shallow press","type":"dropdown","options":["None","Press","Release","Tap","Release and press again"],"content":["id_dks_action[0][0][2]",11,4,0,0,2]},{"showIf":"{id_dks_keycode_0_2.0} != 0 || {id_dks_keycode_0_2.1} != 0","label":"Output 3 - Deep press","type":"dropdown","options":["None","Press","Release","Tap","Release and press again"],"content":["id_dks_action[0][1][2]",11,4,0,1,2]},{"showIf":"{id_dks_keycode_0_2.0} != 0 || {id_dks_keycode_0_2.1} != 0","label":"Output 3 - Deep release","type":"dropdown","options":["None","Press","Release","Tap","Release and press again"],"content":["id_dks_action[0][2][2]",11,4,0,2,2]},{"showIf":"{id_dks_keycode_0_2.0} != 0 || {id_dks_keycode_0_2.1} != 0","label":"Output 3 - Shallow release","type":"dropdown","options":["None","Press","Release","Tap","Release and press again"],"content":["id_dks_action[0][3][2]",11,4,0,3,2]},{"label":"Output 4 keycode","type":"keycode","content":["id_dks_keycode_0_3",11,3,0,3]},{"showIf":"{id_dks_keycode_0_3.0} != 0 || {id_dks_keycode_0_3.1} != 0","label":"Output 4 - Shallow press","type":"dropdown","options":["None","Press","Release","Tap","Release and press again"],"content":["id_dks_action[0][0][3]",11,4,0,0,3]},{"showIf":"{id_dks_keycode_0_3.0} != 0 || {id_dks_keycode_0_3.1} != 0","label":"Output 4 - Deep press","type":"dropdown","options":["None","Press","Release","Tap","Release and press again"],"content":["id_dks_action[0][1][3]",11,4,0,1,3]},{"showIf":"{id_dks_keycode_0_3.0} != 0 || {id_dks_keycode_0_3.1} != 0","label":"Output 4 - Deep release","type":"dropdown","options":["None","Press","Release","Tap","Release and press again"],"content":["id_dks_action[0][2][3]",11,4,0,2,3]},{"showIf":"{id_dks_keycode_0_3.0} != 0 || {id_dks_keycode_0_3.1} != 0","label":"Output 4 - Shallow release","type":"dropdown","options":["None","Press","Release","Tap","Release and press again"],"content":["id_dks_action[0][3][3]",11,4,0,3,3]}]}]},{"showIf":"{id_firmware_version} >= 6","label":"Controller","content":[{"label":"General","content":[{"label":"Enable controller","type":"toggle","content":["id_controller_enabled",12,1]},{"showIf":"{id_controller_enabled} == 1","label":"Protocol","type":"dropdown","options":["Native HID","XInput"],"content":["id_controller_protocol",12,2]},{"showIf":"{id_controller_enabled} == 1","label":"Note","type":"label","content":["Changing protocol briefly restarts the USB connection."]},{"showIf":"{id_controller_enabled} == 1","label":"Enable normal keyboard keys","type":"toggle","content":["id_controller_keyboard",12,3]},{"showIf":"{id_controller_enabled} == 1","label":"Calibrate controller dead zones (release all assigned controller keys)","type":"button","options":[0],"content":["id_controller_calibrate",12,6]},{"label":"Reset controller settings","type":"button","options":[0],"content":["id_controller_reset",12,0]}]},{"showIf":"{id_controller_enabled} == 1","label":"Stick Behavior","content":[{"label":"Transition speed","type":"dropdown","options":["Fast","Normal","Smooth"],"content":["id_controller_transition_speed",12,11]},{"label":"Center hysteresis","type":"dropdown","options":["Off","Low","Normal","High"],"content":["id_controller_hysteresis",12,8]},{"label":"Bottom-out stabilization","type":"dropdown","options":["Off","Low","Normal","High"],"content":["id_controller_bottomout",12,9]},{"label":"Response curve","type":"dropdown","options":["Linear","Custom"],"content":["id_controller_curve_mode",12,4]},{"showIf":"{id_controller_curve_mode} == 1","label":"Output at 25% travel (%)","type":"range","options":[0,100],"content":["id_controller_curve_point_1",12,5,0],"constraints":[{"operator":"<=","reference":"id_controller_curve_point_2","offset":-10,"onViolation":"push"}]},{"showIf":"{id_controller_curve_mode} == 1","label":"Output at 50% travel (%)","type":"range","options":[0,100],"content":["id_controller_curve_point_2",12,5,1],"constraints":[{"operator":">=","reference":"id_controller_curve_point_1","offset":10,"onViolation":"push"},{"operator":"<=","reference":"id_controller_curve_point_3","offset":-10,"onViolation":"push"}]},{"showIf":"{id_controller_curve_mode} == 1","label":"Output at 75% travel (%)","type":"range","options":[0,100],"content":["id_controller_curve_point_3",12,5,2],"constraints":[{"operator":">=","reference":"id_controller_curve_point_2","offset":10,"onViolation":"push"},{"operator":"<=","reference":"id_controller_curve_point_4","offset":-10,"onViolation":"push"}]},{"showIf":"{id_controller_curve_mode} == 1","label":"Output at 100% travel (%)","type":"range","options":[0,100],"content":["id_controller_curve_point_4",12,5,3],"constraints":[{"operator":">=","reference":"id_controller_curve_point_3","offset":10,"onViolation":"push"}]},{"showIf":"{id_controller_curve_mode} == 1","label":"Apply & save curve changes","type":"button","options":[0],"content":["id_controller_curve_save",12,14]}]},{"showIf":"{id_controller_enabled} == 1","label":"Left Stick","content":[{"label":"X effective dead zone (0.1%)","type":"range","options":[0,275],"content":["id_controller_deadzone_lx",12,7,0]},{"label":"Y effective dead zone (0.1%)","type":"range","options":[0,275],"content":["id_controller_deadzone_ly",12,7,1]}]},{"showIf":"{id_controller_enabled} == 1","label":"Right Stick","content":[{"label":"X effective dead zone (0.1%)","type":"range","options":[0,275],"content":["id_controller_deadzone_rx",12,7,2]},{"label":"Y effective dead zone (0.1%)","type":"range","options":[0,275],"content":["id_controller_deadzone_ry",12,7,3]}]},{"showIf":"{id_controller_enabled} == 1","label":"Left Trigger","content":[{"label":"Full-press point (%)","type":"range","options":[0,100],"content":["id_controller_left_trigger_full_press",12,12]},{"label":"Effective dead zone (0.1%)","type":"range","options":[0,275],"content":["id_controller_deadzone_lt",12,7,4]}]},{"showIf":"{id_controller_enabled} == 1","label":"Right Trigger","content":[{"label":"Full-press point (%)","type":"range","options":[0,100],"content":["id_controller_right_trigger_full_press",12,13]},{"label":"Effective dead zone (0.1%)","type":"range","options":[0,275],"content":["id_controller_deadzone_rt",12,7,5]}]}]},{"showIf":"{id_firmware_version} >= 5","label":"QMK Settings","content":[{"label":"Grave Escape","content":[{"label":"Alt forces Escape","type":"toggle","content":["id_grave_esc_alt_override",8,1]},{"label":"Ctrl forces Escape","type":"toggle","content":["id_grave_esc_ctrl_override",8,2]},{"label":"GUI forces Escape","type":"toggle","content":["id_grave_esc_gui_override",8,3]},{"label":"Shift forces Escape","type":"toggle","content":["id_grave_esc_shift_override",8,4]}]},{"label":"Tap-Hold and Mod-Tap","content":[{"label":"Permissive hold","type":"toggle","content":["id_permissive_hold",8,5]},{"label":"Retro tapping","type":"toggle","content":["id_retro_tapping",8,6]},{"label":"Hold on other key press","type":"toggle","content":["id_hold_on_other_key_press",8,7]},{"label":"Tapping term (ms)","type":"range","content":["id_tapping_term",8,8],"options":[1,1000]},{"label":"Quick-tap term (ms)","type":"range","content":["id_quick_tap_term",8,9],"options":[0,1000]},{"label":"Reset all Tap Dance slots","type":"button","content":["id_tap_dance_reset",9,0],"options":[0]}]},{"label":"Auto Shift","content":[{"label":"Enable Auto Shift","type":"toggle","content":["id_auto_shift_enabled",8,10]},{"label":"Include modifiers","type":"toggle","content":["id_auto_shift_modifiers",8,11]},{"label":"Include alpha keys","type":"toggle","content":["id_auto_shift_alpha",8,12]},{"label":"Include number keys","type":"toggle","content":["id_auto_shift_numeric",8,13]},{"label":"Include symbol keys","type":"toggle","content":["id_auto_shift_symbols",8,14]},{"label":"Include Tab","type":"toggle","content":["id_auto_shift_tab",8,15]},{"label":"Enable key repeat","type":"toggle","content":["id_auto_shift_repeat",8,16]},{"label":"Disable automatic repeat after timeout","type":"toggle","content":["id_auto_shift_no_repeat",8,17]},{"label":"Auto Shift timeout (ms)","type":"range","content":["id_auto_shift_timeout",8,18],"options":[1,1000]}]},{"label":"Combo Behavior","content":[{"label":"Enable combos","type":"toggle","content":["id_combo_enabled",8,19]},{"label":"Combos must be held","type":"toggle","content":["id_combo_must_hold",8,20]},{"label":"Combos must be tapped","type":"toggle","content":["id_combo_must_tap",8,21]},{"label":"Keys must be pressed in order","type":"toggle","content":["id_combo_press_in_order",8,22]},{"label":"Default combo term (ms)","type":"range","content":["id_combo_term",8,23],"options":[1,1000]},{"label":"Combo hold term (ms)","type":"range","content":["id_combo_hold_term",8,24],"options":[1,1000]},{"label":"Reset all Combo slots","type":"button","content":["id_combo_reset",10,0],"options":[0]}]},{"label":"One-Shot Keys","content":[{"label":"Enable one-shot keys","type":"toggle","content":["id_magic_oneshot_enabled",7,12]}]},{"label":"Mouse Keys","content":[{"label":"Initial movement delay (10 ms units)","type":"range","content":["id_mouse_delay",8,25],"options":[0,255]},{"label":"Movement interval (ms)","type":"range","content":["id_mouse_interval",8,26],"options":[1,255]},{"label":"Maximum cursor speed","type":"range","content":["id_mouse_max_speed",8,27],"options":[1,255]},{"label":"Cursor acceleration time","type":"range","content":["id_mouse_time_to_max",8,28],"options":[1,255]},{"label":"Initial wheel delay (10 ms units)","type":"range","content":["id_mouse_wheel_delay",8,29],"options":[0,255]},{"label":"Wheel interval (ms)","type":"range","content":["id_mouse_wheel_interval",8,30],"options":[1,255]},{"label":"Maximum wheel speed","type":"range","content":["id_mouse_wheel_max_speed",8,31],"options":[1,255]},{"label":"Wheel acceleration time","type":"range","content":["id_mouse_wheel_time_to_max",8,32],"options":[1,255]}]},{"label":"Miscellaneous","content":[{"label":"Enable NKRO","type":"toggle","content":["id_magic_nkro",7,1]},{"label":"Lock GUI key","type":"toggle","content":["id_magic_no_gui",7,2]},{"label":"Caps Lock acts as Ctrl","type":"toggle","content":["id_magic_capslock_to_control",7,3]},{"label":"Swap Ctrl and Caps Lock","type":"toggle","content":["id_magic_swap_control_capslock",7,4]},{"label":"Swap Escape and Caps Lock","type":"toggle","content":["id_magic_swap_escape_capslock",7,5]},{"label":"Swap left Alt and left GUI","type":"toggle","content":["id_magic_swap_lalt_lgui",7,6]},{"label":"Swap right Alt and right GUI","type":"toggle","content":["id_magic_swap_ralt_rgui",7,7]},{"label":"Swap left Ctrl and left GUI","type":"toggle","content":["id_magic_swap_lctl_lgui",7,8]},{"label":"Swap right Ctrl and right GUI","type":"toggle","content":["id_magic_swap_rctl_rgui",7,9]},{"label":"Swap Grave and Escape","type":"toggle","content":["id_magic_swap_grave_esc",7,10]},{"label":"Swap Backslash and Backspace","type":"toggle","content":["id_magic_swap_backslash_backspace",7,11]}]}]},{"showIf":"{id_firmware_version} >= 3","label":"System","content":[{"label":"Maintenance","content":[{"showIf":"{id_firmware_version} >= 4","label":"Firmware Version","type":"label","content":["id_firmware_version_text",0,26]},{"showIf":"{id_firmware_version} >= 4","label":"Firmware build date","type":"label","content":["id_firmware_build_text",0,27]},{"label":"Enter bootloader","type":"button","options":[0],"content":["id_flash_mode",0,24]},{"label":"Factory reset (erases all settings and restarts)","type":"button","options":[0],"content":["id_factory_reset",0,25]}]}]}],"customKeycodes":["TD(0)","TD(1)","TD(2)","TD(3)","TD(4)","TD(5)","TD(6)","TD(7)","TD(8)","TD(9)","TD(10)","TD(11)","TD(12)","TD(13)","TD(14)","TD(15)","OS_LCTL","OS_LSFT","OS_LALT","OS_LGUI","OS_RCTL","OS_RSFT","OS_RALT","OS_RGUI","OS_ON","OS_OFF","OS_TOGG","OS_MEH","OS_HYPR","QK_LOCK","DKS(0)","DKS(1)","DKS(2)","DKS(3)","DKS(4)","DKS(5)","DKS(6)","DKS(7)","DKS(8)","DKS(9)","DKS(10)","DKS(11)","DKS(12)","DKS(13)","DKS(14)","DKS(15)","GC_LS_UP","GC_LS_DOWN","GC_LS_LEFT","GC_LS_RIGHT","GC_RS_UP","GC_RS_DOWN","GC_RS_LEFT","GC_RS_RIGHT","GC_L3","GC_R3","GC_LT","GC_RT","GC_DPAD_UP","GC_DPAD_DOWN","GC_DPAD_LEFT","GC_DPAD_RIGHT","GC_A","GC_B","GC_X","GC_Y","GC_LB","GC_RB","GC_VIEW","GC_MENU","GC_GUIDE"]}};
+(function dksSlots() {
+  const dks = DEFS['EC Theca'].menus.find(m => m.label === 'DKS');
+  const s0 = JSON.stringify(dks.content[1]);
+  for (let n = 1; n < 16; n++) {
+    const x = JSON.parse(s0.replace('DKS 0 - DKS(0)', `DKS ${n} - DKS(${n})`)
+      .replace(/(id_dks_(?:threshold|action))\[0\]/g, `$1[${n}]`).replace(/id_dks_keycode_0_/g, `id_dks_keycode_${n}_`));
+    const fix = it => { if ('type' in it) { if (it.content.length >= 4) it.content[3] = n; } else it.content.forEach(fix); };
+    x.content.forEach(fix);
+    dks.content.push(x);
+  }
+})();
+
+// ---------------------------------------------------------------------------------------------
+// KLE, as in the other section mockups.
+function parseKle(rows) {
+  const keys = [];
+  let x = 0, y = 0, rx = 0, ry = 0, r = 0, p = {};
+  const pair = s => { const m = /^\s*(\d+)\s*,\s*(\d+)\s*$/.exec(s || ''); return m ? [+m[1], +m[2]] : null; };
+  for (const row of rows) {
+    if (!Array.isArray(row)) continue;
+    for (const item of row) {
+      if (typeof item === 'object') {
+        if ('r' in item) r = item.r;
+        if ('rx' in item || 'ry' in item) { if ('rx' in item) rx = item.rx; if ('ry' in item) ry = item.ry; x = rx; y = ry; }
+        if ('x' in item) x += item.x;
+        if ('y' in item) y += item.y;
+        for (const k of ['w', 'h', 'x2', 'y2', 'w2', 'h2', 'd']) if (k in item) p[k] = item[k];
+        continue;
+      }
+      const w = p.w || 1, h = p.h || 1;
+      const labels = String(item).split('\n');
+      const cell = pair(labels[0]), option = pair(labels[3]);
+      if (cell || p.d)
+        keys.push({ x, y, w, h, x2: p.x2 || 0, y2: p.y2 || 0, w2: p.w2 || w, h2: p.h2 || h, r, rx, ry, decal: !!p.d,
+                    cell, g: option ? option[0] : -1, o: option ? option[1] : 0 });
+      x += w;
+      p = {};
+    }
+    y += 1;
+    x = rx;
+  }
+  return keys;
+}
+function boundsOf(keys) {
+  const b = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+  for (const k of keys)
+    for (const [x, y, w, h] of [[k.x, k.y, k.w, k.h], [k.x + k.x2, k.y + k.y2, k.w2, k.h2]])
+      for (const [px, py] of [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]) {
+        b.x0 = Math.min(b.x0, px); b.y0 = Math.min(b.y0, py); b.x1 = Math.max(b.x1, px); b.y1 = Math.max(b.y1, py);
+      }
+  return b;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Keymaps, made up: each visual row's keys, left to right, with the first choice of each layout
+// option. Layer 1 by layer 0's key.
+const W = s => s.split(' ');
+const R65 = [W('KC_ESC KC_1 KC_2 KC_3 KC_4 KC_5 KC_6 KC_7 KC_8 KC_9 KC_0 KC_MINS KC_EQL KC_BSPC KC_DEL'),
+  W('KC_TAB KC_Q KC_W KC_E KC_R KC_T KC_Y KC_U KC_I KC_O KC_P KC_LBRC KC_RBRC KC_BSLS KC_PGUP'),
+  W('KC_CAPS KC_A KC_S KC_D KC_F KC_G KC_H KC_J KC_K KC_L KC_SCLN KC_QUOT KC_ENT KC_PGDN'),
+  W('KC_LSFT KC_Z KC_X KC_C KC_V KC_B KC_N KC_M KC_COMM KC_DOT KC_SLSH KC_RSFT KC_UP KC_END')];
+const SETUPS = {
+  'FAve65S · Lighting': { def: 'FAve65S', proto: 'VIA 12', nazg: ['Keymap', 'Layout', 'Macros'],
+    rows: [...R65, W('KC_LCTL KC_LGUI KC_LALT KC_SPC KC_RALT MO(1) KC_LEFT KC_DOWN KC_RGHT')],
+    l1: { KC_Q: 'RM_TOGG', KC_W: 'RM_NEXT', KC_E: 'RM_HUEU', KC_R: 'RM_SATU', KC_T: 'RM_VALU', KC_Y: 'RM_SPDU',
+          KC_A: 'RM_PREV', KC_D: 'RM_HUED', KC_F: 'RM_SATD', KC_G: 'RM_VALD', KC_H: 'RM_SPDD' } },
+  'Mode M65V2 · Indicators': { def: 'Mode M65V2', proto: 'VIA 12', nazg: ['Keymap', 'Layout', 'Macros', 'Lighting'],
+    rows: [...R65, W('KC_LCTL KC_LGUI KC_LALT KC_SPC MO(1) KC_LEFT KC_DOWN KC_RGHT')], l1: {} },
+  'EC Theca · eight menus': { def: 'EC Theca', proto: 'VIA 12', nazg: ['Keymap', 'Layout', 'Macros'],
+    rows: [W('KC_ESC KC_F1 KC_F2 KC_F3 KC_F4 KC_F5 KC_F6 KC_F7 KC_F8 KC_F9 KC_F10 KC_F11 KC_F12 KC_PSCR KC_SCRL KC_PAUS'),
+      W('KC_GRV KC_1 KC_2 KC_3 KC_4 KC_5 KC_6 KC_7 KC_8 KC_9 KC_0 KC_MINS KC_EQL KC_BSPC KC_INS KC_HOME KC_PGUP'),
+      W('KC_TAB KC_Q DKS(0) KC_E KC_R KC_T KC_Y KC_U KC_I KC_O KC_P KC_LBRC KC_RBRC KC_BSLS KC_DEL KC_END KC_PGDN'),
+      W('TD(0) KC_A KC_S KC_D KC_F KC_G KC_H KC_J KC_K KC_L KC_SCLN KC_QUOT KC_ENT'),
+      W('KC_LSFT KC_Z KC_X KC_C KC_V KC_B KC_N KC_M KC_COMM KC_DOT KC_SLSH KC_RSFT KC_UP'),
+      W('KC_LCTL KC_LALT KC_SPC KC_RALT KC_RCTL KC_LEFT KC_DOWN KC_RGHT')], l1: {} },
+};
+const setupOf = () => SETUPS[state.setup];
+const defOf = () => DEFS[setupOf().def];
+
+// The values: made up where it shows something, else a default by control.
+const INIT = {
+  'FAve65S': { id_qmk_rgb_matrix_brightness: 200, id_qmk_rgb_matrix_effect: 5, id_qmk_rgb_matrix_effect_speed: 128, id_qmk_rgb_matrix_color: [170, 255] },
+  'Mode M65V2': { id_ind1_enabled: 1, id_ind1_brightness: 160, id_ind1_color: [0, 255], id_ind1_func1: 1, id_ind2_enabled: 0, id_ind2_color: [85, 255], id_ind2_func1: 4 },
+  'EC Theca': { id_actuation_mode: 0, id_apc_actuation_threshold: 600, id_apc_release_threshold: 520, id_rt_initial_deadzone_offset: 200,
+    id_rt_actuation_offset: 40, id_rt_release_offset: 40, id_bottoming_calibration: 0,
+    id_socd_pair_1_mode: 1, id_socd_pair_1_key_1: 'KC_A', id_socd_pair_1_key_2: 'KC_D',
+    id_dks_enabled: 1, id_dks_keycode_0_0: 'KC_W', id_dks_keycode_0_1: 'KC_LSFT',
+    'id_dks_action[0][0][0]': 1, 'id_dks_action[0][3][0]': 2, 'id_dks_action[0][1][1]': 1, 'id_dks_action[0][2][1]': 2,
+    'id_tap_dance_single_tap[0]': 'KC_ESC', 'id_tap_dance_single_hold[0]': 'KC_LCTL', 'id_tap_dance_double_tap[0]': 'KC_CAPS',
+    'id_combo_key[0][0]': 'KC_J', 'id_combo_key[0][1]': 'KC_K', 'id_combo_output[0]': 'KC_ESC', 'id_combo_slot_term[0]': 50,
+    id_controller_enabled: 0, id_controller_curve_point_1: 25, id_controller_curve_point_2: 50, id_controller_curve_point_3: 75,
+    id_firmware_version_text: '1.6.2', id_firmware_build_text: 'Aug 14 2026' },
+};
+function initial(it) {
+  const id = it.content[0], given = INIT[setupOf().def][id];
+  if (given !== undefined) return JSON.parse(JSON.stringify(given));
+  let m;
+  if ((m = /^id_dks_threshold\[\d+\]\[(\d)\]$/.exec(id))) return [400, 800, 700, 300][+m[1]];
+  switch (it.type) {
+    case 'range': { const [a, b] = it.options; return /\(ms\)/.test(it.label) ? Math.min(b, Math.max(a, 200)) : Math.round((a + b) / 2); }
+    case 'dropdown': { const o = it.options[0]; return Array.isArray(o) ? o[1] : 0; }
+    case 'toggle': return 0;
+    case 'keycode': return 'KC_NO';
+    case 'color': return [0, 255];
+    case 'label': return it.content.length > 1 ? '' : null;
+  }
+  return 0;
+}
+
+// ---------------------------------------------------------------------------------------------
+// A menu's structure, slices flattened: submenus, and each submenu's controls, with the
+// conditions they inherit.
+function submenusOf(menu) {
+  const out = [];
+  const walk = (list, conds) => list.forEach(s => {
+    const c = s.showIf ? [...conds, s.showIf] : conds;
+    if ('label' in s) out.push({ label: s.label, conds: c, content: s.content });
+    else walk(s.content, c);
+  });
+  walk(menu.content, []);
+  return out;
+}
+function itemsOf(sub) {
+  const out = [];
+  const walk = (list, conds) => list.forEach(it => {
+    const c = it.showIf ? [...conds, it.showIf] : conds;
+    if ('type' in it) out.push({ it, conds: c });
+    else walk(it.content, c);
+  });
+  walk(sub.content, []);
+  return out;
+}
+const bound = it => Array.isArray(it.content) && it.content.length >= 3;
+function allItems() {
+  const out = [];
+  defOf().menus.forEach(m => { if (typeof m === 'object') submenusOf(m).forEach(s => itemsOf(s).forEach(x => out.push(x.it))); });
+  return out;
+}
+const labelOfId = id => { const it = allItems().find(x => bound(x) && x.content[0] === id); return it ? it.label : id; };
+
+// showIf, as pelpi reads it: {id} is a value's first byte, {id.1} its second.
+function bytesOf(id) {
+  if (id === 'id_firmware_version') return [state.fw];
+  const v = state.vals[id], it = allItems().find(x => bound(x) && x.content[0] === id);
+  if (v === undefined) return [0];
+  if (typeof v === 'string') return v === 'KC_NO' ? [0, 0] : [0, 4];   // a keycode: two bytes, zero when empty
+  if (Array.isArray(v)) return v;
+  if (it && it.type === 'range' && it.options[1] > 255) return [v >> 8, v & 255];
+  return [v];
+}
+function evalExpr(src) {
+  const toks = src.match(/\{[\w\[\]-]+(?:\.\d+)?\}|\d+|\|\||&&|==|!=|<=|>=|[<>!()]/g) || [];
+  let i = 0;
+  const peek = () => toks[i], next = () => toks[i++];
+  const primary = () => {
+    const t = next();
+    if (t === '(') { const v = or(); next(); return v; }
+    if (t === '!') return !primary();
+    if (t[0] === '{') { const [id, b] = t.slice(1, -1).split('.'); return bytesOf(id)[+(b || 0)] || 0; }
+    return +t;
+  };
+  const cmp = () => {
+    let a = primary();
+    while (['==', '!=', '<', '<=', '>', '>='].includes(peek())) {
+      const op = next(), b = primary();
+      a = op === '==' ? a == b : op === '!=' ? a != b : op === '<' ? a < b : op === '<=' ? a <= b : op === '>' ? a > b : a >= b;
+    }
+    return a;
+  };
+  const and = () => { let a = cmp(); while (peek() === '&&') { next(); const b = cmp(); a = a && b; } return a; };
+  const or = () => { let a = and(); while (peek() === '||') { next(); const b = and(); a = a || b; } return a; };
+  return !!or();
+}
+const holds = conds => conds.every(evalExpr);
+const idsIn = conds => [...new Set(conds.join(' ').match(/\{[\w\[\]-]+/g) || [])].map(s => s.slice(1));
+function dependsOn(conds) {
+  return idsIn(conds).map(id => id === 'id_firmware_version' ? 'the firmware version' : labelOfId(id)).join(', ');
+}
+const firmwareNeed = m => { const x = /\{id_firmware_version\}\s*>=\s*(\d+)/.exec(m.showIf || ''); return x ? +x[1] : 0; };
+
+// ---------------------------------------------------------------------------------------------
+// Range constraints, as the VIA app resolves them: push moves the other slider along.
+function rangeItems() { const o = {}; allItems().forEach(it => { if (it.type === 'range' && bound(it)) o[it.content[0]] = it; }); return o; }
+function resolve(id, value) {
+  const R = rangeItems(), vals = {}, busy = new Set();
+  Object.keys(R).forEach(k => { if (typeof state.vals[k] === 'number') vals[k] = state.vals[k]; });
+  const bnd = (c, ref) => { const v = ref + (c.offset || 0); return c.operator === '>' ? v + 1 : c.operator === '<' ? v - 1 : v; };
+  const bad = (x, c, ref) => { const v = ref + (c.offset || 0); return c.operator === '>' ? x <= v : c.operator === '>=' ? x < v : c.operator === '<' ? x >= v : x > v; };
+  const go = (cid, v, ignore) => {
+    const it = R[cid]; vals[cid] = Math.min(it.options[1], Math.max(it.options[0], v)); busy.add(cid);
+    for (const c of it.constraints || []) {
+      const ref = typeof c.reference === 'string' ? c.reference : c.reference[0];
+      if (ref === ignore || vals[ref] === undefined || !bad(vals[cid], c, vals[ref])) continue;
+      if (c.onViolation === 'push' && !busy.has(ref)) {
+        const adj = c.operator === '>' ? -1 : c.operator === '<' ? 1 : 0;
+        go(ref, vals[cid] - (c.offset || 0) + adj, cid);
+      }
+      const b = bnd(c, vals[ref]);
+      vals[cid] = c.operator[0] === '>' ? Math.max(vals[cid], b) : Math.min(vals[cid], b);
+    }
+    busy.delete(cid);
+  };
+  go(id, value);
+  return vals;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Legends.
+const NAMED = { ESC: 'Esc', MINS: '-', EQL: '=', BSPC: 'Bksp', DEL: 'Del', TAB: 'Tab', LBRC: '[', RBRC: ']', BSLS: '\\',
+  CAPS: 'Caps', SCLN: ';', QUOT: "'", ENT: 'Enter', LSFT: 'Shift', RSFT: 'Shift', COMM: ',', DOT: '.', SLSH: '/',
+  LCTL: 'Ctrl', RCTL: 'Ctrl', LGUI: 'Win', RGUI: 'Win', LALT: 'Alt', RALT: 'AltGr', SPC: 'Space', GRV: '`', UP: '↑', DOWN: '↓',
+  LEFT: '←', RGHT: '→', PGUP: 'PgUp', PGDN: 'PgDn', END: 'End', HOME: 'Home', INS: 'Ins', PSCR: 'PrtSc', SCRL: 'ScrLk', PAUS: 'Pause' };
+const LIGHT_MAIN = { TOGG: 'On/Off', NEXT: 'Next', PREV: 'Prev', HUEU: 'Hue +', HUED: 'Hue −', SATU: 'Sat +', SATD: 'Sat −',
+  VALU: 'Bri +', VALD: 'Bri −', SPDU: 'Spd +', SPDD: 'Spd −' };
+function legendOf(kc) {
+  if (!kc || kc === 'KC_TRNS' || kc === 'KC_NO') return { m: '' };
+  let m;
+  if ((m = /^TD\((\d+)\)$/.exec(kc))) return { h: 'Dance', m: 'TD ' + m[1], c: 'hb' };
+  if ((m = /^DKS\((\d+)\)$/.exec(kc))) return { h: 'Board', m: 'DKS ' + m[1], c: 'hk' };
+  if (/^MO\(/.test(kc)) return { h: 'Layer', m: 'Fn', c: 'hb' };
+  if (/^RM_/.test(kc)) return { h: 'Light', m: LIGHT_MAIN[kc.slice(3)] || kc, c: 'hl' };
+  if (/^GC_/.test(kc)) return { h: 'Board', m: kc.slice(3).replace(/_/g, ' '), c: 'hk' };
+  if (/^OS_/.test(kc)) return { h: 'One-shot', m: kc.slice(3), c: 'hb' };
+  if (kc === 'QK_LOCK') return { h: 'Board', m: 'Lock', c: 'hk' };
+  const n = kc.replace(/^KC_/, '');
+  return { m: n in NAMED ? NAMED[n] : n };
+}
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+const tipAttr = t => ` data-tip="${esc(t)}"`;
+
+// ---------------------------------------------------------------------------------------------
+const state = { setup: Object.keys(SETUPS)[0], subsHidden: 'Left out of the strip', itemsHidden: 'Hidden',
+  board: 'Keys it concerns', picker: 'Under the lines', buttons: 'Labelled', old: 'Left out of the column',
+  fw: 6, theme: 'Light', menu: null, sub: 0, vals: {}, sel: null, hover: null, confirm: null, msg: null, pushed: null, tab: 'Basic',
+  scroll: { strip: 0, pbody: 0 } };
+function reset() {
+  state.vals = {};
+  allItems().forEach(it => { if (bound(it) || it.type === 'label') { const v = initial(it); if (bound(it) && v !== null) state.vals[it.content[0]] = v; } });
+  state.menu = null; state.sub = 0; state.sel = null; state.confirm = null; state.msg = null;
+}
+const customMenus = () => defOf().menus.filter(m => typeof m === 'object');
+const menuShown = m => !firmwareNeed(m) || state.fw >= firmwareNeed(m);
+function currentMenu() {
+  const shown = customMenus().filter(m => menuShown(m) || state.old === 'Shown, saying so');
+  if (!shown.includes(state.menu)) state.menu = shown[0];
+  return state.menu;
+}
+function subsShown() {
+  const subs = submenusOf(currentMenu());
+  return subs.map((s, i) => ({ s, i, ok: holds(s.conds) })).filter(x => x.ok || state.subsHidden === 'Greyed in the strip');
+}
+function currentSub() {
+  const list = subsShown().filter(x => x.ok);
+  if (!list.some(x => x.i === state.sub)) state.sub = list.length ? list[0].i : -1;
+  return state.sub >= 0 ? submenusOf(currentMenu())[state.sub] : null;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The panel's controls.
+function sliderHtml(id, value, min, max, kind, fillColour, pushedAt) {
+  const pct = (value - min) / (max - min) * 100;
+  const track = kind === 'sat' ? ` style="background:linear-gradient(90deg,#fff,${fillColour})"` : '';
+  return `<div class="slider ${kind || ''}" data-slider="${esc(id)}" data-min="${min}" data-max="${max}"><div class="track"${track}></div>`
+       + (kind ? '' : `<div class="fill" style="width:${pct}%"></div>`)
+       + (pushedAt !== undefined ? `<div class="pushed" style="left:${(pushedAt - min) / (max - min) * 100}%"></div>` : '')
+       + `<div class="knob" style="left:${pct}%"></div></div>`;
+}
+const css = (h, s) => {
+  const H = h / 255 * 360, S = s / 255;
+  const f = n => { const k = (n + H / 60) % 6; return 1 - S * Math.max(0, Math.min(k, 4 - k, 1)); };
+  return `rgb(${Math.round(f(5) * 255)},${Math.round(f(3) * 255)},${Math.round(f(1) * 255)})`;
+};
+const RISKY = /reset|erase|clear|factory|bootloader|flash/i;
+function tileHtml(kc, attrs) {
+  const lg = legendOf(kc);
+  if (kc === 'KC_NO') return `<span class="kt none"${attrs}>none</span>`;
+  return `<span class="kt"${attrs}>${lg.h ? `<span class="h">${esc(lg.h)}</span>` : ''}${esc(lg.m)}</span>`;
+}
+function controlHtml(it) {
+  const id = bound(it) ? it.content[0] : null, v = id ? state.vals[id] : null;
+  switch (it.type) {
+    case 'range': {
+      const [a, b] = it.options;
+      const p = state.pushed && state.pushed[id];
+      return sliderHtml(id, v, a, b, null, null, p) + `<span class="num">${v}${it.unit ? ' ' + esc(it.unit) : ''}</span>`;
+    }
+    case 'dropdown': {
+      const opts = it.options.map((o, i) => Array.isArray(o) ? [o[0], o[1]] : [o, i]);
+      return `<select data-drop="${esc(id)}">${opts.map(([n, x]) => `<option value="${x}"${x === v ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select>`;
+    }
+    case 'toggle': return `<input type="checkbox" data-check="${esc(id)}"${v ? ' checked' : ''}>`;
+    case 'keycode': {
+      const sel = state.sel === id;
+      return tileHtml(v, ` data-kc="${esc(id)}"`).replace('class="kt', `class="kt${sel ? ' sel' : ''}`)
+        + `<span class="vname">${v === 'KC_NO' ? '' : esc(v)}</span>`;
+    }
+    case 'color': {
+      const [h, s] = v;
+      return `<div style="display:flex;flex-direction:column;gap:4px">`
+        + `<div style="display:flex;align-items:center;gap:8px">${sliderHtml(id + '#h', h, 0, 255, 'hue')}<span class="vname">Hue</span></div>`
+        + `<div style="display:flex;align-items:center;gap:8px">${sliderHtml(id + '#s', s, 0, 255, 'sat', css(h, 255))}<span class="vname">Saturation</span></div></div>`
+        + `<span class="swatch" style="background:${css(h, s)}"></span>`;
+    }
+    case 'label':
+      return it.content.length === 1 ? `<span class="note">${esc(it.content[0])}</span>` : `<span>${esc(v || '…')}</span>`;
+    case 'button': {
+      const key = id + ':' + (it.options || [1])[0];
+      if (state.confirm === key)
+        return `<span class="confirm">${esc(it.label)}: the board's own command -- Nazg cannot undo it.`
+          + `<button data-run="${esc(key)}">Run</button><button data-cancel>Cancel</button></span>`;
+      if (state.buttons === "VIA's Click") return `<button data-btn="${esc(key)}">Click</button>`;
+      const risky = state.buttons === 'Labelled, risky ones ask' && RISKY.test(it.label);
+      return `<button data-btn="${esc(key)}"${risky ? ' class="btn-risk"' : ''}>${esc(it.label)}${risky ? '…' : ''}</button>`;
+    }
+  }
+  return '';
+}
+// Under the lines, the picker takes the panel's width: the lines go in two columns, the first half
+// down the left, the rest down the right.
+function linesHtml(sub) {
+  const rows = [];
+  itemsOf(sub).forEach(({ it, conds }) => {
+    const ok = holds(conds);
+    if (!ok && state.itemsHidden === 'Hidden') return;
+    const dis = ok ? '' : ' dis';
+    const tip = ok ? '' : tipAttr('Shown when ' + dependsOn(conds) + ' allows it.');
+    const id = bound(it) ? it.content[0] : '';
+    const hov = state.hover === id && id ? ' hov' : '';
+    // A labelled button is its own line: no label beside it.
+    const lab = it.type === 'button' && state.buttons !== "VIA's Click" ? '' : esc(it.label);
+    rows.push(`<div class="lab${dis}${hov}" data-line="${esc(id)}"${tip}>${lab}</div><div class="val${dis}" data-line="${esc(id)}"${tip}>${controlHtml(it)}</div>`);
+  });
+  if (state.picker !== 'Under the lines' || rows.length < 2) return `<div class="grid">${rows.join('')}</div>`;
+  const half = Math.ceil(rows.length / 2);
+  return `<div class="cols"><div class="grid">${rows.slice(0, half).join('')}</div><div class="grid">${rows.slice(half).join('')}</div></div>`;
+}
+// Keymap's picker, a few tabs of it.
+const PICK = {
+  Basic: W('KC_NO KC_A KC_B KC_C KC_D KC_E KC_F KC_G KC_H KC_I KC_J KC_K KC_L KC_M KC_N KC_O KC_P KC_Q KC_R KC_S KC_T KC_U KC_V KC_W KC_X KC_Y KC_Z KC_1 KC_2 KC_3 KC_4 KC_5 KC_6 KC_7 KC_8 KC_9 KC_0 KC_ESC KC_TAB KC_CAPS KC_SPC KC_ENT KC_BSPC KC_DEL KC_MINS KC_EQL'),
+  'Mods & nav': W('KC_LCTL KC_LSFT KC_LALT KC_LGUI KC_RCTL KC_RSFT KC_RALT KC_RGUI KC_UP KC_DOWN KC_LEFT KC_RGHT KC_HOME KC_END KC_PGUP KC_PGDN KC_INS'),
+};
+function pickerHtml() {
+  if (!state.sel) return '';
+  const tabs = Object.keys(PICK).concat(defOf().customKeycodes.length ? ['Board'] : []);
+  if (!tabs.includes(state.tab)) state.tab = 'Basic';
+  const list = state.tab === 'Board' ? defOf().customKeycodes : PICK[state.tab];
+  const says = state.board === 'Keys it concerns' ? ' -- or a key of the board' : '';
+  return `<div class="picker"><div class="ptitle">Keymap's picker sets <b>${esc(labelOfId(state.sel))}</b>${says}</div>`
+    + `<div class="tabs">${tabs.map(t => `<button class="${t === state.tab ? 'on' : ''}" data-tab="${t}">${t}</button>`).join('')}</div>`
+    + `<div class="tiles">${list.map(kc => tileHtml(kc, ` data-pick="${esc(kc)}"${tipAttr(kc)}`)).join('')}</div></div>`;
+}
+function panelHtml() {
+  const m = currentMenu();
+  if (!menuShown(m))
+    return `<div class="mline"><span class="title">${esc(m.label)}</span></div><div class="empty">This menu needs firmware version ${firmwareNeed(m)} or later; the board reports ${state.fw}. Updating the firmware brings it.</div>`;
+  const sub = currentSub();
+  if (!sub) return `<div class="mline"><span class="title">${esc(m.label)}</span></div><div class="empty">Nothing to show.</div>`;
+  const msg = state.msg ? `<span class="msg"><span class="${state.msg[0]}">${state.msg[1]}</span></span>` : '';
+  const under = state.picker === 'Under the lines' ? ' under' : '';
+  return `<div class="mline"><span class="title">${esc(sub.label)}</span><span class="desc">${esc(m.label)} -- the board's own menu, as its definition describes it</span><span class="right">${msg}</span></div>`
+    + `<div class="pbody${under}" id="pbody"><div class="lines">${linesHtml(sub)}</div>${pickerHtml()}</div>`;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The board: what the selected submenu concerns.
+let BOARD = null;
+function buildBoard() {
+  const s = setupOf(), b = defOf();
+  const keys = parseKle(b.keymap).filter(k => !k.decal && (k.g < 0 || k.o === 0));
+  const rows = {};
+  keys.forEach(k => (rows[Math.round(k.y * 4)] = rows[Math.round(k.y * 4)] || []).push(k));
+  const sends = new Map();
+  Object.keys(rows).map(Number).sort((a, b) => a - b).forEach((y, ri) => {
+    rows[y].sort((a, b) => a.x - b.x).forEach((k, i) => {
+      const kc = (s.rows[ri] || [])[i] || 'KC_NO';
+      sends.set(k, [kc, s.l1[kc] || 'KC_TRNS']);
+    });
+  });
+  BOARD = { keys, sends };
+}
+// The submenu's own keycode -- "DKS 3 - DKS(3)" holds DKS(3) -- and the keycodes its lines choose;
+// on QMK's lighting channels, the keys that change the lighting from the keyboard.
+const LIGHT_LINE = { 1: /_(VALU|VALD)$/, 2: /_(NEXT|PREV|TOGG)$/, 3: /_(SPDU|SPDD)$/, 4: /_(HUEU|HUED|SATU|SATD)$/ };
+function concerns() {
+  const sub = currentSub(), out = { own: new Set(), kc: new Map(), light: null };
+  if (!sub || state.board !== 'Keys it concerns' || !menuShown(currentMenu())) return out;
+  defOf().customKeycodes.forEach(n => { if (sub.label.includes(n)) out.own.add(n); });
+  itemsOf(sub).forEach(({ it, conds }) => {
+    if (!holds(conds) || !bound(it)) return;
+    const id = it.content[0];
+    if (it.type === 'keycode' && state.vals[id] !== 'KC_NO') out.kc.set(id, state.vals[id]);
+    if (it.content[1] >= 1 && it.content[1] <= 5) {
+      out.light = out.light || [];
+      if (!state.hover || state.hover === id) out.light.push(LIGHT_LINE[it.content[2]] || /^$/);
+    }
+  });
+  if (state.hover && out.kc.has(state.hover)) out.kc = new Map([[state.hover, out.kc.get(state.hover)]]);
+  else if (state.hover && !out.light) out.kc = new Map();
+  return out;
+}
+function boardSvg() {
+  const keys = BOARD.keys, c = concerns();
+  const bd = boundsOf(keys), avail = 1160 - 180 - 28 - 40;
+  const u = Math.min(44, Math.floor(avail / (bd.x1 - bd.x0 + 0.7))), m = u * 0.3;
+  const Wd = (bd.x1 - bd.x0) * u + 2 * m, H = (bd.y1 - bd.y0) * u + 2 * m;
+  const fs = Math.round(u * 0.27), hs = Math.round(u * 0.2);
+  const lit = new Set(c.kc.values());
+  const picking = state.sel && state.board === 'Keys it concerns';
+  let s = `<svg class="board" xmlns="http://www.w3.org/2000/svg" width="${Wd}" height="${H}">`
+    + `<style>.plate{fill:var(--plate)}.k{fill:var(--key);stroke:var(--keyline)}.k.L{fill:var(--lit);stroke:var(--litline);stroke-width:2}.k.O{fill:var(--boardface);stroke:var(--board);stroke-width:2}`
+    + `.t{font:${fs}px Arimo,Arial;fill:var(--text);text-anchor:middle;pointer-events:none}.t.h{font-size:${hs}px;fill:var(--muted)}.t.hl{font-size:${hs}px;fill:var(--board)}.t.hb{font-size:${hs}px;fill:var(--behav)}.t.hk{font-size:${hs}px;fill:var(--host)}`
+    + `.t.lay{font-size:${hs}px;fill:var(--board);text-anchor:end}.t.dim{opacity:.35}.pk{cursor:pointer}.pk:hover .k{stroke:var(--accent);stroke-width:2}</style>`
+    + `<rect class="plate" width="100%" height="100%" rx="12"/><g transform="translate(${m} ${m})">`;
+  const gap = Math.max(1, u * 0.06);
+  const any = c.own.size || lit.size || (c.light && c.light.length);
+  keys.forEach(k => {
+    const [l0, l1] = BOARD.sends.get(k);
+    const lightOf = kc => c.light && /^RM_/.test(kc) && c.light.some(re => re.test(kc));
+    const show = lightOf(l1) ? l1 : l0, layer = show !== l0 ? 1 : 0;
+    const cls = c.own.has(show) || lightOf(show) ? ' O' : lit.has(show) ? ' L' : '';
+    const lg = legendOf(show), dim = any && !cls ? ' dim' : '';
+    const x = (k.x - bd.x0) * u + gap, y = (k.y - bd.y0) * u + gap, w = k.w * u - 2 * gap, hh = k.h * u - 2 * gap;
+    s += `<g${picking ? ` class="pk" data-key="${esc(l0)}"` : ''}><rect class="k${cls}" x="${x}" y="${y}" width="${w}" height="${hh}" rx="${Math.max(2, u * 0.1)}"><title>${esc(l0)}${l1 !== 'KC_TRNS' ? ' · layer 1: ' + esc(l1) : ''}</title></rect>`;
+    if (lg.h) s += `<text class="t ${lg.c || 'h'}${dim}" x="${x + w / 2}" y="${y + u * 0.27}">${esc(lg.h)}</text>`;
+    s += `<text class="t${dim}" x="${x + w / 2}" y="${y + hh / 2 + fs * 0.35 + (lg.h ? u * 0.08 : 0)}">${esc(lg.m)}</text>`;
+    if (layer) s += `<text class="t lay" x="${x + w - u * 0.08}" y="${y + hh - u * 0.08}">L1</text>`;
+    s += `</g>`;
+  });
+  return s + `</g></svg>`;
+}
+function boardSays() {
+  if (state.board !== 'Keys it concerns') return '';
+  const c = concerns(), sub = currentSub();
+  if (!sub || !menuShown(currentMenu())) return '';
+  const bits = [];
+  if (c.own.size) bits.push(`the keys holding ${[...c.own].join(', ')}, this submenu's own key`);
+  if (c.kc.size) bits.push('the keys sending what its lines choose');
+  if (c.light) bits.push('the keys that change the lighting from the keyboard');
+  const pick = state.sel ? ` A click on a key sets <b>${esc(labelOfId(state.sel))}</b> to what it sends.` : '';
+  return `<div class="says">${bits.length ? 'Lit: ' + bits.join('; ') + ' -- a line under the pointer narrows them.' : 'Nothing here concerns a key of this keymap.'}${pick}</div>`;
+}
+
+// ---------------------------------------------------------------------------------------------
+function stripHtml() {
+  if (!menuShown(currentMenu())) return '';
+  const list = subsShown();
+  if (list.length < 2) return '';
+  const btns = list.map(({ s, i, ok }) => ok
+    ? `<button class="${i === state.sub ? 'on' : ''}" data-sub="${i}">${esc(s.label)}</button>`
+    : `<button class="grey"${tipAttr('Shown when ' + dependsOn(s.conds) + ' allows it.')}>${esc(s.label)}</button>`).join('');
+  return `<div class="stripwrap"><button class="arrow" data-page="-1">◀</button><div class="strip" id="strip">${btns}</div><button class="arrow" data-page="1">▶</button></div>`;
+}
+function columnHtml() {
+  const s = setupOf();
+  let html = `<div class="hdr">VIA</div>` + s.nazg.map(e => `<div class="entry">${e}</div>`).join('');
+  html += `<div class="sep"></div><div class="hdr">Board</div>`;
+  customMenus().forEach(m => {
+    const shown = menuShown(m);
+    if (!shown && state.old === 'Left out of the column') return;
+    html += `<div class="entry mine${m === state.menu ? ' on' : ''}${shown ? '' : ' old'}" data-menu="${esc(m.label)}"${shown ? '' : tipAttr(`Needs firmware version ${firmwareNeed(m)}; the board reports ${state.fw}.`)}>${esc(m.label)}</div>`;
+  });
+  return `<div class="col">${html}</div>`;
+}
+function render() {
+  const pb = document.getElementById('pbody'), st = document.getElementById('strip');
+  if (pb) state.scroll.pbody = pb.scrollTop;
+  if (st) state.scroll.strip = st.scrollLeft;
+  document.documentElement.dataset.theme = state.theme.toLowerCase();
+  renderControls();
+  buildBoard();
+  currentMenu(); currentSub();
+  const board = state.board !== 'Folded away' ? `<div class="boardarea" id="boardarea">${boardSvg()}</div>${boardSays()}` : '';
+  document.getElementById('frame').innerHTML =
+    `<div class="menubar"><span class="board">${esc(setupOf().def)} ▾</span><span class="muted">${setupOf().proto}</span><span class="right">Settings</span></div>`
+  + `<div class="body">${columnHtml()}<div class="main">${stripHtml()}${board}<div class="panel">${panelHtml()}</div></div></div>`;
+  const pb2 = document.getElementById('pbody'), st2 = document.getElementById('strip');
+  if (pb2) pb2.scrollTop = state.scroll.pbody;
+  if (st2) {
+    st2.scrollLeft = state.scroll.strip;
+    const on = st2.querySelector('.on');
+    if (on && (on.offsetLeft < st2.scrollLeft || on.offsetLeft + on.offsetWidth > st2.scrollLeft + st2.clientWidth))
+      st2.scrollLeft = on.offsetLeft - 20;
+    const fits = st2.scrollWidth <= st2.clientWidth;
+    document.querySelectorAll('.arrow').forEach(a => a.style.display = fits ? 'none' : '');
+  }
+}
+function redrawBoard() { const b = document.getElementById('boardarea'); if (b) { b.innerHTML = boardSvg(); b.nextElementSibling.outerHTML = boardSays() || '<div></div>'; } }
+function renderControls() {
+  const c = document.getElementById('controls');
+  c.innerHTML = '';
+  const theca = state.setup.startsWith('EC Theca');
+  [['setup', 'Board', Object.keys(SETUPS)],
+   ['fw', 'Firmware version (EC Theca)', [6, 4]],
+   ['subsHidden', 'Submenus their condition hides', ['Left out of the strip', 'Greyed in the strip']],
+   ['itemsHidden', 'Lines their condition hides', ['Hidden', 'Greyed']],
+   ['old', 'Menus the firmware is too old for', ['Left out of the column', 'Shown, saying so']],
+   ['board', 'The board', ['Keys it concerns', 'Plain', 'Folded away']],
+   ['picker', "Keymap's picker", ['Under the lines', 'Beside the lines']],
+   ['buttons', 'Buttons', ['Labelled', 'Labelled, risky ones ask', "VIA's Click"]],
+   ['theme', 'Theme', ['Light', 'Dark']]].forEach(([k, name, values]) => {
+    const g = document.createElement('div'); g.className = 'group';
+    g.innerHTML = `<span class="name">${name}</span>`;
+    values.forEach(v => {
+      const bt = document.createElement('button'); bt.textContent = v;
+      if (state[k] === v) bt.className = 'on';
+      const onlyTheca = (k === 'fw' || k === 'old' || k === 'subsHidden' || k === 'buttons') && !theca;
+      if (onlyTheca) bt.style.opacity = '.55';
+      bt.onclick = () => {
+        const was = state.setup; state[k] = v;
+        if (onlyTheca) state.setup = 'EC Theca · eight menus';
+        if (state.setup !== was) reset();
+        state.msg = null; state.confirm = null; render();
+      };
+      g.appendChild(bt);
+    });
+    c.appendChild(g);
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Editing: written at once -- a slider writes while it moves, stores when let go, as Lighting.
+function written(final, pushed) {
+  state.msg = final ? ['ok', pushed || 'Written and stored, read back the same'] : ['ok', 'Showing on the keyboard…'];
+}
+function setRange(id, v, final) {
+  const before = { ...state.vals }, vals = resolve(id, v);
+  const moved = Object.keys(vals).filter(k => k !== id && vals[k] !== before[k]);
+  Object.assign(state.vals, vals);
+  state.pushed = moved.length ? Object.fromEntries(moved.map(k => [k, before[k]])) : null;
+  written(final, moved.length ? `Moved with it, as the board's rule keeps them apart: ${moved.map(k => `${esc(labelOfId(k))} ${vals[k]}`).join(', ')}` : null);
+}
+const frame = document.getElementById('frame');
+frame.addEventListener('click', e => {
+  const t = e.target.closest('[data-menu],[data-sub],[data-kc],[data-pick],[data-tab],[data-key],[data-btn],[data-run],[data-cancel],[data-page]');
+  if (!t) return;
+  const d = t.dataset;
+  if (d.menu !== undefined) { state.menu = customMenus().find(m => m.label === d.menu); state.sub = 0; state.sel = null; state.msg = null; state.scroll = { strip: 0, pbody: 0 }; }
+  else if (d.sub !== undefined) { state.sub = +d.sub; state.sel = null; state.msg = null; state.pushed = null; state.scroll.pbody = 0; }
+  else if (d.kc !== undefined) state.sel = state.sel === d.kc ? null : d.kc;
+  else if (d.tab) state.tab = d.tab;
+  else if (d.pick || d.key) { if (state.sel) { state.vals[state.sel] = d.pick || d.key; written(true); } }
+  else if (d.btn) {
+    const it = allItems().find(x => bound(x) && x.content[0] + ':' + (x.options || [1])[0] === d.btn);
+    if (state.buttons === 'Labelled, risky ones ask' && RISKY.test(it.label)) state.confirm = d.btn;
+    else state.msg = ['ok', `Sent: ${esc(it.label)}`];
+  }
+  else if (d.run) { const it = allItems().find(x => bound(x) && x.content[0] + ':' + (x.options || [1])[0] === d.run); state.confirm = null; state.msg = ['ok', `Sent: ${esc(it.label)}`]; }
+  else if (d.cancel !== undefined) state.confirm = null;
+  else if (d.page) { const st = document.getElementById('strip'); st.scrollLeft += +d.page * st.clientWidth * 0.8; return; }
+  render();
+});
+frame.addEventListener('change', e => {
+  const d = e.target.dataset;
+  if (d.check) state.vals[d.check] = e.target.checked ? 1 : 0;
+  else if (d.drop) state.vals[d.drop] = +e.target.value;
+  state.pushed = null; written(true); render();
+});
+frame.addEventListener('wheel', e => { const st = e.target.closest('#strip'); if (st) { st.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false });
+let drag = null;
+function dragTo(ev, final) {
+  const r = drag.el.getBoundingClientRect(), fx = Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width));
+  const min = +drag.el.dataset.min, max = +drag.el.dataset.max, v = Math.round(min + fx * (max - min));
+  const [id, part] = drag.id.split('#');
+  if (part) { state.vals[id][part === 'h' ? 0 : 1] = v; written(final); }
+  else setRange(id, v, final);
+  render();
+  drag.el = document.querySelector(`[data-slider="${CSS.escape(drag.id)}"]`);
+}
+frame.addEventListener('mousedown', e => {
+  const sl = e.target.closest('[data-slider]');
+  if (!sl) return;
+  drag = { id: sl.dataset.slider, el: sl }; dragTo(e, false); e.preventDefault();
+});
+addEventListener('mousemove', e => { if (drag) dragTo(e, false); });
+addEventListener('mouseup', e => { if (drag) { dragTo(e, true); drag = null; } });
+const tip = document.getElementById('tip');
+frame.addEventListener('mouseover', e => {
+  const line = e.target.closest('[data-line]');
+  const hover = line && !drag ? line.dataset.line || null : null;
+  if (hover !== state.hover) {
+    state.hover = hover;
+    document.querySelectorAll('.grid .lab').forEach(l => l.classList.toggle('hov', !!hover && l.dataset.line === hover));
+    redrawBoard();
+  }
+  const t = e.target.closest('[data-tip]');
+  if (t) { tip.innerHTML = t.dataset.tip; tip.style.display = 'block'; } else tip.style.display = 'none';
+});
+frame.addEventListener('mousemove', e => { tip.style.left = Math.min(e.clientX + 14, innerWidth - 360) + 'px'; tip.style.top = (e.clientY + 18) + 'px'; });
+frame.addEventListener('mouseleave', () => { tip.style.display = 'none'; if (state.hover) { state.hover = null; redrawBoard(); } });
+
+document.getElementById('notes').innerHTML = `
+<p><b>What this is.</b> A board's own menus: the <i>{label, content}</i> entries of a VIA V3 definition's <i>menus</i>,
+each in the column's <i>Board</i> group, in the definition's order (settled 2026-10-06). Nazg draws them from the
+definition alone, as VIA does -- seven controls, each bound to a value the board's firmware reads and writes. 942 boards
+have some (VIA's registry and the vendors' own files); 872 of them one menu, nearly always their own lighting --
+<b>FAve65S</b> -- and about 63 cipulot boards eight to ten, which hold most of the controls -- <b>EC Theca</b>. Click the
+EC Theca's menus in the column.</p>
+<p><b>Submenus are the strip's entries</b>, as QMK Settings' groups; with one, no strip, its name heads the panel. The
+DKS menu has 17 -- the strip scrolls sideways. <b>Conditions</b> (VIA's <i>showIf</i>): a submenu or a line exists only
+while some value allows it -- the 16 DKS slots while <i>Enable Dynamic Keystrokes</i> is on (DKS General Settings), the
+outputs of a slot once its keycode is chosen. <b>Left out</b> or <b>greyed</b>, saying what it depends on; VIA greys a
+submenu ("not available for this firmware version", even when a box is all it needs) and hides a line. A menu
+whose condition is the firmware version, when the board is older: <b>left out of the column</b> -- the board does not
+have it -- or shown, saying so (firmware version 4 on the EC Theca: five of its eight menus).</p>
+<p><b>The controls</b>: a slider with its value -- the board's limits in the label, its unit after; dragging writes
+while it moves, as Lighting's. Some sliders are tied by the board's rules (Switch Configuration, DKS): moving one
+pushes the other along, and the panel says which moved -- a mark shows where it was. A dropdown; a box; a key -- a
+click selects it and Keymap's picker, under the lines, sets it -- the lines then take two columns (settled); a colour as Lighting's two sliders; a text (a note, or what the board
+sends: its firmware version). <b>Buttons</b> send one value: <b>labelled</b> with their line's text, never asking (settled);
+or those whose text says reset, erase, clear, factory or bootloader <b>asking first</b> -- a guess, which misses
+"Restore Haptic Defaults"; or <b>VIA's Click</b> beside the label. Everything is <b>written at once</b>, as VIA does and Lighting does: set,
+then stored.</p>
+<p><b>The board</b>: <b>keys it concerns</b> -- the submenu's own key, by name (<i>DKS 0 - DKS(0)</i> lights the keys
+holding DKS(0), <i>Tap Dance 0 - TD(0)</i> the TD(0) key), the keys sending what its lines choose (SOCD's pairs, a
+combo's inputs, a DKS output), and on QMK's lighting channels the keys that change the lighting, as the Lighting section
+lights them; a line under the pointer narrows them. With a key line selected, a click on a key of the board sets it to
+what the key sends, as Combos' inputs. <b>Plain</b>, or <b>folded away</b> -- more room for the 24 lines of a DKS slot.</p>
+<p><b>Reading.</b> VIA reads every value of every custom menu when the board connects -- 700 on the EC Theca. Nazg reads a
+submenu's values when it is shown, with those its conditions name (the strip's need the DKS switch, the column's the
+firmware version), and again each time the section is shown: the board's own keys may change them, as lighting keys do.</p>`;
+
+reset();
+render();
+</script>
+</body>
+</html>

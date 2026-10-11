@@ -172,6 +172,37 @@ Channel `0` is the extension point: `via_custom_value_command_kb()` in firmware,
 the definition, and stock VIA renders the widgets. This is tier 1 in
 [via.md](via.md#extending-with-custom-features), seen from the wire.
 
+### A board's own menus on the wire
+
+*Read 2026-10-11 from the VIA app (`935106a`: `store/menusSlice.ts`, `custom/custom-control.tsx`,
+`utils/range-constraints.ts`, `utils/keyboard-api.ts`), `@the-via/reader` 1.14.4 (`menu-types`) and
+`@the-via/pelpi` 0.0.3; counts from VIA's registry and the vendor collection, 2026-10-11.*
+
+- **Any channel.** A control binds `[name, channel, value id, ...]`; boards use channel 0 and
+  also 7-12, which QMK does not define (cipulot: 7 and 8 QMK settings, 9 tap dance, 10 combos,
+  11 DKS, 12 controller), and QMK's own 1-3 for their own lighting menus.
+- **Numbers after the value id are sent with it**: get `[0x08][ch][id][extra...]`, the value
+  from the byte after the last; set `[0x07][ch][id][extra...][value...]` -- a slot index, say:
+  `["id_dks_threshold[3][1]", 11, 2, 3, 1]`.
+- **Each control's value**: range one byte, **two big-endian when its maximum passes 255**;
+  dropdown one byte (or as many as its `[name, value, ...]` options hold); toggle one byte, or
+  its two given values (`[[255, 0], [254, 0]]` on 108 controls); keycode two bytes, big-endian;
+  colour hue then saturation; button sends its one option (`[0]` mostly); a bound label is a
+  string ending at a zero. A reply holds the whole buffer after the value, as QMK settings do.
+- **Saved per channel**: the VIA app sends the set, then `[0x09][channel]`, on every change.
+- **`showIf`** (pelpi): `{id}` is a value's **first byte** -- the high byte of a two-byte range --
+  `{id.1}` its second; numbers; `== != < <= > >=`, `&& ||`, `!`, brackets. `{id_firmware_version}`
+  is the 32-bit `id_firmware_version` keyboard value above, not a byte. Pelpi splits at the first
+  instance of the loosest operator, so `a || b && c` is `a || (b && c)` as usual.
+- **Range `constraints`**: `{operator, reference, offset, onViolation}` -- the value kept beyond
+  another plus an offset, either stopped there (`clamp`) or **pushing the other along** (`push`,
+  recursively, each control once). 3598 controls, all cipulot's thresholds and curves.
+- **The VIA app reads every value of every custom menu when the board connects**, and only on
+  protocol 11 or later. On the EC Theca that is about 700 round trips.
+- **UI sync, `0x16`**, sent by the firmware: `[0x16][1 version][type][count][...]` -- type 0
+  read everything again, 1 the `[channel, value id]` pairs that follow, 2 the value ids that
+  follow. QMK's mainline does not send it (2026-09).
+
 ### Lighting
 
 The custom value commands `0x07`-`0x09` carry QMK's lighting, in three formats. Read 2026-10-11

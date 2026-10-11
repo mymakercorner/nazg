@@ -1862,6 +1862,82 @@ Not done: LED Matrix (no VIA menu or Vial preset declares it); per-key colours (
 VialRGB's direct mode); a VIA V3 definition's own lighting menu, with the custom menus; the hover
 note for `UG_SPDU` / `UG_SPDD` on underglow alone.
 
+## A board's own menus
+
+A VIA V3 definition's custom menus -- the `{label, content}` entries of `menus` -- each a section
+under *Board* in the column, in the definition's order ("Nazg's sections, then the board's menus"
+in "Open points"; icons by the label table there). Nazg draws them from the definition alone, as
+VIA does: no knowledge of the board. The wire is in via-vial-commands.md, "A board's own menus on
+the wire". Research 2026-10-11, from the VIA app (`935106a`), `@the-via/reader` 1.14.4 and
+`@the-via/pelpi` 0.0.3, counted on VIA's registry and the vendor collection
+(`../vendor_definitions`).
+
+**How often.** 289 of the registry's 2029 V3 definitions carry 719 custom menus; with the vendors'
+own files, 942 boards and 1373 menus. **872 boards have one menu, nearly always their own
+lighting** -- 208 registry boards a single "Lighting" menu, mostly RGB Matrix on QMK's channel 3
+with the board's true effect list, one submenu ("Backlight", 154). **cipulot's Hall effect and
+EC boards** (about 63) carry 8-10 menus each -- Switch Configuration, Tap Dance, Combos, SOCD,
+DKS, Controller, QMK Settings, System -- and most of the controls: their DKS menu alone is 17
+submenus and 386 values. In the registry: dropdowns 13964, keycodes 10937 (66 boards), ranges
+7222 (3598 tied to another by a constraint), toggles 2436, buttons 707, colours 464, labels 179;
+VIA's `color-palette` never.
+
+What VIA does:
+
+- **A menu is submenus, a submenu is lines**: label and control. Seven controls -- range,
+  dropdown, toggle, keycode, colour, button, label (a fixed note, or a text the board sends: its
+  firmware version). Slices without a label only group lines under one condition.
+- **`showIf`** hides a menu (334, always on the firmware version: `{id_firmware_version} >= 6`),
+  a submenu (1097, an "Enable" toggle: the 16 DKS slots need *Enable Dynamic Keystrokes*) or a
+  line (14845: a DKS output's actions once its keycode is chosen). VIA greys a hidden submenu
+  ("not available for this firmware version", even when a box is all it needs), hides a line, and
+  lists a menu whatever the firmware, saying "No features available" inside.
+- **Range constraints** keep cipulot's thresholds apart (release 50 below actuation): moving one
+  pushes the other along.
+- **Written at once**: every change set and saved. **Buttons** send a value -- "Apply & save
+  changes", "Reset all DKS slots", "Enter bootloader", "Factory reset (erases all settings and
+  restarts)" -- with nothing asked; VIA shows each as its label and a "Click" button.
+- **Every value of every menu is read when the board connects** -- about 700 round trips on the
+  EC Theca.
+
+**To decide with Rico** on the mockup `ui-design/custom-menus.html` -- the FAve65S (one lighting
+menu), the Mode M65V2 (VIA's underglow and its own Indicators), cipulot's EC Theca (eight menus).
+Proposed, as the sections before it: **submenus in the strip** (absent with one, its name heading
+the panel), the lines as QMK Settings' and Lighting's -- a slider with its value, a combo, a box,
+a key tile with Keymap's picker, a colour as Lighting's two sliders -- **written at once**, a
+slider while it moves; a pushed slider said in the panel.
+
+Decided by Rico 2026-10-11:
+
+- **A submenu its condition hides is left out of the strip.** Set aside: greyed, saying what it
+  depends on.
+- **A line its condition hides is hidden**, as VIA does. Set aside: greyed.
+- **A menu the firmware is too old for is left out of the column**: the board does not have it.
+  Set aside: shown, saying which version it needs.
+- **The board lights the keys the submenu concerns**: its own key by name ("DKS 0 - DKS(0)"
+  lights DKS(0)), the keys sending what its lines choose (SOCD pairs, combo inputs), the lighting
+  keys on QMK's channels; a line under the pointer narrows them; with a key line selected, a click
+  on a key of the board sets it, as Combos' inputs. Set aside: the board plain, or folded away.
+
+- **A button is labelled with its line's text and never asks**, as VIA runs it: the label is the
+  board maker's own warning ("Factory reset (erases all settings and restarts)"). Set aside for
+  now (Rico, "we may change this in the future"): asking first for risky ones. Found by keywords
+  (reset, erase, clear, factory, bootloader, flash), it is right for 18 of the corpus's 20 button
+  labels and misses "Restore Haptic Defaults" -- a guess that promises a safety it cannot keep.
+  If it comes back, the way is a table of every known label, each marked "asks" or "does not",
+  kept beside the icon table, with `via_bundle_contents` failing on a label it lacks; boards
+  outside the shipped bundle would still run unknown labels without asking. Also set aside:
+  VIA's "Click" button beside the label.
+- **Keymap's picker goes under the lines**, shown while a key line is selected, **and the lines
+  take two columns** to give the height back (Rico): the first half down the left, the rest down
+  the right -- SOCD's pair 1 (Mode, First Key, Second Key) beside the Mode of pairs 2 to 4, a DKS
+  slot's 16 lines as two of 8. A line a condition shows or hides moves the split. Set aside: the
+  picker beside the lines, the lines in one column.
+
+**Reading**, proposed: a submenu's values when it is shown, with those its conditions name (the
+strip's need the DKS switch, the column's the firmware version, read once with the board), and
+again each time the section is shown -- the board's keys may change them.
+
 ## The common screens
 
 **1. No board open.** The keyboards found, each with its protocol and *Open*. No section
