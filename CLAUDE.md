@@ -124,8 +124,13 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
   while a view polls, and key output is disabled while they show, RAM only, so every close and
   exit path must enable it again); library export / import (a web-build need).
 
-**Next**: every planned section is built (Audio last, 2026-10-11). Rico picks what follows --
-the open points above, or the unseen sections met on hardware.
+**Next**: encoders (Rico's choice, 2026-10-11). None exist yet: `VialProtocol::GetEncoder()` is
+wrapped but unused, VIA's 0x14/0x15 are ids only. First the parser -- a Vial encoder key has a
+bare `e` in the centre label and `index,direction` top-left (two keys per knob), which Nazg now
+misreads as a matrix cell, drawing phantom keys that write the wrong switch; VIA's is `eN` in the
+centre with the push switch's `row,col` top-left, or none. Then the feature, after a mockup:
+Vial reads both directions in one reply, VIA >= 10 one call per direction; knobs edited with
+Keymap's layer strip. No board at hand has an encoder.
 
 # Prior research — read before re-researching anything
 
