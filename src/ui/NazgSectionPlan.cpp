@@ -94,7 +94,10 @@ namespace nazg
             add(SectionKind::Macros, "Macros", Icon::PlayerPlay);
         if (HasLighting(definition))
             add(SectionKind::Lighting, "Lighting", Icon::Bulb);
-        if (std::find(definition.menuIds.begin(), definition.menuIds.end(), c_AudioMenu) != definition.menuIds.end())
+        // Audio is VIA V3's channel 4: none on Vial, none before protocol 11 -- the board does not
+        // have it, as a custom menu the firmware is too old for (ui-design.md, "The Audio section").
+        if (!report.isVial && report.viaProtocol >= 11 &&
+            std::find(definition.menuIds.begin(), definition.menuIds.end(), c_AudioMenu) != definition.menuIds.end())
             add(SectionKind::Audio, "Audio", Icon::Volume);
 
         if (report.tapDanceCount > 0)

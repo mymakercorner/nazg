@@ -226,7 +226,7 @@ function panelHtml() {
     for (const id of ['pitch', 'voice', 'music'])
       html += `<div class="lab kb" data-hover="${id}">${LINES[id].name}</div><div class="val"><span class="desc">${LINES[id].desc}</span></div>`;
   if (state.play === 'Yes')
-    html += `<div class="lab" data-hover="play"></div><div class="val${v.audio ? '' : ' dis'}"><button data-act="play"${v.audio ? '' : ' disabled'}>Play a sound</button>`
+    html += `<div class="lab"></div><div class="val${v.audio ? '' : ' dis'}"><button data-act="play"${v.audio ? '' : ' disabled'}>Play a sound</button>`
           + `<span class="desc">${v.audio ? 'the song the board plays when VIA picks it -- its lights blink once' : 'with Audio on'}</span></div>`;
   return html + `</div></div>`;
 }
@@ -244,11 +244,11 @@ function buildBoard() {
   });
   BOARD = { keys, sends, b };
 }
-const isAudioKey = kc => !!AUDIO_KEYS[kc];
+// The keys of the lines shown: Audio and Clicky, and what only the keyboard reaches when said.
+const isAudioKey = kc => (state.kbonly === 'Said as lines' ? Object.keys(LINES) : ['audio', 'clicky']).some(l => LINES[l].keys.test(kc));
 function litOf(kc) {
   if (!isAudioKey(kc) || state.firmware !== 'Has audio') return false;
-  if (!state.hover) return true;
-  return state.hover !== 'play' && LINES[state.hover].keys.test(kc);
+  return !state.hover || LINES[state.hover].keys.test(kc);
 }
 function boardSvg() {
   const keys = BOARD.keys, sends = BOARD.sends;

@@ -92,6 +92,7 @@ namespace
             { "DKS", { "{id_firmware_version} >= 6" }, {} },
         };
         keyboard.report.firmwareVersion = 5;
+        keyboard.report.viaProtocol     = 12;
 
         const std::vector<PlannedSection> sections = nazg::PlanSections(keyboard);
         Check(NamesOf(sections) == std::vector<std::string>{ "Keymap", "Macros", "Lighting", "Audio", "Switch Configuration",
@@ -108,9 +109,15 @@ namespace
               "a menu the firmware version allows is shown, as is one whose condition names another value -- the "
               "section judges that one; DKS, which wants version 6, is left out");
 
+        keyboard.report.viaProtocol = 10;
+        const std::vector<std::string> old = NamesOf(nazg::PlanSections(keyboard));
+        Check(std::find(old.begin(), old.end(), "Audio") == old.end(), "no Audio before VIA protocol 11: no channel 4");
+        keyboard.report.viaProtocol = 12;
+
         keyboard.report.isVial = true;
         const std::vector<std::string> vial = NamesOf(nazg::PlanSections(keyboard));
         Check(std::find(vial.begin(), vial.end(), "SOCD") == vial.end(), "no custom menu on Vial");
+        Check(std::find(vial.begin(), vial.end(), "Audio") == vial.end(), "no Audio on Vial: vial-qmk has no channel 4");
     }
 
     void TestMenuIcons()

@@ -64,11 +64,15 @@ exists, where, and how far it has been proven.
     pointer narrowing them; underglow's effect with its own variant buttons, colour as hue and
     saturation sliders; written at once -- shown while a slider moves, stored when let go. Read each
     time the section is shown. Three wire formats: `adapters/via/NazgViaLighting.*`.
+  - **Audio** (VIA V3's `qmk_audio`, protocol 11 on; Vial has none) -- Audio and Clicky, Clicky greyed
+    while audio is off, Play a sound (device indication: the board's song on its own speaker); the
+    board lighting the keys that change it; written at once, read each time the section is shown
+    (`ui/NazgAudioSection.*`, `adapters/via/NazgViaAudio.*`).
   - **Matrix view** (Tools, with *Advanced tools* on) -- wiring and a live test.
   - **A board's own menus** (VIA V3 custom menus, Board group) -- submenus in the strip, lines in two
     columns, showIf, sliders tied by constraints, Keymap's picker under the lines, written at once
     (`ui/NazgCustomMenuSection.*`, `adapters/via/NazgViaCustomMenu.*`). Read per submenu when shown.
-  - Every other planned section is a `PlaceholderSection`.
+  - Every planned section is built; `PlaceholderSection` stays as the fallback for a new kind.
   - Shared panel parts: `ui/NazgKeycodePicker.*`, `ui/NazgKeyLine.*` (Sent with and its popup),
     `ui/NazgSlotParts.*` (what the slot sections repeat: reading, Save / Revert, a tag's words).
 
@@ -91,6 +95,7 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
 | | Combos and the combo term, read or written |
 | | Key overrides, read or written |
 | | Alt repeat keys -- no board at hand has them |
+| | Audio and Play a sound -- no board at hand has a speaker |
 | A board's own menus: a few EC features (Concordia Type C); all 35909 registry controls parse (test) | |
 
 ## Traps already found
@@ -113,8 +118,8 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
   while a view polls, and key output is disabled while they show, RAM only, so every close and
   exit path must enable it again); library export / import (a web-build need).
 
-**Next**: the placeholder sections, each researched, mocked up with variants, chosen by Rico,
-then built -- Audio, custom menus.
+**Next**: every planned section is built (Audio last, 2026-10-11). Rico picks what follows --
+the open points above, or the unseen sections met on hardware.
 
 # Prior research — read before re-researching anything
 

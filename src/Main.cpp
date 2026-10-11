@@ -26,6 +26,7 @@
 #include "transport/NazgDeviceChannel.h"
 #include "transport/NazgHidTransport.h"
 #include "ui/NazgAltRepeatKeySection.h"
+#include "ui/NazgAudioSection.h"
 #include "ui/NazgLightingSection.h"
 #include "ui/NazgQmkSettingsSection.h"
 #include "ui/NazgBoardView.h"
@@ -1870,6 +1871,9 @@ int main(int, char**)
                                     transport, boardState.path, *boardState.keyboard, settings.legends));
                             else if (planned.kind == nazg::SectionKind::Lighting)
                                 boardState.sections.push_back(std::make_unique<nazg::LightingSection>(
+                                    transport, boardState.path, *boardState.keyboard, settings.legends));
+                            else if (planned.kind == nazg::SectionKind::Audio)
+                                boardState.sections.push_back(std::make_unique<nazg::AudioSection>(
                                     transport, boardState.path, *boardState.keyboard, settings.legends));
                             else if (planned.kind == nazg::SectionKind::CustomMenu)
                                 boardState.sections.push_back(std::make_unique<nazg::CustomMenuSection>(
