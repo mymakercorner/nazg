@@ -918,6 +918,12 @@ board, and Vial's embedded one carries no version. It says only which systems th
 The state is found again at every load, never stored: a board can be reflashed. It is a pure
 function of what the board reports, tested with literals.
 
+**Seen 2026-10-11 on the Phoenix** (VIA 12, underglow; Rico): judged unknown, the picker offers the
+one set alone; with *Advanced tools*, the Modes group comes faint, each tile saying it does nothing
+on firmware after the overhaul -- faint reads well, no corner mark needed. `RGB_M_B` written to the
+board says the same on hover and, pressed, turns on Breathing: this firmware is older than the
+overhaul, and unknown, worded "after", stays true.
+
 What each state offers in the picker, for the systems the definition declares, legends by the header rule above:
 
 | | Backlight | Underglow | RGB Matrix | `RGB_M_*` modes |

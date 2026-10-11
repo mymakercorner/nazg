@@ -89,7 +89,8 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
 | Official bundle, user library, choice (Phoenix) | Rotated keys on a real board (a forged definition only) |
 | Picker, board look, matrix wiring (Model F, Concordia) | Pre-renumbering keycodes (`Legacy`) |
 | Macros: save and read-back (Concordia), creation on a Leyden Jar board | A Vial board playing a macro; locked-board writes |
-| Tap Dance (Model F) | Lighting hover notes |
+| Tap Dance (Model F) | Lighting hover notes on two systems (`UG_*` driving the matrix) and `RM_*` |
+| Lighting keys by firmware: picker, faint `RGB_M_*` tiles and their notes with Advanced tools, a mode key's note on the board (Phoenix, firmware older than the overhaul, judged unknown) | |
 | QMK settings listed, read at their widths, written and reset from the section (Model F) | |
 | Lighting: underglow read, written, sliders live (Phoenix, VIA channels) | Lighting in the format before V3, and VialRGB |
 | Combos and the combo term, read and written (Model F) | |
