@@ -443,8 +443,15 @@ namespace nazg
             definition.productId = static_cast<uint16_t>(packed & 0xFFFFu);
         }
 
-        if (document.contains("lighting") && document["lighting"].is_string())
-            definition.lighting = document["lighting"].get<std::string>();
+        // A preset's name, or VIA V2's object naming the preset it extends --
+        // `{ "extends": "qmk_rgblight" }`, as ten of vial-qmk's boards write it (the Corne).
+        if (const auto lighting = document.find("lighting"); lighting != document.end())
+        {
+            if (lighting->is_string())
+                definition.lighting = lighting->get<std::string>();
+            else if (lighting->is_object() && lighting->contains("extends") && (*lighting)["extends"].is_string())
+                definition.lighting = (*lighting)["extends"].get<std::string>();
+        }
 
         for (const auto& [field, ids] : { std::pair{ "keycodes", &definition.keycodeModules },
                                           std::pair{ "menus", &definition.menuIds } })

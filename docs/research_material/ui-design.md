@@ -1774,6 +1774,94 @@ Model F B104 on its 2023 firmware:
   writes last, both show it.
 - **Read when the section first opens**, every setting at its width.
 
+## The Lighting section
+
+QMK's own lighting -- backlight, underglow (QMK's rgblight) and RGB Matrix -- as VIA's built-in
+menus (`qmk_backlight`, `qmk_rgblight`, `qmk_backlight_rgblight`, `qmk_rgb_matrix`) and Vial's and
+VIA V2's `lighting` presets (the same, and `vialrgb`) declare it. **A board's own lighting menu is a
+custom menu**, under *Board* in the column, not this section. Research 2026-10-11, from QMK's
+`quantum/via.c` and `quantum/rgblight/` (Rico's fork, 2026-09), vial-qmk's `quantum/via.c` and
+`vialrgb.c` (2026-02), the VIA app (`935106a`) with `@the-via/reader` 1.14.4's common menus, and
+vial-gui (2026-05). The wire formats are in via-vial-commands.md, "Lighting".
+
+**How often.** 972 of VIA's 2029 V3 definitions declare one standard menu -- underglow 477,
+backlight + underglow 220, RGB Matrix 179, backlight 96 -- never two. On Vial, of vial-qmk's
+keymaps: VialRGB 173, underglow 112, backlight + underglow 43, backlight 22. 182 VIA definitions
+carry their own lighting menu instead (163 of them on the RGB Matrix channel), mostly to give their
+true effect list.
+
+What the firmware does:
+
+- **A value is set in RAM and stored apart.** Every set is QMK's `_noeeprom` function; a separate
+  save stores the system's values. The keyboard shows a change at once. The VIA app saves after
+  every change; vial-gui on its Save button.
+- **QMK numbers the effects among those built in.** Underglow's modes and RGB Matrix's are enums
+  whose entries exist only when their effect is compiled (`rgblight_modes.h`,
+  `rgb_matrix_effects.inc`): an effect left out moves every later number. VIA's lists assume every
+  effect is built -- true of 872 of the 1170 QMK boards with underglow (206 build some, 92 none),
+  and of few RGB Matrix boards (566 of 608 build a subset). The board cannot say which it has; a
+  mode past its last is clamped to the last. **VialRGB has fixed ids** (`vialrgb_effects.inc`,
+  never renumbered) and lists those the board has. The Phoenix builds every underglow effect.
+- **Underglow's speed does nothing.** The firmware stores it and no underglow effect reads it
+  (only Velocikey): **the speed is the effect's variant** -- Breathing 1 to 4 are four speeds (30,
+  20, 10, 5 ms steps), Rainbow Mood and Knight three, Rainbow Swirl and Snake three speeds each way,
+  Twinkle three speeds of one colour or random, Gradient 1 to 10 five spreads of the hue circle
+  each way. VIA shows a speed slider anyway; `UG_SPDU` / `UG_SPDD` do nothing on a board with
+  underglow alone. RGB Matrix's speed is real.
+- **Vial speaks the format before VIA V3** -- no channel byte, other value ids, underglow
+  brightness unscaled -- whatever VIA protocol it reports, as does mainline before protocol 11.
+  In that format **whether the underglow is on cannot be read** (its effect reads the same on and
+  off), and **an effect written while off is ignored**: vial-qmk sets the mode before turning the
+  light on, and QMK skips a mode change while off -- the light comes on with its old effect.
+- **The backlight has a few steps**, `BACKLIGHT_LEVELS` (3 by default): a brightness settles on the
+  nearest. Breathing exists only in a firmware built with it; the board reads 0 otherwise. Whether
+  it is on cannot be read either: off is brightness 0.
+- **The lighting keys change it all from the keyboard** -- what a client read goes stale. VIA's app
+  has a firmware-sent "UI sync" message for this (`0x16`); QMK's mainline does not send it (2026-09).
+
+Decided with Rico 2026-10-11 on the mockup `ui-design/lighting-section.html` -- the Phoenix
+Project No 1 (underglow), the 1up60rgb (backlight + underglow) and the GMMK Pro (VialRGB):
+
+- **In the column** when the definition declares a system (ui/NazgSectionPlan.h). **Several systems
+  are the strip's entries, one at a time** -- Backlight, Underglow -- as QMK Settings' groups;
+  absent with one. Set aside: every system stacked in the panel.
+- **The board lights the keys that change the system from the keyboard**, on any layer, a key on
+  another layer with that layer's legend -- **the keyboard itself is the preview**, every write
+  going out at once. **Under the pointer, one line narrows them** to the keys that change it --
+  Brightness: Bri + and Bri −; Effect: Next, Prev, the mode keys, the backlight's Breathe; Colour:
+  Hue ± and Sat ±; On: On/Off -- as QMK Settings lights what a line concerns. A keymap with none
+  says so, and where the picker has them. UG_* count for an RGB Matrix on a board without
+  underglow (they drive it, "What a lighting keycode drives"). Set aside: a glow of the colour
+  around the board -- it repeats the real LEDs, less truly: no effect drawn, wrong where the
+  numbering is -- and the board folded away, a large empty area for a panel of four lines.
+- **The panel, per system**: On; Effect; Speed, RGB Matrix only; Brightness, a percentage; Colour.
+  The backlight: Brightness (0 is off) and Breathing.
+- **Underglow's effect is an effect and its own variant buttons** -- Speed (Slow, Medium, Fast,
+  Fastest), Spread (Full, 2/3, 1/2, 1/3, 1/4), Direction (Forward, Backward), Colours (One,
+  Random) -- whichever the effect has; no Speed slider. Set aside: VIA's 42 names in one list.
+  Changing effect keeps the speed where the new one has it.
+- **The colour is two sliders**, hue over the hue circle and saturation from white, and a swatch;
+  brightness its own line, as QMK stores them. Only saturation where the effect makes its own hues
+  (rainbows, cycles, Christmas, random twinkles, the typing heatmap); no Colour line where it uses
+  neither (RGB Test, Digital Rain, Jellybean Raindrops, Pixel Rain and Flow). Set aside: a hue x
+  saturation field; QMK's named colours as swatches.
+- **Written at once**: a slider writes while it moves -- one write at a time, its latest value --
+  and the value is stored when let go, then read back; anything else is written, stored and read
+  back at once. What the board kept is said when it differs: another effect ("it numbers its
+  effects otherwise, built with fewer"), the backlight's nearest step, no breathing. Set aside:
+  Save / Revert.
+- **Effect names on VIA's wires as VIA's, with a (?) saying how QMK numbers them**; the board's
+  answer is what is shown. A probe -- writing modes to find the last -- was set aside: it writes to
+  the board. VialRGB lists only the board's effects, and never its direct mode.
+- **On, where it cannot be read** (Vial's and old VIA's underglow): neither ticked nor unticked
+  until set, a tooltip saying why; once set, what was written. An effect written turns it on --
+  written twice, past vial-qmk's order.
+- **Read when shown**, every time the section is shown again: the lighting keys may have changed it.
+
+Not done: LED Matrix (no VIA menu or Vial preset declares it); per-key colours (VIA's per-key RGB,
+VialRGB's direct mode); a VIA V3 definition's own lighting menu, with the custom menus; the hover
+note for `UG_SPDU` / `UG_SPDD` on underglow alone.
+
 ## The common screens
 
 **1. No board open.** The keyboards found, each with its protocol and *Open*. No section

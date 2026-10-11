@@ -84,7 +84,8 @@ namespace nazg
         uint16_t    productId = 0;
 
         // What the definition says of the board's lighting, kept verbatim: VIA V2's and Vial's
-        // `lighting` preset, and VIA V3's `keycodes` modules and standard `menus` -- the ids.
+        // `lighting` preset -- the one it extends, when given as an object -- and VIA V3's
+        // `keycodes` modules and standard `menus` -- the ids.
         std::string              lighting;
         std::vector<std::string> keycodeModules;
         std::vector<std::string> menuIds;

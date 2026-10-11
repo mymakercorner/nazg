@@ -210,6 +210,48 @@ namespace nazg
         }
     }
 
+    namespace
+    {
+        // A custom value frame: the command, the channel when there is one, the value id, then `rest`.
+        std::vector<uint8_t> CustomFrame(ViaCommand command, std::optional<uint8_t> channel, uint8_t valueId,
+                                         const std::vector<uint8_t>& rest)
+        {
+            std::vector<uint8_t> frame(c_ViaReportSize, 0x00);
+            frame[0]     = static_cast<uint8_t>(command);
+            size_t index = 1;
+            if (channel)
+                frame[index++] = *channel;
+            frame[index++] = valueId;
+            for (uint8_t byte : rest)
+                if (index < frame.size())
+                    frame[index++] = byte;
+            return frame;
+        }
+    }
+
+    Task<std::vector<uint8_t>> ViaProtocol::GetCustomValue(std::optional<uint8_t> channel, uint8_t valueId,
+                                                           std::vector<uint8_t> arguments, size_t length)
+    {
+        const std::vector<uint8_t> reply = co_await SendFrame(CustomFrame(ViaCommand::CustomGetValue, channel, valueId, arguments),
+                                                              true);
+        const size_t first = channel ? 3 : 2;
+        co_return std::vector<uint8_t>(reply.begin() + first, reply.begin() + std::min(reply.size(), first + length));
+    }
+
+    Task<void> ViaProtocol::SetCustomValue(std::optional<uint8_t> channel, uint8_t valueId, const std::vector<uint8_t>& value)
+    {
+        co_await SendFrame(CustomFrame(ViaCommand::CustomSetValue, channel, valueId, value), true);
+    }
+
+    Task<void> ViaProtocol::SaveCustomValues(std::optional<uint8_t> channel)
+    {
+        std::vector<uint8_t> frame(c_ViaReportSize, 0x00);
+        frame[0] = static_cast<uint8_t>(ViaCommand::CustomSave);
+        if (channel)
+            frame[1] = *channel;
+        co_await SendFrame(std::move(frame), channel.has_value());
+    }
+
     Task<std::vector<uint8_t>> ViaProtocol::ReadMacros(uint8_t count, uint16_t bufferSize)
     {
         std::vector<uint8_t> bytes;

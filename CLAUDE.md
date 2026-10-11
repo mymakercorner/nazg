@@ -59,6 +59,11 @@ exists, where, and how far it has been proven.
     concerns (Chordal Hold: QMK's guess of each key's hand), QMK's names with what each does beside
     it, the tap-hold decision as one choice of three, both firmware generations (qsid 8, or 22-27),
     written at once, Reset all. Read when the section opens; the combo term shared with Combos.
+  - **Lighting** -- backlight, underglow, RGB Matrix (VIA's standard menus, Vial's presets, VialRGB),
+    several systems in the strip; the board lighting the keys that change it, one line under the
+    pointer narrowing them; underglow's effect with its own variant buttons, colour as hue and
+    saturation sliders; written at once -- shown while a slider moves, stored when let go. Read each
+    time the section is shown. Three wire formats: `adapters/via/NazgViaLighting.*`.
   - **Matrix view** (Tools, with *Advanced tools* on) -- wiring and a live test.
   - Every other planned section is a `PlaceholderSection`.
   - Shared panel parts: `ui/NazgKeycodePicker.*`, `ui/NazgKeyLine.*` (Sent with and its popup),
@@ -79,6 +84,7 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
 | Macros: save and read-back (Concordia), creation on a Leyden Jar board | A Vial board playing a macro; locked-board writes |
 | Tap Dance (Model F) | Lighting hover notes |
 | QMK settings listed and read at their widths (Model F, a probe) | QMK settings written or reset from the section |
+| Lighting: underglow read, written, sliders live (Phoenix, VIA channels) | Lighting in the format before V3, and VialRGB |
 | | Combos and the combo term, read or written |
 | | Key overrides, read or written |
 | | Alt repeat keys -- no board at hand has them |
@@ -91,6 +97,8 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
   (`adapters/via/NazgViaLoader.*`, keycodes.md).
 - Vial replies overwrite the buffer and echo unsupported commands: see via-vial-commands.md.
   A QMK setting must be read at its own width -- past it the reply still holds the request.
+- QMK numbers lighting effects among those built in, so VIA's effect names can be wrong; underglow's
+  speed does nothing; Vial's lighting is the format before VIA V3 (via-vial-commands.md, "Lighting").
 
 ## Open, deferred, under review
 
@@ -102,7 +110,7 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
   exit path must enable it again); library export / import (a web-build need).
 
 **Next**: the placeholder sections, each researched, mocked up with variants, chosen by Rico,
-then built -- Lighting, Audio, custom menus.
+then built -- Audio, custom menus.
 
 # Prior research — read before re-researching anything
 

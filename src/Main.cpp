@@ -26,6 +26,7 @@
 #include "transport/NazgDeviceChannel.h"
 #include "transport/NazgHidTransport.h"
 #include "ui/NazgAltRepeatKeySection.h"
+#include "ui/NazgLightingSection.h"
 #include "ui/NazgQmkSettingsSection.h"
 #include "ui/NazgBoardView.h"
 #include "ui/NazgCombosSection.h"
@@ -1851,6 +1852,9 @@ int main(int, char**)
                                     settings.advancedTools));
                             else if (planned.kind == nazg::SectionKind::QmkSettings)
                                 boardState.sections.push_back(std::make_unique<nazg::QmkSettingsSection>(
+                                    transport, boardState.path, *boardState.keyboard, settings.legends));
+                            else if (planned.kind == nazg::SectionKind::Lighting)
+                                boardState.sections.push_back(std::make_unique<nazg::LightingSection>(
                                     transport, boardState.path, *boardState.keyboard, settings.legends));
                             else if (planned.kind == nazg::SectionKind::Layout)
                                 boardState.sections.push_back(std::make_unique<nazg::LayoutSection>(

@@ -18,6 +18,7 @@
 
 #include <cstdint>
 #include <initializer_list>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -175,6 +176,17 @@ namespace nazg
         // written. Vial refuses the write while locked, echoing it unchanged: read back to know.
         [[nodiscard]] Task<void> WriteMacros(const std::vector<uint8_t>& stored, const std::vector<uint8_t>& bytes,
                                              uint16_t bufferSize);
+
+        // 0x08 / 0x07 / 0x09: a custom value -- the lighting systems' among them (model/NazgLighting.h).
+        // With a channel, VIA V3's format: [channel][value id][value]. Without, the format before
+        // it, which VIA 9 and 10 and every vial-qmk speak: [value id][value] -- VialRGB's commands
+        // take the value id's place. Get returns `length` bytes of the value; set is held in RAM
+        // until the save, which stores the channel's values -- every lighting value, without one.
+        [[nodiscard]] Task<std::vector<uint8_t>> GetCustomValue(std::optional<uint8_t> channel, uint8_t valueId,
+                                                                std::vector<uint8_t> arguments, size_t length);
+        [[nodiscard]] Task<void> SetCustomValue(std::optional<uint8_t> channel, uint8_t valueId,
+                                                const std::vector<uint8_t>& value);
+        [[nodiscard]] Task<void> SaveCustomValues(std::optional<uint8_t> channel);
 
         // Probe for a command this firmware may not have. Sends it and reports whether
         // the answer was anything other than 0xFF, because that is the only way to tell:

@@ -172,6 +172,41 @@ Channel `0` is the extension point: `via_custom_value_command_kb()` in firmware,
 the definition, and stock VIA renders the widgets. This is tier 1 in
 [via.md](via.md#extending-with-custom-features), seen from the wire.
 
+### Lighting
+
+The custom value commands `0x07`-`0x09` carry QMK's lighting, in three formats. Read 2026-10-11
+from QMK's `quantum/via.c` (Rico's fork, 2026-09, and the 2020 tree), vial-qmk's `quantum/via.c`
+and `vialrgb.c` (2026-02); pinned by `tests/LightingTest.cpp`.
+
+**VIA V3's channels** -- mainline from protocol 11. `[0x08][channel][value id]`, the value from
+byte 3; set the same with `0x07`; save `[0x09][channel]`. Ids 1 brightness, 2 effect, 3 speed, 4
+colour (hue, saturation) on channels 2 (underglow), 3 (RGB Matrix) and 5 (LED Matrix); 1
+brightness, 2 breathing on channel 1 (backlight). Brightness is scaled to 0-255 from the
+firmware's limit; **the effect reads 0 while off**, and writing 0 turns it off, any other turns it
+on, then sets the mode. A channel the firmware lacks answers `0xFF`.
+
+**The format before V3** -- mainline VIA 9 and 10, and **every vial-qmk**, which reports VIA 9:
+no channel byte. `[0x08][value id]`, the value from byte 2; save `[0x09]` stores every lighting
+system built. Backlight `0x09` brightness (scaled), `0x0A` breathing; underglow `0x80`
+brightness -- **unscaled**, QMK's value -- `0x81` effect, `0x82` speed, `0x83` colour. vial-qmk
+answers both systems' ids to one request, each ignoring the other's. **The underglow's effect reads
+its mode whether on or off**, so off cannot be read; writing it calls `rgblight_mode_noeeprom()`
+before enabling, and QMK skips a mode change while off: **an effect written to a light that is off
+only turns it on, with the old effect** -- write it twice. Writing 0 sets the mode to 1 (QMK clamps)
+and turns it off. vial-qmk's RGB Matrix without VialRGB answers underglow's ids with a speed of 0-3
+(`VIA_QMK_RGB_MATRIX_ENABLE`); no Vial preset declares it but one board's.
+
+**VialRGB** -- vial-qmk with `VIALRGB_ENABLE`, flagged in `vial_get_keyboard_id`'s byte 12: commands
+in the value id's place, arguments from byte 2, little-endian. Get `0x40` info -- protocol (1),
+then `RGB_MATRIX_MAXIMUM_BRIGHTNESS`; `0x41` mode -- effect id (2 bytes), speed, hue, saturation,
+brightness on that maximum; `0x42` supported -- the ids above `[2..3]`, up to 15, `0xFFFF` after the
+last, asked again from the last while a reply is full; `0x43`/`0x44` LED count and positions (direct
+mode only). Set `0x41` mode -- all six at once; `0x42` direct colours. Save `[0x09]`. Effect 0 is
+off, 1 the direct mode, a host streaming the colours.
+
+QMK numbers underglow and RGB Matrix effects among those built in (ui-design.md, "The Lighting
+section"): only VialRGB's ids name an effect whatever the build.
+
 ---
 
 ## VIA — protocol version history

@@ -87,6 +87,8 @@ set(NAZG_CORE_SOURCES
   src/adapters/via/NazgViaKeymap.cpp
   src/adapters/via/NazgViaMacro.h
   src/adapters/via/NazgViaMacro.cpp
+  src/adapters/via/NazgViaLighting.h
+  src/adapters/via/NazgViaLighting.cpp
   src/adapters/via/NazgViaLoader.h
   src/adapters/via/NazgViaLoader.cpp
   src/adapters/via/NazgViaBundle.h
@@ -117,6 +119,8 @@ set(NAZG_CORE_SOURCES
   src/model/NazgAltRepeatKey.cpp
   src/model/NazgQmkSettings.h
   src/model/NazgQmkSettings.cpp
+  src/model/NazgLighting.h
+  src/model/NazgLighting.cpp
   src/ui/NazgKeycapLegend.h
   src/ui/NazgKeycapLegend.cpp
   src/ui/NazgHostLayoutTable.cpp
@@ -208,6 +212,8 @@ set(NAZG_SOURCES
   src/ui/NazgAltRepeatKeySection.cpp
   src/ui/NazgQmkSettingsSection.h
   src/ui/NazgQmkSettingsSection.cpp
+  src/ui/NazgLightingSection.h
+  src/ui/NazgLightingSection.cpp
   src/ui/NazgDefinitionPicker.h
   src/ui/NazgDefinitionPicker.cpp
 )
@@ -308,6 +314,7 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(key_override       tests/KeyOverrideTest.cpp)
     nazg_add_test(alt_repeat_key     tests/AltRepeatKeyTest.cpp)
     nazg_add_test(qmk_settings       tests/QmkSettingsTest.cpp)
+    nazg_add_test(lighting           tests/LightingTest.cpp)
     nazg_add_test(keycap_layout      tests/KeycapLayoutTest.cpp)
     nazg_add_test(palette            tests/PaletteTest.cpp)
     nazg_add_test(board_description  tests/BoardDescriptionTest.cpp)

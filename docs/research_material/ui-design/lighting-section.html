@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- Mockup of the Lighting section (ui-design.md, "The Lighting section").
+
+     First round (2026-10-11). The section edits QMK's own lighting systems -- backlight, underglow
+     (rgblight) and RGB Matrix -- as VIA's built-in menus (qmk_backlight, qmk_rgblight,
+     qmk_backlight_rgblight, qmk_rgb_matrix) and Vial's `lighting` presets (the same three, and
+     VialRGB) declare them. A board's own lighting menus are custom menus, not this section.
+
+     What the firmware does, from QMK's quantum/via.c and quantum/rgblight/ (Rico's fork,
+     2026-09), vial-qmk's quantum/via.c and quantum/vialrgb.c (2026-02), the VIA app (935106a,
+     2026-09) with @the-via/reader 1.14.4's common menus, and vial-gui (2026-05), read 2026-10-11:
+     - a value is set in RAM (id_custom_set_value, every QMK function `_noeeprom`) and stored by a
+       separate save (id_custom_save); the VIA app saves after every change, vial-gui on Save;
+     - QMK numbers the underglow and RGB Matrix effects among those built in: an effect left out
+       moves every later number. VIA's lists assume every effect is built -- right for ~75% of
+       QMK's underglow boards, wrong for most RGB Matrix ones (163 VIA definitions carry their own
+       RGB Matrix menu instead). VialRGB has fixed effect ids and lists those the board has;
+     - underglow's speed is stored and never read by an underglow effect: the speed is the
+       effect's variant (Breathing 1-4: 30, 20, 10, 5 ms steps). VIA shows a speed slider anyway;
+     - Vial's QMK lighting is the pre-V3 format -- no channel byte, ids 0x80-0x83 and 0x09-0x0A,
+       underglow brightness unscaled -- reads the underglow effect even while off (so "off" cannot
+       be read), and ignores an effect written while off (it turns on with the old one).
+
+     The variants: the systems in the strip or stacked; the board showing the lighting keys, a
+     glow of the colour, or folded away; underglow effects as effect + variant or VIA's flat
+     list; the colour as two sliders, a hue x saturation field, or swatches; written at once or
+     Save / Revert.
+
+     Settled 2026-10-11 (Rico): several systems in the strip, one at a time; the board showing
+     the lighting keys -- the keyboard itself is the preview, writes going out at once -- and,
+     under the pointer, one panel line narrowing them to the keys that change it (as QMK Settings
+     lights what a line concerns), a sentence when the keymap has none; underglow effects as an
+     effect and its own variant buttons; the colour as two sliders; written at once. The toggles
+     keep the alternatives.
+
+     The boards: the Phoenix Project No 1 (VIA registry, underglow, every effect built, its
+     default keymap: UG_* on layer 1), the 1up60rgb (VIA registry, backlight + underglow; its
+     layer 1 lighting keys made up), the GMMK Pro (vial-qmk's Vial keymap, VialRGB, RGB_* on
+     layer 1; the effects it lists made up). The values are made up. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lighting section mockup</title>
+<style>
+:root{--window:#f3f3f5;--menubar:#e3e4e9;--text:#1d1e22;--muted:#6b6e78;--control:#ffffff;--border:#c8cad2;--accent:#3b82f6;--accent-text:#fff;--panel:#f8f8fa;--column:#ebecf0;--hover:rgba(0,0,0,.06);--selected:rgba(59,130,246,.16);
+--plate:#d3d4d8;--key:#ffffff;--keyline:#b4b7c2;--lit:#dbe7fb;--litline:#3b82f6;--ok:#15803d;--warn:#c2410c;--err:#dc2626;--info:#4b5563;
+--board:#b45309;--boardface:#fdf3e2;--behav:#8b5cf6;--fw:#dc2626;--host:#0891b2}
+:root[data-theme="dark"]{--window:#0f0f11;--menubar:#24252b;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--accent:#4296fa;--accent-text:#fff;--panel:#16171b;--column:#16171b;--hover:rgba(255,255,255,.07);--selected:rgba(66,150,250,.22);
+--plate:#1c1d23;--key:#3a3c48;--keyline:#4b4e5c;--lit:#2a4a78;--litline:#4296fa;--ok:#4ade80;--warn:#fb923c;--err:#f87171;--info:#a1a5b2;
+--board:#fbbf24;--boardface:#3a2c12;--behav:#a78bfa;--fw:#f87171;--host:#22d3ee}
+*{box-sizing:border-box}
+body{margin:0;background:var(--window);color:var(--text);font-family:Arimo,"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+.controls{display:flex;flex-wrap:wrap;gap:8px 22px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.group .name{color:var(--muted);margin-right:4px}
+button,select{font:inherit;padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--control);color:var(--text);cursor:pointer}
+button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+.stage{padding:16px;overflow-x:auto}
+.frame{margin:0 auto;width:1160px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--window);box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.menubar{display:flex;gap:18px;align-items:center;background:var(--menubar);padding:5px 14px}
+.menubar .board{font-weight:600}
+.muted{color:var(--muted)}
+.menubar .right{margin-left:auto;color:var(--muted)}
+.body{display:flex;min-height:600px}
+.col{flex:none;width:180px;background:var(--column);border-right:1px solid var(--border);padding:6px 5px;display:flex;flex-direction:column;gap:2px}
+.entry{padding:7px 10px;border-radius:6px;color:var(--muted)}
+.entry.on{background:var(--selected);color:var(--text);box-shadow:inset 3px 0 0 var(--accent)}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;padding:10px 14px 14px;gap:10px}
+.strip{display:flex;gap:3px;align-items:center;padding:4px 0}
+.strip button{padding:2px 10px;font-size:12px;position:relative;flex:none}
+.strip button .dot{position:absolute;top:-3px;right:-3px;width:7px;height:7px;border-radius:50%;background:var(--warn)}
+.boardarea{display:flex;justify-content:center}
+svg.board{display:block;overflow:visible}
+.panel{border:1px solid var(--border);border-radius:6px;background:var(--panel)}
+.mline{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;padding:6px 12px;border-bottom:1px solid var(--border);min-height:41px}
+.mline .title{font-weight:700}
+.mline .desc{color:var(--muted);font-size:12px}
+.msg{font-size:12px}
+.msg .ok{color:var(--ok)} .msg .warn{color:var(--warn)}
+.mline .right{margin-left:auto;display:flex;gap:6px;align-items:center}
+.sys{padding:6px 12px 8px}
+.sys+.sys{border-top:1px solid var(--border)}
+.sys h4{margin:4px 0 4px;font-size:13px;display:flex;gap:10px;align-items:baseline}
+.sys h4 .desc{font-weight:400;color:var(--muted);font-size:12px}
+.grid{display:grid;grid-template-columns:110px auto;align-items:center;gap:5px 12px;padding:2px 6px}
+.grid .lab{color:var(--text);white-space:nowrap;display:flex;align-items:center;gap:6px}
+.grid .lab.changed::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--warn);margin-left:-11px}
+.grid .val{display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap;min-height:26px}
+.grid .dis{opacity:.4;pointer-events:none}
+.grid input[type=checkbox]{margin:0;width:15px;height:15px}
+.grid select{padding:2px 6px;min-width:190px}
+.seg{display:inline-flex}
+.seg button{border-radius:0;padding:2px 9px;font-size:12px;margin-left:-1px}
+.seg button:first-child{border-radius:6px 0 0 6px;margin-left:0}
+.seg button:last-child{border-radius:0 6px 6px 0}
+.vname{color:var(--muted);font-size:12px}
+.slider{position:relative;width:260px;height:20px;cursor:pointer;flex:none}
+.slider .track{position:absolute;left:0;right:0;top:6px;height:8px;border-radius:4px;border:1px solid var(--border);background:var(--control)}
+.slider .fill{position:absolute;left:0;top:6px;height:8px;border-radius:4px 0 0 4px;background:var(--accent)}
+.slider .knob{position:absolute;top:1px;width:12px;height:18px;margin-left:-6px;border-radius:4px;background:var(--control);border:1px solid var(--muted);box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.slider.hue .track{background:linear-gradient(90deg,#f00,#ff0 17%,#0f0 33%,#0ff 50%,#00f 67%,#f0f 83%,#f00)}
+.num{color:var(--muted);font-size:12px;min-width:36px}
+.field{position:relative;width:260px;height:70px;border:1px solid var(--border);border-radius:6px;cursor:crosshair;background:linear-gradient(0deg,#fff,rgba(255,255,255,0)),linear-gradient(90deg,#f00,#ff0 17%,#0f0 33%,#0ff 50%,#00f 67%,#f0f 83%,#f00);flex:none}
+.field .pt{position:absolute;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #000}
+.swatch{width:26px;height:20px;border-radius:5px;border:1px solid var(--border);flex:none}
+.swatches{display:inline-flex;gap:4px}
+.swatches span{width:20px;height:20px;border-radius:5px;border:1px solid var(--border);cursor:pointer}
+.swatches span.on{outline:2px solid var(--text);outline-offset:1px}
+.info{color:var(--muted);cursor:help;font-size:12px;border:1px solid var(--border);border-radius:50%;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center}
+.says{padding:4px 6px 2px;font-size:12px;line-height:1.55;color:var(--info)}
+.says .w{color:var(--warn)}
+.notes{max-width:1160px;margin:0 auto;padding:4px 16px 30px;color:var(--muted);line-height:1.55}
+.notes b{color:var(--text);font-weight:600}
+.notes p{margin:0 0 8px}
+.tip{position:fixed;z-index:9;max-width:340px;padding:6px 9px;border:1px solid var(--border);border-radius:6px;background:var(--control);color:var(--text);font-size:12px;line-height:1.45;box-shadow:0 2px 8px rgba(0,0,0,.15);pointer-events:none;display:none}
+@keyframes breathe{0%,100%{opacity:.25}50%{opacity:1}}
+@keyframes huespin{from{filter:hue-rotate(0deg) blur(var(--blur))}to{filter:hue-rotate(360deg) blur(var(--blur))}}
+</style>
+</head>
+<body>
+<div class="controls" id="controls"></div>
+<div class="stage"><div class="frame" id="frame"></div></div>
+<div class="notes" id="notes"></div>
+<div class="tip" id="tip"></div>
+<script>
+"use strict";
+// The boards' `layouts`: the Phoenix's and the 1up60rgb's from the-via/keyboards, the GMMK Pro's
+// from vial-qmk. SENDS: each board's keymap, matrix cell -> [layer 0, layer 1].
+const BOARDS = {"Phoenix Project No 1":{"name":"Phoenix Project No 1","source":"the-via/keyboards v3/rico/phoenix_project_no1","lighting":null,"menus":["qmk_rgblight"],"labels":["Split Backspace",["Enter","ANSI Enter","ISO Enter"],"Split Left Shift (ISO)","Winkeyless 7U Spacebar"],"keymap":[[{"x":15.5},"0,13\n\n\n0,1",{"c":"#aaaaaa"},"0,14\n\n\n0,1"],[{"y":0.25,"x":2.5,"c":"#777777"},"0,0",{"c":"#cccccc"},"0,1","0,2","0,3","0,4","0,5","0,6","0,7","0,8","0,9","0,10","0,11","0,12",{"c":"#aaaaaa","w":2},"0,14\n\n\n0,0","0,15"],[{"x":2.5,"w":1.5},"1,0",{"c":"#cccccc"},"1,1","1,2","1,3","1,4","1,5","1,6","1,7","1,8","1,9","1,10","1,11","1,12",{"w":1.5},"1,14\n\n\n1,0",{"c":"#aaaaaa"},"1,15",{"x":1.25,"c":"#777777","w":1.25,"h":2,"w2":1.5,"h2":1,"x2":-0.25},"2,14\n\n\n1,1"],[{"x":2.5,"c":"#aaaaaa","w":1.75},"2,0",{"c":"#cccccc"},"2,2","2,3","2,4","2,5","2,6","2,7","2,8","2,9","2,10","2,11","2,12",{"c":"#777777","w":2.25},"2,14\n\n\n1,0",{"c":"#aaaaaa"},"2,15",{"x":0.25,"c":"#cccccc"},"2,13\n\n\n1,1"],[{"c":"#aaaaaa","w":1.25},"3,0\n\n\n2,1",{"c":"#cccccc"},"3,1\n\n\n2,1",{"x":0.25,"c":"#aaaaaa","w":2.25},"3,0\n\n\n2,0",{"c":"#cccccc"},"3,2","3,3","3,4","3,5","3,6","3,7","3,8","3,9","3,10","3,11",{"c":"#aaaaaa","w":1.75},"3,13",{"c":"#777777"},"3,14",{"c":"#aaaaaa"},"3,15"],[{"x":2.5,"w":1.25},"4,0\n\n\n3,0",{"w":1.25},"4,1\n\n\n3,0",{"w":1.25},"4,2\n\n\n3,0",{"c":"#cccccc","w":6.25},"4,6\n\n\n3,0",{"c":"#aaaaaa","w":1.5},"4,10\n\n\n3,0",{"w":1.5},"4,12\n\n\n3,0",{"c":"#777777"},"4,13","4,14","4,15"],[{"y":0.25,"x":2.5,"c":"#aaaaaa","w":1.5},"4,0\n\n\n3,1",{"w":1.5},"4,2\n\n\n3,1",{"c":"#cccccc","w":7},"4,6\n\n\n3,1",{"c":"#aaaaaa","w":1.5},"4,10\n\n\n3,1",{"w":1.5},"4,12\n\n\n3,1"]]},"1up60rgb":{"name":"1up60rgb","source":"the-via/keyboards v3/1upkeyboards/1up60rgb","lighting":null,"menus":["qmk_backlight_rgblight"],"labels":[["Backspace","Default","Split"],["Enter Key","ANSI","ISO"],["Left Shift","Default","Split"],["Right Shift","Default","Split"],["Bottom Row","Standard","Tsangan","HHKB"]],"keymap":[[{"x":2.5,"c":"#777777"},"0,0",{"c":"#cccccc"},"0,1","0,2","0,3","0,4","0,5","0,6","0,7","0,8","0,9","0,10","0,11","0,12",{"c":"#aaaaaa","w":2},"0,14\n\n\n0,0",{"x":0.5,"c":"#cccccc"},"0,13\n\n\n0,1","0,14\n\n\n0,1"],[{"x":2.5,"c":"#aaaaaa","w":1.5},"1,0",{"c":"#cccccc"},"1,2","1,3","1,4","1,5","1,6","1,7","1,8","1,9","1,10","1,11","1,12","1,13",{"w":1.5},"1,14\n\n\n1,0",{"x":1.5,"c":"#777777","w":1.25,"h":2,"w2":1.5,"h2":1,"x2":-0.25},"2,14\n\n\n1,1"],[{"x":2.5,"c":"#aaaaaa","w":1.75},"2,0",{"c":"#cccccc"},"2,2","2,3","2,4","2,5","2,6","2,7","2,8","2,9","2,10","2,11","2,12",{"c":"#777777","w":2.25},"2,13\n\n\n1,0",{"x":0.5,"c":"#cccccc"},"2,13\n\n\n1,1"],[{"c":"#aaaaaa","w":1.25},"3,0\n\n\n2,1","3,1\n\n\n2,1",{"x":0.25,"w":2.25},"3,0\n\n\n2,0",{"c":"#cccccc"},"3,2","3,3","3,4","3,5","3,6","3,7","3,8","3,9","3,10","3,11",{"c":"#aaaaaa","w":2.75},"3,13\n\n\n3,0",{"x":0.5,"w":1.75},"3,13\n\n\n3,1","3,14\n\n\n3,1"],[{"x":2.5,"w":1.25},"4,0\n\n\n4,0",{"w":1.25},"4,1\n\n\n4,0",{"w":1.25},"4,3\n\n\n4,0",{"c":"#777777","w":6.25},"4,6\n\n\n4,0",{"c":"#aaaaaa","w":1.25},"4,10\n\n\n4,0",{"w":1.25},"4,11\n\n\n4,0",{"w":1.25},"4,13\n\n\n4,0",{"w":1.25},"4,14\n\n\n4,0"],[{"y":0.5,"x":2.5,"w":1.5},"4,0\n\n\n4,1","4,1\n\n\n4,1",{"w":1.5},"4,3\n\n\n4,1",{"c":"#777777","w":7},"4,6\n\n\n4,1",{"c":"#aaaaaa","w":1.5},"4,11\n\n\n4,1","4,13\n\n\n4,1",{"w":1.5},"4,14\n\n\n4,1"],[{"y":0.25,"x":2.5,"w":1.5,"d":true},"\n\n\n4,2","4,1\n\n\n4,2",{"w":1.5},"4,3\n\n\n4,2",{"c":"#777777","w":7},"4,6\n\n\n4,2",{"c":"#aaaaaa","w":1.5},"4,11\n\n\n4,2","4,13\n\n\n4,2",{"w":1.5,"d":true},"\n\n\n4,2"]]},"GMMK Pro":{"name":"GMMK Pro","source":"vial-qmk keyboards/gmmk/pro/rev1/ansi/keymaps/vial/vial.json","lighting":"vialrgb","menus":null,"labels":[],"keymap":[[{"c":"#777777"},"1,3",{"x":0.25,"c":"#cccccc"},"2,6","3,6","3,1","3,3",{"x":0.25,"c":"#aaaaaa"},"0,7","6,3","7,1","7,6",{"x":0.25,"c":"#cccccc"},"10,6","10,7","10,3","10,5",{"x":0.25},"9,7",{"x":0.5},"0,1",{"x":0.25},"0,0\n\n\n\n\n\n\n\n\ne","0,1\n\n\n\n\n\n\n\n\ne"],[{"y":0.25},"1,6","1,7","2,7","3,7","4,7","4,6","5,6","5,7","6,7","7,7","8,7","8,6","6,6",{"c":"#aaaaaa","w":2},"10,1",{"x":0.5,"c":"#cccccc"},"6,5"],[{"c":"#aaaaaa","w":1.5},"1,1",{"c":"#cccccc"},"1,0","2,0","3,0","4,0","4,1","5,1","5,0","6,0","7,0","8,0","8,1","6,1",{"w":1.5},"10,2",{"x":0.5},"1,5"],[{"c":"#aaaaaa","w":1.75},"2,1",{"c":"#cccccc"},"1,2","2,2","3,2","4,2","4,3","5,3","5,2","6,2","7,2","8,2","8,3",{"c":"#777777","w":2.25},"10,4",{"x":0.5,"c":"#cccccc"},"2,5"],[{"c":"#aaaaaa","w":2.25},"0,0",{"c":"#cccccc"},"1,4","2,4","3,4","4,4","4,5","5,5","5,4","6,4","7,4","8,5",{"c":"#aaaaaa","w":1.75},"9,1",{"x":1.5,"c":"#cccccc"},"7,5"],[{"y":-0.75,"x":14.25},"3,5"],[{"y":-0.25,"c":"#aaaaaa","w":1.25},"0,6",{"w":1.25},"9,0",{"w":1.25},"9,3",{"c":"#cccccc","w":6.25},"9,4",{"c":"#aaaaaa"},"9,5","9,2","0,4"],[{"y":-0.75,"x":13.25,"c":"#cccccc"},"0,3","7,3","0,5"]]}};
+const SENDS = {"Phoenix Project No 1":{"0,0":["KC_ESC","UG_TOGG"],"0,1":["KC_1","UG_NEXT"],"0,2":["KC_2","UG_HUEU"],"0,3":["KC_3","UG_HUED"],"0,4":["KC_4","UG_SATU"],"0,5":["KC_5","UG_SATD"],"0,6":["KC_6","UG_VALU"],"0,7":["KC_7","UG_VALD"],"0,8":["KC_8","KC_TRNS"],"0,9":["KC_9","KC_TRNS"],"0,10":["KC_0","KC_TRNS"],"0,11":["KC_MINS","KC_TRNS"],"0,12":["KC_EQL","KC_TRNS"],"0,13":["KC_NO","KC_TRNS"],"0,14":["KC_BSPC","KC_TRNS"],"0,15":["KC_DEL","KC_TRNS"],"1,0":["KC_TAB","KC_TRNS"],"1,1":["KC_Q","KC_TRNS"],"1,2":["KC_W","KC_TRNS"],"1,3":["KC_E","KC_TRNS"],"1,4":["KC_R","KC_TRNS"],"1,5":["KC_T","KC_TRNS"],"1,6":["KC_Y","KC_TRNS"],"1,7":["KC_U","KC_TRNS"],"1,8":["KC_I","KC_TRNS"],"1,9":["KC_O","KC_TRNS"],"1,10":["KC_P","KC_TRNS"],"1,11":["KC_LBRC","KC_TRNS"],"1,12":["KC_RBRC","KC_TRNS"],"1,14":["KC_BSLS","KC_TRNS"],"1,15":["KC_PGUP","KC_TRNS"],"2,0":["KC_CAPS","KC_TRNS"],"2,2":["KC_A","KC_TRNS"],"2,3":["KC_S","KC_TRNS"],"2,4":["KC_D","KC_TRNS"],"2,5":["KC_F","KC_TRNS"],"2,6":["KC_G","KC_TRNS"],"2,7":["KC_H","KC_TRNS"],"2,8":["KC_J","KC_TRNS"],"2,9":["KC_K","KC_TRNS"],"2,10":["KC_L","KC_TRNS"],"2,11":["KC_SCLN","KC_TRNS"],"2,12":["KC_QUOT","KC_TRNS"],"2,13":["KC_NO","KC_TRNS"],"2,14":["KC_ENT","KC_TRNS"],"2,15":["KC_PGDN","KC_TRNS"],"3,0":["KC_LSFT","KC_TRNS"],"3,1":["KC_NO","KC_TRNS"],"3,2":["KC_Z","KC_TRNS"],"3,3":["KC_X","KC_TRNS"],"3,4":["KC_C","KC_TRNS"],"3,5":["KC_V","KC_TRNS"],"3,6":["KC_B","KC_TRNS"],"3,7":["KC_N","KC_TRNS"],"3,8":["KC_M","KC_TRNS"],"3,9":["KC_COMM","KC_TRNS"],"3,10":["KC_DOT","KC_TRNS"],"3,11":["KC_SLSH","KC_TRNS"],"3,13":["KC_RSFT","KC_TRNS"],"3,14":["KC_UP","KC_TRNS"],"3,15":["MO(_FN)","KC_TRNS"],"4,0":["KC_LCTL","KC_TRNS"],"4,1":["KC_LGUI","KC_TRNS"],"4,2":["KC_LALT","KC_TRNS"],"4,6":["KC_SPC","MO(_FN2)"],"4,10":["KC_RALT","KC_TRNS"],"4,12":["KC_RCTL","KC_TRNS"],"4,13":["KC_LEFT","KC_TRNS"],"4,14":["KC_DOWN","KC_TRNS"],"4,15":["KC_RIGHT","KC_TRNS"]},"1up60rgb":{"0,0":["KC_ESC","KC_TRNS"],"0,1":["KC_1","KC_TRNS"],"0,2":["KC_2","KC_TRNS"],"0,3":["KC_3","KC_TRNS"],"0,4":["KC_4","KC_TRNS"],"0,5":["KC_5","KC_TRNS"],"0,6":["KC_6","KC_TRNS"],"0,7":["KC_7","KC_TRNS"],"0,8":["KC_8","KC_TRNS"],"0,9":["KC_9","KC_TRNS"],"0,10":["KC_0","KC_TRNS"],"0,11":["KC_MINS","KC_TRNS"],"0,12":["KC_EQL","KC_TRNS"],"0,13":["KC_BSPC","KC_TRNS"],"0,14":["KC_BSPC","KC_TRNS"],"1,0":["KC_TAB","KC_TRNS"],"1,2":["KC_Q","KC_TRNS"],"1,3":["KC_W","KC_TRNS"],"1,4":["KC_E","KC_TRNS"],"1,5":["KC_R","KC_TRNS"],"1,6":["KC_T","KC_TRNS"],"1,7":["KC_Y","KC_TRNS"],"1,8":["KC_U","KC_TRNS"],"1,9":["KC_I","KC_TRNS"],"1,10":["KC_O","KC_TRNS"],"1,11":["KC_P","KC_TRNS"],"1,12":["KC_LBRC","KC_TRNS"],"1,13":["KC_RBRC","KC_TRNS"],"1,14":["KC_BSLS","KC_TRNS"],"2,0":["KC_CAPS","KC_TRNS"],"2,2":["KC_A","KC_TRNS"],"2,3":["KC_S","KC_TRNS"],"2,4":["KC_D","KC_TRNS"],"2,5":["KC_F","KC_TRNS"],"2,6":["KC_G","KC_TRNS"],"2,7":["KC_H","KC_TRNS"],"2,8":["KC_J","KC_TRNS"],"2,9":["KC_K","KC_TRNS"],"2,10":["KC_L","KC_TRNS"],"2,11":["KC_SCLN","KC_TRNS"],"2,12":["KC_QUOT","KC_TRNS"],"2,13":["KC_ENT","KC_TRNS"],"2,14":["KC_ENT","KC_TRNS"],"3,0":["KC_LSFT","KC_TRNS"],"3,1":["KC_LSFT","KC_TRNS"],"3,2":["KC_Z","KC_TRNS"],"3,3":["KC_X","KC_TRNS"],"3,4":["KC_C","KC_TRNS"],"3,5":["KC_V","KC_TRNS"],"3,6":["KC_B","KC_TRNS"],"3,7":["KC_N","KC_TRNS"],"3,8":["KC_M","KC_TRNS"],"3,9":["KC_COMM","KC_TRNS"],"3,10":["KC_DOT","KC_TRNS"],"3,11":["KC_SLSH","KC_TRNS"],"3,13":["KC_RSFT","KC_TRNS"],"3,14":["KC_RSFT","KC_TRNS"],"4,0":["KC_LCTL","KC_TRNS"],"4,1":["KC_LGUI","KC_TRNS"],"4,3":["KC_LALT","KC_TRNS"],"4,6":["KC_SPC","KC_TRNS"],"4,10":["KC_RALT","KC_TRNS"],"4,11":["KC_RGUI","KC_TRNS"],"4,13":["MO(1)","KC_TRNS"],"4,14":["KC_RCTL","KC_TRNS"]},"GMMK Pro":{"1,3":["KC_ESC","KC_TRNS"],"2,6":["KC_F1","KC_MYCM"],"3,6":["KC_F2","KC_WHOM"],"3,1":["KC_F3","KC_CALC"],"3,3":["KC_F4","KC_MSEL"],"0,7":["KC_F5","KC_MPRV"],"6,3":["KC_F6","KC_MNXT"],"7,1":["KC_F7","KC_MPLY"],"7,6":["KC_F8","KC_MSTP"],"10,6":["KC_F9","KC_MUTE"],"10,7":["KC_F10","KC_VOLD"],"10,3":["KC_F11","KC_VOLU"],"10,5":["KC_F12","KC_TRNS"],"9,7":["KC_PSCR","KC_TRNS"],"0,1":["KC_MUTE","KC_TRNS"],"1,6":["KC_GRV","KC_TRNS"],"1,7":["KC_1","RGB_TOG"],"2,7":["KC_2","KC_TRNS"],"3,7":["KC_3","KC_TRNS"],"4,7":["KC_4","KC_TRNS"],"4,6":["KC_5","KC_TRNS"],"5,6":["KC_6","KC_TRNS"],"5,7":["KC_7","KC_TRNS"],"6,7":["KC_8","KC_TRNS"],"7,7":["KC_9","KC_TRNS"],"8,7":["KC_0","KC_TRNS"],"8,6":["KC_MINS","KC_TRNS"],"6,6":["KC_EQL","KC_TRNS"],"10,1":["KC_BSPC","KC_TRNS"],"6,5":["KC_DEL","KC_TRNS"],"1,1":["KC_TAB","KC_TRNS"],"1,0":["KC_Q","KC_TRNS"],"2,0":["KC_W","RGB_VAI"],"3,0":["KC_E","KC_TRNS"],"4,0":["KC_R","KC_TRNS"],"4,1":["KC_T","KC_TRNS"],"5,1":["KC_Y","KC_TRNS"],"5,0":["KC_U","KC_TRNS"],"6,0":["KC_I","KC_TRNS"],"7,0":["KC_O","KC_TRNS"],"8,0":["KC_P","KC_TRNS"],"8,1":["KC_LBRC","KC_TRNS"],"6,1":["KC_RBRC","KC_TRNS"],"10,2":["KC_BSLS","QK_BOOT"],"1,5":["KC_PGUP","KC_TRNS"],"2,1":["KC_CAPS","KC_TRNS"],"1,2":["KC_A","KC_TRNS"],"2,2":["KC_S","RGB_VAD"],"3,2":["KC_D","KC_TRNS"],"4,2":["KC_F","KC_TRNS"],"4,3":["KC_G","KC_TRNS"],"5,3":["KC_H","KC_TRNS"],"5,2":["KC_J","KC_TRNS"],"6,2":["KC_K","KC_TRNS"],"7,2":["KC_L","KC_TRNS"],"8,2":["KC_SCLN","KC_TRNS"],"8,3":["KC_QUOT","KC_TRNS"],"10,4":["KC_ENT","KC_TRNS"],"2,5":["KC_PGDN","KC_TRNS"],"0,0":["KC_LSFT","KC_TRNS"],"1,4":["KC_Z","KC_TRNS"],"2,4":["KC_X","RGB_HUI"],"3,4":["KC_C","KC_TRNS"],"4,4":["KC_V","KC_TRNS"],"4,5":["KC_B","KC_TRNS"],"5,5":["KC_N","NK_TOGG"],"5,4":["KC_M","KC_TRNS"],"6,4":["KC_COMM","KC_TRNS"],"7,4":["KC_DOT","KC_TRNS"],"8,5":["KC_SLSH","KC_TRNS"],"9,1":["KC_RSFT","KC_TRNS"],"3,5":["KC_UP","RGB_MOD"],"7,5":["KC_END","KC_TRNS"],"0,6":["KC_LCTL","KC_TRNS"],"9,0":["KC_LGUI","KC_TRNS"],"9,3":["KC_LALT","KC_TRNS"],"9,4":["KC_SPC","KC_TRNS"],"9,5":["KC_RALT","KC_TRNS"],"9,2":["MO(1)","KC_TRNS"],"0,4":["KC_RCTL","KC_TRNS"],"0,3":["KC_LEFT","RGB_SPD"],"7,3":["KC_DOWN","RGB_RMOD"],"0,5":["KC_RGHT","RGB_SPI"]}};
+// ---------------------------------------------------------------------------------------------
+// KLE, as in the other section mockups.
+function parseKle(rows) {
+  const keys = [];
+  let x = 0, y = 0, rx = 0, ry = 0, r = 0, p = {};
+  const pair = s => { const m = /^\s*(\d+)\s*,\s*(\d+)\s*$/.exec(s || ''); return m ? [+m[1], +m[2]] : null; };
+  for (const row of rows) {
+    if (!Array.isArray(row)) continue;
+    for (const item of row) {
+      if (typeof item === 'object') {
+        if ('r' in item) r = item.r;
+        if ('rx' in item || 'ry' in item) { if ('rx' in item) rx = item.rx; if ('ry' in item) ry = item.ry; x = rx; y = ry; }
+        if ('x' in item) x += item.x;
+        if ('y' in item) y += item.y;
+        for (const k of ['w', 'h', 'x2', 'y2', 'w2', 'h2', 'd']) if (k in item) p[k] = item[k];
+        continue;
+      }
+      const w = p.w || 1, h = p.h || 1;
+      const labels = String(item).split('\n');
+      const cell = pair(labels[0]), option = pair(labels[3]);
+      if (cell || p.d)
+        keys.push({ x, y, w, h, x2: p.x2 || 0, y2: p.y2 || 0, w2: p.w2 || w, h2: p.h2 || h, r, rx, ry, decal: !!p.d,
+                    cell, g: option ? option[0] : -1, o: option ? option[1] : 0 });
+      x += w;
+      p = {};
+    }
+    y += 1;
+    x = rx;
+  }
+  return keys;
+}
+const groupOf = label => Array.isArray(label) ? { name: label[0], options: label.slice(1) } : { name: label, options: [] };
+const placeKeys = (keys, groups, sel) => keys.filter(k => !(k.g >= 0 && k.g < groups.length && sel[k.g] !== k.o));
+const NS = 'http://www.w3.org/2000/svg';
+const rot = (px, py, k) => {
+  if (!k.r) return [px, py];
+  const a = k.r * Math.PI / 180, dx = px - k.rx, dy = py - k.ry;
+  return [k.rx + dx * Math.cos(a) - dy * Math.sin(a), k.ry + dx * Math.sin(a) + dy * Math.cos(a)];
+};
+function boundsOf(keys) {
+  const b = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+  for (const k of keys)
+    for (const [x, y, w, h] of [[k.x, k.y, k.w, k.h], [k.x + k.x2, k.y + k.y2, k.w2, k.h2]])
+      for (const [px, py] of [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]) {
+        const [qx, qy] = rot(px, py, k);
+        b.x0 = Math.min(b.x0, qx); b.y0 = Math.min(b.y0, qy); b.x1 = Math.max(b.x1, qx); b.y1 = Math.max(b.y1, qy);
+      }
+  return b;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Legends: what the mockup needs. Lighting keys take the header rule of ui-design.md: "Light"
+// with one system, the system's name with several.
+const NAMED = { ESC: 'Esc', MINS: '-', EQL: '=', BSPC: 'Bksp', DEL: 'Del', TAB: 'Tab', LBRC: '[', RBRC: ']', BSLS: '\\',
+  CAPS: 'Caps', SCLN: ';', QUOT: "'", ENT: 'Enter', LSFT: 'Shift', RSFT: 'Shift', COMM: ',', DOT: '.', SLSH: '/',
+  LCTL: 'Ctrl', RCTL: 'Ctrl', LGUI: 'Win', RGUI: 'Win', LALT: 'Alt', RALT: 'AltGr', SPC: '', GRV: '`', UP: '↑', DOWN: '↓',
+  LEFT: '←', RGHT: '→', RIGHT: '→', PGUP: 'PgUp', PGDN: 'PgDn', END: 'End', PSCR: 'PrtSc', MUTE: 'Mute', NO: '' };
+const LIGHT_MAIN = { TOGG: 'On/Off', NEXT: 'Next', PREV: 'Prev', HUEU: 'Hue +', HUED: 'Hue −', SATU: 'Sat +', SATD: 'Sat −',
+  VALU: 'Bri +', VALD: 'Bri −', SPDU: 'Spd +', SPDD: 'Spd −', STEP: 'Step', BRTG: 'Breathe', TOG: 'On/Off', MOD: 'Next',
+  RMOD: 'Prev', HUI: 'Hue +', HUD: 'Hue −', SAI: 'Sat +', SAD: 'Sat −', VAI: 'Bri +', VAD: 'Bri −', SPI: 'Spd +', SPD: 'Spd −' };
+const systemOfKey = kc => /^BL_/.test(kc) ? 'backlight' : /^UG_/.test(kc) ? 'underglow' : /^RM_/.test(kc) ? 'matrix'
+                        : /^RGB_/.test(kc) ? (setupOf().systems.includes('underglow') ? 'underglow' : 'matrix') : null;
+const SYS_HEADER = { backlight: 'Backlit', underglow: 'UGlow', matrix: 'Matrix' };
+function legendOf(kc) {
+  if (!kc || kc === 'KC_TRNS') return { m: '' };
+  const sys = systemOfKey(kc);
+  if (sys) return { h: setupOf().systems.length > 1 ? SYS_HEADER[sys] : 'Light', m: LIGHT_MAIN[kc.replace(/^[A-Z]+_/, '')] || kc, light: sys };
+  if (/^MO\(/.test(kc)) return { h: 'Layer', m: 'Fn', behav: true };
+  if (kc === 'QK_BOOT') return { h: 'Firmware', m: 'Boot', fw: true };
+  const n = kc.replace(/^KC_/, '');
+  if (n in NAMED) return { m: NAMED[n] };
+  return { m: n.length <= 3 ? n : n.slice(0, 4) };
+}
+
+// ---------------------------------------------------------------------------------------------
+// The lighting systems and their effects.
+// Underglow: QMK's modes with every effect built (rgblight_modes.h), as families and variants.
+// Each variant is what the mode number's offset from the family's first selects (rgblight.c).
+const SPEEDS = ['Slow', 'Medium', 'Fast', 'Fastest'];
+const SPREADS = ['Full', '2/3', '1/2', '1/3', '1/4'];   // RGBLED_GRADIENT_RANGES: 255, 170, 127, 85, 64 of the hue circle
+const FAMILIES = [
+  { name: 'Solid Color', base: 1, n: 1, colour: true },
+  { name: 'Breathing', base: 2, n: 4, decode: d => ({ speed: d }), speeds: 4, colour: true },
+  { name: 'Rainbow Mood', base: 6, n: 3, decode: d => ({ speed: d }), speeds: 3 },
+  { name: 'Rainbow Swirl', base: 9, n: 6, decode: d => ({ speed: d >> 1, dir: d & 1 }), speeds: 3, dir: true },
+  { name: 'Snake', base: 15, n: 6, decode: d => ({ speed: d >> 1, dir: d & 1 }), speeds: 3, dir: true, colour: true },
+  { name: 'Knight', base: 21, n: 3, decode: d => ({ speed: d }), speeds: 3, colour: true },
+  { name: 'Christmas', base: 24, n: 1 },
+  { name: 'Gradient', base: 25, n: 10, decode: d => ({ spread: d >> 1, dir: d & 1 }), spread: true, dir: true, colour: true },
+  { name: 'RGB Test', base: 35, n: 1 },
+  { name: 'Alternating', base: 36, n: 1, colour: true },
+  { name: 'Twinkle', base: 37, n: 6, decode: d => ({ speed: d % 3, random: d / 3 | 0 }), speeds: 3, random: true, colour: true },
+];
+// VIA's own list for the same numbers (@the-via/reader, qmk_rgblight).
+const VIA_UNDERGLOW = ['All Off', 'Solid Color', 'Breathing 1', 'Breathing 2', 'Breathing 3', 'Breathing 4', 'Rainbow Mood 1',
+  'Rainbow Mood 2', 'Rainbow Mood 3', 'Rainbow Swirl 1', 'Rainbow Swirl 2', 'Rainbow Swirl 3', 'Rainbow Swirl 4', 'Rainbow Swirl 5',
+  'Rainbow Swirl 6', 'Snake 1', 'Snake 2', 'Snake 3', 'Snake 4', 'Snake 5', 'Snake 6', 'Knight 1', 'Knight 2', 'Knight 3', 'Christmas',
+  'Gradient 1', 'Gradient 2', 'Gradient 3', 'Gradient 4', 'Gradient 5', 'Gradient 6', 'Gradient 7', 'Gradient 8', 'Gradient 9',
+  'Gradient 10', 'RGB Test', 'Alternating', 'Twinkle 1', 'Twinkle 2', 'Twinkle 3', 'Twinkle 4', 'Twinkle 5', 'Twinkle 6'];
+const familyOf = mode => FAMILIES.find(f => mode >= f.base && mode < f.base + f.n);
+const variantOf = mode => { const f = familyOf(mode); return f.decode ? f.decode(mode - f.base) : {}; };
+function modeOf(f, v) {
+  if (!f.decode) return f.base;
+  for (let d = 0; d < f.n; d++) { const x = f.decode(d); if (Object.keys(x).every(k => x[k] === (v[k] || 0))) return f.base + d; }
+  return f.base;
+}
+// VialRGB: the effects this GMMK Pro lists (vialrgb_get_supported), names as vial-gui has them.
+// Those whose colours come from the effect, not the chosen hue, have no Colour line.
+const VIALRGB = [[2, 'Solid Color'], [3, 'Alphas Mods'], [4, 'Gradient Up Down'], [5, 'Gradient Left Right'], [6, 'Breathing'],
+  [7, 'Band Sat'], [8, 'Band Val'], [13, 'Cycle All'], [14, 'Cycle Left Right'], [15, 'Cycle Up Down'], [16, 'Rainbow Moving Chevron'],
+  [17, 'Cycle Out In'], [19, 'Cycle Pinwheel'], [20, 'Cycle Spiral'], [21, 'Dual Beacon'], [22, 'Rainbow Beacon'], [24, 'Raindrops'],
+  [25, 'Jellybean Raindrops'], [26, 'Hue Breathing'], [27, 'Hue Pendulum'], [28, 'Hue Wave'], [29, 'Typing Heatmap'],
+  [30, 'Digital Rain'], [31, 'Solid Reactive Simple'], [32, 'Solid Reactive'], [39, 'Splash'], [40, 'Multisplash'],
+  [41, 'Solid Splash'], [42, 'Solid Multisplash'], [43, 'Pixel Rain']];
+const NO_HUE = new Set([13, 14, 15, 16, 17, 19, 20, 22, 25, 29, 30, 43]);
+const SWATCHES = [['Red', 0, 255], ['Orange', 21, 255], ['Yellow', 43, 255], ['Green', 85, 255], ['Cyan', 128, 255],
+                  ['Blue', 170, 255], ['Purple', 191, 255], ['Magenta', 213, 255], ['White', 0, 0]];
+
+// ---------------------------------------------------------------------------------------------
+const SETUPS = {
+  'Phoenix Project No 1 · underglow': { def: 'Phoenix Project No 1', proto: 'VIA 12', systems: ['underglow'] },
+  '1up60rgb · backlight + underglow': { def: '1up60rgb', proto: 'VIA 12', systems: ['backlight', 'underglow'],
+    // Layer 1's lighting keys are made up, by layer 0's key.
+    l1: { KC_1: 'BL_TOGG', KC_2: 'BL_STEP', KC_3: 'BL_BRTG', KC_Q: 'UG_TOGG', KC_W: 'UG_NEXT', KC_E: 'UG_HUEU', KC_R: 'UG_VALU', KC_T: 'UG_VALD' } },
+  'GMMK Pro · VialRGB': { def: 'GMMK Pro', proto: 'Vial', systems: ['matrix'] },
+};
+const SYSTEM = {
+  backlight: { name: 'Backlight', desc: 'one colour, under each key' },
+  underglow: { name: 'Underglow', desc: 'the LEDs under the board' },
+  matrix: { name: 'RGB Matrix', desc: 'a colour LED in each key' },
+};
+const INITIAL = {
+  backlight: { on: true, bri: 170, breathing: false },
+  underglow: { on: true, mode: 3, bri: 200, h: 170, s: 255 },
+  matrix: { on: true, effect: 14, bri: 180, speed: 128, h: 0, s: 255 },
+};
+const clone = o => JSON.parse(JSON.stringify(o));
+const state = { setup: Object.keys(SETUPS)[0], systems: 'In the strip', board: 'Lighting keys shown', effects: 'Effect + variant', keys: 'Some', hover: null,
+  colour: 'Two sliders', write: 'At once', theme: 'Light', sys: null, vals: null, saved: null, msg: null };
+const setupOf = () => SETUPS[state.setup];
+function reset() {
+  const s = setupOf();
+  state.vals = {}; s.systems.forEach(k => state.vals[k] = clone(INITIAL[k]));
+  state.saved = clone(state.vals); state.sys = s.systems[0]; state.msg = null;
+}
+const atOnce = () => state.write === 'At once';
+const changedField = (sys, f) => JSON.stringify(state.vals[sys][f]) !== JSON.stringify(state.saved[sys][f]);
+const sysChanged = sys => Object.keys(state.vals[sys]).some(f => changedField(sys, f));
+
+// ---------------------------------------------------------------------------------------------
+// Colour helpers: QMK's hue and saturation are 0-255; brightness is its own line.
+const css = (h, s, v) => {
+  const H = h / 255 * 360, S = s / 255, V = v === undefined ? 1 : v / 255;
+  const f = n => { const k = (n + H / 60) % 6; return V - V * S * Math.max(0, Math.min(k, 4 - k, 1)); };
+  return `rgb(${Math.round(f(5) * 255)},${Math.round(f(3) * 255)},${Math.round(f(1) * 255)})`;
+};
+function sliderHtml(id, value, max, kind, fillColour) {
+  const pct = value / max * 100;
+  const track = kind === 'sat' ? ` style="background:linear-gradient(90deg,#fff,${fillColour})"` : '';
+  return `<div class="slider ${kind || ''}" data-slider="${id}" data-max="${max}"><div class="track"${track}></div>`
+       + (kind ? '' : `<div class="fill" style="width:${pct}%"></div>`) + `<div class="knob" style="left:${pct}%"></div></div>`;
+}
+const pct = v => Math.round(v / 255 * 100) + ' %';
+const tipAttr = t => ` data-tip="${t.replace(/"/g, '&quot;')}"`;
+
+function colourHtml(sys, v) {
+  const sw = `<span class="swatch" style="background:${css(v.h, v.s)}"></span>`;
+  if (state.colour === 'Hue × saturation field')
+    return `<div class="field" data-field="${sys}"><span class="pt" style="left:${v.h / 255 * 100}%;top:${(1 - v.s / 255) * 100}%;background:${css(v.h, v.s)}"></span></div>${sw}`;
+  const sliders = `<div style="display:flex;flex-direction:column;gap:4px">`
+    + `<div style="display:flex;align-items:center;gap:8px">${sliderHtml(sys + '.h', v.h, 255, 'hue')}<span class="vname">Hue</span></div>`
+    + `<div style="display:flex;align-items:center;gap:8px">${sliderHtml(sys + '.s', v.s, 255, 'sat', css(v.h, 255))}<span class="vname">Saturation</span></div></div>`;
+  if (state.colour === 'Swatches + sliders') {
+    const sws = `<span class="swatches">${SWATCHES.map(([n, h, s]) => `<span data-swatch="${sys}:${h}:${s}" class="${v.h === h && v.s === s ? 'on' : ''}" style="background:${css(h, s)}"${tipAttr(n)}></span>`).join('')}</span>`;
+    return `<div style="display:flex;flex-direction:column;gap:6px">${sws}${v.custom ? sliders : `<span class="vname" style="cursor:pointer;text-decoration:underline" data-custom="${sys}">Other colour…</span>`}</div>`;
+  }
+  return sliders + sw;
+}
+const seg = (id, names, cur) => `<span class="seg">${names.map((n, i) => `<button class="${i === cur ? 'on' : ''}" data-seg="${id}:${i}">${n}</button>`).join('')}</span>`;
+const lab = (sys, f, text) => `<div class="lab${!atOnce() && f.split(',').some(x => changedField(sys, x)) ? ' changed' : ''}" data-hover="${sys}:${f}">${text}</div>`;
+// What a panel line changes, as the keys that change it from the keyboard: their QMK names' ends.
+const LINE_KEYS = { on: /_(TOGG|TOG|ON|OFF)$/, mode: /(_(NEXT|PREV|MOD|RMOD)$|^RGB_M_)/, effect: /_(NEXT|PREV|MOD|RMOD)$/,
+  breathing: /_BRTG$/, bri: /_(VALU|VALD|VAI|VAD|UP|DOWN|STEP)$/, speed: /_(SPDU|SPDD|SPI|SPD)$/, 'h,s': /_(HUEU|HUED|SATU|SATD|HUI|HUD|SAI|SAD)$/ };
+
+function underglowHtml(v) {
+  const off = !v.on;
+  let rows = lab('underglow', 'on', 'On') + `<div class="val"><input type="checkbox" data-check="underglow.on"${v.on ? ' checked' : ''}></div>`;
+  const info = `<span class="info"${tipAttr("QMK numbers the effects among those built into the firmware; these names are right when every effect is built in, as on most boards. The board's reply is what Nazg shows.")}>i</span>`;
+  if (state.effects === 'Effect + variant') {
+    const f = familyOf(v.mode), x = variantOf(v.mode);
+    let extra = '';
+    if (f.speeds) extra += `<span class="vname">Speed</span>${seg('speed', SPEEDS.slice(0, f.speeds), x.speed)}`;
+    if (f.spread) extra += `<span class="vname">Spread</span>${seg('spread', SPREADS, x.spread)}`;
+    if (f.dir) extra += `<span class="vname">Direction</span>${seg('dir', ['Forward', 'Backward'], x.dir)}`;
+    if (f.random) extra += `<span class="vname">Colours</span>${seg('random', ['One', 'Random'], x.random)}`;
+    rows += lab('underglow', 'mode', 'Effect') + `<div class="val${off ? ' dis' : ''}"><select data-family>${FAMILIES.map(g => `<option${g === f ? ' selected' : ''}>${g.name}</option>`).join('')}</select>${extra}${info}</div>`;
+  } else {
+    rows += lab('underglow', 'mode', 'Effect') + `<div class="val${off ? ' dis' : ''}"><select data-mode>${VIA_UNDERGLOW.slice(1).map((n, i) => `<option value="${i + 1}"${i + 1 === v.mode ? ' selected' : ''}>${n}</option>`).join('')}</select>${info}</div>`;
+  }
+  rows += lab('underglow', 'bri', 'Brightness') + `<div class="val${off ? ' dis' : ''}">${sliderHtml('underglow.bri', v.bri, 255)}<span class="num">${pct(v.bri)}</span></div>`;
+  const f = familyOf(v.mode), x = variantOf(v.mode);
+  if (f.colour && !x.random)
+    rows += lab('underglow', 'h,s', 'Colour') + `<div class="val${off ? ' dis' : ''}">${colourHtml('underglow', v)}</div>`;
+  return rows;
+}
+function backlightHtml(v) {
+  const off = !v.on;
+  return lab('backlight', 'on', 'On') + `<div class="val"><input type="checkbox" data-check="backlight.on"${v.on ? ' checked' : ''}></div>`
+    + lab('backlight', 'bri', 'Brightness') + `<div class="val${off ? ' dis' : ''}">${sliderHtml('backlight.bri', v.bri, 255)}<span class="num">${pct(v.bri)}</span><span class="info"${tipAttr('The backlight has a few steps, set when the firmware is built: the slider settles on the nearest one, as the board answers.')}>i</span></div>`
+    + lab('backlight', 'breathing', 'Breathing') + `<div class="val${off ? ' dis' : ''}"><input type="checkbox" data-check="backlight.breathing"${v.breathing ? ' checked' : ''}></div>`;
+}
+function matrixHtml(v) {
+  const off = !v.on;
+  let rows = lab('matrix', 'on', 'On') + `<div class="val"><input type="checkbox" data-check="matrix.on"${v.on ? ' checked' : ''}></div>`
+    + lab('matrix', 'effect', 'Effect') + `<div class="val${off ? ' dis' : ''}"><select data-effect>${VIALRGB.map(([id, n]) => `<option value="${id}"${id === v.effect ? ' selected' : ''}>${n}</option>`).join('')}</select><span class="vname">${VIALRGB.length} effects on this board</span></div>`
+    + lab('matrix', 'speed', 'Speed') + `<div class="val${off ? ' dis' : ''}">${sliderHtml('matrix.speed', v.speed, 255)}<span class="num">${pct(v.speed)}</span></div>`
+    + lab('matrix', 'bri', 'Brightness') + `<div class="val${off ? ' dis' : ''}">${sliderHtml('matrix.bri', v.bri, 255)}<span class="num">${pct(v.bri)}</span></div>`;
+  if (!NO_HUE.has(v.effect)) rows += lab('matrix', 'h,s', 'Colour') + `<div class="val${off ? ' dis' : ''}">${colourHtml('matrix', v)}</div>`;
+  return rows;
+}
+const BODY = { backlight: backlightHtml, underglow: underglowHtml, matrix: matrixHtml };
+
+function panelHtml() {
+  const s = setupOf(), strip = s.systems.length > 1 && state.systems === 'In the strip';
+  const shown = strip ? [state.sys] : s.systems;
+  const anyChanged = s.systems.some(sysChanged);
+  const msg = state.msg ? `<span class="msg"><span class="${state.msg[0]}">${state.msg[1]}</span></span>` : '';
+  const buttons = atOnce() ? '' : `<button data-act="revert"${anyChanged ? '' : ' disabled'}>Revert</button><button data-act="save"${anyChanged ? '' : ' disabled'}>Save</button>`;
+  const title = s.systems.length === 1 || strip ? SYSTEM[shown[0]].name : 'Lighting';
+  const desc = s.systems.length === 1 || strip ? SYSTEM[shown[0]].desc : s.systems.map(k => SYSTEM[k].name).join(' and ');
+  let html = `<div class="mline"><span class="title">${title}</span><span class="desc">${desc}</span><span class="right">${msg}${buttons}</span></div>`;
+  shown.forEach(sys => {
+    html += `<div class="sys">${!strip && s.systems.length > 1 ? `<h4>${SYSTEM[sys].name}<span class="desc">${SYSTEM[sys].desc}</span></h4>` : ''}<div class="grid">${BODY[sys](state.vals[sys])}</div></div>`;
+  });
+  if (!atOnce() && anyChanged) html += `<div class="says" style="padding:0 18px 8px">The keyboard shows the changes already; Save keeps them when it is unplugged, Revert puts back what was read.</div>`;
+  return html;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The board.
+let BOARD = null;
+function buildBoard() {
+  const s = setupOf(), b = BOARDS[s.def];
+  const groups = b.labels.map(groupOf);
+  const keys = placeKeys(parseKle(b.keymap), groups, groups.map(() => 0)).filter(k => !k.decal);
+  const sends = keys.map(k => {
+    const x = SENDS[s.def][k.cell.join(',')] || ['KC_NO', 'KC_TRNS'];
+    return [x[0], (s.l1 && s.l1[x[0]]) || x[1]];
+  });
+  BOARD = { keys, sends, b };
+}
+// What the board shows of the lighting: one colour per key, or none, and the glow under it.
+function lookOf() {
+  const s = setupOf(), out = { plate: null, keys: null, anim: null };
+  if (s.systems.includes('underglow')) {
+    const v = state.vals.underglow;
+    if (v.on) {
+      const f = familyOf(v.mode), x = variantOf(v.mode);
+      const a = 0.25 + 0.75 * v.bri / 255;
+      if (/Rainbow|RGB Test|Christmas/.test(f.name) || x.random) out.plate = { rainbow: true, a, anim: /Rainbow/.test(f.name) ? 'spin' : null };
+      else out.plate = { colour: css(v.h, v.s), a, anim: f.name === 'Breathing' ? 'breathe' : null };
+    }
+  }
+  if (s.systems.includes('backlight') && state.vals.backlight.on) {
+    const v = state.vals.backlight;
+    out.keys = { colour: 'rgb(255,250,235)', a: 0.15 + 0.6 * v.bri / 255, anim: v.breathing ? 'breathe' : null };
+  }
+  if (s.systems.includes('matrix') && state.vals.matrix.on) {
+    const v = state.vals.matrix;
+    out.keys = NO_HUE.has(v.effect) ? { rainbow: true, a: 0.2 + 0.6 * v.bri / 255 } : { colour: css(v.h, v.s), a: 0.2 + 0.6 * v.bri / 255, anim: /Breathing/.test((VIALRGB.find(e => e[0] === v.effect) || [])[1]) ? 'breathe' : null };
+  }
+  return out;
+}
+function boardSvg() {
+  const keys = BOARD.keys, sends = BOARD.sends;
+  const bd = boundsOf(keys), avail = 1160 - 180 - 28 - 60;
+  const u = Math.min(46, Math.floor(avail / (bd.x1 - bd.x0 + 0.7))), m = u * 0.35;
+  const W = (bd.x1 - bd.x0) * u + 2 * m, H = (bd.y1 - bd.y0) * u + 2 * m;
+  const fs = Math.round(u * 0.28), hs = Math.round(u * 0.2);
+  const glow = state.board === 'Glow preview' ? lookOf() : null;
+  const showKeys = state.board === 'Lighting keys shown';
+  let s = `<svg class="board" xmlns="${NS}" width="${W}" height="${H}">`
+    + `<defs><linearGradient id="rb" x1="0" x2="1"><stop offset="0" stop-color="#f00"/><stop offset=".17" stop-color="#ff0"/><stop offset=".33" stop-color="#0f0"/><stop offset=".5" stop-color="#0ff"/><stop offset=".67" stop-color="#00f"/><stop offset=".83" stop-color="#f0f"/><stop offset="1" stop-color="#f00"/></linearGradient>`
+    + `<filter id="blur" x="-20%" y="-40%" width="140%" height="180%"><feGaussianBlur stdDeviation="${u * 0.35}"/></filter></defs>`
+    + `<style>.plate{fill:var(--plate)}.k{fill:var(--key);stroke:var(--keyline)}.k.li{fill:var(--boardface);stroke:var(--board);stroke-width:2}`
+    + `.t{font:${fs}px Arimo,Arial;fill:var(--text);text-anchor:middle;pointer-events:none}.t.h{font-size:${hs}px;fill:var(--muted)}.t.hl{font-size:${hs}px;fill:var(--board)}.t.hb{font-size:${hs}px;fill:var(--behav)}.t.hf{font-size:${hs}px;fill:var(--fw)}`
+    + `.t.lay{font-size:${hs}px;fill:var(--board);text-anchor:end}.t.dim{opacity:.35}.br{animation:breathe 3s ease-in-out infinite}.sp{--blur:${u * 0.35}px;animation:huespin 6s linear infinite}</style>`;
+  if (glow && glow.plate) {
+    const p = glow.plate, fill = p.rainbow ? 'url(#rb)' : p.colour;
+    s += `<rect x="${-u * 0.15}" y="${-u * 0.15}" width="${W + u * 0.3}" height="${H + u * 0.3}" rx="16" fill="${fill}" opacity="${p.a}" filter="url(#blur)" class="${p.anim === 'breathe' ? 'br' : p.anim === 'spin' ? 'sp' : ''}"/>`;
+  }
+  s += `<rect class="plate" width="100%" height="100%" rx="12"/><g transform="translate(${m} ${m})">`;
+  const gap = Math.max(1, u * 0.06);
+  keys.forEach((k, idx) => {
+    const [l0, l1] = sends[idx];
+    // In the strip, only the selected system's keys.
+    const strip = setupOf().systems.length > 1 && state.systems === 'In the strip';
+    const [hs, hf] = state.hover ? state.hover.split(':') : [null, null];
+    const ours = kc => showKeys && state.keys === 'Some' && systemOfKey(kc) && (!strip || systemOfKey(kc) === state.sys)
+                       && (!hs || (systemOfKey(kc) === hs && LINE_KEYS[hf].test(kc)));
+    const lightKey = ours(l1) ? l1 : ours(l0) ? l0 : null;
+    const layer = lightKey && lightKey === l1 && l1 !== l0 ? 1 : 0;
+    const kc = lightKey || l0, lg = legendOf(kc);
+    const [ox, oy] = [(k.rx - bd.x0) * u, (k.ry - bd.y0) * u];
+    s += `<g${k.r ? ` transform="rotate(${k.r} ${ox} ${oy})"` : ''}>`;
+    const x = (k.x - bd.x0) * u + gap, y = (k.y - bd.y0) * u + gap, w = k.w * u - 2 * gap, hh = k.h * u - 2 * gap;
+    const tip = `<title>${l0}${l1 && l1 !== 'KC_TRNS' ? ' · layer 1: ' + l1 : ''}</title>`;
+    const cls = 'k' + (lightKey ? ' li' : '');
+    const rect = (rx, ry, rw, rh) => `<rect class="${cls}" x="${rx}" y="${ry}" width="${rw}" height="${rh}" rx="${Math.max(2, u * 0.1)}">${tip}</rect>`;
+    s += rect(x, y, w, hh);
+    if (k.w2 !== k.w || k.h2 !== k.h || k.x2 || k.y2) s += rect((k.x + k.x2 - bd.x0) * u + gap, (k.y + k.y2 - bd.y0) * u + gap, k.w2 * u - 2 * gap, k.h2 * u - 2 * gap);
+    if (glow && glow.keys) {
+      const g = glow.keys, fill = g.rainbow ? 'url(#rb)' : g.colour;
+      s += `<rect x="${x + w * 0.12}" y="${y + hh * 0.12}" width="${w * 0.76}" height="${hh * 0.76}" rx="${u * 0.1}" fill="${fill}" opacity="${g.a * 0.55}" class="${g.anim === 'breathe' ? 'br' : ''}" style="pointer-events:none"/>`;
+    }
+    const dim = showKeys && !lightKey ? ' dim' : '';
+    if (lg.h) s += `<text class="t ${lg.light ? 'hl' : lg.behav ? 'hb' : lg.fw ? 'hf' : 'h'}${dim}" x="${x + w / 2}" y="${y + u * 0.27}">${lg.h}</text>`;
+    s += `<text class="t${dim}" x="${x + w / 2}" y="${y + hh / 2 + fs * 0.35 + (lg.h ? u * 0.08 : 0)}">${String(lg.m).replace('&', '&amp;').replace('<', '&lt;')}</text>`;
+    if (layer) s += `<text class="t lay" x="${x + w - u * 0.08}" y="${y + hh - u * 0.08}">L1</text>`;
+    s += `</g>`;
+  });
+  return s + `</g></svg>`;
+}
+
+function stripHtml() {
+  const s = setupOf();
+  if (s.systems.length < 2 || state.systems !== 'In the strip') return '';
+  return `<div class="strip">${s.systems.map(k => `<button class="${k === state.sys ? 'on' : ''}" data-sys="${k}">${SYSTEM[k].name}${!atOnce() && sysChanged(k) ? '<span class="dot"></span>' : ''}</button>`).join('')}</div>`;
+}
+function columnHtml() {
+  const s = setupOf();
+  const entries = s.proto === 'Vial' ? ['Keymap', 'Macros', 'Lighting', 'Tap Dance', 'Combos', 'Key Overrides', 'QMK Settings'] : ['Keymap', 'Layout', 'Macros', 'Lighting'];
+  return `<div class="col">${entries.map(e => `<div class="entry${e === 'Lighting' ? ' on' : ''}">${e}</div>`).join('')}</div>`;
+}
+function render() {
+  document.documentElement.dataset.theme = state.theme.toLowerCase();
+  renderControls();
+  buildBoard();
+  const board = state.board !== 'Folded away' ? `<div class="boardarea" id="boardarea">${boardSvg()}</div>` : '';
+  const strip = setupOf().systems.length > 1 && state.systems === 'In the strip';
+  const what = strip ? SYSTEM[state.sys].name.toLowerCase() : 'lighting';
+  const keysSay = state.board !== 'Lighting keys shown' ? ''
+    : state.keys === 'Some' ? `<div class="says" style="padding:0 2px">Lit: the keys that change the ${what} from the keyboard -- a line of the panel under the pointer, the keys that change it. Nazg reads the values again each time you come back to this section.</div>`
+    : `<div class="says" style="padding:0 2px">No key on this keymap changes the ${what} -- Keymap's picker has them, in its Lighting tab.</div>`;
+  document.getElementById('frame').innerHTML =
+    `<div class="menubar"><span class="board">${BOARD.b.name} ▾</span><span class="muted">${setupOf().proto}</span><span class="right">Settings</span></div>`
+  + `<div class="body">${columnHtml()}<div class="main">${stripHtml()}${board}${keysSay}<div class="panel">${panelHtml()}</div></div></div>`;
+}
+function renderControls() {
+  const c = document.getElementById('controls');
+  c.innerHTML = '';
+  [['setup', 'Board', Object.keys(SETUPS)],
+   ['systems', 'Several systems (1up60rgb)', ['In the strip', 'Stacked']],
+   ['board', 'The board', ['Lighting keys shown', 'Glow preview', 'Folded away']],
+   ['keys', 'Lighting keys on the keymap', ['Some', 'None']],
+   ['effects', 'Underglow effects', ['Effect + variant', "VIA's list"]],
+   ['colour', 'Colour', ['Two sliders', 'Hue × saturation field', 'Swatches + sliders']],
+   ['write', 'Writing', ['At once', 'Save / Revert']],
+   ['theme', 'Theme', ['Light', 'Dark']]].forEach(([k, name, values]) => {
+    const g = document.createElement('div'); g.className = 'group';
+    g.innerHTML = `<span class="name">${name}</span>`;
+    values.forEach(v => {
+      const bt = document.createElement('button'); bt.textContent = v;
+      if (state[k] === v) bt.className = 'on';
+      // A board with one system looks the same either way: the toggle brings the 1up60rgb.
+      const single = k === 'systems' && setupOf().systems.length < 2;
+      if (single) bt.style.opacity = '.55';
+      bt.onclick = () => {
+        const was = state.setup; state[k] = v;
+        if (single) state.setup = '1up60rgb · backlight + underglow';
+        if (state.setup !== was) reset();
+        state.msg = null; render();
+      };
+      g.appendChild(bt);
+    });
+    c.appendChild(g);
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Editing. At once: a slider writes while it moves (RAM), stores when let go; anything else is
+// written and stored at once. Save / Revert: written while it moves too, stored on Save.
+function changed(final) {
+  if (atOnce()) {
+    if (final) { state.saved = clone(state.vals); state.msg = ['ok', 'Written and stored, read back the same']; }
+    else state.msg = ['ok', 'Showing on the keyboard…'];
+  } else state.msg = null;
+}
+const frame = document.getElementById('frame');
+frame.addEventListener('click', e => {
+  const t = e.target.closest('[data-sys],[data-act],[data-seg],[data-swatch],[data-custom]');
+  if (!t) return;
+  const d = t.dataset, u = state.vals.underglow;
+  if (d.sys) { state.sys = d.sys; state.msg = null; }
+  else if (d.act === 'save') { state.saved = clone(state.vals); state.msg = ['ok', 'Stored on the keyboard']; }
+  else if (d.act === 'revert') { state.vals = clone(state.saved); state.msg = ['ok', 'Put back what was read']; }
+  else if (d.seg) {
+    const [k, i] = d.seg.split(':'), f = familyOf(u.mode), v = variantOf(u.mode);
+    v[k] = +i; u.mode = modeOf(f, v); changed(true);
+  }
+  else if (d.swatch) { const [sys, h, s] = d.swatch.split(':'); Object.assign(state.vals[sys], { h: +h, s: +s, custom: false }); changed(true); }
+  else if (d.custom) { state.vals[d.custom].custom = true; }
+  render();
+});
+frame.addEventListener('change', e => {
+  const d = e.target.dataset;
+  if (d.check) { const [sys, f] = d.check.split('.'); state.vals[sys][f] = e.target.checked; }
+  else if (d.family !== undefined) {
+    const f = FAMILIES.find(g => g.name === e.target.value), old = variantOf(state.vals.underglow.mode);
+    state.vals.underglow.mode = modeOf(f, { speed: Math.min(old.speed || 1, (f.speeds || 1) - 1) });
+  }
+  else if (d.mode !== undefined) state.vals.underglow.mode = +e.target.value;
+  else if (d.effect !== undefined) state.vals.matrix.effect = +e.target.value;
+  changed(true); render();
+});
+// Sliders and the colour field: dragged.
+let drag = null;
+function dragTo(ev) {
+  const r = drag.el.getBoundingClientRect();
+  const fx = Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width)), fy = Math.max(0, Math.min(1, (ev.clientY - r.top) / r.height));
+  if (drag.field) { Object.assign(state.vals[drag.field], { h: Math.round(fx * 255), s: Math.round((1 - fy) * 255) }); }
+  else {
+    const [sys, f] = drag.id.split('.');
+    let x = Math.round(fx * 255);
+    state.vals[sys][f] = x;
+  }
+  changed(false); render();
+  drag.el = document.querySelector(drag.field ? `[data-field="${drag.field}"]` : `[data-slider="${drag.id}"]`);
+}
+frame.addEventListener('mousedown', e => {
+  const sl = e.target.closest('[data-slider]'), fl = e.target.closest('[data-field]');
+  if (!sl && !fl) return;
+  drag = sl ? { id: sl.dataset.slider, el: sl } : { field: fl.dataset.field, el: fl };
+  dragTo(e); e.preventDefault();
+});
+addEventListener('mousemove', e => { if (drag) dragTo(e); });
+addEventListener('mouseup', () => {
+  if (!drag) return;
+  // The backlight settles on one of its steps (here three, as QMK's default BACKLIGHT_LEVELS).
+  if (drag.id === 'backlight.bri') state.vals.backlight.bri = Math.round(state.vals.backlight.bri / 85) * 85;
+  drag = null; changed(true); render();
+});
+const tip = document.getElementById('tip');
+frame.addEventListener('mouseover', e => {
+  const cell = e.target.closest('.lab, .val');
+  const line = cell ? (cell.classList.contains('lab') ? cell : cell.previousElementSibling) : null;
+  const hover = line && !drag ? line.dataset.hover : null;
+  if (hover !== state.hover) { state.hover = hover; const b = document.getElementById('boardarea'); if (b) b.innerHTML = boardSvg(); }
+  const t = e.target.closest('[data-tip]');
+  if (t) { tip.innerHTML = t.dataset.tip; tip.style.display = 'block'; } else tip.style.display = 'none';
+});
+frame.addEventListener('mousemove', e => { tip.style.left = Math.min(e.clientX + 14, innerWidth - 360) + 'px'; tip.style.top = (e.clientY + 18) + 'px'; });
+frame.addEventListener('mouseleave', () => { tip.style.display = 'none'; state.hover = null; const b = document.getElementById('boardarea'); if (b) b.innerHTML = boardSvg(); });
+
+document.getElementById('notes').innerHTML = `
+<p><b>What this section is.</b> QMK's own lighting -- backlight, underglow, RGB Matrix -- as VIA's built-in menus and Vial's
+<i>lighting</i> declare it: 972 of VIA's 2029 definitions, one menu each (underglow 477, backlight + underglow 220, RGB
+Matrix 179, backlight 96); on Vial, VialRGB 173 boards, underglow 112, backlight + underglow 43, backlight 22. A board's own
+lighting menu (182 VIA definitions, mostly RGB Matrix with the board's true effect list) is a custom menu, under
+<i>Board</i> in the column -- not this section. Each system: On, Effect, Brightness, Speed where it does something,
+Colour where the effect uses it -- hue and saturation, brightness being its own line, as QMK stores them.</p>
+<p><b>Several systems</b> (backlight + underglow): <b>in the strip</b>, one at a time, as QMK Settings' groups; or
+<b>stacked</b> in the panel, both short enough to fit.</p>
+<p><b>The board</b>: <b>lighting keys shown</b> -- the keys that change the lighting from the keyboard, on any layer, L1
+tagged; a line of the panel under the pointer narrows them to the keys that change it (Brightness: Bri + and Bri −);
+a keymap without any says so. What they change makes the panel stale, so Nazg reads the values again each time the
+section opens. Or a
+<b>glow preview</b>: the plate glows in the colour, the keys in the backlight or the matrix colour -- the effect itself is
+not drawn, only breathing and rainbows hinted. Or <b>folded away</b>.</p>
+<p><b>Underglow effects</b>: QMK's 42 numbered modes are 11 effects and their variants -- Breathing 1 to 4 are four speeds,
+Snake 1 to 6 three speeds each way, Gradient 1 to 10 five spreads each way, Twinkle 1 to 6 three speeds of one colour or
+random. <b>Effect + variant</b> says so: an effect, then its own Speed, Spread, Direction or Colours buttons. <b>VIA's
+list</b> keeps the 42 names. Neither has a Speed slider: underglow stores a speed and no underglow effect reads it -- VIA
+shows one anyway. Both name the effects as QMK numbers them with every effect built in (the <i>i</i>): a board built with
+fewer numbers them otherwise, and Nazg cannot tell -- the board's reply to a write is what is shown. RGB Matrix through
+VialRGB has fixed effect ids and lists its own, so the GMMK Pro shows only what it has.</p>
+<p><b>Colour</b>: <b>two sliders</b>, hue and saturation; a <b>hue × saturation field</b>, one click; or <b>swatches</b>
+-- QMK's named colours -- with the sliders behind "Other colour…". Hidden when the effect makes its own colours (rainbows,
+Christmas, RGB Test, random twinkle, the matrix's cycles).</p>
+<p><b>Writing</b>: <b>at once</b> -- the keyboard changes while a slider moves (QMK's RAM-only set), and the value is
+stored when it is let go, as Layout and QMK Settings write; or <b>Save / Revert</b>, as vial-gui -- the keyboard shows
+the change at once anyway, and stores it on Save. The backlight's brightness settles on the firmware's steps (three by
+default), as the board answers.</p>`;
+
+reset();
+render();
+</script>
+</body>
+</html>
