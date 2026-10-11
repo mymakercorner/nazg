@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- Mockup of the Audio section (ui-design.md, "The Audio section").
+
+     First round (2026-10-11). The section edits QMK's audio as VIA's built-in menu `qmk_audio`
+     declares it: two toggles on custom channel 4, `id_qmk_audio_channel` -- value 1 audio on,
+     value 2 clicky on. VIA's own menu (@the-via/reader 1.14.4, common-menus/qmk_audio.js) is
+     "Audio" > "General" > "Audio Enable", "Audio Clicky Enable", drawn as any custom menu.
+
+     What the firmware does, from QMK's quantum/via.c, quantum/audio/audio.c and
+     quantum/process_keycode/process_clicky.c (Rico's fork, 2026-09), read 2026-10-11:
+     - get [0x08][4][id] answers one byte, 0 or 1; set [0x07][4][id][v] sets the bit of
+       audio_config in RAM -- silently: no song, unlike the AU_ON key -- and [0x09][4] stores it;
+     - a firmware built without AUDIO_ENABLE answers 0xFF in byte 0 (id_unhandled);
+     - clicks sound only while audio is on: process_clicky checks both bits;
+     - the clicks' pitch (CK_UP, CK_DOWN, CK_RST), the voice (AU_NEXT, AU_PREV) and music mode
+       (MU_*: keys play notes instead of typing) live in RAM only, out of reach of the wire, and
+       are forgotten when the board is unplugged;
+     - VIA's device indication (0x02 0x05) plays the board's indication song on value 0 and
+       toggles each lighting system once per value: 0 then 1 plays it and leaves the lighting
+       as it was. The WT60-XT plays its own song there (Fantasie Impromptu).
+     Vial has none of it: vial-qmk's via.c has no audio channel and its QMK Settings no audio
+     line; vial-gui offers the audio keys only.
+
+     How often (VIA registry, 2026-09 pin; vendor collection): 7 of 2029 V3 definitions declare
+     qmk_audio -- boardsource Unicorne, custommk CMK11, Ergostrafer, Ergostrafer RGB, Evo70 R2,
+     Pearl, wilba.tech WT60-XT; no board carries its own audio menu (one, the NV-70, puts its own
+     lighting on channel 4 under id_qmk_audio_* names).
+
+     The variants: its own section or VIA's menu drawn as a custom menu; the board lighting the
+     audio keys or folded away; Clicky greyed or editable while audio is off; the settings only
+     the keyboard reaches said or not; a Play a sound button or not.
+
+     Settled 2026-10-11 (Rico): its own section; the audio keys lit; Clicky greyed while audio
+     is off; what only the keyboard reaches not shown; a Play a sound button -- the sound comes
+     from the keyboard's speaker. The toggles keep the alternatives.
+
+     The boards: the Unicorne (VIA registry, RGB Matrix and audio, QMK's default keymap: CK_TOGG
+     and the RM_* keys on layer 2) and the WT60-XT (VIA registry, audio alone; its default keymap
+     has no audio key -- "Made up" puts some on layer 1). The values are made up. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audio section mockup</title>
+<style>
+:root{--window:#f3f3f5;--menubar:#e3e4e9;--text:#1d1e22;--muted:#6b6e78;--control:#ffffff;--border:#c8cad2;--accent:#3b82f6;--accent-text:#fff;--panel:#f8f8fa;--column:#ebecf0;--hover:rgba(0,0,0,.06);--selected:rgba(59,130,246,.16);
+--plate:#d3d4d8;--key:#ffffff;--keyline:#b4b7c2;--ok:#15803d;--warn:#c2410c;--err:#dc2626;--info:#4b5563;
+--board:#b45309;--boardface:#fdf3e2;--behav:#8b5cf6;--fw:#dc2626}
+:root[data-theme="dark"]{--window:#0f0f11;--menubar:#24252b;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--accent:#4296fa;--accent-text:#fff;--panel:#16171b;--column:#16171b;--hover:rgba(255,255,255,.07);--selected:rgba(66,150,250,.22);
+--plate:#1c1d23;--key:#3a3c48;--keyline:#4b4e5c;--ok:#4ade80;--warn:#fb923c;--err:#f87171;--info:#a1a5b2;
+--board:#fbbf24;--boardface:#3a2c12;--behav:#a78bfa;--fw:#f87171}
+*{box-sizing:border-box}
+body{margin:0;background:var(--window);color:var(--text);font-family:Arimo,"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+.controls{display:flex;flex-wrap:wrap;gap:8px 22px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.group .name{color:var(--muted);margin-right:4px}
+button{font:inherit;padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--control);color:var(--text);cursor:pointer}
+button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+button:disabled{opacity:.45;cursor:default}
+.stage{padding:16px;overflow-x:auto}
+.frame{margin:0 auto;width:1160px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--window);box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.menubar{display:flex;gap:18px;align-items:center;background:var(--menubar);padding:5px 14px}
+.menubar .board{font-weight:600}
+.muted{color:var(--muted)}
+.menubar .right{margin-left:auto;color:var(--muted)}
+.body{display:flex;min-height:520px}
+.col{flex:none;width:180px;background:var(--column);border-right:1px solid var(--border);padding:6px 5px;display:flex;flex-direction:column;gap:2px}
+.col .hdr{font-weight:700;font-size:12px;padding:6px 10px 2px}
+.col .sep{border-top:1px solid var(--border);margin:5px 4px}
+.entry{padding:7px 10px;border-radius:6px;color:var(--muted)}
+.entry.on{background:var(--selected);color:var(--text);box-shadow:inset 3px 0 0 var(--accent)}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;padding:10px 14px 14px;gap:10px}
+.boardarea{display:flex;justify-content:center}
+svg.board{display:block;overflow:visible}
+.panel{border:1px solid var(--border);border-radius:6px;background:var(--panel)}
+.mline{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;padding:6px 12px;border-bottom:1px solid var(--border);min-height:41px}
+.mline .title{font-weight:700}
+.mline .desc{color:var(--muted);font-size:12px}
+.msg{font-size:12px}
+.msg .ok{color:var(--ok)} .msg .warn{color:var(--warn)}
+.mline .right{margin-left:auto;display:flex;gap:6px;align-items:center}
+.sys{padding:6px 12px 8px}
+.grid{display:grid;grid-template-columns:130px auto;align-items:center;gap:5px 12px;padding:2px 6px}
+.grid .lab{white-space:nowrap}
+.grid .lab.kb{color:var(--muted)}
+.grid .val{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;min-height:26px}
+.grid .val .desc{color:var(--muted);font-size:12px}
+.grid .dis{opacity:.4}
+.grid .dis input{pointer-events:none}
+.grid input[type=checkbox]{margin:0;width:15px;height:15px}
+.says{padding:4px 6px 2px;font-size:12px;line-height:1.55;color:var(--info)}
+.says .w{color:var(--warn)}
+.notes{max-width:1160px;margin:0 auto;padding:4px 16px 30px;color:var(--muted);line-height:1.55}
+.notes b{color:var(--text);font-weight:600}
+.notes p{margin:0 0 8px}
+.tip{position:fixed;z-index:9;max-width:340px;padding:6px 9px;border:1px solid var(--border);border-radius:6px;background:var(--control);color:var(--text);font-size:12px;line-height:1.45;box-shadow:0 2px 8px rgba(0,0,0,.15);pointer-events:none;display:none}
+</style>
+</head>
+<body>
+<div class="controls" id="controls"></div>
+<div class="stage"><div class="frame" id="frame"></div></div>
+<div class="notes" id="notes"></div>
+<div class="tip" id="tip"></div>
+<script>
+"use strict";
+// The boards' `layouts` from the-via/keyboards; SENDS: QMK's default keymaps, matrix cell -> layers.
+const BOARDS = {"Unicorne":{"name":"Unicorne","source":"the-via/keyboards v3/boardsource/unicorne","menus":["qmk_audio","qmk_rgb_matrix"],"labels":[],"keymap":[[{"y":1,"x":3.5},"0,3",{"x":7.5},"4,3"],[{"y":-0.875,"x":2.5},"0,2",{"x":1},"0,4",{"x":5.5},"4,4",{"x":1},"4,2"],[{"y":-0.875,"x":5.5},"0,5",{"x":3.5},"4,5"],[{"y":-0.875,"x":0.5},"0,0","0,1",{"x":11.5},"4,1","4,0"],[{"y":-0.375,"x":3.5},"1,3",{"x":7.5},"5,3"],[{"y":-0.875,"x":2.5},"1,2",{"x":1},"1,4",{"x":5.5},"5,4",{"x":1},"5,2"],[{"y":-0.875,"x":5.5},"1,5",{"x":3.5},"5,5"],[{"y":-0.875,"x":0.5},"1,0","1,1",{"x":11.5},"5,1","5,0"],[{"y":-0.375,"x":3.5},"2,3",{"x":7.5},"6,3"],[{"y":-0.875,"x":2.5},"2,2",{"x":1},"2,4",{"x":5.5},"6,4",{"x":1},"6,2"],[{"y":-0.875,"x":5.5},"2,5",{"x":3.5},"6,5"],[{"y":-0.875,"x":0.5},"2,0","2,1",{"x":11.5},"6,1","6,0"],[{"y":-0.125,"x":4},"3,3",{"x":6.5},"7,3"],[{"r":15,"rx":4.5,"ry":9.1,"y":-4.85,"x":-0.5},"3,4"],[{"r":30,"rx":5.4,"ry":9.3,"y":-5.05,"x":-1.4,"h":1.5},"3,5"],[{"r":-30,"rx":11.1,"y":-5.05,"x":0.4,"h":1.5},"7,5"],[{"r":-15,"rx":12,"ry":9.1,"y":-4.85,"x":-0.5},"7,4"]]},"WT60-XT":{"name":"wilba.tech WT60-XT","source":"the-via/keyboards v3/wilba_tech/wt60_xt","menus":["qmk_audio"],"labels":["Split Backspace","ISO Enter","Split Left Shift","Split Right Shift",["Bottom Row","ANSI","7U","WKL"]],"keymap":[[{"x":2.5,"c":"#aaaaaa"},"0,0","0,1",{"x":0.25,"c":"#777777"},"0,2",{"c":"#cccccc"},"0,3","0,4","0,5","0,6","0,7","0,8","0,9","0,10","0,11","0,12","0,13","0,14",{"c":"#aaaaaa","w":2},"0,15\n\n\n0,0",{"x":0.5,"c":"#cccccc"},"0,15\n\n\n0,1","2,15\n\n\n0,1"],[{"x":2.5,"c":"#aaaaaa"},"1,0","1,1",{"x":0.25,"w":1.5},"1,2",{"c":"#cccccc"},"1,3","1,4","1,5","1,6","1,7","1,8","1,9","1,10","1,11","1,12","1,13","1,14",{"w":1.5},"1,15\n\n\n1,0",{"x":1.25,"c":"#777777","w":1.25,"h":2,"w2":1.5,"h2":1,"x2":-0.25},"1,15\n\n\n1,1"],[{"x":2.5,"c":"#aaaaaa"},"2,0","2,1",{"x":0.25,"w":1.75},"2,2",{"c":"#cccccc"},"2,3","2,4","2,5","2,6","2,7","2,8","2,9","2,10","2,11","2,12","2,13",{"c":"#777777","w":2.25},"2,14\n\n\n1,0",{"x":0.25,"c":"#cccccc"},"2,14\n\n\n1,1"],[{"c":"#aaaaaa","w":1.25},"3,2\n\n\n2,1","3,3\n\n\n2,1",{"x":0.25},"3,0","3,1",{"x":0.25,"w":2.25},"3,2\n\n\n2,0",{"c":"#cccccc"},"3,4","3,5","3,6","3,7","3,8","3,9","3,10","3,11","3,12","3,13",{"c":"#aaaaaa","w":2.75},"3,14\n\n\n3,0",{"x":0.25,"w":1.75},"3,14\n\n\n3,1","3,15\n\n\n3,1"],[{"x":2.5},"4,0","4,1",{"x":0.25,"w":1.25},"4,2\n\n\n4,0",{"w":1.25},"4,3\n\n\n4,0",{"w":1.25},"4,4\n\n\n4,0",{"c":"#cccccc","w":6.25},"4,8\n\n\n4,0",{"c":"#aaaaaa","w":1.25},"4,12\n\n\n4,0",{"w":1.25},"4,13\n\n\n4,0",{"w":1.25},"4,14\n\n\n4,0",{"w":1.25},"4,15\n\n\n4,0"],[{"y":0.5,"x":4.75,"w":1.5},"4,2\n\n\n4,1","4,3\n\n\n4,1",{"w":1.5},"4,4\n\n\n4,1",{"c":"#cccccc","w":7},"4,8\n\n\n4,1",{"c":"#aaaaaa","w":1.5},"4,13\n\n\n4,1","4,14\n\n\n4,1",{"w":1.5},"4,15\n\n\n4,1"],[{"x":4.75,"w":1.5},"4,2\n\n\n4,2",{"d":true},"4,3\n\n\n4,2",{"w":1.5},"4,4\n\n\n4,2",{"c":"#cccccc","w":7},"4,8\n\n\n4,2",{"c":"#aaaaaa","w":1.5},"4,13\n\n\n4,2",{"d":true},"4,14\n\n\n4,2",{"w":1.5},"4,15\n\n\n4,2"]]}};
+const SENDS = {"Unicorne":{"0,0":["KC_TAB","KC_TRNS","QK_BOOT"],"0,1":["KC_Q","KC_1","KC_TRNS"],"0,2":["KC_W","KC_2","KC_TRNS"],"0,3":["KC_E","KC_3","KC_TRNS"],"0,4":["KC_R","KC_4","KC_TRNS"],"0,5":["KC_T","KC_5","KC_TRNS"],"4,5":["KC_Y","KC_6","RM_VALU"],"4,4":["KC_U","KC_7","RM_HUEU"],"4,3":["KC_I","KC_8","RM_SATU"],"4,2":["KC_O","KC_9","RM_NEXT"],"4,1":["KC_P","KC_0","RM_TOGG"],"4,0":["KC_BSPC","KC_TRNS","KC_TRNS"],"1,0":["KC_LCTL","KC_TRNS","EE_CLR"],"1,1":["KC_A","KC_EXLM","KC_TRNS"],"1,2":["KC_S","KC_AT","KC_TRNS"],"1,3":["KC_D","KC_HASH","KC_TRNS"],"1,4":["KC_F","KC_DLR","KC_TRNS"],"1,5":["KC_G","KC_PERC","KC_TRNS"],"5,5":["KC_H","KC_CIRC","RM_VALD"],"5,4":["KC_J","KC_AMPR","RM_HUED"],"5,3":["KC_K","KC_ASTR","RM_SATD"],"5,2":["KC_L","KC_LPRN","RM_PREV"],"5,1":["KC_SCLN","KC_RPRN","CK_TOGG"],"5,0":["KC_QUOT","KC_TRNS","KC_TRNS"],"2,0":["KC_LSFT","KC_TRNS","KC_TRNS"],"2,1":["KC_Z","KC_TRNS","KC_TRNS"],"2,2":["KC_X","KC_TRNS","KC_TRNS"],"2,3":["KC_C","KC_TRNS","KC_TRNS"],"2,4":["KC_V","KC_TRNS","KC_TRNS"],"2,5":["KC_B","KC_TRNS","KC_TRNS"],"6,5":["KC_N","KC_TRNS","KC_TRNS"],"6,4":["KC_M","KC_TRNS","KC_TRNS"],"6,3":["KC_COMM","KC_TRNS","KC_TRNS"],"6,2":["KC_DOT","KC_TRNS","KC_TRNS"],"6,1":["KC_SLSH","KC_TRNS","KC_TRNS"],"6,0":["KC_ESC","KC_TRNS","KC_TRNS"],"3,3":["KC_LGUI","KC_TRNS","KC_TRNS"],"3,4":["MO(1)","KC_TRNS","KC_TRNS"],"3,5":["KC_SPC","KC_TRNS","KC_TRNS"],"7,5":["KC_ENT","KC_TRNS","KC_TRNS"],"7,4":["MO(2)","KC_TRNS","KC_TRNS"],"7,3":["KC_RALT","KC_TRNS","KC_TRNS"]},"WT60-XT":{"0,0":["KC_F1","KC_TRNS"],"0,1":["KC_F2","KC_TRNS"],"0,2":["KC_ESC","KC_GRV"],"0,3":["KC_1","KC_F1"],"0,4":["KC_2","KC_F2"],"0,5":["KC_3","KC_F3"],"0,6":["KC_4","KC_F4"],"0,7":["KC_5","KC_F5"],"0,8":["KC_6","KC_F6"],"0,9":["KC_7","KC_F7"],"0,10":["KC_8","KC_F8"],"0,11":["KC_9","KC_F9"],"0,12":["KC_0","KC_F10"],"0,13":["KC_MINS","KC_F11"],"0,14":["KC_EQL","KC_F12"],"0,15":["KC_BSPC","KC_DEL"],"2,15":["KC_DEL","KC_TRNS"],"1,0":["KC_F3","KC_TRNS"],"1,1":["KC_F4","KC_TRNS"],"1,2":["KC_TAB","KC_CAPS"],"1,3":["KC_Q","KC_TRNS"],"1,4":["KC_W","KC_UP"],"1,5":["KC_E","KC_TRNS"],"1,6":["KC_R","KC_TRNS"],"1,7":["KC_T","KC_TRNS"],"1,8":["KC_Y","KC_TRNS"],"1,9":["KC_U","KC_TRNS"],"1,10":["KC_I","KC_INS"],"1,11":["KC_O","KC_TRNS"],"1,12":["KC_P","KC_PSCR"],"1,13":["KC_LBRC","KC_SCRL"],"1,14":["KC_RBRC","KC_PAUS"],"1,15":["KC_BSLS","KC_TRNS"],"2,0":["KC_F5","KC_TRNS"],"2,1":["KC_F6","KC_TRNS"],"2,2":["KC_CAPS","KC_TRNS"],"2,3":["KC_A","KC_LEFT"],"2,4":["KC_S","KC_DOWN"],"2,5":["KC_D","KC_RGHT"],"2,6":["KC_F","KC_TRNS"],"2,7":["KC_G","KC_TRNS"],"2,8":["KC_H","KC_TRNS"],"2,9":["KC_J","KC_TRNS"],"2,10":["KC_K","KC_TRNS"],"2,11":["KC_L","KC_TRNS"],"2,12":["KC_SCLN","KC_HOME"],"2,13":["KC_QUOT","KC_PGUP"],"2,14":["KC_ENT","KC_TRNS"],"3,0":["KC_F7","KC_TRNS"],"3,1":["KC_F8","KC_TRNS"],"3,2":["KC_LSFT","KC_TRNS"],"3,3":["KC_NO","KC_TRNS"],"3,4":["KC_Z","KC_TRNS"],"3,5":["KC_X","KC_TRNS"],"3,6":["KC_C","KC_TRNS"],"3,7":["KC_V","KC_TRNS"],"3,8":["KC_B","KC_TRNS"],"3,9":["KC_N","KC_VOLD"],"3,10":["KC_M","KC_VOLU"],"3,11":["KC_COMM","KC_MUTE"],"3,12":["KC_DOT","KC_END"],"3,13":["KC_SLSH","KC_PGDN"],"3,14":["KC_RSFT","KC_TRNS"],"3,15":["MO(1)","KC_TRNS"],"4,0":["KC_F9","KC_TRNS"],"4,1":["KC_F10","KC_TRNS"],"4,2":["KC_LCTL","KC_TRNS"],"4,3":["KC_LGUI","KC_TRNS"],"4,4":["KC_LALT","KC_TRNS"],"4,8":["KC_SPC","KC_TRNS"],"4,12":["KC_RALT","KC_TRNS"],"4,13":["KC_RGUI","KC_TRNS"],"4,14":["MO(1)","KC_TRNS"],"4,15":["KC_RCTL","KC_TRNS"]}};
+// ---------------------------------------------------------------------------------------------
+// KLE, as in the other section mockups.
+function parseKle(rows) {
+  const keys = [];
+  let x = 0, y = 0, rx = 0, ry = 0, r = 0, p = {};
+  const pair = s => { const m = /^\s*(\d+)\s*,\s*(\d+)\s*$/.exec(s || ''); return m ? [+m[1], +m[2]] : null; };
+  for (const row of rows) {
+    if (!Array.isArray(row)) continue;
+    for (const item of row) {
+      if (typeof item === 'object') {
+        if ('r' in item) r = item.r;
+        if ('rx' in item || 'ry' in item) { if ('rx' in item) rx = item.rx; if ('ry' in item) ry = item.ry; x = rx; y = ry; }
+        if ('x' in item) x += item.x;
+        if ('y' in item) y += item.y;
+        for (const k of ['w', 'h', 'x2', 'y2', 'w2', 'h2', 'd']) if (k in item) p[k] = item[k];
+        continue;
+      }
+      const w = p.w || 1, h = p.h || 1;
+      const labels = String(item).split('\n');
+      const cell = pair(labels[0]), option = pair(labels[3]);
+      if (cell || p.d)
+        keys.push({ x, y, w, h, x2: p.x2 || 0, y2: p.y2 || 0, w2: p.w2 || w, h2: p.h2 || h, r, rx, ry, decal: !!p.d,
+                    cell, g: option ? option[0] : -1, o: option ? option[1] : 0 });
+      x += w;
+      p = {};
+    }
+    y += 1;
+    x = rx;
+  }
+  return keys;
+}
+const placeKeys = (keys, count) => keys.filter(k => !(k.g >= 0 && k.g < count && k.o !== 0));
+const NS = 'http://www.w3.org/2000/svg';
+const rot = (px, py, k) => {
+  if (!k.r) return [px, py];
+  const a = k.r * Math.PI / 180, dx = px - k.rx, dy = py - k.ry;
+  return [k.rx + dx * Math.cos(a) - dy * Math.sin(a), k.ry + dx * Math.sin(a) + dy * Math.cos(a)];
+};
+function boundsOf(keys) {
+  const b = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+  for (const k of keys)
+    for (const [x, y, w, h] of [[k.x, k.y, k.w, k.h], [k.x + k.x2, k.y + k.y2, k.w2, k.h2]])
+      for (const [px, py] of [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]) {
+        const [qx, qy] = rot(px, py, k);
+        b.x0 = Math.min(b.x0, qx); b.y0 = Math.min(b.y0, qy); b.x1 = Math.max(b.x1, qx); b.y1 = Math.max(b.y1, qy);
+      }
+  return b;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Legends: Nazg's command table for the Board keys (ui/NazgCommandTable.cpp), the rest short.
+const AUDIO_KEYS = {
+  AU_TOGG: ['Audio', 'On/Off'], AU_ON: ['Audio', 'On'], AU_OFF: ['Audio', 'Off'], AU_NEXT: ['Audio', 'Voice +'], AU_PREV: ['Audio', 'Voice −'],
+  CK_TOGG: ['Clicky', 'On/Off'], CK_ON: ['Clicky', 'On'], CK_OFF: ['Clicky', 'Off'], CK_UP: ['Clicky', 'Freq +'], CK_DOWN: ['Clicky', 'Freq −'], CK_RST: ['Clicky', 'Reset'],
+  MU_TOGG: ['Music', 'On/Off'], MU_ON: ['Music', 'On'], MU_OFF: ['Music', 'Off'], MU_NEXT: ['Music', 'Mode +'] };
+const NAMED = { ESC: 'Esc', MINS: '-', EQL: '=', BSPC: 'Bksp', DEL: 'Del', TAB: 'Tab', LBRC: '[', RBRC: ']', BSLS: '\\',
+  CAPS: 'Caps', SCLN: ';', QUOT: "'", ENT: 'Enter', LSFT: 'Shift', RSFT: 'Shift', COMM: ',', DOT: '.', SLSH: '/',
+  LCTL: 'Ctrl', RCTL: 'Ctrl', LGUI: 'Win', RGUI: 'Win', LALT: 'Alt', RALT: 'AltGr', SPC: '', GRV: '`', UP: '↑', DOWN: '↓',
+  LEFT: '←', RGHT: '→', PGUP: 'PgUp', PGDN: 'PgDn', END: 'End', HOME: 'Home', INS: 'Ins', PSCR: 'PrtSc', SCRL: 'ScrLk', PAUS: 'Pause',
+  MUTE: 'Mute', VOLU: 'Vol +', VOLD: 'Vol −', NO: '', EXLM: '!', AT: '@', HASH: '#', DLR: '$', PERC: '%', CIRC: '^', AMPR: '&',
+  ASTR: '*', LPRN: '(', RPRN: ')' };
+function legendOf(kc) {
+  if (!kc || kc === 'KC_TRNS') return { m: '' };
+  if (AUDIO_KEYS[kc]) return { h: AUDIO_KEYS[kc][0], m: AUDIO_KEYS[kc][1], board: true };
+  if (/^RM_/.test(kc)) return { h: 'Light', m: kc.slice(3), board: true };
+  if (/^MO\(/.test(kc)) return { h: 'Layer', m: 'Fn', behav: true };
+  if (kc === 'QK_BOOT' || kc === 'EE_CLR') return { h: 'Firmware', m: kc === 'QK_BOOT' ? 'Boot' : 'Clear', fw: true };
+  const n = kc.replace(/^KC_/, '');
+  if (n in NAMED) return { m: NAMED[n] };
+  return { m: n.length <= 3 ? n : n.slice(0, 4) };
+}
+
+// ---------------------------------------------------------------------------------------------
+const SETUPS = {
+  'Unicorne · RGB Matrix + audio': { def: 'Unicorne', column: ['Keymap', 'Macros', 'Lighting'] },
+  'WT60-XT · audio alone': { def: 'WT60-XT', column: ['Keymap', 'Layout', 'Macros'],
+    // "Made up": layer 1's left-hand function column, by layer 0's key.
+    made: { KC_F1: 'AU_TOGG', KC_F2: 'CK_TOGG', KC_F3: 'CK_UP', KC_F4: 'CK_DOWN', KC_F5: 'CK_RST', KC_F6: 'MU_TOGG', KC_F7: 'AU_NEXT', KC_F8: 'AU_PREV' } },
+};
+// Each panel line, and the keys that change what it shows from the keyboard.
+const LINES = {
+  audio: { name: 'Audio', via: 'Audio Enable', keys: /^AU_(TOGG|ON|OFF)$/,
+           desc: "the board's speaker: its songs, the clicks and music mode" },
+  clicky: { name: 'Clicky', via: 'Audio Clicky Enable', keys: /^CK_(TOGG|ON|OFF)$/, desc: 'a click with each key press' },
+  pitch: { name: 'Click pitch', keys: /^CK_(UP|DOWN|RST)$/, kb: true, desc: 'Freq + and Freq − on the keyboard; forgotten when it is unplugged' },
+  voice: { name: 'Voice', keys: /^AU_(NEXT|PREV)$/, kb: true, desc: 'Voice + and Voice − on the keyboard: the sound of every note; forgotten when it is unplugged' },
+  music: { name: 'Music mode', keys: /^MU_/, kb: true, desc: 'the keys play notes instead of typing, until it is turned off on the keyboard; forgotten when it is unplugged' },
+};
+const state = { setup: Object.keys(SETUPS)[0], where: 'Its own section', board: 'Audio keys lit', keys: 'As the board has',
+  clicky: 'Greyed', kbonly: 'Not shown', play: 'Yes', firmware: 'Has audio', theme: 'Light',
+  hover: null, vals: { audio: true, clicky: false }, msg: null };
+const setupOf = () => SETUPS[state.setup];
+const tipAttr = t => ` data-tip="${t.replace(/"/g, '&quot;')}"`;
+const viaMenu = () => state.where === "VIA's menu, as a custom menu";
+
+// ---------------------------------------------------------------------------------------------
+function panelHtml() {
+  const msg = state.msg ? `<span class="msg"><span class="${state.msg[0]}">${state.msg[1]}</span></span>` : '';
+  if (viaMenu()) {
+    // VIA's own menu as Nazg draws any custom menu: one submenu, so no strip; its name heads the panel.
+    let html = `<div class="mline"><span class="title">General</span><span class="right">${msg}</span></div><div class="sys"><div class="grid">`;
+    if (state.firmware !== 'Has audio') return html + `</div><div class="says"><span class="w">The board answers that it has no such setting.</span></div></div>`;
+    for (const id of ['audio', 'clicky'])
+      html += `<div class="lab" data-hover="${id}">${LINES[id].via}</div><div class="val"><input type="checkbox" data-check="${id}"${state.vals[id] ? ' checked' : ''}></div>`;
+    return html + `</div></div>`;
+  }
+  let html = `<div class="mline"><span class="title">Audio</span><span class="desc">the keyboard's speaker</span><span class="right">${msg}</span></div>`;
+  if (state.firmware !== 'Has audio')
+    return html + `<div class="says" style="padding:8px 18px"><span class="w">This firmware is built without audio</span> -- the definition offers it, the board answers it has none. Its maker's firmware with audio built in brings it.</div>`;
+  html += `<div class="sys"><div class="grid">`;
+  const v = state.vals, greyClicky = !v.audio && state.clicky === 'Greyed';
+  html += `<div class="lab" data-hover="audio">Audio</div><div class="val"><input type="checkbox" data-check="audio"${v.audio ? ' checked' : ''}><span class="desc">${LINES.audio.desc}</span></div>`;
+  const clickyNote = v.audio ? LINES.clicky.desc : state.clicky === 'Greyed' ? 'heard with Audio on' : 'a click with each key press -- <span class="w" style="color:var(--warn)">heard only with Audio on</span>';
+  html += `<div class="lab${greyClicky ? ' dis' : ''}" data-hover="clicky">Clicky</div><div class="val${greyClicky ? ' dis' : ''}"><input type="checkbox" data-check="clicky"${v.clicky ? ' checked' : ''}><span class="desc">${clickyNote}</span></div>`;
+  if (state.kbonly === 'Said as lines')
+    for (const id of ['pitch', 'voice', 'music'])
+      html += `<div class="lab kb" data-hover="${id}">${LINES[id].name}</div><div class="val"><span class="desc">${LINES[id].desc}</span></div>`;
+  if (state.play === 'Yes')
+    html += `<div class="lab" data-hover="play"></div><div class="val${v.audio ? '' : ' dis'}"><button data-act="play"${v.audio ? '' : ' disabled'}>Play a sound</button>`
+          + `<span class="desc">${v.audio ? 'the song the board plays when VIA picks it -- its lights blink once' : 'with Audio on'}</span></div>`;
+  return html + `</div></div>`;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The board.
+let BOARD = null;
+function buildBoard() {
+  const s = setupOf(), b = BOARDS[s.def];
+  const keys = placeKeys(parseKle(b.keymap), b.labels.length).filter(k => !k.decal);
+  const sends = keys.map(k => {
+    const x = (SENDS[s.def][k.cell.join(',')] || ['KC_NO']).slice();
+    if (state.keys === 'Made up' && s.made && s.made[x[0]]) x[1] = s.made[x[0]];
+    return x;
+  });
+  BOARD = { keys, sends, b };
+}
+const isAudioKey = kc => !!AUDIO_KEYS[kc];
+function litOf(kc) {
+  if (!isAudioKey(kc) || state.firmware !== 'Has audio') return false;
+  if (!state.hover) return true;
+  return state.hover !== 'play' && LINES[state.hover].keys.test(kc);
+}
+function boardSvg() {
+  const keys = BOARD.keys, sends = BOARD.sends;
+  const bd = boundsOf(keys), avail = 1160 - 180 - 28 - 60;
+  const u = Math.min(46, Math.floor(avail / (bd.x1 - bd.x0 + 0.7))), m = u * 0.35;
+  const W = (bd.x1 - bd.x0) * u + 2 * m, H = (bd.y1 - bd.y0) * u + 2 * m;
+  const fs = Math.round(u * 0.28), hs = Math.round(u * 0.2);
+  const show = state.board === 'Audio keys lit';
+  let s = `<svg class="board" xmlns="${NS}" width="${W}" height="${H}"><style>.plate{fill:var(--plate)}.k{fill:var(--key);stroke:var(--keyline)}.k.li{fill:var(--boardface);stroke:var(--board);stroke-width:2}`
+    + `.t{font:${fs}px Arimo,Arial;fill:var(--text);text-anchor:middle;pointer-events:none}.t.h{font-size:${hs}px;fill:var(--muted)}.t.hl{font-size:${hs}px;fill:var(--board)}.t.hb{font-size:${hs}px;fill:var(--behav)}.t.hf{font-size:${hs}px;fill:var(--fw)}`
+    + `.t.lay{font-size:${hs}px;fill:var(--board);text-anchor:end}.t.dim{opacity:.35}</style>`;
+  s += `<rect class="plate" width="100%" height="100%" rx="12"/><g transform="translate(${m} ${m})">`;
+  const gap = Math.max(1, u * 0.06);
+  keys.forEach((k, idx) => {
+    const layers = sends[idx];
+    const litLayer = show ? layers.findIndex(litOf) : -1;
+    const kc = litLayer >= 0 ? layers[litLayer] : layers[0], lg = legendOf(kc);
+    const [ox, oy] = [(k.rx - bd.x0) * u, (k.ry - bd.y0) * u];
+    s += `<g${k.r ? ` transform="rotate(${k.r} ${ox} ${oy})"` : ''}>`;
+    const x = (k.x - bd.x0) * u + gap, y = (k.y - bd.y0) * u + gap, w = k.w * u - 2 * gap, hh = k.h * u - 2 * gap;
+    const tip = `<title>${layers.map((l, i) => i ? (l !== 'KC_TRNS' ? ` · layer ${i}: ${l}` : '') : l).join('')}</title>`;
+    const cls = 'k' + (litLayer >= 0 ? ' li' : '');
+    const rect = (rx, ry, rw, rh) => `<rect class="${cls}" x="${rx}" y="${ry}" width="${rw}" height="${rh}" rx="${Math.max(2, u * 0.1)}">${tip}</rect>`;
+    s += rect(x, y, w, hh);
+    if (k.w2 !== k.w || k.h2 !== k.h || k.x2 || k.y2) s += rect((k.x + k.x2 - bd.x0) * u + gap, (k.y + k.y2 - bd.y0) * u + gap, k.w2 * u - 2 * gap, k.h2 * u - 2 * gap);
+    const dim = show && litLayer < 0 ? ' dim' : '';
+    if (lg.h) s += `<text class="t ${lg.board ? 'hl' : lg.behav ? 'hb' : lg.fw ? 'hf' : 'h'}${dim}" x="${x + w / 2}" y="${y + u * 0.27}">${lg.h}</text>`;
+    s += `<text class="t${dim}" x="${x + w / 2}" y="${y + hh / 2 + fs * 0.35 + (lg.h ? u * 0.08 : 0)}">${String(lg.m).replace('&', '&amp;').replace('<', '&lt;')}</text>`;
+    if (litLayer > 0) s += `<text class="t lay" x="${x + w - u * 0.08}" y="${y + hh - u * 0.08}">L${litLayer}</text>`;
+    s += `</g>`;
+  });
+  return s + `</g></svg>`;
+}
+function keysSay() {
+  if (state.board !== 'Audio keys lit' || state.firmware !== 'Has audio') return '';
+  const any = BOARD.sends.some(l => l.some(isAudioKey));
+  if (!any) return `<div class="says" style="padding:0 2px">No key on this keymap changes the audio -- Keymap's picker has them, in its Special tab.</div>`;
+  return `<div class="says" style="padding:0 2px">Lit: the keys that change the audio from the keyboard -- a line of the panel under the pointer, the keys that change it. Nazg reads the values again each time you come back to this section.</div>`;
+}
+
+function columnHtml() {
+  const s = setupOf();
+  let html = `<div class="hdr">VIA</div>` + s.column.map(e => `<div class="entry">${e}</div>`).join('');
+  if (viaMenu()) html += `<div class="sep"></div><div class="hdr">Board</div><div class="entry on">Audio</div>`;
+  else html += `<div class="entry on">Audio</div>`;
+  return `<div class="col">${html}</div>`;
+}
+function render() {
+  document.documentElement.dataset.theme = state.theme.toLowerCase();
+  renderControls();
+  buildBoard();
+  const board = state.board !== 'Folded away' ? `<div class="boardarea" id="boardarea">${boardSvg()}</div>` : '';
+  document.getElementById('frame').innerHTML =
+    `<div class="menubar"><span class="board">${BOARD.b.name} ▾</span><span class="muted">VIA 12</span><span class="right">Settings</span></div>`
+  + `<div class="body">${columnHtml()}<div class="main">${board}${keysSay()}<div class="panel">${panelHtml()}</div></div></div>`;
+}
+function renderControls() {
+  const c = document.getElementById('controls');
+  c.innerHTML = '';
+  [['setup', 'Board', Object.keys(SETUPS)],
+   ['keys', 'Audio keys (WT60-XT)', ['As the board has', 'Made up']],
+   ['firmware', 'Firmware', ['Has audio', 'Built without']],
+   ['where', 'Where', ['Its own section', "VIA's menu, as a custom menu"]],
+   ['board', 'The board', ['Audio keys lit', 'Folded away']],
+   ['clicky', 'Clicky while audio is off', ['Greyed', 'Editable, said']],
+   ['kbonly', 'What only the keyboard reaches', ['Not shown', 'Said as lines']],
+   ['play', 'Play a sound', ['No', 'Yes']],
+   ['theme', 'Theme', ['Light', 'Dark']]].forEach(([k, name, values]) => {
+    const g = document.createElement('div'); g.className = 'group';
+    g.innerHTML = `<span class="name">${name}</span>`;
+    values.forEach(v => {
+      const bt = document.createElement('button'); bt.textContent = v;
+      if (state[k] === v) bt.className = 'on';
+      // The Unicorne has its own audio key; the toggle brings the WT60-XT.
+      const other = k === 'keys' && state.setup !== 'WT60-XT · audio alone';
+      if (other) bt.style.opacity = '.55';
+      bt.onclick = () => { state[k] = v; if (other) state.setup = 'WT60-XT · audio alone'; state.msg = null; render(); };
+      g.appendChild(bt);
+    });
+    c.appendChild(g);
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Editing: written and stored at once ([0x07][4][id][v], then [0x09][4]), read back.
+const frame = document.getElementById('frame');
+frame.addEventListener('change', e => {
+  const d = e.target.dataset;
+  if (d.check) { state.vals[d.check] = e.target.checked; state.msg = ['ok', 'Written and stored, read back the same']; render(); }
+});
+frame.addEventListener('click', e => {
+  const t = e.target.closest('[data-act]');
+  if (t && t.dataset.act === 'play') { state.msg = ['ok', 'Playing on the keyboard…']; render(); }
+});
+const tip = document.getElementById('tip');
+frame.addEventListener('mouseover', e => {
+  const cell = e.target.closest('.lab, .val');
+  const line = cell ? (cell.classList.contains('lab') ? cell : cell.previousElementSibling) : null;
+  const hover = line ? line.dataset.hover || null : null;
+  if (hover !== state.hover) { state.hover = hover; const b = document.getElementById('boardarea'); if (b) b.innerHTML = boardSvg(); }
+  const t = e.target.closest('[data-tip]');
+  if (t) { tip.innerHTML = t.dataset.tip; tip.style.display = 'block'; } else tip.style.display = 'none';
+});
+frame.addEventListener('mousemove', e => { tip.style.left = Math.min(e.clientX + 14, innerWidth - 360) + 'px'; tip.style.top = (e.clientY + 18) + 'px'; });
+frame.addEventListener('mouseleave', () => { tip.style.display = 'none'; state.hover = null; const b = document.getElementById('boardarea'); if (b) b.innerHTML = boardSvg(); });
+
+document.getElementById('notes').innerHTML = `
+<p><b>What this section is.</b> QMK's audio as VIA's built-in menu <i>qmk_audio</i> declares it: two settings on the wire,
+Audio and Clicky, each one bit the board stores. 7 of VIA's 2029 definitions declare it -- the Unicorne, four custommk boards, the
+Pearl, the WT60-XT; no board has its own audio menu, and Vial has no audio setting at all (its boards get the keys only). A
+write sets the bit silently -- the AU_ON key plays a song, VIA's write does not.</p>
+<p><b>Where</b>: <b>its own section</b>, Nazg's words, in the protocol's sections as planned; or <b>VIA's menu drawn as a custom
+menu</b> -- "General", "Audio Enable", "Audio Clicky Enable", under <i>Board</i> in the column -- no code of its own, VIA's
+labels and nothing said.</p>
+<p><b>The board</b>: <b>audio keys lit</b>, as Lighting lights its keys -- on any layer, a line under the pointer narrowing
+them; a keymap without any says so (the WT60-XT's own); or <b>folded away</b> -- two lines need little room.</p>
+<p><b>Clicky while audio is off</b>: clicks sound only with Audio on (QMK checks both bits). <b>Greyed</b>, as Lighting greys
+a system's lines while it is off; or <b>editable, said</b> -- it can be set ahead.</p>
+<p><b>What only the keyboard reaches</b>: the clicks' pitch, the voice and music mode live in the board's RAM, out of the wire's
+reach. <b>Not shown</b>; or <b>said as lines</b> without a control, each lighting its keys -- music mode makes the keys play
+notes instead of typing, which surprises.</p>
+<p><b>Play a sound</b>: VIA's device indication, sent 0 then 1 -- the board plays its indication song (the WT60-XT's is its
+own), the lighting blinking once and coming back. The only way to hear the setting from Nazg; nothing else is played.</p>`;
+
+render();
+</script>
+</body>
+</html>

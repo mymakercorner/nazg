@@ -1862,6 +1862,53 @@ Not done: LED Matrix (no VIA menu or Vial preset declares it); per-key colours (
 VialRGB's direct mode); a VIA V3 definition's own lighting menu, with the custom menus; the hover
 note for `UG_SPDU` / `UG_SPDD` on underglow alone.
 
+## The Audio section
+
+QMK's audio as VIA's built-in menu `qmk_audio` declares it -- "Audio" > "General" > "Audio
+Enable", "Audio Clicky Enable" in `@the-via/reader` 1.14.4, two toggles on custom channel 4. The
+wire is in via-vial-commands.md, "Audio". Research 2026-10-11, from QMK's `quantum/via.c`,
+`quantum/audio/` and `process_clicky.c` (Rico's fork, 2026-09), vial-qmk (2026-02), vial-gui
+(2026-05) and the VIA app (`935106a`).
+
+**How often.** 7 of VIA's 2029 V3 definitions declare `qmk_audio` -- the boardsource Unicorne,
+custommk's CMK11, Ergostrafer, Ergostrafer RGB and Evo70 R2, the Pearl, wilba.tech's WT60-XT -- five
+of them beside a lighting menu. No board in the registry or the vendor collection carries its own
+audio menu. **Vial has no audio setting** (no channel 4 in vial-qmk, no audio line in its QMK
+Settings): its boards with audio get the keys only.
+
+What the firmware does:
+
+- **Two bits, stored together**: audio on, clicky on. A write sets the bit **silently** -- the
+  `AU_ON` key plays a song, the wire does not -- and is stored by the channel's save.
+- **Clicks sound only while audio is on**: QMK checks both bits.
+- **The rest only the keyboard reaches**, in RAM and forgotten when unplugged: the clicks' pitch
+  (`CK_UP`, `CK_DOWN`, `CK_RST`), the voice (`AU_NEXT`, `AU_PREV`), music mode (`MU_*` -- the keys
+  play notes instead of typing until it is turned off).
+- **Nothing plays a sound on request**, but VIA's device indication -- the board's song when VIA
+  picks it (WT60-XT: its own), the lighting blinking once.
+- **A firmware built without audio answers `0xFF`**; one before VIA protocol 11 has no channel.
+
+Decided with Rico 2026-10-11 on the mockup `ui-design/audio-section.html` -- the Unicorne (RGB
+Matrix and audio, `CK_TOGG` on layer 2 of QMK's default keymap) and the WT60-XT (audio alone, no
+audio key in its keymap):
+
+- **Its own section**, in the protocol's sections where `PlanSections()` puts it -- Nazg's words,
+  "heard with Audio on" said. Set aside: VIA's menu drawn by the custom-menu renderer under
+  *Board*, VIA's labels and nothing said.
+- **The board lights the audio keys**, on any layer, a line under the pointer narrowing them --
+  Audio: `AU_TOGG`/`ON`/`OFF`; Clicky: `CK_TOGG`/`ON`/`OFF`; a keymap with none says so and where
+  the picker has them (its Special tab). Set aside: the board folded away.
+- **Clicky greyed while audio is off**, as Lighting greys a system's lines while it is off. Set
+  aside: editable, said.
+- **What only the keyboard reaches is not shown.** Set aside: said as lines without a control,
+  each lighting its keys.
+- **A Play a sound button** (Rico, once told the sound comes from the keyboard's speaker): device
+  indication sent 0 then 1 -- the board plays its indication song, its lighting blinking once;
+  greyed while audio is off. Set aside: no button.
+- **Written at once**, set then saved, read back; **read when shown**, every time -- the keys
+  change it. A firmware without audio said in the panel; a VIA protocol before 11 leaves the
+  section out of the column, as a custom menu the firmware is too old for.
+
 ## A board's own menus
 
 A VIA V3 definition's custom menus -- the `{label, content}` entries of `menus` -- each a section

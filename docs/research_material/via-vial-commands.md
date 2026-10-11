@@ -238,6 +238,30 @@ off, 1 the direct mode, a host streaming the colours.
 QMK numbers underglow and RGB Matrix effects among those built in (ui-design.md, "The Lighting
 section"): only VialRGB's ids name an effect whatever the build.
 
+### Audio
+
+Read 2026-10-11 from QMK's `quantum/via.c`, `quantum/audio/audio.c` and
+`quantum/process_keycode/process_clicky.c` (Rico's fork, 2026-09), and vial-qmk's `quantum/via.c`
+(2026-02).
+
+**VIA V3's channel 4**, mainline from protocol 11: get `[0x08][4][id]`, the value from byte 3 -- 0
+or 1; set `[0x07][4][id][v]`, any non-zero on; save `[0x09][4]`. Id 1 audio on, id 2 clicky on --
+two bits of `audio_config`, stored together. **A set changes the bit silently**: no song, no
+`audio_on_user()`, unlike the `AU_ON` key. A firmware built without `AUDIO_ENABLE` answers `0xFF`
+in byte 0. **Clicks sound only while audio is on** (`process_clicky` checks both bits).
+
+Out of the wire's reach, in RAM and forgotten at unplug: the clicks' pitch (`CK_UP`, `CK_DOWN`,
+`CK_RST`), the voice (`AU_NEXT`, `AU_PREV`) and music mode (`MU_*`, the keys playing notes instead
+of typing).
+
+**Device indication** (`id_set_keyboard_value`, `0x05`) is the only way to make the board play:
+QMK's default plays `STARTUP_SOUND` on value 0 and toggles every lighting system once per call, so
+0 then 1 plays it and leaves the lighting as it was. Boards override it (the WT60-XT plays its own
+song only). Silent while audio is off.
+
+**Vial has no audio wire**: vial-qmk's `via.c` handles no channel 4 and its QMK Settings no audio
+line; vial-gui offers the audio keys only.
+
 ---
 
 ## VIA — protocol version history
