@@ -91,7 +91,7 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
 | | Combos and the combo term, read or written |
 | | Key overrides, read or written |
 | | Alt repeat keys -- no board at hand has them |
-| All 35909 registry menu controls parse (test) | A board's own menus -- no board at hand has them |
+| A board's own menus: a few EC features (Concordia Type C); all 35909 registry controls parse (test) | |
 
 ## Traps already found
 

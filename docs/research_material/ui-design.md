@@ -1934,7 +1934,7 @@ Decided by Rico 2026-10-11:
   slot's 16 lines as two of 8. A line a condition shows or hides moves the split. Set aside: the
   picker beside the lines, the lines in one column.
 
-**Built 2026-10-11** (`ui/NazgCustomMenuSection.*`), unseen on a board. **Reading**: a submenu's values when it is shown, with those its conditions name (the
+**Built 2026-10-11** (`ui/NazgCustomMenuSection.*`); Rico tried a few EC features on his Concordia Type C: it works. **Reading**: a submenu's values when it is shown, with those its conditions name (the
 strip's need the DKS switch, the column's the firmware version, read once with the board), and
 again each time the section is shown -- the board's keys may change them.
 
