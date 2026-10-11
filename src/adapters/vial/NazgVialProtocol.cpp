@@ -286,7 +286,31 @@ namespace nazg
         co_return ids;
     }
 
-    Task<VialUnlockStatus> VialProtocol::GetUnlockStatus()
+    Task<std::vector<uint16_t>> VialProtocol::ListQmkSettings()
+    {
+        constexpr size_t      c_PerReport = c_ViaReportSize / 2;
+        std::vector<uint16_t> all;
+        uint16_t              after = 0;
+        for (;;)
+        {
+            const std::vector<uint16_t> ids = co_await QueryQmkSettings(after);
+            for (uint16_t id : ids)
+                if (id > after)
+                    all.push_back(id);
+            // A report not full holds the last of them; ids not rising would never end.
+            if (ids.size() < c_PerReport || all.empty() || all.back() <= after)
+                break;
+            after = all.back();
+        }
+        co_return all;
+    }
+
+    Task<void> VialProtocol::ResetQmkSettings()
+    {
+        co_await SendVial(VialCommand::QmkSettingsReset, {});
+    }
+
+        Task<VialUnlockStatus> VialProtocol::GetUnlockStatus()
     {
         std::vector<uint8_t> reply = co_await SendVial(VialCommand::GetUnlockStatus, {});
 

@@ -12,6 +12,7 @@
 #include "imgui.h"
 
 #include "adapters/vial/NazgVialLoader.h"
+#include "model/NazgQmkSettings.h"
 #include "transport/NazgDeviceChannel.h"
 #include "ui/NazgBoardDescription.h"
 #include "ui/NazgBoardView.h"
@@ -65,9 +66,14 @@ namespace nazg
         return m_IsLoaded && combo < m_Combos.size() && combo < m_Stored.size() && m_Combos[combo] != m_Stored[combo];
     }
 
+    std::optional<uint16_t> CombosSection::Term() const
+    {
+        return m_TermEdit ? m_TermEdit : m_Keyboard.comboTerm;
+    }
+
     bool CombosSection::IsTermChanged() const
     {
-        return m_IsLoaded && m_Term != m_StoredTerm;
+        return m_IsLoaded && m_TermEdit && m_TermEdit != m_Keyboard.comboTerm;
     }
 
     bool CombosSection::IsBusy() const
@@ -265,12 +271,12 @@ namespace nazg
             m_Stored = co_await ReadCombos(vial, m_Keyboard.report.comboCount, m_Keyboard.keycodeVersion);
 
             // The term, when the board's QMK Settings have it; else the build's, unreadable.
-            m_StoredTerm.reset();
+            m_Keyboard.comboTerm.reset();
             if (m_Keyboard.report.hasQmkSettings)
             {
                 try
                 {
-                    m_StoredTerm = static_cast<uint16_t>(co_await vial.GetQmkSetting(c_QmkSettingComboTerm, 2));
+                    m_Keyboard.comboTerm = static_cast<uint16_t>(co_await vial.GetQmkSetting(QmkSetting::ComboTerm, 2));
                 }
                 catch (const ProtocolError&)
                 {
@@ -278,7 +284,7 @@ namespace nazg
             }
 
             m_Combos   = m_Stored;
-            m_Term     = m_StoredTerm;
+            m_TermEdit.reset();
             m_IsLoaded = true;
             OnStripChosen(m_Combo);
         }
@@ -336,12 +342,14 @@ namespace nazg
                     notKept.push_back(SlotName(combo));   // the edit stays, still to be written
             }
 
-            if (term && m_Term)
+            if (term && m_TermEdit)
             {
-                co_await vial.SetQmkSetting(c_QmkSettingComboTerm, *m_Term);
-                m_StoredTerm = static_cast<uint16_t>(co_await vial.GetQmkSetting(c_QmkSettingComboTerm, 2));
-                if (m_StoredTerm != m_Term)
-                    notKept.push_back("the combo term");
+                co_await vial.SetQmkSetting(QmkSetting::ComboTerm, *m_TermEdit);
+                m_Keyboard.comboTerm = static_cast<uint16_t>(co_await vial.GetQmkSetting(QmkSetting::ComboTerm, 2));
+                if (m_Keyboard.comboTerm == m_TermEdit)
+                    m_TermEdit.reset();
+                else
+                    notKept.push_back("the combo term");   // the edit stays, still to be written
             }
 
             const size_t written = combos.size() + (term ? 1 : 0);
@@ -367,7 +375,7 @@ namespace nazg
     void CombosSection::DiscardChanges()
     {
         m_Combos = m_Stored;
-        m_Term   = m_StoredTerm;
+        m_TermEdit.reset();
     }
 
     // ------------------------------------------------------------------------------------------
@@ -571,13 +579,13 @@ namespace nazg
         ImGui::TextUnformatted("Combo term");
         ImGui::PopFont();
         ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + 240 * scale);
-        if (m_Term)
+        if (const std::optional<uint16_t> shown = Term())
         {
-            uint16_t term = *m_Term;
+            uint16_t term = *shown;
             ImGui::SetNextItemWidth(ImGui::CalcTextSize("10000").x + ImGui::GetStyle().FramePadding.x * 2 + ImGui::GetFrameHeight() * 2);
             const uint16_t step = 5;
             if (ImGui::InputScalar("##term", ImGuiDataType_U16, &term, &step))
-                m_Term = std::min(term, c_LongestTerm);
+                m_TermEdit = std::min(term, c_LongestTerm);
             ImGui::SameLine();
             ImGui::TextUnformatted("ms, every combo");
             ImGui::TextDisabled("How close together the keys must come, and how long a combo key waits before it is "
@@ -602,7 +610,7 @@ namespace nazg
     {
         Combo&                     combo   = m_Combos[m_Combo];
         const std::vector<Keycode> matched = combo.MatchedInputs();
-        const std::string          term    = m_Term ? std::to_string(*m_Term) + " ms" : "the combo term";
+        const std::string          term    = Term() ? std::to_string(*Term()) + " ms" : "the combo term";
         std::vector<std::string>   names;
         for (const Keycode& input : matched)
             names.push_back(NameOf(input));

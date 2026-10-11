@@ -13,6 +13,7 @@
 #include "adapters/vial/NazgVialProtocol.h"
 #include "adapters/vial/NazgVialLoader.h"
 #include "model/NazgCombo.h"
+#include "model/NazgQmkSettings.h"
 #include "model/NazgTapDance.h"
 
 #include "FakeDeviceChannel.h"
@@ -350,12 +351,12 @@ namespace
         reply[1] = 0x2C; reply[2] = 0x01;   // 300 ms
         reply[3] = 0x00;                    // the request's id, high byte, left in place
         channel.ReplyRaw(reply);
-        Check(Run(vial.GetQmkSetting(nazg::c_QmkSettingComboTerm, 2)) == 300, "a u16 setting reads two bytes");
+        Check(Run(vial.GetQmkSetting(nazg::QmkSetting::ComboTerm, 2)) == 300, "a u16 setting reads two bytes");
         Check(channel.RequestAt(0)[1] == 0x0A && channel.RequestAt(0)[2] == 0x02 && channel.RequestAt(0)[3] == 0x00,
               "get is 0x0A, then the id, little-endian");
 
         channel.ReplyRaw(std::vector<uint8_t>(nazg::c_ViaReportSize, 0x00));
-        Run(vial.SetQmkSetting(nazg::c_QmkSettingComboTerm, 45));
+        Run(vial.SetQmkSetting(nazg::QmkSetting::ComboTerm, 45));
         const std::vector<uint8_t> sent = channel.RequestAt(1);
         Check(sent[1] == 0x0B && sent[2] == 0x02 && sent[3] == 0x00, "set is 0x0B, then the id");
         Check(sent[4] == 45 && sent[5] == 0 && sent[6] == 0 && sent[7] == 0, "then the value, little-endian");
@@ -386,6 +387,35 @@ namespace
 
         channel.ReplyRaw(std::vector<uint8_t>(nazg::c_ViaReportSize, 0xFF));
         Check(Run(vial.QueryQmkSettings(0)).empty(), "compiled out: a report of 0xFF, no ids");
+    }
+
+    // Every setting, a report at a time: the Model F's 21 came as 16, then 5 (2026-10-11).
+    void TestListQmkSettings()
+    {
+        std::printf("QMK settings listed whole\n");
+
+        FakeDeviceChannel channel;
+        VialProtocol      vial(channel);
+
+        const auto page = [&](uint16_t first, uint16_t last)
+        {
+            std::vector<uint8_t> reply(nazg::c_ViaReportSize, 0xFF);
+            for (uint16_t id = first; id <= last; ++id)
+            {
+                reply[2 * (id - first)]     = static_cast<uint8_t>(id & 0xFF);
+                reply[2 * (id - first) + 1] = static_cast<uint8_t>(id >> 8);
+            }
+            channel.ReplyRaw(reply);
+        };
+        page(1, 16);
+        page(17, 21);
+
+        std::vector<uint16_t> expected;
+        for (uint16_t id = 1; id <= 21; ++id)
+            expected.push_back(id);
+        Check(Run(vial.ListQmkSettings()) == expected, "16, then 5: all 21, in order");
+        Check(channel.RequestAt(1)[2] == 16 && channel.RequestAt(1)[3] == 0, "the second report asked after the 16th");
+        Check(channel.RequestCount() == 2, "a report not full ends it");
     }
 
     void TestUnlockStatus()
@@ -620,6 +650,7 @@ int main()
     TestAltRepeatKey();
     TestQmkSetting();
     TestQmkSettingsQuery();
+    TestListQmkSettings();
     TestUnlockStatus();
     TestUnlockCommands();
     TestUnsupportedSubCommandEchoesTheRequest();

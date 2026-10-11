@@ -14,6 +14,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -115,6 +116,11 @@ namespace nazg
         // TD(n) key from its slot. Empty on VIA, or when they could not be read. The Tap Dance
         // section keeps them as the board stores them after each write.
         std::vector<TapDance> tapDances;
+
+        // QMK Settings' combo term, ms, as the board holds it: read by whichever of Combos and QMK
+        // Settings is shown first, and kept by both after their writes, so the two always agree.
+        // None until read, or when the board's QMK Settings lack it.
+        std::optional<uint16_t> comboTerm;
 
         const std::string& Name() const noexcept { return definition.name; }
 

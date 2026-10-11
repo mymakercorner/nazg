@@ -1694,6 +1694,84 @@ as it would report rebuilt on today's vial-qmk):
 - **Written by Save, undone by Revert**, as the other slot sections; a dot on each changed slot.
   **Read when the section first opens**, every slot.
 
+## The QMK Settings section
+
+QMK Settings are options QMK fixes when a firmware is built -- the tapping term, Auto Shift,
+one-shot keys, mouse key speeds -- which vial-qmk makes changeable on the board: each a numbered
+setting (a qsid) the firmware lists, read and written one per round trip (via-vial-commands.md,
+`0x09`-`0x0C`). Vial only; `QMK_SETTINGS ?= yes` in `build_vial.mk`, and 260 of vial-qmk's 623
+Vial keymaps turn it off. The client must know what each qsid is: vial-gui keeps them in
+`qmk_settings.json`, seven tabs of boxes and spin boxes under QMK's names, Save, Undo and Reset.
+Research 2026-10-11.
+
+What the firmware does, from vial-qmk's `quantum/qmk_settings.c/.h`, `vial.c` and QMK's
+`action_tapping.c`, `action.c`, `action_util.c`, `process_auto_shift.c`, `process_grave_esc.c`,
+`keycode_config.c` (2026-02 tree), and Rico's fork (2026-08, the settings as of 2023), read
+2026-10-11:
+
+- **Two generations.** Until vial-qmk 2025-06-21, qsid 8 is one byte of four tap-hold bits:
+  Permissive Hold; bit 1, vial-gui's "Ignore Mod Tap Interrupt" -- the firmware returns
+  `!(bit 1)` for Hold On Other Key Press, so **cleared, the default, it holds at once**;
+  "Tapping Force Hold", a quick tap term of 0; Retro Tapping. From then on qsid 8 is gone and
+  22-27 take over: Permissive Hold, Hold On Other Key Press, Retro Tapping, Quick Tap Term,
+  Chordal Hold, Flow Tap -- each its own setting. A board lists one generation or the other.
+- **Seen on the Model F** (2026-10-11, read only): qsids 1-21, 8 among them -- the old
+  generation -- 8 holding 0, so it holds at once; mouse keys built in; the list came as 16 ids,
+  then 5.
+- **Each setting has its width**: one byte for a bit setting and the small counts, two for terms
+  and delays, four for Magic. The firmware writes only that many bytes of its reply; the next
+  ones are the request's own -- qsid 1 read as four bytes comes back `0x0100`.
+- **Hold On Other Key Press decides at the other key's press**, before Permissive Hold could at
+  its release: both on, Permissive Hold changes nothing. So the two are one choice of three.
+- **The tapping term setting is read only with `TAPPING_TERM_PER_KEY`**, which `build_vial.mk`
+  defines only with tap dance on: without tap dance, it changes nothing. A Vial tap dance uses its
+  own term.
+- **The quick tap term counts only inside the tapping term**; **Flow Tap stops at 500 ms**, and
+  applies after a letter, space or `, . ; /` (QMK's `is_flow_tap_key()`), not with Ctrl, Alt or
+  GUI held; a one-shot timeout of 0 is never; a one-shot tap toggle of 0 or 1 is never.
+- **Chordal Hold uses QMK's guess of each key's hand**, made at build time from the board's first
+  layout (`keyboard_c.py`): split at the middle when the key centres mirror, else along a line
+  through a single key 6u or wider, leaning with the stagger, else at the widest gap -- unless the
+  board says a key's hand outright.
+- **The tap code delay holds every tap the board sends by itself**: a tap-hold key's tap, tap
+  dances, macros; Caps Lock gets the caps delay instead.
+- **Magic (qsid 21) is QMK's `keymap_config`**, ten bits: the swaps `keycode_config()` makes on
+  every layer, the GUI keys off, N-key rollover. **Magic keycodes change it too** (`NK_TOGG`,
+  `CL_SWAP`, `AG_TOGG`...), stored in EEPROM: what a client read can go stale. The Model F has
+  `NK_TOGG` on a layer.
+- **Reset** sets every setting to the build's defaults, Magic included -- which no client can read
+  before. Nothing here is behind Vial's lock.
+
+Decided with Rico 2026-10-11 on the mockup `ui-design/qmk-settings-section.html` -- the Corne
+with home-row mods, a one-shot Shift, Grave Escape and mouse keys, on today's vial-qmk, and the
+Model F B104 on its 2023 firmware:
+
+- **In the column** when the board lists any setting (`BoardReport::hasQmkSettings`); **the strip
+  holds the groups** -- Tap-Hold, Auto Shift, One Shot Keys, Combos, Grave Escape, Magic, Mouse
+  keys, Tap delays -- those the firmware has; **a group no key uses is muted** (Auto Shift off,
+  Grave Escape with no `QK_GESC`). Set aside: every group on one page, in two columns.
+- **The board lights what the group concerns** -- Tap-Hold the tap-hold keys, One Shot the
+  one-shot keys, Auto Shift what it shifts, Mouse keys the mouse keys, a key on another layer
+  only with that layer's legend -- and under the pointer **what one line concerns**: Chordal
+  Hold every key by QMK's guess of its hand, left and right lit apart; a Magic swap the keys it
+  changes, a tag under each saying what it then sends. Set aside: the board folded away.
+- **The tap-hold decision is one choice of three** -- *Hold decided by*: Tapping Term only,
+  Permissive Hold, Hold On Other Key Press -- whichever generation stores it. Set aside: QMK's two
+  boxes, with a warning when both are on.
+- **QMK's names** (Rico), as Vial shows them, with **what each does beside it**, muted. Set
+  aside: plain words, QMK's name on hover. The old generation keeps its own name, Tapping Force
+  Hold, as it stores it.
+- **Written at once**, each change read back, as Layout -- a number when it is left or Enter
+  pressed; the mouse keys' starting delays rounded to tens of ms, as the firmware keeps them.
+  Set aside: Save / Revert. **Reset all...** asks first, then reads everything back.
+- **What is wrong or worth knowing, said** under the group: no key using it; Tapping Term with no
+  tap dance; a Quick Tap Term above the Tapping Term; Flow Tap past 500 ms; the old generation
+  lacking Chordal Hold and Flow Tap; a tap dance's own term; Shift and GUI both overriding Grave
+  Escape (` never sent); Magic keys on the board; N-key rollover needing a firmware built with it.
+- **The combo term is one value** for this section and Combos (`Keyboard::comboTerm`): whichever
+  writes last, both show it.
+- **Read when the section first opens**, every setting at its width.
+
 ## The common screens
 
 **1. No board open.** The keyboards found, each with its protocol and *Open*. No section

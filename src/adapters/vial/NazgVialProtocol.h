@@ -144,9 +144,6 @@ namespace nazg
         bool operator==(const VialAltRepeatKeyEntry&) const = default;
     };
 
-    // QMK Settings' id for the combo term, `combo_term`: one u16 in milliseconds for every combo.
-    inline constexpr uint16_t c_QmkSettingComboTerm = 2;
-
     struct VialUnlockStatus
     {
         bool unlocked   = false;
@@ -222,6 +219,15 @@ namespace nazg
         // `after`, as many as one report holds -- query again from the last to have them all.
         // None when QMK settings are compiled out: the firmware fills the report with 0xFF.
         [[nodiscard]] Task<std::vector<uint16_t>> QueryQmkSettings(uint16_t after);
+
+        // Every QMK setting the firmware has, ascending: QueryQmkSettings() from 0, then again from
+        // the last id while a report comes back full -- 16 ids a report, so the Model F's 21 take
+        // two (seen 2026-10-11). What each id means: model/NazgQmkSettings.h.
+        [[nodiscard]] Task<std::vector<uint16_t>> ListQmkSettings();
+
+        // 0xFE 0x0C: every QMK setting back to the firmware's build defaults -- Magic included, so
+        // N-key rollover and the swaps too. The firmware answers by echoing the request.
+        [[nodiscard]] Task<void> ResetQmkSettings();
 
         // 0xFE 0x05. Worth calling before any write: a locked board silently rewrites
         // QK_BOOT to 0 in everything it accepts, so a write can "succeed" and store

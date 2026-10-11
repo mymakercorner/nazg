@@ -227,10 +227,10 @@ apply to Vial commands.
 | `0x06` | `vial_unlock_start` | — | — |
 | `0x07` | `vial_unlock_poll` | — | `[0]` unlocked, `[1]` in progress, `[2]` countdown |
 | `0x08` | `vial_lock` | — | — |
-| `0x09` | `vial_qmk_settings_query` | `[2..3]` qsid greater-than, LE | list of supported qsids; all `0xFF` if unsupported |
-| `0x0A` | `vial_qmk_settings_get` | `[2..3]` qsid, LE | `[0]` status, `[1..]` value |
+| `0x09` | `vial_qmk_settings_query` | `[2..3]` qsid greater-than, LE | up to 16 supported qsids, LE, `0xFFFF` after the last; all `0xFF` if unsupported -- query again from the last while a reply is full |
+| `0x0A` | `vial_qmk_settings_get` | `[2..3]` qsid, LE | `[0]` status, `[1..]` value, **the setting's own width** (1, 2 or 4 bytes, model/NazgQmkSettings.h): past it the reply still holds the request -- qsid 1 read as four bytes is `0x0100` (Model F, 2026-10-11) |
 | `0x0B` | `vial_qmk_settings_set` | `[2..3]` qsid, `[4..]` value | `[0]` status |
-| `0x0C` | `vial_qmk_settings_reset` | — | — |
+| `0x0C` | `vial_qmk_settings_reset` | — | — (echoes the request); every setting to the build's defaults, Magic too |
 | `0x0D` | `vial_dynamic_entry_op` | `[2]` sub-op, see below | varies |
 
 ### `vial_dynamic_entry_op` sub-ops

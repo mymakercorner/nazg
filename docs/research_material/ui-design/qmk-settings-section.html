@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- Mockup of the QMK Settings section (ui-design.md, "The QMK Settings section").
+
+     First round (2026-10-11). Vial's QMK Settings are build-time QMK options made changeable at
+     run time: each a numbered setting (qsid), read and written one per round trip
+     (via-vial-commands.md, 0x09-0x0C). The firmware lists the qsids it has; the client must know
+     what each one is -- vial-gui keeps them in qmk_settings.json, seven tabs of checkboxes and
+     spin boxes, Save / Undo / Reset.
+
+     What the firmware does, from vial-qmk's quantum/qmk_settings.c/.h, vial.c and QMK's
+     action_tapping.c, action.c, action_util.c, process_auto_shift.c, process_grave_esc.c (2026-02
+     tree), and Rico's fork (2026-08, the settings as of 2023), read 2026-10-11:
+     - two generations: before vial-qmk 2025-06-21, qsid 8 is one byte of four bits -- Permissive
+       Hold, "Ignore Mod Tap Interrupt" (cleared, Hold On Other Key Press is ON: the firmware
+       returns !(bit 1)), "Tapping Force Hold" (quick tap term 0), Retro Tapping; from then on
+       qsid 8 is gone and 22-27 take over: Permissive Hold, Hold On Other Key Press, Retro
+       Tapping, Quick Tap Term, Chordal Hold, Flow Tap -- each its own setting, a 1-byte boolean;
+     - Hold On Other Key Press decides at the other key's press, before Permissive Hold could at
+       its release: both on, Permissive Hold changes nothing;
+     - the quick tap term only counts inside the tapping term; flow tap stops at 500 ms; one-shot
+       timeout 0 is never, tap toggle 0 or 1 is never;
+     - the tapping term setting is only read when TAPPING_TERM_PER_KEY is defined, which
+       build_vial.mk does only with tap dance on: without tap dance, it changes nothing; a Vial tap
+       dance uses its own term;
+     - the tap code delay holds every tap the board sends by itself: a tap-hold key's tap, tap
+       dances, macros; Caps Lock gets the caps delay instead;
+     - Magic (qsid 21, 4 bytes, 10 bits) is QMK's keymap_config, which Magic keycodes (NK_TOGG,
+       CL_SWAP, AG_TOGG...) change too, stored in EEPROM: what Nazg read can go stale;
+     - Reset sets every setting to the build's defaults, Magic included, which no client can read
+       before; nothing here is behind Vial's lock.
+
+     The variants: the groups in the strip or one page; the board lighting what a setting concerns
+     or folded away; the tap-hold decision as one choice or QMK's two boxes; words or QMK's names;
+     Save / Revert or written at once.
+
+     Settled 2026-10-11 (Rico): the groups in the strip, the board lighting what a setting concerns,
+     the tap-hold decision as one choice of three, QMK's names with what each does beside it,
+     written at once -- the toggles keep the alternatives. Seen building it: Chordal Hold lights
+     every key by its hand, not only the tap-hold keys.
+
+     The boards: the Corne's real definition with home-row mods, a one-shot Shift, Grave Escape
+     and mouse keys on layer 1, on today's vial-qmk; the Model F B104 with its keymap (no tap-hold
+     key, NK_TOGG on layer 1) on firmware as of 2023 (qsid 8). The values are made up. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QMK Settings section mockup</title>
+<style>
+:root{--window:#f3f3f5;--menubar:#e3e4e9;--text:#1d1e22;--muted:#6b6e78;--control:#ffffff;--border:#c8cad2;--accent:#3b82f6;--accent-text:#fff;--panel:#f8f8fa;--column:#ebecf0;--hover:rgba(0,0,0,.06);--selected:rgba(59,130,246,.16);
+--plate:#d3d4d8;--key:#ffffff;--keyline:#b4b7c2;--lit:#dbe7fb;--litline:#3b82f6;--ok:#15803d;--warn:#c2410c;--err:#dc2626;--info:#4b5563;
+--host:#0891b2;--hostface:#e6f6fa;--behav:#8b5cf6;--behavface:#f1ecfe;--fw:#dc2626;--fwface:#fdecec;--board:#b45309;--boardface:#fdf3e2;--link:#3b82f6}
+:root[data-theme="dark"]{--window:#0f0f11;--menubar:#24252b;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--accent:#4296fa;--accent-text:#fff;--panel:#16171b;--column:#16171b;--hover:rgba(255,255,255,.07);--selected:rgba(66,150,250,.22);
+--plate:#1c1d23;--key:#3a3c48;--keyline:#4b4e5c;--lit:#2a4a78;--litline:#4296fa;--ok:#4ade80;--warn:#fb923c;--err:#f87171;--info:#a1a5b2;
+--host:#22d3ee;--hostface:#173a44;--behav:#a78bfa;--behavface:#2c2442;--fw:#f87171;--fwface:#3d1e22;--board:#fbbf24;--boardface:#3a2c12;--link:#4296fa}
+*{box-sizing:border-box}
+body{margin:0;background:var(--window);color:var(--text);font-family:Arimo,"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+.controls{display:flex;flex-wrap:wrap;gap:8px 22px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.group .name{color:var(--muted);margin-right:4px}
+button,select{font:inherit;padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--control);color:var(--text);cursor:pointer}
+button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+button:disabled{opacity:.45;cursor:default}
+.stage{padding:16px;overflow-x:auto}
+.frame{margin:0 auto;width:1160px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--window);box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.menubar{display:flex;gap:18px;align-items:center;background:var(--menubar);padding:5px 14px}
+.menubar .board{font-weight:600}
+.muted{color:var(--muted)}
+.menubar .right{margin-left:auto;color:var(--muted)}
+.body{display:flex;min-height:620px}
+.col{flex:none;width:180px;background:var(--column);border-right:1px solid var(--border);padding:6px 5px;display:flex;flex-direction:column;gap:2px}
+.entry{padding:7px 10px;border-radius:6px;color:var(--muted)}
+.entry.on{background:var(--selected);color:var(--text);box-shadow:inset 3px 0 0 var(--accent)}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;padding:10px 14px 14px;gap:10px}
+.strip{display:flex;gap:3px;flex-wrap:nowrap;align-items:center;padding:4px 0}
+.strip button{padding:2px 10px;font-size:12px;position:relative;flex:none}
+.strip button.idle:not(.on){color:var(--muted)}
+.strip button .dot{position:absolute;top:-3px;right:-3px;width:7px;height:7px;border-radius:50%;background:var(--warn)}
+.strip button .bang{color:var(--warn);font-weight:700;margin-left:4px}
+.boardarea{display:flex;justify-content:center}
+svg.board{display:block}
+.panel{border:1px solid var(--border);border-radius:6px;background:var(--panel)}
+.mline{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;padding:6px 12px;border-bottom:1px solid var(--border);min-height:41px}
+.mline .title{font-weight:700}
+.mline .desc{color:var(--muted);font-size:12px}
+.msg{font-size:12px}
+.msg .ok{color:var(--ok)} .msg .warn{color:var(--warn)} .msg .err{color:var(--err)}
+.mline .right{margin-left:auto;display:flex;gap:6px;align-items:center}
+.confirm{display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid var(--border);background:var(--boardface);font-size:12px}
+.rows{padding:8px 12px 4px;display:flex;flex-direction:column;gap:3px}
+.row{display:flex;align-items:center;gap:8px;min-height:26px;padding:1px 6px;border-radius:5px;white-space:nowrap}
+.row:hover{background:var(--hover)}
+.row.dis{opacity:.45}
+.row label{display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.row input[type=checkbox]{margin:0;width:15px;height:15px}
+.row .num{width:64px;font:13px Arimo,"Segoe UI",Arial,sans-serif;padding:2px 6px;border:1px solid var(--border);border-radius:6px;background:var(--control);color:var(--text);text-align:right}
+.row .num.bad{border-color:var(--warn)}
+.row .unit{color:var(--muted)}
+.row .d{color:var(--muted);font-size:12px;white-space:normal}
+.row select{padding:2px 6px}
+.row .boxes{display:inline-flex;gap:14px}
+.row.changed::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--warn);margin-left:-10px;margin-right:-2px}
+.mtab{border-collapse:collapse;margin:2px 0 4px 6px}
+.mtab th{font-weight:600;color:var(--muted);padding:0 10px 4px;text-align:left;font-size:12px}
+.mtab td{padding:2px 10px 2px 0}
+.mtab td:first-child{padding-right:16px}
+.mtab tr:hover td{background:var(--hover)}
+.mtab .num{width:64px;font:13px Arimo,"Segoe UI",Arial,sans-serif;padding:2px 6px;border:1px solid var(--border);border-radius:6px;background:var(--control);color:var(--text);text-align:right}
+.mtab .unit{color:var(--muted);margin-left:5px}
+.says{padding:2px 18px 10px;font-size:12px;line-height:1.6}
+.says .w{color:var(--warn)} .says .i{color:var(--info)}
+.says button{padding:0 8px;font-size:11px;margin-left:6px}
+.page{max-height:520px;overflow-y:auto;display:flex;align-items:flex-start;padding:4px 0}
+.page>div{flex:1;min-width:0}
+.page>div+div{border-left:1px solid var(--border)}
+.block{break-inside:avoid;padding:6px 6px 2px;border-bottom:1px solid var(--border)}
+.block h4{margin:4px 12px 2px;font-size:13px;display:flex;gap:10px;align-items:baseline}
+.block h4 .desc{font-weight:400;color:var(--muted);font-size:12px}
+.block .rows{padding:2px 6px 2px}
+.block .says{padding:0 12px 6px}
+.notes{max-width:1160px;margin:0 auto;padding:4px 16px 30px;color:var(--muted);line-height:1.55}
+.notes b{color:var(--text);font-weight:600}
+.notes p{margin:0 0 8px}
+.tip{position:fixed;z-index:9;max-width:340px;padding:6px 9px;border:1px solid var(--border);border-radius:6px;background:var(--control);color:var(--text);font-size:12px;line-height:1.45;box-shadow:0 2px 8px rgba(0,0,0,.15);pointer-events:none;display:none}
+.tip b{font-weight:600}
+</style>
+</head>
+<body>
+<div class="controls" id="controls"></div>
+<div class="stage"><div class="frame" id="frame"></div></div>
+<div class="notes" id="notes"></div>
+<div class="tip" id="tip"></div>
+<script>
+"use strict";
+// The boards' `layouts`, as in alt-repeat-key-section.html: the Model F's from the board itself,
+// the Corne's from vial-qmk's keyboards/crkbd/keymaps/vial/vial.json.
+const BOARDS = {"Model F B104":{"name":"leyden_jar/B104","source":"the board itself (Vial), tests/ModelFDefinition.h","labels":["Split Backspace","Full Left Shift","Split Right Shift",["Enter","ISO Enter","ANSI Enter"],"Split Numpad Zero","Full Nav Cluster"],"keymap":[[{"x":15.5},"6,5\n\n\n0,1","6,11\n\n\n0,1"],[{"x":2.5,"y":0.25},"0,0",{"x":1.0},"0,1","0,3","0,14","0,16",{"x":0.5},"0,2","0,15","6,15","0,13",{"x":0.5},"0,4","0,12","0,5","0,11",{"x":0.25},"0,10","0,9","0,8"],[{"x":2.5,"y":0.5},"6,0","6,1","5,1","6,3","6,14","6,16","5,16","6,2","5,15","6,13","5,4","6,4","6,12",{"w":2.0},"6,11\n\n\n0,0",{"x":0.25},"0,6\n\n\n5,0","0,7\n\n\n5,0","6,7\n\n\n5,0",{"x":0.25},"6,10","5,10","6,9","6,8",{"x":2.75},"0,6\n\n\n5,1","0,7\n\n\n5,1","6,7\n\n\n5,1"],[{"x":2.5,"w":1.5},"5,0","4,1","4,3","5,3","5,14","4,16","4,2","5,2","4,15","5,13","4,4","5,12","5,5",{"x":0.25,"w":1.25,"h":2.0,"w2":1.5,"h2":1.0,"x2":-0.25},"4,11\n\n\n3,0",{"x":0.25},"5,6\n\n\n5,0","6,6\n\n\n5,0","5,7\n\n\n5,0",{"x":0.25},"4,10","4,9","5,9",{"h":2.0},"5,8",{"x":1.0,"w":1.5},"5,11\n\n\n3,1",{"x":0.25},"5,6\n\n\n5,1","6,6\n\n\n5,1","5,7\n\n\n5,1"],[{"x":2.5,"w":1.75},"4,0","3,1","3,3","4,14","3,14","3,16","3,2","3,15","4,13","3,13","3,4","4,12","4,5\n\n\n3,0",{"x":4.75},"3,10","3,9","4,8",{"x":1.25,"w":2.25},"4,5\n\n\n3,1",{"x":0.25},"3,11\n\n\n5,1","4,6\n\n\n5,1","4,7\n\n\n5,1"],[{"w":2.25},"2,1\n\n\n1,1",{"x":0.25,"w":1.25},"2,0\n\n\n1,0","2,1\n\n\n1,0","2,3","2,14","1,14","1,16","2,16","2,2","1,15","1,13","2,4","2,12",{"w":2.75},"2,5\n\n\n2,0",{"x":1.25},"3,6\n\n\n5,0",{"x":1.25},"2,10","2,9","2,8",{"h":2.0},"3,8",{"x":2.75},"2,6\n\n\n5,1","3,6\n\n\n5,1","3,7\n\n\n5,1"],[{"x":2.5,"w":1.25},"1,0",{"w":1.25},"1,1",{"w":1.25},"1,3",{"w":6.25},"1,2",{"w":1.25},"1,4",{"w":1.25},"1,12",{"w":1.25},"1,5",{"w":1.25},"1,11",{"x":0.25},"1,6\n\n\n5,0","2,7\n\n\n5,0","1,7\n\n\n5,0",{"x":0.25,"w":2.0},"1,10\n\n\n4,0","1,8",{"x":3.75},"1,6\n\n\n5,1","2,7\n\n\n5,1","1,7\n\n\n5,1"],[{"x":14.75,"y":0.25,"w":1.75},"3,12\n\n\n2,1","2,11\n\n\n2,1",{"x":3.5},"1,10\n\n\n4,1","1,9\n\n\n4,1"]]},"Corne":{"name":"crkbd","source":"vial-qmk keyboards/crkbd/keymaps/vial/vial.json","labels":[],"keymap":[[{"y":1,"x":3.5},"0,3",{"x":7.5},"4,3"],[{"y":-0.875,"x":2.5},"0,2",{"x":1},"0,4",{"x":5.5},"4,4",{"x":1},"4,2"],[{"y":-0.875,"x":5.5},"0,5",{"x":3.5},"4,5"],[{"y":-0.875,"x":0.5},"0,0","0,1",{"x":11.5},"4,1","4,0"],[{"y":-0.375,"x":3.5},"1,3",{"x":7.5},"5,3"],[{"y":-0.875,"x":2.5},"1,2",{"x":1},"1,4",{"x":5.5},"5,4",{"x":1},"5,2"],[{"y":-0.875,"x":5.5},"1,5",{"x":3.5},"5,5"],[{"y":-0.875,"x":0.5},"1,0","1,1",{"x":11.5},"5,1","5,0"],[{"y":-0.375,"x":3.5},"2,3",{"x":7.5},"6,3"],[{"y":-0.875,"x":2.5},"2,2",{"x":1},"2,4",{"x":5.5},"6,4",{"x":1},"6,2"],[{"y":-0.875,"x":5.5},"2,5",{"x":3.5},"6,5"],[{"y":-0.875,"x":0.5},"2,0","2,1",{"x":11.5},"6,1","6,0"],[{"y":-0.125,"x":4},"3,3",{"x":6.5},"7,3"],[{"r":15,"rx":4.5,"ry":9.1,"y":-4.85,"x":-0.5},"3,4"],[{"r":30,"rx":5.4,"ry":9.3,"y":-5.05,"x":-1.4,"h":1.5},"3,5"],[{"r":-30,"rx":11.1,"y":-5.05,"x":0.4,"h":1.5},"7,5"],[{"r":-15,"rx":12,"ry":9.1,"y":-4.85,"x":-0.5},"7,4"]]}};
+// ---------------------------------------------------------------------------------------------
+// KLE: the keys, each with its matrix cell (legend position 0), its layout option (position 3,
+// "group,option") and its rotation. Legend-only keys are left out; decals kept, never drawn.
+function parseKle(rows) {
+  const keys = [];
+  let x = 0, y = 0, rx = 0, ry = 0, r = 0, p = {};
+  const pair = s => { const m = /^\s*(\d+)\s*,\s*(\d+)\s*$/.exec(s || ''); return m ? [+m[1], +m[2]] : null; };
+  for (const row of rows) {
+    if (!Array.isArray(row)) continue;
+    for (const item of row) {
+      if (typeof item === 'object') {
+        if ('r' in item) r = item.r;
+        if ('rx' in item || 'ry' in item) { if ('rx' in item) rx = item.rx; if ('ry' in item) ry = item.ry; x = rx; y = ry; }
+        if ('x' in item) x += item.x;
+        if ('y' in item) y += item.y;
+        for (const k of ['w', 'h', 'x2', 'y2', 'w2', 'h2', 'd']) if (k in item) p[k] = item[k];
+        continue;
+      }
+      const w = p.w || 1, h = p.h || 1;
+      const labels = String(item).split('\n');
+      const cell = pair(labels[0]), option = pair(labels[3]);
+      if (cell || p.d)
+        keys.push({ x, y, w, h, x2: p.x2 || 0, y2: p.y2 || 0, w2: p.w2 || w, h2: p.h2 || h, r, rx, ry, decal: !!p.d,
+                    cell, g: option ? option[0] : -1, o: option ? option[1] : 0 });
+      x += w;
+      p = {};
+    }
+    y += 1;
+    x = rx;
+  }
+  return keys;
+}
+const groupOf = label => Array.isArray(label) ? { name: label[0], options: label.slice(1) } : { name: label, options: [] };
+// VIA's pivot rule, as PlaceKeys() has it: each chosen option moved onto option 0's place. Every
+// group is at option 0 here, so nothing moves; the rule is kept for other choices.
+function placeKeys(keys, groups, sel) {
+  return keys.filter(k => !(k.g >= 0 && k.g < groups.length && sel[k.g] !== k.o));
+}
+const NS = 'http://www.w3.org/2000/svg';
+const rot = (px, py, k) => {
+  if (!k.r) return [px, py];
+  const a = k.r * Math.PI / 180, dx = px - k.rx, dy = py - k.ry;
+  return [k.rx + dx * Math.cos(a) - dy * Math.sin(a), k.ry + dx * Math.sin(a) + dy * Math.cos(a)];
+};
+const centreOf = k => rot(k.x + k.w / 2, k.y + k.h / 2, k);
+function boundsOf(keys) {
+  const b = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+  for (const k of keys)
+    for (const [x, y, w, h] of [[k.x, k.y, k.w, k.h], [k.x + k.x2, k.y + k.y2, k.w2, k.h2]])
+      for (const [px, py] of [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]) {
+        const [qx, qy] = rot(px, py, k);
+        b.x0 = Math.min(b.x0, qx); b.y0 = Math.min(b.y0, qy); b.x1 = Math.max(b.x1, qx); b.y1 = Math.max(b.y1, qy);
+      }
+  return b;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Keycodes the mockup knows: QMK name, legend (header, main), picker tab, the colour class a
+// keycap of it gets.
+const K = {};
+const key = (name, m, tab, h, cls) => { K[name] = { name, m, h: h || '', tab, cls: cls || '' }; };
+'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(c => key('KC_' + c, c, 'Keys'));
+'1234567890'.split('').forEach(c => key('KC_' + c, c, 'Keys'));
+[['KC_ESC', 'Esc'], ['KC_TAB', 'Tab'], ['KC_ENT', 'Enter'], ['KC_BSPC', 'Bksp'], ['KC_SPC', 'Space'], ['KC_DEL', 'Del'], ['KC_CAPS', 'Caps'],
+ ['KC_GRV', '`'], ['KC_MINS', '-'], ['KC_EQL', '='], ['KC_LBRC', '['], ['KC_RBRC', ']'], ['KC_BSLS', '\\'], ['KC_NUBS', '<'],
+ ['KC_SCLN', ';'], ['KC_QUOT', "'"], ['KC_COMM', ','], ['KC_DOT', '.'], ['KC_SLSH', '/'],
+ ['KC_INS', 'Ins'], ['KC_HOME', 'Home'], ['KC_END', 'End'], ['KC_PGUP', 'PgUp'], ['KC_PGDN', 'PgDn'],
+ ['KC_LEFT', '←'], ['KC_DOWN', '↓'], ['KC_UP', '↑'], ['KC_RGHT', '→'], ['KC_PSCR', 'PrtSc'], ['KC_SCRL', 'ScrLk'], ['KC_PAUS', 'Pause'], ['KC_APP', 'Menu'],
+ ['KC_LCTL', 'Ctrl'], ['KC_LSFT', 'Shift'], ['KC_LALT', 'Alt'], ['KC_LGUI', 'Win'], ['KC_RCTL', 'Ctrl'], ['KC_RSFT', 'Shift'], ['KC_RALT', 'AltGr'], ['KC_RGUI', 'Win']]
+  .forEach(([n, m]) => key(n, m, 'Keys'));
+for (let i = 1; i <= 13; i++) key('KC_F' + i, 'F' + i, 'Keys');
+'0123456789'.split('').forEach(c => key('KC_P' + c, c, null, 'Pad'));
+[['KC_NUM', 'Num'], ['KC_PSLS', '/'], ['KC_PAST', '*'], ['KC_PMNS', '-'], ['KC_PPLS', '+'], ['KC_PENT', 'Enter'], ['KC_PDOT', '.']].forEach(([n, m]) => key(n, m, null, 'Pad'));
+[['KC_MUTE', 'Mute'], ['KC_VOLU', 'Vol +'], ['KC_VOLD', 'Vol −'], ['KC_MNXT', 'Next'], ['KC_MPRV', 'Prev'], ['KC_MPLY', 'Play']]
+  .forEach(([n, m]) => key(n, m, 'Media & mouse', 'Media', 'host'));
+[['MO(1)', 'L1', 'Hold'], ['MO(2)', 'L2', 'Hold'], ['TG(1)', 'L1', 'Toggle'], ['TO(0)', 'L0', 'To'], ['OSL(1)', 'L1', 'Once']]
+  .forEach(([n, m, h]) => key(n, m, 'Layers', h, 'behav'));
+[['CW_TOGG', 'Caps Wd', ''], ['QK_REP', 'Repeat', ''], ['CM_TOGG', 'On/Off', 'Combos']]
+  .forEach(([n, m, h]) => key(n, m, 'Features', h, 'behav'));
+[['QK_BOOT', 'Boot', ''], ['QK_RBT', 'Reboot', ''], ['EE_CLR', 'Clear', 'EEPROM']]
+  .forEach(([n, m, h]) => key(n, m, 'Firmware', h, 'fw'));
+// The Corne's home-row Gui keys: A and ; tapped, Gui held -- LGUI_T(KC_A), RGUI_T(KC_SCLN).
+key('LGUI_T(KC_A)', 'A', null, 'Win', 'behav'); K['LGUI_T(KC_A)'].tap = 'KC_A';
+key('RGUI_T(KC_SCLN)', ';', null, 'Win', 'behav'); K['RGUI_T(KC_SCLN)'].tap = 'KC_SCLN';
+// The rest of the Corne's home-row mods, and the keys the settings concern.
+[['LALT_T(KC_S)', 'S', 'Alt'], ['LCTL_T(KC_D)', 'D', 'Ctrl'], ['LSFT_T(KC_F)', 'F', 'Shift'],
+ ['RSFT_T(KC_J)', 'J', 'Shift'], ['RCTL_T(KC_K)', 'K', 'Ctrl'], ['LALT_T(KC_L)', 'L', 'Alt']]
+  .forEach(([n, m, h]) => { key(n, m, null, h, 'behav'); K[n].tap = 'KC_' + m; });
+key('OSM(MOD_LSFT)', 'Shift', null, 'Once', 'behav');
+key('QK_GESC', 'Esc', null, '` ~', 'behav');
+[['MS_LEFT', '←'], ['MS_DOWN', '↓'], ['MS_UP', '↑'], ['MS_RGHT', '→'], ['MS_BTN1', 'Btn 1'], ['MS_WHLU', 'Wh ↑'], ['MS_WHLD', 'Wh ↓']]
+  .forEach(([n, m]) => key(n, m, null, 'Mouse', 'host'));
+key('NK_TOGG', 'NKRO', null, 'Toggle', 'fw');
+key('KC_NO', '', null);
+
+// Each board's keys and what they send: [layer 0, layer 1], layer 1 null where transparent.
+const W = s => s.split(' ');
+const MODELF_ROWS = [
+  W('KC_ESC KC_F1 KC_F2 KC_F3 KC_F4 KC_F5 KC_F6 KC_F7 KC_F8 KC_F9 KC_F10 KC_F11 KC_F12 KC_PSCR KC_SCRL KC_PAUS'),
+  W('KC_GRV KC_1 KC_2 KC_3 KC_4 KC_5 KC_6 KC_7 KC_8 KC_9 KC_0 KC_MINS KC_EQL KC_BSPC KC_INS KC_HOME KC_PGUP KC_NUM KC_PSLS KC_PAST KC_PMNS'),
+  W('KC_TAB KC_Q KC_W KC_E KC_R KC_T KC_Y KC_U KC_I KC_O KC_P KC_LBRC KC_RBRC KC_ENT KC_DEL KC_END KC_PGDN KC_P7 KC_P8 KC_P9 KC_PPLS'),
+  W('KC_CAPS KC_A KC_S KC_D KC_F KC_G KC_H KC_J KC_K KC_L KC_SCLN KC_QUOT KC_BSLS KC_P4 KC_P5 KC_P6'),
+  W('KC_LSFT KC_NUBS KC_Z KC_X KC_C KC_V KC_B KC_N KC_M KC_COMM KC_DOT KC_SLSH KC_RSFT KC_UP KC_P1 KC_P2 KC_P3 KC_PENT'),
+  W('KC_LCTL KC_LGUI KC_LALT KC_SPC KC_RALT KC_RGUI KC_APP KC_RCTL KC_LEFT KC_DOWN KC_RGHT KC_P0 KC_PDOT')];
+const MODELF_L1 = { KC_PAUS: 'NK_TOGG', KC_SCRL: 'QK_BOOT', KC_PSCR: 'EE_CLR' };
+// The Corne by matrix cell: rows 0-3 the left half, 4-7 the right, column 0 the outer edge.
+const CORNE = {
+  0: [W('KC_TAB KC_Q KC_W KC_E KC_R KC_T'), W('- KC_1 KC_2 KC_3 KC_4 KC_5')],
+  1: [W('KC_LCTL LGUI_T(KC_A) LALT_T(KC_S) LCTL_T(KC_D) LSFT_T(KC_F) KC_G'), []],
+  2: [W('OSM(MOD_LSFT) KC_Z KC_X KC_C KC_V KC_B'), W('- - MS_LEFT MS_DOWN MS_UP MS_RGHT')],
+  3: [W('- - - KC_LGUI MO(1) KC_SPC'), []],
+  4: [W('KC_BSPC KC_P KC_O KC_I KC_U KC_Y'), W('- KC_0 KC_9 KC_8 KC_7 KC_6')],
+  5: [W('KC_QUOT RGUI_T(KC_SCLN) LALT_T(KC_L) RCTL_T(KC_K) RSFT_T(KC_J) KC_H'), W('- - KC_RGHT KC_UP KC_DOWN KC_LEFT')],
+  6: [W('QK_GESC KC_SLSH KC_DOT KC_COMM KC_M KC_N'), W('- - MS_WHLD MS_WHLU MS_BTN1 -')],
+  7: [W('- - - KC_RALT MO(2) KC_ENT'), []]};
+function sendsOf(def, keys) {
+  if (def === 'Corne') return keys.map(k => {
+    const [l0, l1] = CORNE[k.cell[0]], c = k.cell[1];
+    return [l0[c], l1[c] && l1[c] !== '-' ? l1[c] : null];
+  });
+  const rows = [...new Set(keys.map(k => k.y))].sort((a, b) => a - b);
+  const out = new Map();
+  rows.forEach((y, i) => keys.filter(k => k.y === y).sort((a, b) => a.x - b.x)
+    .forEach((k, j) => { const l0 = (MODELF_ROWS[i] || [])[j] || 'KC_NO'; out.set(k, [l0, MODELF_L1[l0] || null]); }));
+  return keys.map(k => out.get(k));
+}
+
+// ---------------------------------------------------------------------------------------------
+// The settings, as the firmware numbers them (qsid), and each board's: the Corne on today's
+// vial-qmk (22-27, no 8), the Model F on firmware as of 2023 (8, none of 22-27). Values made up.
+const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+const MOUSE = { 9: 10, 10: 16, 11: 8, 12: 10, 13: 30, 14: 10, 15: 80, 16: 8, 17: 40 };
+const SETUPS = {
+  "Corne · today's vial-qmk": { def: 'Corne', qsids: [...range(1, 7), ...range(9, 27)], tapDance: true,
+    vals: Object.assign({ 1: 0, 2: 50, 3: 0, 4: 175, 5: 5, 6: 5000, 7: 200, 18: 10, 19: 80, 20: 5, 21: 0x80,
+                          22: 1, 23: 0, 24: 0, 25: 120, 26: 1, 27: 150 }, MOUSE) },
+  'Model F B104 · its firmware (2023)': { def: 'Model F B104', qsids: range(1, 21), tapDance: true,
+    vals: Object.assign({ 1: 0, 2: 50, 3: 0, 4: 175, 5: 5, 6: 5000, 7: 200, 8: 0, 18: 10, 19: 80, 20: 5, 21: 0x80 }, MOUSE) },
+};
+
+// Reading and writing a setting: a whole value, one bit of it, a bit turned round.
+const whole = q => ({ q, get: v => v[q], set: (v, x) => { v[q] = x; } });
+const flag = q => ({ q, get: v => !!v[q], set: (v, on) => { v[q] = on ? 1 : 0; } });
+const bit = (q, b) => ({ q, get: v => !!((v[q] >> b) & 1), set: (v, on) => { v[q] = on ? v[q] | (1 << b) : v[q] & ~(1 << b); } });
+const not = a => ({ q: a.q, get: v => !a.get(v), set: (v, on) => a.set(v, !on) });
+
+// The keys a setting concerns, from what the board sends.
+const tapOf = kc => K[kc] && K[kc].tap;
+const isTapHold = kc => !!tapOf(kc) || /^(LT|TT)\(/.test(kc || '');
+const LETTER = kc => /^KC_[A-Z]$/.test(kc), NUMBER = kc => /^KC_[0-9]$/.test(kc);
+const SYMBOL = kc => ['KC_MINS', 'KC_EQL', 'KC_LBRC', 'KC_RBRC', 'KC_BSLS', 'KC_NUBS', 'KC_SCLN', 'KC_QUOT', 'KC_GRV', 'KC_COMM', 'KC_DOT', 'KC_SLSH'].includes(kc);
+const keysWhere = test => { const s = new Map(); BOARD.keys.forEach((k, i) => BOARD.sends[i].forEach((kc, l) => { if (kc && test(kc) && !s.has(i)) s.set(i, { layer: l }); })); return s; };
+const has = test => keysWhere(test).size > 0;
+
+// Magic: each bit, the keys it changes and what they send then.
+const MAGIC = [
+  [0, 'Caps Lock and Left Ctrl swapped', 'Swap Caps Lock and Left Control', { KC_CAPS: 'Ctrl', KC_LCTL: 'Caps' }],
+  [1, 'Caps Lock is Ctrl', 'Treat Caps Lock as Control', { KC_CAPS: 'Ctrl' }],
+  [2, 'Left Alt and Left Win swapped', 'Swap Left Alt and GUI', { KC_LALT: 'Win', KC_LGUI: 'Alt' }],
+  [3, 'Right Alt and Right Win swapped', 'Swap Right Alt and GUI', { KC_RALT: 'Win', KC_RGUI: 'Alt' }],
+  [8, 'Left Ctrl and Left Win swapped', 'Swap Left Control and GUI', { KC_LCTL: 'Win', KC_LGUI: 'Ctrl' }],
+  [9, 'Right Ctrl and Right Win swapped', 'Swap Right Control and GUI', { KC_RCTL: 'Win', KC_RGUI: 'Ctrl' }],
+  [4, 'Win keys off', 'Disable the GUI keys', { KC_LGUI: 'off', KC_RGUI: 'off' }],
+  [5, '` and Esc swapped', 'Swap ` and Escape', { KC_GRV: 'Esc', KC_ESC: '`' }],
+  [6, '\\ and Bksp swapped', 'Swap \\ and Backspace', { KC_BSLS: 'Bksp', KC_BSPC: '\\' }],
+  [7, 'N-key rollover', 'Enable N-key rollover', {}]];
+const MAGIC_KEYS = { 7: ['NK_TOGG', 'NK_ON', 'NK_OFF'] };
+
+// The groups, their lines. A line: a checkbox (bool), a number (int), boxes in a row, the
+// tap-hold choice, the mouse table, Magic's boxes. `w` is said in words, `n` QMK's name, `d`
+// what it does; `lights` the keys it concerns; `only` which firmware has it.
+const qs = q => setupOf().qsids.includes(q);
+const GROUPS = [
+  { id: 'taphold', name: 'Tap-Hold', desc: 'keys doing one thing tapped, another held: mod-taps, layer-taps', lights: () => keysWhere(isTapHold), lines: [
+    { t: 'int', a: whole(7), unit: 'ms', min: 0, max: 10000, w: 'Holds after', n: 'Tapping Term', d: 'held longer than this, a tap-hold key holds' },
+    { t: 'hold' },
+    { t: 'bool', a: flag(26), only: 26, w: 'A key of the same hand makes it a tap', n: 'Chordal Hold', d: 'only a key of the other hand can make it hold early', hands: true },
+    { t: 'bool', a: flag(24), only: 24, w: 'Held past the term alone, it still taps', n: 'Retro Tapping', d: 'released with no other key pressed, the tap is sent anyway' },
+    { t: 'bool', a: bit(8, 3), only: 8, w: 'Held past the term alone, it still taps', n: 'Retro Tapping', d: 'released with no other key pressed, the tap is sent anyway' },
+    { t: 'int', a: whole(25), only: 25, unit: 'ms', min: 0, max: 10000, w: 'Tapped, then held again within', n: 'Quick Tap Term', d: 'repeats the tap instead of holding; 0: never' },
+    { t: 'bool', a: not(bit(8, 2)), only: 8, w: 'Tapped, then held again, repeats the tap', n: 'Quick tap (not Tapping Force Hold)', d: 'within the tapping term; off, it holds' },
+    { t: 'int', a: whole(27), only: 27, unit: 'ms', min: 0, max: 500, w: 'Typing fast, taps within', n: 'Flow Tap', d: 'of a letter, space or , . ; / -- a tap-hold key pressed this soon taps at once; 0: off' },
+    { t: 'int', a: whole(20), unit: 'taps', min: 0, max: 100, w: 'TT keys lock their layer after', n: 'Tapping Toggle', d: 'taps of a TT layer key', lights: () => keysWhere(kc => /^TT\(/.test(kc)) }] },
+  { id: 'autoshift', name: 'Auto Shift', desc: 'a key held a little longer is sent shifted', lights: () => autoShiftKeys(), lines: [
+    { t: 'bool', a: bit(3, 0), w: 'On', n: 'Enable', d: '' },
+    { t: 'int', a: whole(4), unit: 'ms', min: 0, max: 1000, w: 'Shifted when held', n: 'Timeout', d: 'held longer than this, the key is sent shifted' },
+    { t: 'boxes', w: 'For', n: 'Auto Shift', items: [['Letters', not(bit(3, 4)), LETTER], ['Numbers', not(bit(3, 3)), NUMBER], ['Symbols', not(bit(3, 2)), SYMBOL]],
+      d: 'QMK stores the three turned round: "Do not Auto Shift alpha / numeric / special"' },
+    { t: 'bool', a: bit(3, 1), w: 'Also with Ctrl, Alt or Win held', n: 'Enable for modifiers', d: 'otherwise a key pressed with a modifier is sent as it is' },
+    { t: 'bool', a: bit(3, 5), w: 'Held on, the key repeats', n: 'Enable keyrepeat', d: 'the unshifted key, past the timeout' },
+    { t: 'bool', a: bit(3, 6), w: '… but not once shifted', n: 'Disable keyrepeat when timeout is exceeded', d: '', needs: bit(3, 5) }] },
+  { id: 'oneshot', name: 'One Shot Keys', desc: 'a modifier or layer tapped once applies to the next key', lights: () => keysWhere(kc => /^(OSM|OSL)\(/.test(kc)), lines: [
+    { t: 'int', a: whole(6), unit: 'ms', min: 0, max: 60000, w: 'Forgotten after', n: 'One Shot Timeout', d: 'unused this long, it lets go; 0: never' },
+    { t: 'int', a: whole(5), unit: 'taps', min: 0, max: 50, w: 'Stays on when tapped', n: 'One Shot Tap Toggle', d: 'until tapped again; 0 or 1: never' }] },
+  { id: 'combos', name: 'Combos', desc: 'keys pressed together send another', lights: () => new Map(), lines: [
+    { t: 'int', a: whole(2), unit: 'ms', min: 0, max: 10000, w: 'Each key within', n: 'Combo Term', d: 'of the one before -- the same as in the Combos section' }] },
+  { id: 'gesc', name: 'Grave Escape', desc: 'one key for both: Esc, or ` with Shift or Win held', lights: () => keysWhere(kc => kc === 'QK_GESC'), lines: [
+    { t: 'boxes', w: 'Esc all the same with', n: 'Always send Escape if … is pressed', items: [['Shift', bit(1, 3)], ['Win', bit(1, 2)], ['Ctrl', bit(1, 1)], ['Alt', bit(1, 0)]],
+      d: 'held, Grave Escape sends Esc where it would send `' }] },
+  { id: 'magic', name: 'Keys swapped', qmk: 'Magic', desc: 'swaps the firmware makes on every layer -- the keymap stays as it is', lights: () => magicKeys(null), lines: [
+    { t: 'magic' }] },
+  { id: 'mouse', name: 'Mouse keys', desc: 'keys moving the cursor and the wheel', lights: () => keysWhere(kc => /^MS_/.test(kc)), lines: [
+    { t: 'mouse' }] },
+  { id: 'taps', name: 'Tap delays', desc: 'how long the board holds a tap it sends by itself: a tap-hold key\'s tap, tap dances, macros', lights: () => keysWhere(isTapHold), lines: [
+    { t: 'int', a: whole(18), unit: 'ms', min: 0, max: 1000, w: 'A tap is held for', n: 'Tap Code Delay', d: 'between its press and its release' },
+    { t: 'int', a: whole(19), unit: 'ms', min: 0, max: 1000, w: 'Caps Lock is held for', n: 'Tap Hold Caps Delay', d: 'longer: macOS ignores a short one', lights: () => keysWhere(kc => kc === 'KC_CAPS' || tapOf(kc) === 'KC_CAPS') }] }];
+const MOUSE_ROWS = [['Starts after', 'ms', 9, 14, 'Delay', 10], ['Moves every', 'ms', 10, 15, 'Interval'], ['Step', 'px', 11, null, 'Move Delta'],
+                    ['Top speed', '× step', 12, 16, 'Max Speed'], ['Reached after', 'moves', 13, 17, 'Time To Max']];
+const groupQsids = g => {
+  const s = new Set();
+  for (const l of g.lines) {
+    if (l.t === 'hold') [8, 22, 23].forEach(q => s.add(q));
+    else if (l.t === 'magic') s.add(21);
+    else if (l.t === 'mouse') range(9, 17).forEach(q => s.add(q));
+    else if (l.t === 'boxes') l.items.forEach(i => s.add(i[1].q));
+    else s.add(l.a.q);
+  }
+  return [...s].filter(qs);
+};
+const groupName = g => !words() && g.qmk ? g.qmk : g.name;
+const groupsShown = () => GROUPS.filter(g => groupQsids(g).length);
+const lineShown = l => l.t === 'hold' ? qs(8) || qs(22) : l.t === 'mouse' ? qs(9) : l.t === 'magic' ? qs(21) : l.t === 'boxes' ? qs(l.items[0][1].q) : qs(l.a.q);
+
+function autoShiftKeys() {
+  const v = state.vals, g = GROUPS[1].lines[2].items;
+  return keysWhere(kc => g.some(([, a, test]) => a.get(v) && test(kc)));
+}
+// Magic's keys: those a bit changes, with what they send while it is on -- every bit on, or one.
+function magicKeys(only) {
+  const out = new Map(), v = state.vals;
+  for (const [b, , , map] of MAGIC) {
+    if (only === null ? !((v[21] >> b) & 1) : b !== only) continue;
+    keysWhere(kc => kc in map || (MAGIC_KEYS[b] || []).includes(kc)).forEach((x, i) => {
+      const kc = BOARD.sends[i][x.layer];
+      if (!out.has(i)) out.set(i, Object.assign(x, map[kc] ? { tag: '→ ' + map[kc] } : {}));
+    });
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------------------------
+const state = { setup: "Corne · today's vial-qmk", arrange: 'Groups in the strip', board: 'Lights what a setting concerns', hold: 'One choice of three',
+                names: "QMK's names", write: 'At once', theme: 'Light', group: 'taphold', hover: null, msg: null, confirm: false };
+const setupOf = () => SETUPS[state.setup];
+function reset() {
+  state.vals = Object.assign({}, setupOf().vals);
+  state.saved = Object.assign({}, state.vals);
+  state.msg = null; state.confirm = false;
+  if (!groupsShown().some(g => g.id === state.group)) state.group = 'taphold';
+}
+const words = () => state.names === 'In words';
+const atOnce = () => state.write === 'At once';
+const changedQ = q => state.vals[q] !== state.saved[q];
+const groupChanged = g => groupQsids(g).some(changedQ);
+const anyChanged = () => Object.keys(state.vals).some(q => changedQ(+q));
+
+// The tap-hold choice: another key pressed while a tap-hold key is down.
+const HOLD = [['Waits for the term', 'neither', 'the tap-hold key holds only once the term has passed; a key typed inside it makes it a tap'],
+              ['Holds if that key is let go first', 'Permissive Hold', 'another key pressed and released while it is down makes it hold'],
+              ['Holds at once', 'Hold On Other Key Press', 'another key pressed while it is down makes it hold, at that press']];
+const permA = () => qs(8) ? bit(8, 0) : flag(22);
+const hookpA = () => qs(8) ? not(bit(8, 1)) : flag(23);
+const holdChoice = v => hookpA().get(v) ? 2 : permA().get(v) ? 1 : 0;
+
+// ---------------------------------------------------------------------------------------------
+// What the section says: per group, what is wrong or worth knowing.
+function analyse(g) {
+  const v = state.vals, says = [];
+  const none = (what, where) => says.push({ t: `No key on this board ${what}: nothing here changes anything until one does${where ? ` -- ${where}` : ''}.` });
+  if (g.id === 'taphold') {
+    if (!has(isTapHold)) none('is a tap-hold key', 'mod-taps and layer-taps are in the picker\'s Layers tab');
+    if (!setupOf().tapDance) says.push({ w: 1, t: `This firmware has no tap dance, and vial-qmk then reads the tapping term from its build: "Holds after" changes nothing.` });
+    if (qs(25) && v[25] > v[7]) says.push({ t: `A quick tap term above the tapping term counts as the tapping term, ${v[7]} ms.` });
+    if (state.hold !== 'One choice of three' && permA().get(v) && hookpA().get(v))
+      says.push({ w: 1, t: `Both on: Hold On Other Key Press decides at the press, first -- Permissive Hold changes nothing.`, fix: ['Keep Hold On Other Key Press', 'perm'] });
+    if (qs(8)) says.push({ t: `This firmware predates Chordal Hold, Flow Tap and a quick tap term of its own: vial-qmk added them in 2025-06.` });
+    if (qs(8) && hookpA().get(v)) says.push({ t: `Holding at once is this firmware's usual way: Vial stored it turned round, as "Ignore Mod Tap Interrupt" off.` });
+    says.push({ t: `A tap dance uses its own term, set in Tap Dance.` });
+  }
+  if (g.id === 'autoshift') {
+    if (!bit(3, 0).get(v)) says.push({ t: `Off: nothing below applies.` });
+    if (has(kc => ['AS_TOGG', 'AS_ON', 'AS_OFF'].includes(kc))) says.push({ t: `The board's Auto Shift key switches it for the moment, while it is on here.` });
+  }
+  if (g.id === 'oneshot' && !has(kc => /^(OSM|OSL)\(/.test(kc))) none('is a one-shot key', 'they are in the picker\'s Layers tab');
+  if (g.id === 'gesc') {
+    if (!has(kc => kc === 'QK_GESC')) none('is Grave Escape', 'it is in the picker\'s Features tab');
+    if (bit(1, 3).get(v) && bit(1, 2).get(v)) says.push({ w: 1, t: `With Shift and Win both, \` is never sent: Grave Escape is only Esc.` });
+  }
+  if (g.id === 'magic') {
+    const nk = keysWhere(kc => MAGIC_KEYS[7].includes(kc));
+    if (nk.size) says.push({ t: `NK_TOGG on layer ${[...nk.values()][0].layer} switches N-key rollover too, and stores it: what is shown is what the board said when this section opened.` });
+    says.push({ t: `N-key rollover works only in a firmware built with it; the board cannot say.` });
+  }
+  if (g.id === 'mouse' && !has(kc => /^MS_/.test(kc))) none('moves the mouse', 'the mouse keys are in the picker\'s Media & mouse tab');
+  if (g.id === 'mouse') says.push({ t: `The firmware counts the starting delay in tens of ms.` });
+  if (g.id === 'combos') says.push({ t: `One term for every combo.` });
+  return says;
+}
+const hasWarning = g => analyse(g).some(s => s.w);
+
+// ---------------------------------------------------------------------------------------------
+// The lines.
+const tipAttr = (n, d) => ` data-tip="${(n ? `<b>${n}</b>` : '') + (d ? (n ? '<br>' : '') + d : '')}"`;
+const label = (l, extra) => words() ? l.w : l.n;
+function numHtml(a, l, step) {
+  const val = a.get(state.vals), bad = l.max !== undefined && val > l.max;
+  return `<input class="num${bad ? ' bad' : ''}" type="number" min="${l.min || 0}" max="${l.max}" step="${step || 1}" data-q="${a.q}" value="${val}">`;
+}
+function lineHtml(l, gi, li) {
+  const v = state.vals, hov = `data-hover="${gi}:${li}"`;
+  const tip = words() ? tipAttr(l.n, l.d) : tipAttr('', l.d);
+  const dd = !words() && l.d ? `<span class="d">${l.d}</span>` : '';
+  const ch = q => changedQ(q) ? ' changed' : '';
+  if (l.t === 'int')
+    return `<div class="row${ch(l.a.q)}" ${hov}${tip}><span>${label(l)}</span>${numHtml(l.a, l)}<span class="unit">${l.unit}</span>${dd}</div>`;
+  if (l.t === 'bool') {
+    const dis = l.needs && !l.needs.get(v);
+    return `<div class="row${ch(l.a.q)}${dis ? ' dis' : ''}" ${hov}${tip}><label><input type="checkbox" data-acc="${gi}:${li}" ${l.a.get(v) ? 'checked' : ''} ${dis ? 'disabled' : ''}>${label(l)}</label>${dd}</div>`;
+  }
+  if (l.t === 'boxes')
+    return `<div class="row${ch(l.items[0][1].q)}" ${hov}${tip}><span>${label(l)}</span><span class="boxes">${l.items.map(([n, a], k) =>
+      `<label><input type="checkbox" data-box="${gi}:${li}:${k}" ${a.get(v) ? 'checked' : ''}>${n}</label>`).join('')}</span>${dd}</div>`;
+  if (l.t === 'hold') {
+    const c = holdChoice(v), q = qs(8) ? 8 : 22;
+    if (state.hold === 'One choice of three')
+      return `<div class="row${changedQ(q) || changedQ(23) ? ' changed' : ''}" ${hov}${tipAttr(words() ? 'Permissive Hold, Hold On Other Key Press' : '', HOLD.map(h => `<b>${words() ? h[0] : h[1]}</b>: ${h[2]}`).join('<br>'))}>`
+           + `<span>${words() ? 'Another key pressed while it is down' : 'Hold decided by'}</span><select data-hold>${HOLD.map((h, k) => `<option value="${k}" ${k === c ? 'selected' : ''}>${words() ? h[0] : h[1]}</option>`).join('')}</select>`
+           + (words() ? '' : `<span class="d">${HOLD[c][2]}</span>`) + `</div>`;
+    const box = (a, w, n, d, k) => `<div class="row${changedQ(a.q) ? ' changed' : ''}" ${hov}${words() ? tipAttr(n, d) : ''}><label><input type="checkbox" data-hk="${k}" ${a.get(v) ? 'checked' : ''}>${words() ? w : n}</label>${words() ? '' : `<span class="d">${d}</span>`}</div>`;
+    return box(permA(), 'Holds when another key is tapped inside it', 'Permissive Hold', HOLD[1][2], 0)
+         + box(hookpA(), 'Holds as soon as another key is pressed', 'Hold On Other Key Press', HOLD[2][2] + (qs(8) ? ' -- stored turned round, as "Ignore Mod Tap Interrupt"' : ''), 1);
+  }
+  if (l.t === 'magic') {
+    const rowsM = MAGIC.filter(m => m[0] !== 7).map(([b, w, n]) => `<div class="row${changedQ(21) && ((v[21] ^ state.saved[21]) >> b & 1) ? ' changed' : ''}" data-hover="${gi}:m${b}"${words() ? tipAttr(n, '') : ''}><label><input type="checkbox" data-magic="${b}" ${(v[21] >> b) & 1 ? 'checked' : ''}>${words() ? w : n}</label></div>`);
+    const half = Math.ceil(rowsM.length / 2);
+    const nk = MAGIC.find(m => m[0] === 7);
+    return `<div style="display:flex;flex-wrap:wrap;column-gap:18px"><div>${rowsM.slice(0, half).join('')}</div><div>${rowsM.slice(half).join('')}</div></div>`
+         + `<div class="row${changedQ(21) && ((v[21] ^ state.saved[21]) >> 7 & 1) ? ' changed' : ''}" data-hover="${gi}:m7"${tipAttr(words() ? nk[2] : '', 'every key held is reported, rather than six at most')}><label><input type="checkbox" data-magic="7" ${(v[21] >> 7) & 1 ? 'checked' : ''}>${words() ? nk[1] : nk[2]}</label></div>`;
+  }
+  if (l.t === 'mouse') {
+    let h = `<table class="mtab"><tr><th></th><th>Cursor</th><th>Wheel</th></tr>`;
+    for (const [w, unit, c, wh, n, step] of MOUSE_ROWS) {
+      const cell = q => q === null ? '' : `${numHtml(whole(q), { max: 10000 }, step)}<span class="unit">${unit}</span>`;
+      h += `<tr data-hover="${gi}:${li}"${tipAttr(words() ? `Mouse Key ${n}, Wheel ${n}` : '', '')}><td>${words() ? w : n}</td><td>${cell(c)}</td><td>${cell(wh)}</td></tr>`;
+    }
+    return h + `</table>`;
+  }
+  return '';
+}
+function linesHtml(g) {
+  const gi = GROUPS.indexOf(g);
+  return `<div class="rows">${g.lines.map((l, li) => lineShown(l) ? lineHtml(l, gi, li) : '').join('')}</div>`;
+}
+function saysHtml(g) {
+  const a = analyse(g);
+  if (!a.length) return '';
+  return `<div class="says">${a.map(x => `<span class="${x.w ? 'w' : 'i'}">${x.w ? '⚠ ' : 'ⓘ '}${x.t}</span>${x.fix ? `<button data-fix="${x.fix[1]}">${x.fix[0]}</button>` : ''}`).join('<br>')}</div>`;
+}
+
+function mlineHtml(title, desc) {
+  let msg;
+  if (state.msg) msg = `<span class="${state.msg[0]}">${state.msg[1]}</span>`;
+  else if (atOnce()) msg = `<span class="muted">Each change is written at once, and read back.</span>`;
+  else if (anyChanged()) { const n = groupsShown().filter(groupChanged).length; msg = `<span class="warn">Not written yet</span> <span class="muted">-- ${n} group${n > 1 ? 's' : ''} changed</span>`; }
+  else msg = `<span class="muted">Changes are written by Save.</span>`;
+  return `<div class="mline"><span class="title">${title}</span>${desc ? `<span class="desc">${desc}</span>` : ''}<span class="msg">${msg}</span>`
+       + `<span class="right"><button data-act="reset" title="Every setting back to the firmware's own defaults">Reset all…</button>`
+       + (atOnce() ? '' : `<button data-act="save" ${anyChanged() ? '' : 'disabled'}>Save</button><button data-act="revert" ${anyChanged() ? '' : 'disabled'}>Revert</button>`)
+       + `</span></div>`
+       + (state.confirm ? `<div class="confirm">⚠ Every QMK setting back to this firmware's defaults -- Keys swapped and N-key rollover too. Nazg cannot know the defaults before: they are read back after.`
+                        + `<span style="margin-left:auto;display:flex;gap:6px"><button data-act="doreset">Reset all</button><button data-act="noreset">Cancel</button></span></div>` : '');
+}
+function panelHtml() {
+  if (state.arrange === 'Groups in the strip') {
+    const g = GROUPS.find(x => x.id === state.group);
+    return mlineHtml(groupName(g), g.desc) + linesHtml(g) + saysHtml(g);
+  }
+  // Two columns, balanced by hand: the long groups apart.
+  const block = g => `<div class="block" data-hover="${GROUPS.indexOf(g)}:g"><h4>${groupName(g)}<span class="desc">${g.desc}</span></h4>${linesHtml(g)}${saysHtml(g)}</div>`;
+  const side = ids => groupsShown().filter(g => ids.includes(g.id)).map(block).join('');
+  return mlineHtml('QMK Settings', '') + `<div class="page"${state.board === 'Folded away' ? ' style="max-height:none"' : ''}><div>${side(['taphold', 'oneshot', 'combos', 'taps'])}</div><div>${side(['autoshift', 'gesc', 'magic', 'mouse'])}</div></div>`;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The board: what the selected group concerns, lit -- or, under the pointer, what one line does.
+let BOARD = null;
+function buildBoard() {
+  const setup = setupOf(), b = BOARDS[setup.def];
+  const groups = b.labels.map(groupOf);
+  const keys = placeKeys(parseKle(b.keymap), groups, groups.map(() => 0)).filter(k => !k.decal);
+  BOARD = { keys, sends: sendsOf(setup.def, keys), b };
+}
+// QMK's guess of each key's hand (keyboard_c.py, _gen_chordal_hold_layout): a symmetric board
+// split at its middle; otherwise a line through the space bar, leaning with the row stagger.
+function hands() {
+  const keys = BOARD.keys, out = new Map();
+  if (setupOf().def === 'Corne') {
+    const b = boundsOf(keys), mid = (b.x0 + b.x1) / 2;
+    keys.forEach((k, i) => out.set(i, { hand: centreOf(k)[0] < mid ? 'L' : 'R' }));
+    return out;
+  }
+  const spc = keys.reduce((a, k) => k.w > (a ? a.w : 0) ? k : a, null), [sx, sy] = centreOf(spc);
+  keys.forEach((k, i) => { const [cx, cy] = centreOf(k), s = (cx - (sx - 0.05)) - (cy - (sy - 1)) / 3;
+    out.set(i, { hand: k === spc || Math.abs(s) <= 0.02 ? '*' : s < 0 ? 'L' : 'R' }); });
+  return out;
+}
+function litKeys() {
+  if (state.board !== 'Lights what a setting concerns') return null;
+  const h = state.hover;
+  if (h) {
+    const [gi, li] = h.split(':'), g = GROUPS[+gi];
+    if (li === 'g') return g.lights();
+    if (li[0] === 'm') return magicKeys(+li.slice(1));
+    const l = g.lines[+li];
+    if (l.hands) { const hk = hands(); return new Map([...hk].filter(([, x]) => x.hand !== '*').map(([i, x]) => [i, { layer: 0, hand: x.hand }])); }
+    if (l.t === 'boxes' && g.id === 'autoshift') return autoShiftKeys();
+    return (l.lights || g.lights)();
+  }
+  if (state.arrange === 'Groups in the strip') return GROUPS.find(x => x.id === state.group).lights();
+  return new Map();
+}
+function boardSvg() {
+  const keys = BOARD.keys, sends = BOARD.sends;
+  const bd = boundsOf(keys), avail = 1160 - 180 - 28 - 30;
+  const u = Math.min(42, Math.floor(avail / (bd.x1 - bd.x0 + 0.7))), m = u * 0.35;
+  const P = ([x, y]) => [(x - bd.x0) * u, (y - bd.y0) * u];
+  const lit = litKeys() || new Map();
+  const fs = Math.round(u * 0.3);
+  let s = `<svg class="board" xmlns="${NS}" width="${(bd.x1 - bd.x0) * u + 2 * m}" height="${(bd.y1 - bd.y0) * u + 2 * m}">`
+        + `<style>.plate{fill:var(--plate)}.k{fill:var(--key);stroke:var(--keyline)}.k.cur{fill:var(--lit);stroke:var(--litline);stroke-width:2}.k.L{fill:var(--lit);stroke:var(--litline);stroke-width:2}.k.R{fill:var(--boardface);stroke:var(--board);stroke-width:2}`
+        + `.t{font:${fs}px Arimo,Arial;fill:var(--text);text-anchor:middle;pointer-events:none}.t.h{font-size:${Math.round(u * 0.2)}px;fill:var(--muted)}.t.hb{font-size:${Math.round(u * 0.2)}px;fill:var(--behav)}.t.lay{font-size:${Math.round(u * 0.2)}px;fill:var(--litline);text-anchor:end}`
+        + `.ln{stroke:var(--link);stroke-width:2}.pill rect{fill:var(--accent);stroke:var(--accent)}.pill text{font:${Math.round(u * 0.24)}px Arimo,Arial;fill:var(--accent-text);text-anchor:middle}</style>`
+        + `<rect class="plate" width="100%" height="100%" rx="12"/><g transform="translate(${m} ${m})">`;
+  const gap = Math.max(1, u * 0.06);
+  let tags = '';
+  keys.forEach((k, idx) => {
+    const x0 = lit.get(idx), layer = x0 ? x0.layer : 0;
+    const cls = 'k' + (x0 ? (x0.hand === 'L' || x0.hand === 'R' ? ' ' + x0.hand : ' cur') : '');
+    const [ox, oy] = P([k.rx, k.ry]);
+    s += `<g${k.r ? ` transform="rotate(${k.r} ${ox} ${oy})"` : ''}>`;
+    const x = (k.x - bd.x0) * u + gap, y = (k.y - bd.y0) * u + gap, w = k.w * u - 2 * gap, hh = k.h * u - 2 * gap;
+    const tip = `<title>${sends[idx][0]}${sends[idx][1] ? ' · layer 1: ' + sends[idx][1] : ''}</title>`;
+    s += `<rect class="${cls}" x="${x}" y="${y}" width="${w}" height="${hh}" rx="${Math.max(2, u * 0.1)}">${tip}</rect>`;
+    if (k.w2 !== k.w || k.h2 !== k.h || k.x2 || k.y2)
+      s += `<rect class="${cls}" x="${(k.x + k.x2 - bd.x0) * u + gap}" y="${(k.y + k.y2 - bd.y0) * u + gap}" width="${k.w2 * u - 2 * gap}" height="${k.h2 * u - 2 * gap}" rx="${Math.max(2, u * 0.1)}">${tip}</rect>`;
+    const kc = sends[idx][layer] || sends[idx][0], kk = K[kc] || { m: '', h: '' };
+    if (kk.h) s += `<text class="t ${kk.cls === 'behav' || kk.cls === 'fw' || kk.cls === 'host' ? 'hb' : 'h'}" x="${x + w / 2}" y="${y + u * 0.26}">${kk.h.replace('&', '&amp;')}</text>`;
+    s += `<text class="t" x="${x + w / 2}" y="${y + hh / 2 + fs * 0.35 + (kk.h ? u * 0.08 : 0)}">${kk.m.replace('&', '&amp;').replace('<', '&lt;')}</text>`;
+    if (layer) s += `<text class="t lay" x="${x + w - u * 0.08}" y="${y + u * 0.24}">L${layer}</text>`;
+    if (x0 && x0.hand && x0.hand !== '*') s += `<text class="t lay" x="${x + w - u * 0.08}" y="${y + hh - u * 0.08}">${x0.hand}</text>`;
+    s += `</g>`;
+    if (x0 && x0.tag) {
+      const [cx, ky] = P(centreOf(k)), cy = ky + u * 0.55, text = x0.tag, pw = text.length * u * 0.14 + u * 0.3, ph = u * 0.36;
+      tags += `<g class="pill"><line class="ln" x1="${cx}" y1="${ky}" x2="${cx}" y2="${cy - ph / 2}"/><rect x="${cx - pw / 2}" y="${cy - ph / 2}" width="${pw}" height="${ph}" rx="${ph / 2}"/><text x="${cx}" y="${cy + u * 0.085}">${text.replace('<', '&lt;')}</text></g>`;
+    }
+  });
+  return s + tags + `</g></svg>`;
+}
+
+function stripHtml() {
+  return `<div class="strip">${groupsShown().map(g => {
+    const idle = analyse(g).some(x => /^No key on this board/.test(x.t)) || (g.id === 'autoshift' && !bit(3, 0).get(state.vals));
+    return `<button class="${g.id === state.group ? 'on' : ''}${idle ? ' idle' : ''}" data-group="${g.id}" title="${g.desc}${idle ? ' -- unused on this board' : ''}">${groupName(g)}${hasWarning(g) ? '<span class="bang">!</span>' : ''}${!atOnce() && groupChanged(g) ? '<span class="dot"></span>' : ''}</button>`;
+  }).join('')}</div>`;
+}
+
+function render() {
+  document.documentElement.dataset.theme = state.theme.toLowerCase();
+  renderControls();
+  buildBoard();
+  const scroll = document.querySelector('.page') ? document.querySelector('.page').scrollTop : 0;
+  const showBoard = state.board === 'Lights what a setting concerns';
+  document.getElementById('frame').innerHTML =
+    `<div class="menubar"><span class="board">${BOARD.b.name} ▾</span><span class="muted">Vial</span><span class="right">Settings</span></div>`
+  + `<div class="body"><div class="col"><div class="entry">Keymap</div><div class="entry">Layout</div><div class="entry">Macros</div><div class="entry">Tap Dance</div><div class="entry">Combos</div><div class="entry">Key Overrides</div><div class="entry on">QMK Settings</div></div>`
+  + `<div class="main">${state.arrange === 'Groups in the strip' ? stripHtml() : ''}${showBoard ? `<div class="boardarea" id="boardarea">${boardSvg()}</div>` : ''}<div class="panel">${panelHtml()}</div></div></div>`;
+  if (document.querySelector('.page')) document.querySelector('.page').scrollTop = scroll;
+}
+const redrawBoard = () => { const b = document.getElementById('boardarea'); if (b) b.innerHTML = boardSvg(); };
+
+function renderControls() {
+  const c = document.getElementById('controls');
+  c.innerHTML = '';
+  [['setup', 'Board', Object.keys(SETUPS)],
+   ['arrange', 'Groups', ['Groups in the strip', 'One page']],
+   ['board', 'The board', ['Lights what a setting concerns', 'Folded away']],
+   ['hold', 'Tap-hold decision', ['One choice of three', 'Two boxes, as QMK']],
+   ['names', 'Names', ['In words', "QMK's names"]],
+   ['write', 'Writing', ['Save / Revert', 'At once']],
+   ['theme', 'Theme', ['Light', 'Dark']]].forEach(([k, name, values]) => {
+    const g = document.createElement('div'); g.className = 'group';
+    g.innerHTML = `<span class="name">${name}</span>`;
+    values.forEach(v => {
+      const bt = document.createElement('button'); bt.textContent = v;
+      if (state[k] === v) bt.className = 'on';
+      bt.onclick = () => { const was = state.setup; state[k] = v; if (k === 'setup' && was !== v) reset(); state.msg = null; render(); };
+      g.appendChild(bt);
+    });
+    c.appendChild(g);
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Editing. At once, every change is "written" and read back; otherwise Save writes the changed.
+function changed() {
+  if (atOnce()) { state.saved = Object.assign({}, state.vals); state.msg = ['ok', 'Written, read back the same']; }
+  else state.msg = null;
+}
+const frame = document.getElementById('frame');
+frame.addEventListener('click', e => {
+  const t = e.target.closest('[data-group],[data-act],[data-fix]');
+  if (!t) return;
+  const d = t.dataset;
+  if (d.group !== undefined) { state.group = d.group; state.msg = null; }
+  else if (d.fix === 'perm') { permA().set(state.vals, false); changed(); }
+  else if (d.act === 'save') { state.saved = Object.assign({}, state.vals); state.msg = ['ok', 'Stored -- every changed setting, read back the same']; }
+  else if (d.act === 'revert') { state.vals = Object.assign({}, state.saved); state.msg = null; }
+  else if (d.act === 'reset') state.confirm = true;
+  else if (d.act === 'noreset') state.confirm = false;
+  else if (d.act === 'doreset') {
+    state.vals = Object.assign({}, setupOf().vals, { 21: 0, 22: 0, 23: 0, 26: 0, 27: 0, 25: 200, 8: 0 });
+    Object.keys(state.vals).forEach(q => { if (!qs(+q)) delete state.vals[q]; });
+    state.saved = Object.assign({}, state.vals); state.confirm = false; state.msg = ['ok', 'Reset, and read back: these are the firmware\'s defaults'];
+  }
+  render();
+});
+frame.addEventListener('change', e => {
+  const d = e.target.dataset, v = state.vals;
+  if (d.q !== undefined) {
+    let x = Math.max(0, Math.round(+e.target.value || 0));
+    if (+d.q === 9 || +d.q === 14) x = Math.round(x / 10) * 10;
+    v[+d.q] = x;
+  }
+  else if (d.acc !== undefined) { const [gi, li] = d.acc.split(':').map(Number); GROUPS[gi].lines[li].a.set(v, e.target.checked); }
+  else if (d.box !== undefined) { const [gi, li, k] = d.box.split(':').map(Number); GROUPS[gi].lines[li].items[k][1].set(v, e.target.checked); }
+  else if (d.magic !== undefined) bit(21, +d.magic).set(v, e.target.checked);
+  else if (d.hk !== undefined) (+d.hk ? hookpA() : permA()).set(v, e.target.checked);
+  else if (d.hold !== undefined) { const c = +e.target.value; permA().set(v, c === 1); hookpA().set(v, c === 2); }
+  changed(); render();
+});
+// Hovering a line lights what it concerns; the tooltip says what it is.
+const tip = document.getElementById('tip');
+frame.addEventListener('mouseover', e => {
+  const h = e.target.closest('[data-hover]'), t = e.target.closest('[data-tip]');
+  const key = h ? h.dataset.hover : null;
+  if (key !== state.hover) { state.hover = key; redrawBoard(); }
+  if (t && t.dataset.tip) { tip.innerHTML = t.dataset.tip; tip.style.display = 'block'; } else tip.style.display = 'none';
+});
+frame.addEventListener('mousemove', e => { tip.style.left = Math.min(e.clientX + 14, innerWidth - 360) + 'px'; tip.style.top = (e.clientY + 18) + 'px'; });
+frame.addEventListener('mouseleave', () => { state.hover = null; tip.style.display = 'none'; redrawBoard(); });
+
+document.getElementById('notes').innerHTML = `
+<p><b>What QMK Settings are.</b> Options QMK fixes when a firmware is built -- the tapping term, Auto Shift, one-shot
+keys, mouse key speeds -- that vial-qmk makes changeable on the board, each a numbered setting the firmware lists. Vial
+only; 260 of vial-qmk's 623 Vial keymaps turn them off. Vial shows seven tabs of boxes and spin boxes under QMK's names,
+with Save, Undo and Reset. The facts, from vial-qmk's qmk_settings.c and QMK's tapping code, are in ui-design.md.</p>
+<p><b>Groups</b>: <b>in the strip</b> -- the section's own row of choices, as slots in Combos -- one group in the panel,
+the board lighting the keys it concerns; or <b>one page</b>, every group in two columns, scrolling. A group the firmware
+lacks is not shown; a group no key uses is greyed in the strip and says so (Grave Escape and Mouse keys on the Model F).</p>
+<p><b>The board</b> lights what a group concerns: Tap-Hold the home-row mods, One Shot the one-shot Shift, Auto Shift the
+letters, numbers and symbols it shifts. Under the pointer, one line: <b>Chordal Hold</b> shows QMK's guess of each key's
+hand, L and R -- the firmware's own, from its build, may differ; <b>Keys swapped</b> tags each key with what it sends
+while the swap is on. Or the board is <b>folded away</b>, the room going to the panel.</p>
+<p><b>The tap-hold decision</b>: QMK's two boxes, Permissive Hold and Hold On Other Key Press, are three ways in truth --
+both on, Hold On Other Key Press decides first and Permissive Hold changes nothing. <b>One choice of three</b> says so by
+construction; <b>two boxes</b> keeps QMK's and warns. The Model F's firmware (as of 2023) stores Hold On Other Key Press
+turned round, as "Ignore Mod Tap Interrupt" -- off by default, so it holds at once; Nazg shows it the same way as today's.</p>
+<p><b>Names</b>: <b>in words</b>, QMK's name and what it does in the tooltip; or <b>QMK's names</b>, with what each does
+beside it. <b>Writing</b>: <b>Save / Revert</b>, a dot on each changed line and group, as the slot sections; or <b>at
+once</b>, each change written and read back, as Layout. A number is written when it is left or Enter pressed.
+<b>Reset all</b> asks first: the firmware's defaults cannot be read before, and Keys swapped resets too.</p>`;
+
+reset();
+render();
+</script>
+</body>
+</html>

@@ -55,6 +55,10 @@ exists, where, and how far it has been proven.
   - **Alt Repeat Key** -- the rule (Last key -> Alt Repeat sends, the arrow turning both ways),
     the modifiers that may be held too, left or right alike, after any other key, what is wrong
     said -- vial-qmk sends right-hand modifiers wrong -- Save / Revert. Read when the section opens.
+  - **QMK Settings** -- the groups in the strip, the board lighting what a group or a line
+    concerns (Chordal Hold: QMK's guess of each key's hand), QMK's names with what each does beside
+    it, the tap-hold decision as one choice of three, both firmware generations (qsid 8, or 22-27),
+    written at once, Reset all. Read when the section opens; the combo term shared with Combos.
   - **Matrix view** (Tools, with *Advanced tools* on) -- wiring and a live test.
   - Every other planned section is a `PlaceholderSection`.
   - Shared panel parts: `ui/NazgKeycodePicker.*`, `ui/NazgKeyLine.*` (Sent with and its popup),
@@ -73,7 +77,8 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
 | Official bundle, user library, choice (Phoenix) | Rotated keys on a real board (a forged definition only) |
 | Picker, board look, matrix wiring (Model F, Concordia) | Pre-renumbering keycodes (`Legacy`) |
 | Macros: save and read-back (Concordia), creation on a Leyden Jar board | A Vial board playing a macro; locked-board writes |
-| Tap Dance (Model F) | `QueryQmkSettings()`; lighting hover notes |
+| Tap Dance (Model F) | Lighting hover notes |
+| QMK settings listed and read at their widths (Model F, a probe) | QMK settings written or reset from the section |
 | | Combos and the combo term, read or written |
 | | Key overrides, read or written |
 | | Alt repeat keys -- no board at hand has them |
@@ -85,6 +90,7 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
 - A Vial board's keycode version comes from its **Vial** protocol (vial-qmk always reports VIA 9); a VIA board's from its VIA protocol
   (`adapters/via/NazgViaLoader.*`, keycodes.md).
 - Vial replies overwrite the buffer and echo unsupported commands: see via-vial-commands.md.
+  A QMK setting must be read at its own width -- past it the reply still holds the request.
 
 ## Open, deferred, under review
 
@@ -96,7 +102,7 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
   exit path must enable it again); library export / import (a web-build need).
 
 **Next**: the placeholder sections, each researched, mocked up with variants, chosen by Rico,
-then built -- QMK Settings, Lighting, Audio, custom menus.
+then built -- Lighting, Audio, custom menus.
 
 # Prior research — read before re-researching anything
 

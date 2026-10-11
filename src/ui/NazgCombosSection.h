@@ -95,10 +95,11 @@ namespace nazg
         std::vector<Combo> m_Combos;   // as edited
         std::vector<Combo> m_Stored;   // as the board holds them, after each write
 
-        // The combo term, ms, for every combo: none when the board's QMK Settings lack it -- its
-        // term is then the build's, which no client can read.
-        std::optional<uint16_t> m_Term;
-        std::optional<uint16_t> m_StoredTerm;
+        // The combo term, ms, for every combo, as edited and not written yet -- none: the board's,
+        // `Keyboard::comboTerm`, which QMK Settings writes too. The board's is none when its QMK
+        // Settings lack it: its term is then the build's, which no client can read.
+        std::optional<uint16_t> m_TermEdit;
+        [[nodiscard]] std::optional<uint16_t> Term() const;
 
         bool        m_IsLoaded = false;
         Task<void>  m_Request;
