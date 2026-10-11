@@ -27,8 +27,12 @@ exists, where, and how far it has been proven.
   round trip exact. A full Vial load is ~65 round trips, 890 ms on the Model F -- nothing above
   the transport may block the frame loop.
 - **VIA definition sourcing.** VIA's registry ships as a pinned bundle (`tools/update_via_bundle.py`,
-  read by `adapters/via/NazgViaBundle.*`: inflated once at start, ~40 ms, 28 MB kept). User
-  definitions live in a library (`library/`) in the data folder
+  read by `adapters/via/NazgViaBundle.*`: inflated once at start, ~40 ms, 28 MB kept). Community
+  definitions -- vendors' files for boards VIA lacks or has older, 708 from Rico's collection --
+  ship as a second bundle from the `nazg-community-definitions` repository, pinned by release
+  tag and SHA-256 (`tools/update_community_bundle.py`, `adapters/via/NazgCommunityBundle.*`).
+  Every bundled file passes `nazg-validate` (`src/cli/`), the checks of
+  `adapters/via/NazgDefinitionCheck.*`. User definitions live in a library (`library/`) in the data folder
   `SDL_GetPrefPath("mymakercorner", "Nazg")`, beside `imgui.ini`. Several candidates for a board:
   Nazg asks once and remembers the choice per device (via-registry.md).
 - **Workspace.** One window: a menu bar header (board menu, protocol, Vial lock, Settings), then
@@ -202,6 +206,13 @@ it downloads the pinned commit of `the-via/keyboards` once and caches it). It wr
 the executable, and the `via_bundle_contents` test parses every definition in it -- skipped
 when it is absent. The pin is `resources/via-keyboards.commit`; `--update` moves it to
 `master` and lists what changed, `--from-dir <clone>` works offline. Releases ship the bundle.
+
+**The community definitions are fetched, not committed**, the same way:
+`python tools/update_community_bundle.py` downloads the release of
+`mymakercorner/nazg-community-definitions` pinned in `resources/nazg-community-definitions.release` (tag and SHA-256) to
+`build_resources/community_definitions.tar.xz`; the build copies it, and
+`community_bundle_contents` checks it. `--update <tag>` moves the pin; `--from-file <path>` takes
+a bundle built locally by that repository's `tools/build_bundle.py`.
 
 Ninja and VS2026 were both evaluated on
 2026-09-21 and **deliberately deferred** — nothing in the project needs the v145 toolset, and

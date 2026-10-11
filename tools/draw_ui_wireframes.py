@@ -437,7 +437,7 @@ def screen_macros_locked():
 
 
 def screen_settings():
-    h = 312
+    h = 332
     s = Svg(W, h)
     frame(s, 0, 0, W, h)
     header(s, 0, 0, W, "Model F Labs B104", "Vial", "off")
@@ -447,17 +447,18 @@ def screen_settings():
     button(s, 90, 96, "French (AZERTY)  ▾")
     s.text(12, 142, "Definitions", 12, C["text"], weight=600)
     s.text(12, 162, "Official: 3513, from VIA", 12, C["muted"])
-    s.rect(12, 172, W - 24, 34, C["white"], C["hair"], rx=8)
-    s.text(24, 194, "0x21C0:0x9901", 12, C["muted"])
-    s.text(130, 194, "Phoenix ortho test", 13, C["text"])
-    button(s, W - 170, 178, "Re-import")
-    button(s, W - 82, 178, "Remove")
-    button(s, 12, 216, "Import a definition...")
+    s.text(12, 182, "Community: 708, from vendors", 12, C["muted"])
+    s.rect(12, 192, W - 24, 34, C["white"], C["hair"], rx=8)
+    s.text(24, 214, "0x21C0:0x9901", 12, C["muted"])
+    s.text(130, 214, "Phoenix ortho test", 13, C["text"])
+    button(s, W - 170, 198, "Re-import")
+    button(s, W - 82, 198, "Remove")
+    button(s, 12, 236, "Import a definition...")
     # Off by default: designer and debugging tools stay out of an ordinary user's way.
-    s.text(12, 266, "Advanced", 12, C["text"], weight=600)
-    s.rect(12, 277, 14, 14, C["white"], C["border"], rx=3)
-    s.text(34, 289, "Advanced tools", 12, C["text2"])
-    s.text(34 + tw("Advanced tools") + 12, 289,
+    s.text(12, 286, "Advanced", 12, C["text"], weight=600)
+    s.rect(12, 297, 14, 14, C["white"], C["border"], rx=3)
+    s.text(34, 309, "Advanced tools", 12, C["text2"])
+    s.text(34 + tw("Advanced tools") + 12, 309,
            "Adds a board menu submenu: the matrix view, Export definition.", 12, C["muted"])
     s.save("screen-settings.svg")
 

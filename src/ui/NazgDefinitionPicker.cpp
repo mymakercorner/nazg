@@ -11,8 +11,15 @@ namespace nazg
 {
     std::string DescribeDefinitionSource(const DefinitionCandidate& candidate)
     {
-        if (candidate.ref.kind == DefinitionRef::Kind::User)
-            return "user definition, imported from " + candidate.origin;
+        switch (candidate.ref.kind)
+        {
+        case DefinitionRef::Kind::User: return "user definition, imported from " + candidate.origin;
+        case DefinitionRef::Kind::Community:
+            // Unverified: taken from the publisher's file, nobody at Nazg owning the board.
+            return "community definition, published by " + candidate.origin +
+                   (candidate.status == "verified" ? "" : ", unverified");
+        case DefinitionRef::Kind::Official: break;
+        }
         return "official definition, from VIA";
     }
 

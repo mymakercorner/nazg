@@ -97,6 +97,10 @@ set(NAZG_CORE_SOURCES
   src/adapters/via/NazgViaBundle.cpp
   src/adapters/via/NazgViaCustomMenu.h
   src/adapters/via/NazgViaCustomMenu.cpp
+  src/adapters/via/NazgDefinitionCheck.h
+  src/adapters/via/NazgDefinitionCheck.cpp
+  src/adapters/via/NazgCommunityBundle.h
+  src/adapters/via/NazgCommunityBundle.cpp
   src/adapters/vial/NazgVialProtocol.h
   src/adapters/vial/NazgVialProtocol.cpp
   src/adapters/vial/NazgVialDefinition.h
@@ -260,6 +264,14 @@ add_custom_command(TARGET nazg POST_BUILD
             -P ${CMAKE_CURRENT_SOURCE_DIR}/tools/CopyIfPresent.cmake
     VERBATIM)
 
+# The community definitions, when tools/update_community_bundle.py has fetched them: the same,
+# their pin being resources/nazg-community-definitions.release.
+set(NAZG_COMMUNITY_BUNDLE ${CMAKE_CURRENT_SOURCE_DIR}/build_resources/community_definitions.tar.xz)
+add_custom_command(TARGET nazg POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -DSOURCE=${NAZG_COMMUNITY_BUNDLE} -DDESTINATION=$<TARGET_FILE_DIR:nazg>
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/tools/CopyIfPresent.cmake
+    VERBATIM)
+
 # The legend and icon fonts (resources/fonts/README.md), committed: copied into fonts/ beside the
 # executable after every build, where Main.cpp looks for them.
 set(NAZG_FONTS
@@ -350,7 +362,14 @@ if(NAZG_BUILD_TESTS)
     # built, so a fresh clone passes without Python or a network.
     nazg_add_test(via_bundle_contents tests/ViaBundleContentsTest.cpp ${NAZG_VIA_BUNDLE})
     set_tests_properties(via_bundle_contents PROPERTIES SKIP_RETURN_CODE 77)
+    nazg_add_test(community_bundle_contents tests/CommunityBundleContentsTest.cpp ${NAZG_COMMUNITY_BUNDLE})
+    set_tests_properties(community_bundle_contents PROPERTIES SKIP_RETURN_CODE 77)
 endif()
+
+# nazg-validate: VIA definitions through Nazg's checks, from the command line -- for the
+# community bundle's seed and CI, and for anyone writing a definition. No window, no board.
+add_executable(nazg-validate src/cli/ValidateDefinitions.cpp)
+target_link_libraries(nazg-validate PRIVATE nazg_core)
 
 # Make nazg the solution's startup project so F5 runs the app, not ALL_BUILD.
 # Must be set on the directory holding the top-level project().

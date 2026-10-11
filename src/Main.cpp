@@ -16,6 +16,7 @@
 #include "imgui_impl_sdlgpu3.h"
 
 #include "adapters/qmk/NazgQmkKeycodeCodec.h"
+#include "adapters/via/NazgCommunityBundle.h"
 #include "adapters/via/NazgKeyboardDefinition.h"
 #include "adapters/via/NazgViaBundle.h"
 #include "adapters/via/NazgViaKeymap.h"
@@ -682,42 +683,62 @@ namespace
         }
     }
 
-    // Official definitions, VIA's, beside the executable: 0.3 MB read and inflated once at
-    // start -- ~40 ms on a fast desktop -- and kept, 28 MB, so opening a board is a lookup
-    // (adapters/via/NazgViaBundle.h). Built by tools/update_via_bundle.py, copied there by the
-    // build, shipped with releases; a checkout that never ran the tool has none, and VIA
-    // boards then need a user definition.
-    constexpr char c_ViaBundleName[] = "via_definitions.tar.xz";
+    // The VIA definitions bundled with Nazg, beside the executable, each read and inflated once
+    // at start and kept, so opening a board is a lookup:
+    //  - the official ones, VIA's: 0.3 MB, ~40 ms on a fast desktop, 28 MB kept
+    //    (adapters/via/NazgViaBundle.h), built by tools/update_via_bundle.py;
+    //  - the community ones, vendors' files for boards VIA lacks or has older: 0.1 MB, 9 MB kept
+    //    (adapters/via/NazgCommunityBundle.h), fetched by tools/update_community_bundle.py.
+    // Copied there by the build, shipped with releases; a checkout that never ran the tools has
+    // none, and VIA boards then need a user definition.
+    constexpr char c_ViaBundleName[]       = "via_definitions.tar.xz";
+    constexpr char c_CommunityBundleName[] = "community_definitions.tar.xz";
 
     struct ViaBundle
     {
-        std::string                              path;
-        std::optional<nazg::ViaDefinitionBundle> definitions;   // empty when missing or corrupt
+        std::string                                    path;
+        std::optional<nazg::ViaDefinitionBundle>       definitions;   // empty when missing or corrupt
+        std::string                                    communityPath;
+        std::optional<nazg::CommunityDefinitionBundle> community;     // likewise
     };
+
+    // A bundle file's bytes, beside the executable; nullopt when it is not there.
+    std::optional<std::vector<uint8_t>> ReadBesideExecutable(const std::string& path)
+    {
+        std::ifstream stream(std::filesystem::path(reinterpret_cast<const char8_t*>(path.c_str())), std::ios::binary);
+        if (!stream)
+            return std::nullopt;
+        return std::vector<uint8_t>((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
+    }
 
     ViaBundle ReadViaBundle()
     {
         ViaBundle bundle;
 
-        const char* base = SDL_GetBasePath();   // owned by SDL, ends with a separator
-        bundle.path      = std::string(base != nullptr ? base : "") + c_ViaBundleName;
-
-        std::ifstream stream(std::filesystem::path(reinterpret_cast<const char8_t*>(bundle.path.c_str())),
-                             std::ios::binary);
-        if (!stream)
-            return bundle;
-
-        const std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
+        const char* base     = SDL_GetBasePath();   // owned by SDL, ends with a separator
+        bundle.path          = std::string(base != nullptr ? base : "") + c_ViaBundleName;
+        bundle.communityPath = std::string(base != nullptr ? base : "") + c_CommunityBundleName;
 
         // A bundle that does not inflate is as good as none.
-        try
-        {
-            bundle.definitions.emplace(bytes);
-        }
-        catch (const std::exception& failure)
-        {
-            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s: %s", bundle.path.c_str(), failure.what());
-        }
+        if (const auto bytes = ReadBesideExecutable(bundle.path))
+            try
+            {
+                bundle.definitions.emplace(*bytes);
+            }
+            catch (const std::exception& failure)
+            {
+                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s: %s", bundle.path.c_str(), failure.what());
+            }
+
+        if (const auto bytes = ReadBesideExecutable(bundle.communityPath))
+            try
+            {
+                bundle.community.emplace(*bytes);
+            }
+            catch (const std::exception& failure)
+            {
+                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s: %s", bundle.communityPath.c_str(), failure.what());
+            }
 
         return bundle;
     }
@@ -821,7 +842,7 @@ namespace
         bool                                     isVia = false;
         nazg::DeviceIdentity                     identity;
         std::vector<nazg::DefinitionCandidate>   candidates;   // ranked, as the picker shows them
-        std::optional<nazg::DefinitionCandidate> official;     // VIA's, kept to rebuild the list
+        std::vector<nazg::DefinitionCandidate>   bundled;      // VIA's and the community's, kept to rebuild the list
         std::optional<nazg::DefinitionRef>       inUse;        // the one drawing the board
 
         // A Vial board's lock, as it was when the board loaded -- Nazg cannot unlock yet, so
@@ -887,8 +908,7 @@ namespace
             return;
         }
 
-        if (state.official)
-            state.candidates.push_back(*state.official);
+        state.candidates.insert(state.candidates.end(), state.bundled.begin(), state.bundled.end());
         nazg::RankCandidates(state.candidates, state.identity.product);
     }
 
@@ -915,8 +935,8 @@ namespace
 
     // Open, load everything, close. A Vial board describes itself. A VIA board is drawn by
     // one of its candidates: the user definitions the caller read for its VID:PID -- passed
-    // by value, so the load does not depend on the library staying put -- and VIA's own, out
-    // of the bundle, which main() owns and so outlives this coroutine. `chosen` is the
+    // by value, so the load does not depend on the library staying put -- the community's and
+    // VIA's own, out of the bundles, which main() owns and so outlive this coroutine. `chosen` is the
     // remembered choice, if any; when it does not settle which candidate, the load stops
     // there and the picker asks.
     nazg::Task<void> LoadBoard(nazg::HidTransport&                    transport,
@@ -967,7 +987,7 @@ namespace
                 state.definitionSource = "from the board (Vial)";
                 state.isVia            = false;
                 state.candidates.clear();
-                state.official.reset();
+                state.bundled.clear();
                 state.inUse.reset();
             }
             else
@@ -987,14 +1007,35 @@ namespace
                             nazg::ParseDefinition(*bytes), {} };
                 }
 
+                // The community's: every definition for this VID:PID -- vendors' made-up ids
+                // collide. One that does not parse is left out; the bundle's CI should have
+                // refused it.
+                std::vector<nazg::DefinitionCandidate> bundled;
+                if (bundle.community)
+                    for (const nazg::CommunityDefinition* entry :
+                         bundle.community->Find(identity.vendorId, identity.productId))
+                        try
+                        {
+                            nazg::DefinitionCandidate candidate{ nazg::DefinitionRef::Community(entry->path),
+                                                                 nazg::ParseDefinition(*bundle.community->Bytes(entry->path)),
+                                                                 entry->publisher };
+                            candidate.status = entry->status;
+                            bundled.push_back(std::move(candidate));
+                        }
+                        catch (const std::exception& failure)
+                        {
+                            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s: %s", entry->path.c_str(), failure.what());
+                        }
                 if (official)
-                    candidates.push_back(*official);
+                    bundled.push_back(*official);
+
+                candidates.insert(candidates.end(), bundled.begin(), bundled.end());
                 nazg::RankCandidates(candidates, identity.product);
 
                 const std::optional<size_t> resolved = nazg::ResolveCandidate(candidates, chosen);
 
                 state.isVia      = true;
-                state.official   = std::move(official);
+                state.bundled    = std::move(bundled);
                 state.candidates = candidates;
 
                 if (!resolved)
@@ -1013,6 +1054,8 @@ namespace
                     state.exportable.clear();
                     if (use.ref.kind == nazg::DefinitionRef::Kind::Official && officialBytes)
                         state.exportable = std::move(*officialBytes);
+                    else if (use.ref.kind == nazg::DefinitionRef::Kind::Community && bundle.community)
+                        state.exportable = bundle.community->Bytes(use.ref.bundlePath).value_or(std::vector<uint8_t>());
                 }
             }
 
@@ -1703,6 +1746,15 @@ int main(int, char**)
                     const nazg::ViaBundleManifest& manifest = *viaBundle.definitions->Manifest();
                     view.official.count  = manifest.v2 + manifest.v3;
                     view.official.commit = manifest.commit;
+                }
+
+                view.community.found = viaBundle.community.has_value();
+                view.community.path  = viaBundle.communityPath;
+                if (viaBundle.community)
+                {
+                    view.community.count = static_cast<int>(viaBundle.community->Definitions().size());
+                    if (const auto& manifest = viaBundle.community->Manifest())
+                        view.community.release = manifest->release;
                 }
 
                 char line[128];

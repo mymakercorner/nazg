@@ -104,6 +104,24 @@ namespace nazg
             }
         }
 
+        void DrawCommunity(const CommunityDefinitionsInfo& community)
+        {
+            if (!community.found)
+                ColouredText(PanelColour::Warning, "Community: not found");
+            else
+                ImGui::Text("Community: %d, from vendors", community.count);
+
+            if (ImGui::IsItemHovered())
+            {
+                if (community.release.empty())
+                    ImGui::SetTooltip("%s", community.path.c_str());
+                else
+                    ImGui::SetTooltip("Definitions vendors publish for boards VIA lacks or has older.\n%s\n"
+                                      "nazg-community-definitions %s",
+                                      community.path.c_str(), community.release.c_str());
+            }
+        }
+
         void DrawUserDefinitions(const SettingsView& view, SettingsAction& action)
         {
             if (view.library == nullptr)
@@ -197,6 +215,7 @@ namespace nazg
 
         SeparatorHeader("Definitions");
         DrawOfficial(view.official);
+        DrawCommunity(view.community);
         DrawUserDefinitions(view, action);
 
         SeparatorHeader("Advanced");

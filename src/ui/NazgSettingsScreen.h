@@ -31,6 +31,15 @@ namespace nazg
         std::string commit;       // of the-via/keyboards, when known
     };
 
+    // The community's bundle, as far as the screen tells it.
+    struct CommunityDefinitionsInfo
+    {
+        bool        found = false;
+        int         count = 0;
+        std::string path;      // where it was looked for
+        std::string release;   // of nazg-community-definitions, when known
+    };
+
     // Everything the screen shows, gathered by the caller.
     struct SettingsView
     {
@@ -39,6 +48,7 @@ namespace nazg
         std::string                     libraryFolder;
         const std::vector<std::string>* libraryMessages = nullptr;   // what the last changes did
         OfficialDefinitionsInfo         official;
+        CommunityDefinitionsInfo        community;
         std::vector<std::string>        about;               // versions, GPU backend...
         const char*                     backLabel = "Back";
     };

@@ -10,8 +10,8 @@
 //
 //   1. a choice for the device -> its definition, if it is still a candidate;
 //   2. otherwise exactly one candidate -> that one;
-//   3. otherwise ask, candidates ranked: user definitions before the official one, and
-//      within each, a name matching the product string first.
+//   3. otherwise ask, candidates ranked: user definitions, then community ones, then the
+//      official one, and within each, a name matching the product string first.
 //
 // A choice is found in two steps: first one matching everything the device reports,
 // release number and serial included; then one matching the VID:PID and the manufacturer
@@ -48,28 +48,33 @@ namespace nazg
         bool operator==(const DeviceIdentity&) const = default;
     };
 
-    // A definition, wherever it comes from: a user definition by its entry number, or an
+    // A definition, wherever it comes from: a user definition by its entry number, an
     // official one by its path in VIA's bundle ("v3/3389265408") -- a path named after the
-    // VID:PID, so a newer bundle keeps it valid.
+    // VID:PID, so a newer bundle keeps it valid -- or a community one by its path in the
+    // community bundle ("boards/geonworks/sebas/Sebas_60_solder.json"), the path it has in
+    // the nazg-community-definitions repository.
     struct DefinitionRef
     {
         enum class Kind
         {
             User,
             Official,
+            Community,
         };
 
         Kind        kind   = Kind::User;
-        uint32_t    userId = 0;      // Kind::User
-        std::string officialPath;    // Kind::Official
+        uint32_t    userId = 0;    // Kind::User
+        std::string bundlePath;    // Kind::Official and Kind::Community
 
         static DefinitionRef User(uint32_t id) { return { Kind::User, id, {} }; }
         static DefinitionRef Official(std::string path) { return { Kind::Official, 0, std::move(path) }; }
+        static DefinitionRef Community(std::string path) { return { Kind::Community, 0, std::move(path) }; }
 
         bool operator==(const DefinitionRef&) const = default;
     };
 
-    // "user:7" or "official:v3/3389265408", as the library's index stores them.
+    // "user:7", "official:v3/3389265408" or "community:boards/...", as the library's index
+    // stores them.
     [[nodiscard]] std::string FormatDefinitionRef(const DefinitionRef& ref);
 
     // The inverse; nullopt for anything else.
@@ -96,13 +101,15 @@ namespace nazg
     {
         DefinitionRef      ref;
         KeyboardDefinition definition;
-        std::string        origin;   // a user definition's: where it was imported from
+        std::string        origin;   // a user definition's: where it was imported from; a community one's: its publisher
+        std::string        status;   // a community definition's: "unverified" -- from its publisher's file -- or "verified"
     };
 
-    // Puts candidates in the order a picker offers them: user definitions before the
-    // official one, as VIA overlays them; within each, those whose name matches the
-    // product string first -- lowercase, letters and digits only, either containing the
-    // other. Otherwise the order is kept.
+    // Puts candidates in the order a picker offers them: user definitions, then community
+    // ones, then the official one, as VIA overlays them (via-registry.md, "Collisions and
+    // invalid files"); within each, those whose name matches the product string first --
+    // lowercase, letters and digits only, either containing the other. Otherwise the order
+    // is kept.
     void RankCandidates(std::vector<DefinitionCandidate>& candidates, std::string_view product);
 
     // Which candidate draws the board without asking: the chosen one if it is among them,

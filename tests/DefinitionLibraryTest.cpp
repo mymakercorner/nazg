@@ -262,7 +262,7 @@ namespace
 
         std::ofstream(folder.path / "user_definitions" / "index.json", std::ios::binary)
             << R"({"format":1,"nextId":1,"definitions":[],"choices":[{"vendorId":"0x4D65","productId":"0x1200",)"
-               R"("manufacturer":"","product":"","release":"0x0001","serial":"","definition":"community:3"}]})";
+               R"("manufacturer":"","product":"","release":"0x0001","serial":"","definition":"plugin:3"}]})";
         Check(Throws<LibraryError>([&] { DefinitionLibrary damaged(folder.path); }),
               "a choice pointing at a kind of definition this Nazg does not know is refused, not dropped");
     }

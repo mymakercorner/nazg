@@ -10,8 +10,9 @@ namespace nazg
 {
     namespace
     {
-        constexpr std::string_view c_UserPrefix     = "user:";
-        constexpr std::string_view c_OfficialPrefix = "official:";
+        constexpr std::string_view c_UserPrefix      = "user:";
+        constexpr std::string_view c_OfficialPrefix  = "official:";
+        constexpr std::string_view c_CommunityPrefix = "community:";
 
         // Lowercase ASCII letters and digits only: "KBDfans D60-B" -> "kbdfansd60b".
         std::string Simplified(std::string_view text)
@@ -37,9 +38,13 @@ namespace nazg
 
     std::string FormatDefinitionRef(const DefinitionRef& ref)
     {
-        if (ref.kind == DefinitionRef::Kind::User)
-            return std::string(c_UserPrefix) + std::to_string(ref.userId);
-        return std::string(c_OfficialPrefix) + ref.officialPath;
+        switch (ref.kind)
+        {
+        case DefinitionRef::Kind::User:      return std::string(c_UserPrefix) + std::to_string(ref.userId);
+        case DefinitionRef::Kind::Official:  return std::string(c_OfficialPrefix) + ref.bundlePath;
+        case DefinitionRef::Kind::Community: return std::string(c_CommunityPrefix) + ref.bundlePath;
+        }
+        return {};
     }
 
     std::optional<DefinitionRef> ParseDefinitionRef(std::string_view text)
@@ -56,6 +61,9 @@ namespace nazg
 
         if (text.substr(0, c_OfficialPrefix.size()) == c_OfficialPrefix && text.size() > c_OfficialPrefix.size())
             return DefinitionRef::Official(std::string(text.substr(c_OfficialPrefix.size())));
+
+        if (text.substr(0, c_CommunityPrefix.size()) == c_CommunityPrefix && text.size() > c_CommunityPrefix.size())
+            return DefinitionRef::Community(std::string(text.substr(c_CommunityPrefix.size())));
 
         return std::nullopt;
     }
@@ -86,7 +94,9 @@ namespace nazg
 
         const auto rank = [&](const DefinitionCandidate& candidate)
         {
-            const int source = candidate.ref.kind == DefinitionRef::Kind::User ? 0 : 1;
+            const int source = candidate.ref.kind == DefinitionRef::Kind::User        ? 0
+                             : candidate.ref.kind == DefinitionRef::Kind::Community   ? 1
+                                                                                      : 2;
             const int name   = NameMatchesProduct(Simplified(candidate.definition.name), simpleProduct) ? 0 : 1;
             return source * 2 + name;
         };

@@ -53,7 +53,13 @@ namespace
         Check(nazg::ParseDefinitionRef("official:v3/3389265408") == DefinitionRef::Official("v3/3389265408"),
               "and so does an official path");
 
-        const char* bad[] = { "", "user:", "user:7x", "user:-1", "official:", "community:3", "7" };
+        const DefinitionRef sebas = DefinitionRef::Community("boards/geonworks/sebas/Sebas_60_solder.json");
+        Check(nazg::FormatDefinitionRef(sebas) == "community:boards/geonworks/sebas/Sebas_60_solder.json",
+              "a community one is community:<path in its bundle>");
+        Check(nazg::ParseDefinitionRef(nazg::FormatDefinitionRef(sebas)) == sebas, "and reads back");
+        Check(!(sebas == DefinitionRef::Official(sebas.bundlePath)), "never taken for an official one");
+
+        const char* bad[] = { "", "user:", "user:7x", "user:-1", "official:", "community:", "7" };
         bool        none  = true;
         for (const char* text : bad)
             none = none && !nazg::ParseDefinitionRef(text);
@@ -116,7 +122,9 @@ namespace
         std::printf("ranking the candidates\n");
 
         std::vector<DefinitionCandidate> candidates = { Candidate(DefinitionRef::Official("v3/1"), "D60B"),
+                                                        Candidate(DefinitionRef::Community("boards/a/b/c.json"), "Other"),
                                                         Candidate(DefinitionRef::User(3), "Instant 60"),
+                                                        Candidate(DefinitionRef::Community("boards/a/d/e.json"), "D60B"),
                                                         Candidate(DefinitionRef::User(4), "KBDfans D-60B"),
                                                         Candidate(DefinitionRef::User(5), "Something") };
 
@@ -124,7 +132,10 @@ namespace
         Check(candidates[0].ref == DefinitionRef::User(4), "a user definition whose name matches the product comes first");
         Check(candidates[1].ref == DefinitionRef::User(3) && candidates[2].ref == DefinitionRef::User(5),
               "then the other user definitions, in their order");
-        Check(candidates[3].ref.kind == DefinitionRef::Kind::Official,
+        Check(candidates[3].ref == DefinitionRef::Community("boards/a/d/e.json") &&
+                  candidates[4].ref == DefinitionRef::Community("boards/a/b/c.json"),
+              "then the community ones, a matching name first");
+        Check(candidates[5].ref.kind == DefinitionRef::Kind::Official,
               "and the official one last, even when its name matches");
 
         std::vector<DefinitionCandidate> unnamed = { Candidate(DefinitionRef::User(1), "A"),

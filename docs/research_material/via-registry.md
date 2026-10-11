@@ -586,7 +586,7 @@ keyboards on `0xFEED` VIA refuses, are what the levels below serve.
      is not in VIA's registry. Your vendor probably provides a `via.json` — import it."
      Most users do not know side-loading exists.
    - **URL import**, which waits on HTTPS in C++ like the bundle refresh.
-2. **A community repository** (say `mymakercorner/nazg-definitions`), **no QMK-master
+2. **A community repository** (say `mymakercorner/nazg-community-definitions`), **no QMK-master
    requirement**, anything that parses — boards VIA already serves included, since refusing
    them would take a manual check. Shipped as a second `.xz` bundle beside the official one,
    read by the same code; choices point at it as `community:...`. **Seeded by Rico first,
@@ -891,7 +891,8 @@ HTTP cache handles it. Web-only limits:
   — is a later option (Rico: as Fan Control does: check GitHub Releases, offer, replace,
   restart). It shares the HTTPS question with URL import, and adds one: signed releases.
 - **Agreed 2026-10-05 — the community repository is its own repository**
-  (`mymakercorner/nazg-definitions`): files with no stated licence stay out of Nazg's GPL
+  (`mymakercorner/nazg-community-definitions` -- named `nazg-definitions` until Rico renamed it,
+  2026-10-11): files with no stated licence stay out of Nazg's GPL
   tree. Layout `boards/<publisher>/<board>/`, files byte for byte plus a `provenance.json`
   (source page, URL, date, SHA-256, licence status, VID:PID, VIA comparison); boards filed
   under who publishes the file, the PCB's designer in the provenance.
@@ -908,6 +909,36 @@ HTTP cache handles it. Web-only limits:
   repository switches to a **snapshot** — `main` one regenerated commit, the working history
   private or not kept, `provenance.json` already recording each file's origin — so a removal
   is just the next snapshot.
+- **Agreed 2026-10-11 — the first community bundle, for the first test release.** Testers get
+  both bundles before anything new is built (Rico). The seed is the collection in the
+  workspace's `vendor_definitions/`, through the command-line validator:
+  - **Boards absent from VIA's registry, and boards whose vendor file differs from VIA's copy**
+    -- about 590 and 75. Files the same as VIA's stay out: a second candidate, and a "which
+    one?" on connect, for nothing.
+  - **One file per board**: a licensed copy first (Keychron's GPL-2.0 QMK fork), then the
+    maker's own site over a reseller's rehost, then the newest. The other copies stay in the
+    provenance, not in the bundle.
+  - **Vendors are told before a public release**, not before a test release to testers Rico
+    chooses; a removal request is honoured either way.
+
+  **Built 2026-10-11.** The validator is `nazg-validate` (`src/cli/ValidateDefinitions.cpp`),
+  over `CheckDefinition()` (`adapters/via/NazgDefinitionCheck.*`), which the official bundle's
+  test now uses too: size under 1 MiB, parses, a name and a VID:PID, every key inside the
+  matrix, every choice of every layout option placed, every menu control and condition one
+  Nazg reads. All 3513 of VIA's files pass; of the collection's 1081, two fail (a Keychron
+  K17 Max file in their GPL fork with a key outside its matrix, an mwstudio MW80 without a
+  name). The repository's `tools/seed_from_collection.py` takes 960 files absent or different,
+  groups them into boards -- one VID:PID with one wiring, `--json` giving each file's -- and
+  keeps **708 boards in 639 folders**, 252 other copies listed in their provenance under
+  `otherCopies`. Only 26 VID:PIDs keep several definitions -- hotswap and solder, ANSI and
+  ISO, and made-up ids: `0x320F:0x5055` names eleven boards of five vendors. Its
+  `tools/build_bundle.py` writes `community_definitions.tar.xz`, 118 KB: the files under their
+  repository paths, an `index.json` (path, name, VID:PID, publisher, licence, status) Nazg
+  looks boards up in without parsing them all, and a `manifest.json`. Nazg's
+  `tools/update_community_bundle.py` fetches it by tag and SHA-256
+  (`resources/nazg-community-definitions.release`); `CommunityDefinitionBundle` reads it; candidates
+  are `community:<path>`, ranked between user and official, and the picker says "community
+  definition, published by ..., unverified". The repository is local until Rico publishes it.
 - **Proposed by Rico — implementation starts with the official definitions**, before any
   community work: ~2000 boards with no user action, no new storage, and it builds what the
   rest reuses. Steps: the converted-form entry in the parser (dynamic `name` accepted), with
