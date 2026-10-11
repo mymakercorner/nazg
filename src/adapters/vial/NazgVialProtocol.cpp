@@ -307,7 +307,9 @@ namespace nazg
 
     Task<void> VialProtocol::ResetQmkSettings()
     {
-        co_await SendVial(VialCommand::QmkSettingsReset, {});
+        // vial-qmk leaves the buffer untouched: the reply is the request, as from a firmware without
+        // the command. Nothing tells them apart; the settings read back after say what happened.
+        co_await SendVial(VialCommand::QmkSettingsReset, {}, false);
     }
 
         Task<VialUnlockStatus> VialProtocol::GetUnlockStatus()

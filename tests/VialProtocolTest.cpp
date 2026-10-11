@@ -389,6 +389,25 @@ namespace
         Check(Run(vial.QueryQmkSettings(0)).empty(), "compiled out: a report of 0xFF, no ids");
     }
 
+    // vial-qmk resets without touching the buffer: the request echoed back is its normal answer --
+    // taken for "not supported" on the Model F, 2026-10-11, after the reset had happened.
+    void TestQmkSettingsReset()
+    {
+        std::printf("QMK settings reset\n");
+
+        FakeDeviceChannel channel;
+        VialProtocol      vial(channel);
+
+        std::vector<uint8_t> echo(nazg::c_ViaReportSize, 0x00);
+        echo[0] = 0xFE;
+        echo[1] = 0x0C;
+        channel.ReplyRaw(echo);
+
+        Check(!Throws([&] { Run(vial.ResetQmkSettings()); }), "an echoed reset is its normal answer");
+        Check(channel.RequestCount() == 1 && channel.RequestAt(0)[0] == 0xFE && channel.RequestAt(0)[1] == 0x0C,
+              "[0xFE][0x0C], nothing after");
+    }
+
     // Every setting, a report at a time: the Model F's 21 came as 16, then 5 (2026-10-11).
     void TestListQmkSettings()
     {
@@ -650,6 +669,7 @@ int main()
     TestAltRepeatKey();
     TestQmkSetting();
     TestQmkSettingsQuery();
+    TestQmkSettingsReset();
     TestListQmkSettings();
     TestUnlockStatus();
     TestUnlockCommands();
