@@ -1909,8 +1909,10 @@ audio key in its keymap):
   change it. A firmware without audio said in the panel; a VIA protocol before 11 leaves the
   section out of the column, as a custom menu the firmware is too old for.
 
-**Built 2026-10-11** (`ui/NazgAudioSection.*`, `adapters/via/NazgViaAudio.*`, test `audio`); no board
-at hand has a speaker, so it is unseen. The board lights only the keys of the two lines; Play a
+**Built 2026-10-11** (`ui/NazgAudioSection.*`, `adapters/via/NazgViaAudio.*`, test `audio`). Seen by
+Rico the same day on the Concordia Type C with its definition plus `qmk_audio`: the section appears,
+and its firmware, built without audio, is said. No board at hand has audio built in, so the lines,
+the writes and Play a sound are unseen. The board lights only the keys of the two lines; Play a
 sound narrows nothing.
 
 ## A board's own menus

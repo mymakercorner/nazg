@@ -95,7 +95,7 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
 | | Combos and the combo term, read or written |
 | | Key overrides, read or written |
 | | Alt repeat keys -- no board at hand has them |
-| | Audio and Play a sound -- no board at hand has a speaker |
+| Audio planned from a definition, and a firmware without audio said (Concordia, a test definition) | Audio and Clicky read or written, Play a sound -- no board at hand has audio built in |
 | A board's own menus: a few EC features (Concordia Type C); all 35909 registry controls parse (test) | |
 
 ## Traps already found
