@@ -1025,7 +1025,8 @@ Seen in the mockup, to settle:
   selection and highlight outlines, so a selected or highlighted command key keeps its whole
   outline. The mockup first drew it with the legends, over the outlines' top edge; fixed there.
 - **The ▽ is always bottom right** (Rico, 2026-10-03). At legend size it landed on the faint
-  AltGr of French 6, 7, 8; small and in the face's corner padding, it meets no glyph.
+  AltGr of French 6, 7, 8; small and in the face's corner padding, it meets no glyph. Since
+  2026-10-11 it sits on a badge that covers that corner instead (see "The marks on a badge").
 
 **Transparent keys** (Rico, 2026-10-03). `KC_TRNS` makes a layer partial: QMK looks for a key's
 keycode from the highest active layer down, and a transparent key says "keep looking"; `KC_NO`
@@ -1034,13 +1035,13 @@ the next *active* layer, so what a transparent key does depends on the board's s
 default layer it falls to nothing. VIA and Vial print ▽, ZMK Studio "Transprnt": *that* a key is
 transparent, not what it does. Nazg shows both:
 - **the keycode it falls through to, faint** -- command keys and tap-hold keys with their bands
-  and headers -- **with a small ▽** in the face's very corner, half strength, clear of every
-  legend (Rico: a mark, not a legend), drawn as the arrows are. The board stays whole
+  and headers -- **with a ▽ on a badge** in the face's bottom right corner (see "The marks on a
+  badge" below), drawn as the arrows are. The board stays whole
   on a partial layer, the layer's own keys stand out, and the ▽ tells "transparent, shows A"
   from "this layer says A", which differ when the base changes;
 - **resolved by walking down the layer numbers** to the first keycode -- exact while one layer
   is on at a time, the common case; hover says which layer it fell to;
-- **`KC_NO` shows the key it disables, faint, with a small ✕** in the ▽'s corner (Rico,
+- **`KC_NO` shows the key it disables, faint, with a ✕** on the ▽'s badge (Rico,
   2026-10-03): working on a layer, one must see *what* one is disabling, and an empty key hid
   it. The marks are a pair -- ▽ "shows the key below", ✕ "disables the key below". Hover says
   which. First drawn empty and dimmed, dropped: dimmed is already a state (the matrix view, the
@@ -1049,6 +1050,28 @@ transparent, not what it does. Nazg shows both:
   it ran through the legends, and its angle changed with the key's shape -- steep on 1u, flat
   on the space bar. A transparent key on the default layer falls to nothing: drawn as `KC_NO`
   with nothing below.
+
+**The marks on a badge** (Rico, 2026-10-11, chosen in board-look.html's Marks control, then
+built). The ▽ and ✕ were first drawn alone in the face's very corner, small and at half strength,
+clear of every legend (Rico, 2026-10-03: a mark, not a legend). Seen in the app they were **hard to
+see**, and the **✕ read as a legend**: US International's `=+` prints its AltGr ×, bottom right, at a
+similar size (Rico, 2026-10-04). × is printed at 17 positions across Nazg's 69 host layouts, Ø at
+16; ▽ at none. Now each mark sits on a **rounded square, solid, inside the face's bottom right
+corner** -- 0.24 u, 0.035 u from the corner -- in the face's colour mixed 62% towards the legend's,
+with the ▽ or ✕ drawn in the face's colour. It **covers whatever legend is in that corner**: the key
+is faint anyway and hover names it. A cross on a filled square reads as a mark, not as a printed ×,
+and a transparent or disabled key now shows from across the board. The picker's `KC_TRNS` and
+`KC_NO` tiles carry the same badge. Compared in the mockup and dropped:
+- **the marks larger and at full strength**, `KC_NO`'s as ⊘ -- they ran into the bottom right
+  legends (Þ, Ø, ×, ¥);
+- **a corner tab**, the face's corner folded -- outlined for transparent, filled for `KC_NO`: no
+  glyph, but the two hard to tell apart and too quiet (Rico: a good idea, to be improved -- the badge
+  is that improvement);
+- **a badge overhanging the key's corner** into the gaps, a circle or a square: it left the key's own
+  corner legend half visible, and where four keys meet it could belong to any of them;
+- **hollow and hatched faces** -- a transparent key a hole with a dashed outline, a `KC_NO` key
+  hatched -- and **▽ with hatching** for `KC_NO` only: clear from afar, but they changed the board's
+  look the most.
 
 **The other direction: peek** (Rico, 2026-10-03; replaced 2026-10-04, below). From a lower layer, what the layers
 above put on each key -- what laptop Fn legends, side-printed caps and Biip's Operator set show.
@@ -2306,13 +2329,6 @@ look is built** (Rico, 2026-10-03): they are judged on the real thing, not on a 
   - **Deferred** (Rico, 2026-09-26): too soon. It becomes necessary the day the Refresh
     button is removed, so it is built then. Until then an unplugged board is noticed by a
     failed request and the list needs Refresh.
-- **The ▽ and ✕ marks are hard to see** (Rico, 2026-10-04, in the app): small, in the corner, at
-  half strength. Accepted for now; a better way to show transparent and disabled keys is to be
-  found later. The strike through a KC_NO key, which made it visible from afar, was dropped the
-  same day (see "Transparent keys"). **And the ✕ can be mistaken for a legend** (Rico, 2026-10-04):
-  on US ANSI International the `=+` key prints its AltGr character, ×, bottom right -- the mark's
-  corner, at a similar size. The better way must not look like any character a host layout prints
-  there.
 - **Dragging the window jitters on a 60 Hz display** (Rico, 2026-10-06, on Windows; smooth at
   144 Hz, and Visual Studio or the Claude app stay smooth on the same screen). Found by bisecting:
   - **Not Nazg's code.** A bare SDL3 window with an SDL_GPU swapchain, presenting every frame,

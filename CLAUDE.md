@@ -35,9 +35,10 @@ exists, where, and how far it has been proven.
   the keyboard list, the open board or Settings. Screens report clicks; `Main.cpp` acts. *Advanced tools*, off by default,
   shows designer and debugging tools only. The board
   screen is a section column, a strip, the board and a panel (`ui/NazgWorkspace.*`).
-- **Board look** (ui-design.md, "How the board's look is built"): steps 1-4 and part of 5 --
+- **Board look** (ui-design.md, "How the board's look is built"): all five steps --
   key shapes, themes, Arimo legends for 69 host layouts, command keys with category headers and
-  bands, colours from `ui/NazgPalette.*`, fallthrough marks ▽ ✕. `legend_font` and `palette`
+  bands, colours from `ui/NazgPalette.*`, transparent and `KC_NO` keys faint with ▽ / ✕ on a
+  corner badge, peek, the lighting policy. `legend_font` and `palette`
   tests check every keycode and theme.
 - **Sections** (`ui/NazgSection.h`; the column planned by `PlanSections()`):
   - **Keymap** -- edit one key, written and read back; the keycode picker (tabs, search, 1u
@@ -114,7 +115,7 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
 
 - **Under review**: the user library's one-version backup ("Restore previous") -- Rico weighs its
   value against its complexity. "Export definition..." is for debugging only.
-- **Not done**: noticing an unplugged board (hotplug); the rest of step 5 of the board look.
+- **Not done**: noticing an unplugged board (hotplug).
 - **Deferred**: the Leyden Jar diagnostics (far later -- already decided: the device stays open
   while a view polls, and key output is disabled while they show, RAM only, so every close and
   exit path must enable it again); library export / import (a web-build need).

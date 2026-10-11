@@ -34,10 +34,14 @@ namespace nazg
         constexpr float c_PlateMargin   = 0.35f;   // the plate past the keys, on every side
         constexpr float c_PlateRounding = 0.25f;
 
-        // A transparent or KC_NO key: the keycode below, faint, and its mark in the face's corner
-        // at half strength -- a mark, not a legend (ui-design.md, "Transparent keys").
+        // A transparent or KC_NO key: the keycode below, faint, and its mark on a badge in the
+        // face's corner (ui-design.md, "Transparent keys").
         constexpr float c_FaintStrength = 0.28f;
-        constexpr float c_MarkStrength  = 0.55f;
+        // The badge of a transparent or KC_NO key: its side and its distance from the face's
+        // corner, in key units, and how much of the legend colour is mixed into the face for it.
+        constexpr float c_BadgeSize     = 0.24f;
+        constexpr float c_BadgeInset    = 0.035f;
+        constexpr float c_BadgeStrength = 0.62f;
 
         // A key's rotation: a turn by its angle about its origin -- clockwise on screen,
         // since y grows downward. In key units for the board's extent, in pixels for
@@ -295,41 +299,54 @@ namespace nazg
             }
         }
 
-        // A transparent key's ▽, or a KC_NO key's ✕. Drawn, as the arrows are. The marks are a
-        // pair, the same size in the same place: always the face's very corner, bottom right, clear
-        // of every legend (Rico, 2026-10-03). No line across a KC_NO key: it ran through the
-        // legends, at an angle that changed with the key's shape (Rico, 2026-10-04).
-        void DrawFallthroughMark(ImDrawList* drawList, Fallthrough fallthrough, KeyFill fill, ImVec2 p1, float unit,
-                                 bool dimmed)
+        // A transparent key's ▽, or a KC_NO key's ✕, on a badge: a rounded square in the face's
+        // bottom right corner, solid, covering whatever legend is there -- faint anyway, and hover
+        // names the key -- with the mark drawn in the face's colour (Rico, 2026-10-11). Before, the
+        // marks stood alone, small and at half strength: hard to see, and the ✕ read as the × some
+        // host layouts print in that corner; on a filled square it reads as a mark. No line across
+        // a KC_NO key: it ran through the legends, at an angle that changed with the key's shape
+        // (Rico, 2026-10-04).
+        void DrawFallthroughMark(ImDrawList* drawList, Fallthrough fallthrough, KeyFill fill, float heat, ImVec2 p1,
+                                 float unit, bool dimmed)
         {
             if (fallthrough == Fallthrough::None)
                 return;
 
-            const float scale  = ImGui::GetStyle().FontScaleDpi;
-            const float corner = 0.035f * unit + 0.3f * c_KeyRounding * unit;
-            const float size   = std::max(5.0f * scale, 0.075f * unit);
+            const float scale = ImGui::GetStyle().FontScaleDpi;
+            const float size  = std::max(11.0f * scale, c_BadgeSize * unit);
+            const float inset = c_BadgeInset * unit;
 
-            ImU32 ink = BoardColours::Legend(LegendInk::Legend, fill);
+            const BoardColours::Keycap keycap = BoardColours::Fill(fill, heat);
+            ImU32 badge = Over(keycap.face, Faded(BoardColours::Legend(LegendInk::Legend, fill), c_BadgeStrength));
+            ImU32 mark  = keycap.face;
             if (dimmed)
-                ink = Over(ink, BoardColours::Dimmed());
-            const ImU32 mark = Faded(ink, c_MarkStrength);
+            {
+                badge = Over(badge, BoardColours::Dimmed());
+                mark  = Over(mark, BoardColours::Dimmed());
+            }
 
+            const ImVec2 max(p1.x - inset, p1.y - inset);
+            const ImVec2 min(max.x - size, max.y - size);
+            drawList->AddRectFilled(min, max, badge, 0.25f * size);
+
+            const ImVec2 centre((min.x + max.x) / 2, (min.y + max.y) / 2);
+            const float  glyph  = 0.46f * size;
+            const float  stroke = std::max(1.2f * scale, 0.08f * size);
             if (fallthrough == Fallthrough::Transparent)
             {
-                const float  height = size * 0.87f;
-                const ImVec2 right(p1.x - corner, p1.y - corner - height);
-                const ImVec2 left(right.x - size, right.y);
-                drawList->AddTriangle(left, right, ImVec2((left.x + right.x) / 2, right.y + height), mark,
-                                      std::max(scale, size * 0.14f));
+                const float  height = glyph * 0.87f;
+                const float  top    = centre.y - height / 2 + glyph * 0.02f;
+                const ImVec2 left(centre.x - glyph / 2, top);
+                const ImVec2 right(centre.x + glyph / 2, top);
+                drawList->AddTriangle(left, right, ImVec2(centre.x, top + height), mark, stroke);
                 return;
             }
 
-            const float  cross = size * 0.85f;
-            const ImVec2 bottomRight(p1.x - corner, p1.y - corner);
-            const ImVec2 topLeft(bottomRight.x - cross, bottomRight.y - cross);
-            const float  stroke = std::max(scale, cross * 0.16f);
-            drawList->AddLine(topLeft, bottomRight, mark, stroke);
-            drawList->AddLine(ImVec2(bottomRight.x, topLeft.y), ImVec2(topLeft.x, bottomRight.y), mark, stroke);
+            const float half = glyph * 0.42f;
+            drawList->AddLine(ImVec2(centre.x - half, centre.y - half), ImVec2(centre.x + half, centre.y + half), mark,
+                              stroke);
+            drawList->AddLine(ImVec2(centre.x + half, centre.y - half), ImVec2(centre.x - half, centre.y + half), mark,
+                              stroke);
         }
 
         // A key is drawn in passes, each over every key before the next: the lips first, so an
@@ -381,7 +398,7 @@ namespace nazg
             if (pass == KeyPass::Legends)
             {
                 DrawLegends(drawList, described, p0, p1, unit, isDimmed);
-                DrawFallthroughMark(drawList, described.fallthrough, described.fill, p1, unit, isDimmed);
+                DrawFallthroughMark(drawList, described.fallthrough, described.fill, described.heat, p1, unit, isDimmed);
             }
             else if (pass == KeyPass::Lip)
             {
@@ -729,7 +746,7 @@ namespace nazg
                                         ImVec2(shape.baseBX, shape.baseBY), colour);
         }
 
-        DrawFallthroughMark(drawList, tile.mark, tile.fill, p1, c_SmallestUnit * scale, false);
+        DrawFallthroughMark(drawList, tile.mark, tile.fill, 0.0f, p1, c_SmallestUnit * scale, false);
 
         if (tile.selected)
         {

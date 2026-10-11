@@ -260,6 +260,15 @@ const FEATURES = {
   // KC_NO: the search stops here and the key does nothing -- an empty, dimmed key, unlike a
   // transparent one.
   KC_T: { none: true, qmk: 'KC_NO', full: 'Does nothing on this layer' },
+  // More KC_NO keys, for the marks (2026-10-11): =+ with US International's × bottom right, '"
+  // and O with Danish and German Mac Ø, a tap-hold (Caps), a modifier (the games' disabled
+  // Win key) and a 2u key.
+  KC_EQL: { none: true, qmk: 'KC_NO', full: 'Does nothing on this layer' },
+  KC_QUOT: { none: true, qmk: 'KC_NO', full: 'Does nothing on this layer' },
+  KC_O: { none: true, qmk: 'KC_NO', full: 'Does nothing on this layer' },
+  CAPS: { none: true, qmk: 'KC_NO', full: 'Does nothing on this layer' },
+  LGUI: { none: true, qmk: 'KC_NO', full: 'Does nothing on this layer' },
+  BSPC: { none: true, qmk: 'KC_NO', full: 'Does nothing on this layer' },
   KC_LBRC: C('fw', 'Firmware', 'Clear EE', 'EE_CLR', 'Clear EEPROM'),
   RALT: C('beh', 'Hold', 'L2', 'MO(2)', 'Layer 2 while held'),
 };
@@ -366,6 +375,9 @@ const FOURTH_LEVEL = { 'Bépo': true };
 // Unicode's charts and OS keyboard viewers show it -- Bépo's horn, dot below and hook above.
 const standalone = t => /^[\u0300-\u036f]/.test(t) ? '\u25cc' + t : t;
 const HOSTS = {"US":{"KC_0":["0",")",""],"KC_1":["1","!",""],"KC_2":["2","@",""],"KC_3":["3","#",""],"KC_4":["4","$",""],"KC_5":["5","%",""],"KC_6":["6","^",""],"KC_7":["7","&",""],"KC_8":["8","*",""],"KC_9":["9","(",""],"KC_BSLS":["\\","|",""],"KC_COMM":[",","<",""],"KC_DOT":[".",">",""],"KC_EQL":["=","+",""],"KC_GRV":["`","~",""],"KC_LBRC":["[","{",""],"KC_MINS":["-","_",""],"KC_NUBS":["\\","|",""],"KC_NUHS":["\\","|",""],"KC_QUOT":["'","\"",""],"KC_RBRC":["]","}",""],"KC_SCLN":[";",":",""],"KC_SLSH":["/","?",""]},"UK":{"KC_0":["0",")",""],"KC_1":["1","!",""],"KC_2":["2","\"",""],"KC_3":["3","£",""],"KC_4":["4","$","€"],"KC_5":["5","%",""],"KC_6":["6","^",""],"KC_7":["7","&",""],"KC_8":["8","*",""],"KC_9":["9","(",""],"KC_A":["A","","Á"],"KC_B":["B","",""],"KC_BSLS":["#","~",""],"KC_C":["C","",""],"KC_COMM":[",","<",""],"KC_D":["D","",""],"KC_DOT":[".",">",""],"KC_E":["E","","É"],"KC_EQL":["=","+",""],"KC_F":["F","",""],"KC_G":["G","",""],"KC_GRV":["`","¬","¦"],"KC_H":["H","",""],"KC_I":["I","","Í"],"KC_J":["J","",""],"KC_K":["K","",""],"KC_L":["L","",""],"KC_LBRC":["[","{",""],"KC_M":["M","",""],"KC_MINS":["-","_",""],"KC_N":["N","",""],"KC_NUBS":["\\","|",""],"KC_NUHS":["#","~",""],"KC_O":["O","","Ó"],"KC_P":["P","",""],"KC_Q":["Q","",""],"KC_QUOT":["'","@",""],"KC_R":["R","",""],"KC_RBRC":["]","}",""],"KC_S":["S","",""],"KC_SCLN":[";",":",""],"KC_SLSH":["/","?",""],"KC_T":["T","",""],"KC_U":["U","","Ú"],"KC_V":["V","",""],"KC_W":["W","",""],"KC_X":["X","",""],"KC_Y":["Y","",""],"KC_Z":["Z","",""]},"French":{"KC_0":["à","0","@"],"KC_1":["&","1",""],"KC_2":["é","2","~"],"KC_3":["\"","3","#"],"KC_4":["'","4","{"],"KC_5":["(","5","["],"KC_6":["-","6","|"],"KC_7":["è","7","`"],"KC_8":["_","8","\\"],"KC_9":["ç","9",""],"KC_A":["Q","",""],"KC_B":["B","",""],"KC_BSLS":["*","µ",""],"KC_C":["C","",""],"KC_COMM":[";",".",""],"KC_D":["D","",""],"KC_DOT":[":","/",""],"KC_E":["E","","€"],"KC_EQL":["=","+","}"],"KC_F":["F","",""],"KC_G":["G","",""],"KC_GRV":["²","",""],"KC_H":["H","",""],"KC_I":["I","",""],"KC_J":["J","",""],"KC_K":["K","",""],"KC_L":["L","",""],"KC_LBRC":["^","¨",""],"KC_M":[",","?",""],"KC_MINS":[")","°","]"],"KC_N":["N","",""],"KC_NUBS":["<",">",""],"KC_NUHS":["*","µ",""],"KC_O":["O","",""],"KC_P":["P","",""],"KC_Q":["A","",""],"KC_QUOT":["ù","%",""],"KC_R":["R","",""],"KC_RBRC":["$","£","¤"],"KC_S":["S","",""],"KC_SCLN":["M","",""],"KC_SLSH":["!","§",""],"KC_T":["T","",""],"KC_U":["U","",""],"KC_V":["V","",""],"KC_W":["Z","",""],"KC_X":["X","",""],"KC_Y":["Y","",""],"KC_Z":["W","",""]},"German":{"KC_0":["0","=","}"],"KC_1":["1","!",""],"KC_2":["2","\"","²"],"KC_3":["3","§","³"],"KC_4":["4","$",""],"KC_5":["5","%",""],"KC_6":["6","&",""],"KC_7":["7","/","{"],"KC_8":["8","(","["],"KC_9":["9",")","]"],"KC_A":["A","",""],"KC_B":["B","",""],"KC_BSLS":["#","'",""],"KC_C":["C","",""],"KC_COMM":[",",";",""],"KC_D":["D","",""],"KC_DOT":[".",":",""],"KC_E":["E","","€"],"KC_EQL":["´","`",""],"KC_F":["F","",""],"KC_G":["G","",""],"KC_GRV":["^","°",""],"KC_H":["H","",""],"KC_I":["I","",""],"KC_J":["J","",""],"KC_K":["K","",""],"KC_L":["L","",""],"KC_LBRC":["Ü","",""],"KC_M":["M","","µ"],"KC_MINS":["ß","?","\\"],"KC_N":["N","",""],"KC_NUBS":["<",">","|"],"KC_NUHS":["#","'",""],"KC_O":["O","",""],"KC_P":["P","",""],"KC_Q":["Q","","@"],"KC_QUOT":["Ä","",""],"KC_R":["R","",""],"KC_RBRC":["+","*","~"],"KC_S":["S","",""],"KC_SCLN":["Ö","",""],"KC_SLSH":["-","_",""],"KC_T":["T","",""],"KC_U":["U","",""],"KC_V":["V","",""],"KC_W":["W","",""],"KC_X":["X","",""],"KC_Y":["Z","",""],"KC_Z":["Y","",""]},"Greek":{"KC_0":["0",")","°"],"KC_1":["1","!",""],"KC_2":["2","@","²"],"KC_3":["3","#","³"],"KC_4":["4","$","£"],"KC_5":["5","%","§"],"KC_6":["6","^","¶"],"KC_7":["7","&",""],"KC_8":["8","*","¤"],"KC_9":["9","(","¦"],"KC_A":["Α","",""],"KC_B":["Β","",""],"KC_BSLS":["\\","|","¬"],"KC_C":["Ψ","","©"],"KC_COMM":[",","<",""],"KC_D":["Δ","",""],"KC_DOT":[".",">",""],"KC_E":["Ε","","€"],"KC_EQL":["=","+","½"],"KC_F":["Φ","",""],"KC_G":["Γ","",""],"KC_GRV":["`","~",""],"KC_H":["Η","",""],"KC_I":["Ι","",""],"KC_J":["Ξ","",""],"KC_K":["Κ","",""],"KC_L":["Λ","",""],"KC_LBRC":["[","{","«"],"KC_M":["Μ","",""],"KC_MINS":["-","_","±"],"KC_N":["Ν","",""],"KC_NUBS":["\\","|",""],"KC_NUHS":["\\","|","¬"],"KC_O":["Ο","",""],"KC_P":["Π","",""],"KC_Q":[";",":",""],"KC_QUOT":["'","\"",""],"KC_R":["Ρ","","®"],"KC_RBRC":["]","}","»"],"KC_S":["Σ","",""],"KC_SCLN":["΄","¨",""],"KC_SLSH":["/","?",""],"KC_T":["Τ","",""],"KC_U":["Θ","",""],"KC_V":["Ω","",""],"KC_W":["ς","΅",""],"KC_X":["Χ","",""],"KC_Y":["Υ","","¥"],"KC_Z":["Ζ","",""]},"Russian":{"KC_0":["0",")",""],"KC_1":["1","!",""],"KC_2":["2","\"",""],"KC_3":["3","№",""],"KC_4":["4",";",""],"KC_5":["5","%",""],"KC_6":["6",":",""],"KC_7":["7","?",""],"KC_8":["8","*","₽"],"KC_9":["9","(",""],"KC_A":["Ф","",""],"KC_B":["И","",""],"KC_BSLS":["\\","/",""],"KC_C":["С","",""],"KC_COMM":["Б","",""],"KC_D":["В","",""],"KC_DOT":["Ю","",""],"KC_E":["У","",""],"KC_EQL":["=","+",""],"KC_F":["А","",""],"KC_G":["П","",""],"KC_GRV":["Ё","",""],"KC_H":["Р","",""],"KC_I":["Ш","",""],"KC_J":["О","",""],"KC_K":["Л","",""],"KC_L":["Д","",""],"KC_LBRC":["Х","",""],"KC_M":["Ь","",""],"KC_MINS":["-","_",""],"KC_N":["Т","",""],"KC_NUBS":["\\","/",""],"KC_NUHS":["\\","/",""],"KC_O":["Щ","",""],"KC_P":["З","",""],"KC_Q":["Й","",""],"KC_QUOT":["Э","",""],"KC_R":["К","",""],"KC_RBRC":["Ъ","",""],"KC_S":["Ы","",""],"KC_SCLN":["Ж","",""],"KC_SLSH":[".",",",""],"KC_T":["Е","",""],"KC_U":["Г","",""],"KC_V":["М","",""],"KC_W":["Ц","",""],"KC_X":["Ч","",""],"KC_Y":["Н","",""],"KC_Z":["Я","",""]},"Bépo":{"KC_0":["*","0","×","¾"],"KC_1":["\"","1","—","„"],"KC_2":["«","2","<","“"],"KC_3":["»","3",">","”"],"KC_4":["(","4","[","≤"],"KC_5":[")","5","]","≥"],"KC_6":["@","6","^",""],"KC_7":["+","7","±","¬"],"KC_8":["-","8","−","¼"],"KC_9":["/","9","÷","½"],"KC_A":["A","","Æ",""],"KC_B":["K","","~","⌨"],"KC_BSLS":["Ç","","¸",","],"KC_C":["X","","}","’"],"KC_COMM":["G","","µ",""],"KC_D":["I","","¨","˙"],"KC_DOT":["H","","†","‡"],"KC_E":["P","","&","§"],"KC_EQL":["%","`","‰","″"],"KC_F":["E","","€","¤"],"KC_G":[",",";","","̛"],"KC_GRV":["$","#","–","¶"],"KC_H":["C","","©","ſ"],"KC_I":["D","","Ð",""],"KC_J":["T","","Þ",""],"KC_K":["S","","ẞ",""],"KC_L":["R","","®","™"],"KC_LBRC":["Z","","Ə",""],"KC_M":["Q","","°","̣"],"KC_MINS":["=","°","≠","′"],"KC_N":["'","?","","̉"],"KC_NUBS":["Ê","","",""],"KC_NUHS":["Ç","","¸",","],"KC_O":["L","","/",""],"KC_P":["J","","Ĳ",""],"KC_Q":["B","","|","¦"],"KC_QUOT":["M","","¯","º"],"KC_R":["O","","Œ",""],"KC_RBRC":["W","","˘",""],"KC_S":["U","","Ù",""],"KC_SCLN":["N","","~",""],"KC_SLSH":["F","","˛","ª"],"KC_T":["È","","`",""],"KC_U":["V","","ˇ",""],"KC_V":[".",":","…","·"],"KC_W":["É","","´","˝"],"KC_X":["Y","","{","‘"],"KC_Y":["^","!","¡",""],"KC_Z":["À","","\\",""]}};
+// Three more, for the fallthrough marks (2026-10-11): US International prints × bottom right on =+,
+// Danish Ø on '", German Mac Ø bottom right on O -- characters a mark there could be taken for.
+Object.assign(HOSTS, {"US International":{"KC_0":["0",")","’"],"KC_1":["1","!","¡"],"KC_2":["2","@","²"],"KC_3":["3","#","³"],"KC_4":["4","$","¤"],"KC_5":["5","%","€"],"KC_6":["6","^","¼"],"KC_7":["7","&","½"],"KC_8":["8","*","¾"],"KC_9":["9","(","‘"],"KC_A":["A","","Á"],"KC_B":["B","",""],"KC_BSLS":["\\","|","¬"],"KC_C":["C","","©"],"KC_COMM":[",","<","Ç"],"KC_D":["D","","Ð"],"KC_DOT":[".",">",""],"KC_E":["E","","É"],"KC_EQL":["=","+","×"],"KC_F":["F","",""],"KC_G":["G","",""],"KC_GRV":["`","~",""],"KC_H":["H","",""],"KC_I":["I","","Í"],"KC_J":["J","",""],"KC_K":["K","",""],"KC_L":["L","","Ø"],"KC_LBRC":["[","{","«"],"KC_M":["M","","µ"],"KC_MINS":["-","_","¥"],"KC_N":["N","","Ñ"],"KC_NUBS":["\\","|",""],"KC_NUHS":["\\","|","¬"],"KC_O":["O","","Ó"],"KC_P":["P","","Ö"],"KC_Q":["Q","","Ä"],"KC_QUOT":["´","¨","´"],"KC_R":["R","","®"],"KC_RBRC":["]","}","»"],"KC_S":["S","","ß"],"KC_SCLN":[";",":","¶"],"KC_SLSH":["/","?","¿"],"KC_T":["T","","Þ"],"KC_U":["U","","Ú"],"KC_V":["V","",""],"KC_W":["W","","Å"],"KC_X":["X","",""],"KC_Y":["Y","","Ü"],"KC_Z":["Z","","Æ"]},"Danish":{"KC_0":["0","=","}"],"KC_1":["1","!",""],"KC_2":["2","\"","@"],"KC_3":["3","#","£"],"KC_4":["4","¤","$"],"KC_5":["5","%","€"],"KC_6":["6","&",""],"KC_7":["7","/","{"],"KC_8":["8","(","["],"KC_9":["9",")","]"],"KC_A":["A","",""],"KC_B":["B","",""],"KC_BSLS":["'","*",""],"KC_C":["C","",""],"KC_COMM":[",",";",""],"KC_D":["D","",""],"KC_DOT":[".",":",""],"KC_E":["E","",""],"KC_EQL":["´","`","|"],"KC_F":["F","",""],"KC_G":["G","",""],"KC_GRV":["½","§",""],"KC_H":["H","",""],"KC_I":["I","",""],"KC_J":["J","",""],"KC_K":["K","",""],"KC_L":["L","",""],"KC_LBRC":["Å","",""],"KC_M":["M","","µ"],"KC_MINS":["+","?",""],"KC_N":["N","",""],"KC_NUBS":["<",">","\\"],"KC_NUHS":["'","*",""],"KC_O":["O","",""],"KC_P":["P","",""],"KC_Q":["Q","",""],"KC_QUOT":["Ø","",""],"KC_R":["R","",""],"KC_RBRC":["¨","^","~"],"KC_S":["S","",""],"KC_SCLN":["Æ","",""],"KC_SLSH":["-","_",""],"KC_T":["T","",""],"KC_U":["U","",""],"KC_V":["V","",""],"KC_W":["W","",""],"KC_X":["X","",""],"KC_Y":["Y","",""],"KC_Z":["Z","",""]},"German Mac":{"KC_0":["0","=","≠"],"KC_1":["1","!","¡"],"KC_2":["2","\"","“"],"KC_3":["3","§","¶"],"KC_4":["4","$","¢"],"KC_5":["5","%","["],"KC_6":["6","&","]"],"KC_7":["7","/","|"],"KC_8":["8","(","{"],"KC_9":["9",")","}"],"KC_A":["A","","Å"],"KC_B":["B","","∫"],"KC_BSLS":["#","'","‘"],"KC_C":["C","","Ç"],"KC_COMM":[",",";","∞"],"KC_D":["D","","∂"],"KC_DOT":[".",":","…"],"KC_E":["E","","€"],"KC_EQL":["´","`",""],"KC_F":["F","","ƒ"],"KC_G":["G","","©"],"KC_GRV":["^","°","„"],"KC_H":["H","","ª"],"KC_I":["I","","⁄"],"KC_J":["J","","º"],"KC_K":["K","","∆"],"KC_L":["L","","@"],"KC_LBRC":["Ü","","•"],"KC_M":["M","","µ"],"KC_MINS":["ß","?","¿"],"KC_N":["N","","~"],"KC_NUBS":["<",">","≤"],"KC_NUHS":["#","'","‘"],"KC_O":["O","","Ø"],"KC_P":["P","","π"],"KC_Q":["Q","","«"],"KC_QUOT":["Ä","","Æ"],"KC_R":["R","","®"],"KC_RBRC":["+","*","±"],"KC_S":["S","","‚"],"KC_SCLN":["Ö","","Œ"],"KC_SLSH":["-","_","–"],"KC_T":["T","","†"],"KC_U":["U","","¨"],"KC_V":["V","","√"],"KC_W":["W","","∑"],"KC_X":["X","","≈"],"KC_Y":["Z","","Ω"],"KC_Z":["Y","","¥"]}});
 
 // What a character key types on the host layout chosen: { plain, shifted, altgr }. KC_NUHS and
 // KC_NUBS a layout does not describe take KC_BSLS's legend, as keycodes.md decided.
@@ -574,7 +586,7 @@ function accentCaps(T) {
 
 const state = {
   preset: 'Cylindrical', font: 'Arimo', size: 'Medium', modifierSize: '3/5', remap: 'Standard', host: 'US',
-  layer: 'Base', commands: 'D′', cmdHeader: '1/2', cmdCase: 'Mixed', cmdPlace: 'Header corner', peekStyle: 'Sublegend', noMark: 'Faint + ✕', selection: 'Neutral', altgrShade: 'Muted', holdPlace: 'Top right', accentCap: 'Slate', darkSlate: 'Lifted',
+  layer: 'Base', commands: 'D′', cmdHeader: '1/2', cmdCase: 'Mixed', cmdPlace: 'Header corner', peekStyle: 'Sublegend', fallMark: 'Badge', badgeShape: 'Square', badgePlace: 'Inside', selection: 'Neutral', altgrShade: 'Muted', holdPlace: 'Top right', accentCap: 'Slate', darkSlate: 'Lifted',
   theme: 'Dark', style: 'Outlined', plate: 'Filled', classes: 'On', scene: 'Keymap', lighting: 'One system',
   selected: keyNamed('Q'), focus: keyNamed('Q'), hovered: -1, pressed: keyNamed('G'),
   seen: new Set(KEYS.map((k, i) => (k.row === 0 || ['N', 'A', 'Z', 'G'].includes(k.primary)) ? i : -1).filter(i => i >= 0)),
@@ -615,9 +627,22 @@ const CONTROLS = [
   // legend bottom right, the base's bottom legends stepping aside, or the strip tried first --
   // found too busy, and colliding with glyphs (Rico, 2026-10-03).
   ['peekStyle', 'Peek', ['Sublegend', 'Strip']],
-  // Struck + ✕ chosen (Rico, 2026-10-03), dropped in the app (2026-10-04): the line ran through the
-  // legends at an angle that changed with the key's shape. Faint + ✕ is what Nazg draws.
-  ['noMark', 'KC_NO', ['Struck + ✕', 'Faint + ✕']],
+  // How a transparent and a KC_NO key say so (2026-10-11), on the Features layer. Today: the small
+  // ▽ and ✕ in the corner, at half strength -- hard to see, and the ✕ reads as the × several host
+  // layouts print bottom right (Rico, 2026-10-04). Larger: the same place, larger, at full
+  // strength, KC_NO's mark a ⊘. Corner tab: no glyph, the face's corner folded -- outlined for
+  // transparent, filled for KC_NO. Hollow / hatched: no mark at all, the face itself -- a
+  // transparent key is a hole, its face unfilled behind a dashed outline, a KC_NO key hatched.
+  // ▽ + hatched: the least change -- today's ▽, and KC_NO hatched instead of its ✕.
+  // Struck + ✕: chosen 2026-10-03, dropped in the app 2026-10-04 -- the line ran through the
+  // legends at an angle that changed with the key's shape.
+  ['fallMark', 'Marks', ['Today ▽ ✕', 'Larger ▽ ⊘', 'Corner tab', 'Badge', 'Hollow / hatched', '▽ + hatched', 'Struck (dropped)']],
+  // Badge (Rico, 2026-10-11, from the corner tab): a solid fill over the bottom right corner -- hiding
+  // whatever legend is there -- holding the ▽ or ✕ in the face's colour. Inside the face, or
+  // overhanging the key's corner into the gaps, never reaching the keys to the right and below.
+  // Badge, Square, Inside chosen (Rico, 2026-10-11) and built: what Nazg draws.
+  ['badgeShape', 'Badge', ['Square', 'Circle']],
+  ['badgePlace', 'Badge place', ['Inside', 'Overhanging']],
   // The selection outline (Rico, 2026-10-03: orange too loud; Neutral chosen): the theme's text colour -- no hue,
   // so it meets no category, highlight or warning colour and survives colour blindness -- or the
   // UI accent blue the buttons use -- which merges with the blue highlight during a Vial unlock --
@@ -823,12 +848,27 @@ function draw() {
     const outer = key.rects.map(r => inset(R(r), gap, gap, gap, gap));
     layout.keys.push(outer);
 
+    // Hollow / hatched: a transparent key is a hole -- no lip, no face, a dashed outline -- and a
+    // KC_NO key's face is hatched, under its faint legends.
+    const facesMarked = state.fallMark === 'Hollow / hatched' && !today;
+    const hollow = facesMarked && key.trans;
+    const markInk = state.classes === 'On' && key.cls === 'x' ? accentCaps(T).legend : T.legend;
     let faces = outer;
     if (S.face) {
-      for (const a of outer) fillRect(a, fillFor(caps.side, marks, T), rounding);
+      if (!hollow) for (const a of outer) fillRect(a, fillFor(caps.side, marks, T), rounding);
+      else {
+        const under = state.plate === 'Filled' ? T.plate : T.window, tinted = fillFor(under, marks, T);
+        if (tinted !== under) for (const a of outer) fillRect(a, tinted, rounding);
+      }
       const f = S.face;
       faces = outer.map(a => inset(a, f.side * unit, f.top * unit, f.side * unit, f.bottom * unit));
-      for (const a of faces) fillRect(a, fillFor(caps.top, marks, T), f.rounding * unit);
+      if (!hollow) for (const a of faces) fillRect(a, fillFor(caps.top, marks, T), f.rounding * unit);
+    } else if (hollow) {
+      // Nothing filled, the plate shows through -- but a state's tint over it, so a hovered,
+      // pressed or highlighted hole still says so.
+      const under = state.plate === 'Filled' ? T.plate : T.window;
+      const tinted = fillFor(under, marks, T);
+      if (tinted !== under) for (const a of outer) fillRect(a, tinted, rounding);
     } else {
       if (S.lip)
         // One lip colour for every key, the theme's (Rico, 2026-10-03: a shade of each cap's own
@@ -840,6 +880,8 @@ function draw() {
         for (const a of outer) { ctx.beginPath(); ctx.roundRect(a.x0 + 0.5, a.y0 + 0.5, a.x1 - a.x0 - 1, a.y1 - a.y0 - 1, rounding); ctx.stroke(); }
       }
     }
+    if (hollow) drawHoleOutline(ctx, outer, unit, rounding, markInk);
+    if ((facesMarked || state.fallMark === '▽ + hatched') && !today && key.none) drawHatching(ctx, faces, unit, S.face ? S.face.rounding * unit : rounding, markInk);
 
     // A command's band, with the face and under the marks, so a selected or highlighted command
     // key keeps its whole outline (Rico, 2026-10-03). Faint on a transparent or KC_NO key, dimmed
@@ -868,6 +910,7 @@ function draw() {
       depth += thickness;
     }
     key.face = faces[0];
+    key.outer = outer[0];
     key.faceColour = caps.top;
     key.faceRounding = S.face ? S.face.rounding * unit : rounding;
     key.centre = { x: (outer[0].x0 + outer[0].x1) / 2, y: (outer[0].y0 + outer[0].y1) / 2 };
@@ -901,6 +944,10 @@ function draw() {
     if (key.none && !today) drawNoMark(ctx, key, unit, colour);
     if (key.peek && !today) drawPeek(ctx, key, unit, T);
   }
+  // Badges after every key's legends, so one overhanging its key is drawn over the gap and
+  // nothing drawn later covers it.
+  if (state.fallMark === 'Badge' && !today)
+    for (const key of KEYS) if (key.trans || key.none) drawBadge(ctx, key, unit, T, S);
 
   if (scene.rulers) drawRulers(ctx, T, leftMargin, topMargin, labelGap);
 
@@ -924,8 +971,13 @@ const FEATURE_NOTES = '<b>Feature layer</b>, a plausible one: command keys -- QM
   'lightness as well -- so it holds on every theme and ' +
   "keycap colour. Hover a command key for QMK's name. A transparent key shows what it falls through to -- the " +
   "base layer's keycode, tap-hold keys included -- faint, with a small ▽ in the corner: what VIA and Vial show as ▽ " +
-  "alone. T is KC_NO: the key does nothing on this layer, so it shows the key it disables, faint, with a small ✕, " +
-  "and a thin line strikes the face through.";
+  "alone. T is KC_NO: the key does nothing on this layer, so it shows the key it disables, faint, with a ✕. " +
+  "<b>Marks</b> (2026-10-11): Backspace, Caps (a tap-hold), Left Win, O, ' and = are KC_NO too -- try US " +
+  "International, whose = prints × bottom right, and Danish or German Mac for Ø. Today's ▽ and ✕ are hard to see " +
+  'and the ✕ reads as ×; Larger keeps the place at full strength with a ⊘; Corner tab folds the corner, no glyph; ' +
+  '<b>Badge, Square, Inside</b> is what Nazg draws (Rico, 2026-10-11): the mark on a solid square covering the corner. ' +
+  'Hollow / hatched puts it in the face -- a transparent key a hole, a KC_NO key hatched; ▽ + hatched keeps today’s ▽ ' +
+  'and hatches KC_NO only.';
 const HOLD_NOTES = '<b>Tap-hold keys</b> on the base layer: Caps Lock is Esc tapped and Ctrl held, the space bar ' +
   'layer 1 held, 1 and 2 layers 1 and 2 held. The hold is the header, under the band; the tap keeps its own legends ' +
   'below -- a character pair packs tighter, and where even that does not fit (Large size) the Shift character goes. ' +
@@ -1260,14 +1312,19 @@ function drawLegends(ctx, key, unit, colour) {
 // The ▽ of a transparent key, drawn rather than taken from a font, as the arrows are: a small
 // outlined triangle in the bottom right corner.
 // Small, in the very corner, half strength (Rico, 2026-10-03): a mark, not a legend -- tucked
-// in the face's corner padding, clear of the legends' box, so it meets no glyph.
+// in the face's corner padding, clear of the legends' box, so it meets no glyph. Larger: the
+// same place, larger, at full strength (2026-10-11). Corner tab: the face's corner, outlined.
+// Hollow / hatched: no mark, the face says it.
 function drawTransparentMark(ctx, key, unit, colour) {
+  if (state.fallMark === 'Hollow / hatched' || state.fallMark === 'Badge') return;
+  if (state.fallMark === 'Corner tab') return drawCornerTab(ctx, key, unit, colour, false);
+  const larger = state.fallMark === 'Larger ▽ ⊘';
   const a = key.face, p = 0.035 * unit;
-  const s = Math.max(5, 0.075 * unit);
+  const s = larger ? Math.max(7, 0.12 * unit) : Math.max(5, 0.075 * unit);
   const x1 = a.x1 - p - key.faceRounding * 0.3, x0 = x1 - s;
   const y0 = a.y1 - p - key.faceRounding * 0.3 - s * 0.87;   // always bottom right (Rico, 2026-10-03)
   ctx.save();
-  ctx.globalAlpha = 0.55;
+  ctx.globalAlpha = larger ? 0.9 : 0.55;
   ctx.strokeStyle = colour;
   ctx.lineWidth = Math.max(1, s * 0.14);
   ctx.lineJoin = 'round';
@@ -1278,16 +1335,30 @@ function drawTransparentMark(ctx, key, unit, colour) {
 
 // The ✕ of a KC_NO key, in the ▽'s corner and at its size and strength, so the two marks read
 // as a pair: "shows the layer below" and "disables the key below". On the Struck variant a thin
-// line also crosses the face, corner to corner.
+// line also crosses the face, corner to corner. Larger: a ⊘ instead, no character any host
+// layout prints -- Ø is the nearest (2026-10-11). Corner tab: the face's corner, filled.
 function drawNoMark(ctx, key, unit, colour) {
-  const a = key.face, p = 0.035 * unit;
-  const s = Math.max(5, 0.075 * unit) * 0.85, inset = key.faceRounding * 0.3;
-  const x1 = a.x1 - p - inset, x0 = x1 - s;
-  const y0 = a.y1 - p - inset - s;
+  if (state.fallMark === 'Hollow / hatched' || state.fallMark === '▽ + hatched' || state.fallMark === 'Badge') return;
+  if (state.fallMark === 'Corner tab') return drawCornerTab(ctx, key, unit, colour, true);
+  const a = key.face, p = 0.035 * unit, inset = key.faceRounding * 0.3;
   ctx.save();
   ctx.strokeStyle = colour;
   ctx.lineCap = 'round';
-  if (state.noMark === 'Struck + ✕') {
+  if (state.fallMark === 'Larger ▽ ⊘') {
+    const s = Math.max(7, 0.12 * unit), r = s / 2;
+    const cx = a.x1 - p - inset - r, cy = a.y1 - p - inset - r;
+    const d = r * Math.SQRT1_2;
+    ctx.globalAlpha = 0.9;
+    ctx.lineWidth = Math.max(1, s * 0.12);
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, 2 * Math.PI); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx + d, cy - d); ctx.lineTo(cx - d, cy + d); ctx.stroke();
+    ctx.restore();
+    return;
+  }
+  const s = Math.max(5, 0.075 * unit) * 0.85;
+  const x1 = a.x1 - p - inset, x0 = x1 - s;
+  const y0 = a.y1 - p - inset - s;
+  if (state.fallMark === 'Struck (dropped)') {
     ctx.globalAlpha = 0.35;
     ctx.lineWidth = Math.max(1, 0.012 * unit);
     ctx.beginPath(); ctx.moveTo(a.x0 + 0.12 * unit, a.y1 - 0.12 * unit); ctx.lineTo(a.x1 - 0.12 * unit, a.y0 + 0.12 * unit); ctx.stroke();
@@ -1295,6 +1366,100 @@ function drawNoMark(ctx, key, unit, colour) {
   ctx.globalAlpha = 0.55;
   ctx.lineWidth = Math.max(1, s * 0.16);
   ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y0 + s); ctx.moveTo(x1, y0); ctx.lineTo(x0, y0 + s); ctx.stroke();
+  ctx.restore();
+}
+
+// Badge (Rico, 2026-10-11): the corner tab made a solid shape -- a circle or a rounded square in a
+// solid mix of the face and legend colours, covering the bottom right corner and whatever legend
+// is there (faint anyway, and hover names the key), with the ▽ or ✕ drawn in the face's colour.
+// A cross on a filled disc reads as a control, not as the × a host layout prints. Overhanging,
+// it reaches past the key's outline into the gap -- no further, so the keys to the right and
+// below keep everything -- ringed in the plate's colour where it crosses the outline.
+function drawBadge(ctx, key, unit, T, S) {
+  const d = Math.max(11, 0.24 * unit), r = d / 2;
+  const overhang = state.badgePlace === 'Overhanging';
+  const a = overhang ? key.outer : key.face;
+  const reach = overhang ? 0.85 * S.gap * 2 * unit : -0.035 * unit;   // past the edge, within the gap
+  const cx = a.x1 + reach - r, cy = a.y1 + reach - r;
+  const legend = state.classes === 'On' && key.cls === 'x' ? accentCaps(T).legend : T.legend;
+  const fill = over(key.faceColour, withAlpha(legend, 0.62));
+  const shape = () => {
+    ctx.beginPath();
+    if (state.badgeShape === 'Circle') ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+    else ctx.roundRect(cx - r, cy - r, d, d, 0.25 * d);
+  };
+  ctx.save();
+  if (overhang) {
+    ctx.strokeStyle = state.plate === 'Filled' ? T.plate : T.window;
+    ctx.lineWidth = Math.max(2, 0.03 * unit);
+    shape(); ctx.stroke();
+  }
+  ctx.fillStyle = fill; shape(); ctx.fill();
+  ctx.strokeStyle = key.faceColour; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.lineWidth = Math.max(1.2, 0.08 * d);
+  const s = 0.46 * d;
+  ctx.beginPath();
+  if (key.none) {
+    const h = s * 0.42;
+    ctx.moveTo(cx - h, cy - h); ctx.lineTo(cx + h, cy + h); ctx.moveTo(cx + h, cy - h); ctx.lineTo(cx - h, cy + h);
+  } else {
+    const h = s * 0.87, top = cy - h / 2 + s * 0.02;
+    ctx.moveTo(cx - s / 2, top); ctx.lineTo(cx + s / 2, top); ctx.lineTo(cx, top + h); ctx.closePath();
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+// Corner tab (2026-10-11): no glyph, so nothing a host layout prints -- the face's bottom right
+// corner cut off by a diagonal, as a page's folded corner: outlined on a transparent key, filled
+// on a KC_NO one. In ImGui, a convex polygon: the diagonal's two ends and the corner's arc.
+function drawCornerTab(ctx, key, unit, colour, filled) {
+  const a = key.face, leg = Math.max(8, 0.17 * unit);
+  ctx.save();
+  ctx.beginPath(); ctx.roundRect(a.x0, a.y0, a.x1 - a.x0, a.y1 - a.y0, key.faceRounding); ctx.clip();
+  ctx.beginPath(); ctx.moveTo(a.x1 - leg, a.y1); ctx.lineTo(a.x1, a.y1 - leg); ctx.lineTo(a.x1, a.y1); ctx.closePath();
+  ctx.fillStyle = colour;
+  ctx.globalAlpha = filled ? 0.6 : 0.12;
+  ctx.fill();
+  if (!filled) {
+    ctx.globalAlpha = 0.7;
+    ctx.strokeStyle = colour; ctx.lineWidth = Math.max(1, 0.015 * unit); ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(a.x1 - leg, a.y1); ctx.lineTo(a.x1, a.y1 - leg); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// Hollow (2026-10-11): a transparent key has no face of its own -- it is a hole in the layer --
+// so nothing is filled, the plate shows, and a dashed outline keeps the key's shape. The legends
+// of the key below sit in it, faint. In ImGui, the contour walked in dashes.
+function drawHoleOutline(ctx, rects, unit, rounding, colour) {
+  const w = Math.max(1, 0.015 * unit), dash = Math.max(3, 0.05 * unit);
+  ctx.save();
+  ctx.globalAlpha = 0.5;
+  ctx.strokeStyle = colour; ctx.lineWidth = w; ctx.setLineDash([dash, dash * 0.8]);
+  for (const a of rects) {
+    ctx.beginPath(); ctx.roundRect(a.x0 + w / 2, a.y0 + w / 2, a.x1 - a.x0 - w, a.y1 - a.y0 - w, rounding); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// Hatched (2026-10-11): a KC_NO key's face crossed by thin diagonal lines, the usual "not
+// available" -- a fixed angle and spacing in pixels, whatever the key's shape, under the faint
+// legends. In ImGui, lines clipped to the face's contour.
+function drawHatching(ctx, rects, unit, rounding, colour) {
+  const step = Math.max(4, 0.085 * unit);
+  ctx.save();
+  ctx.globalAlpha = 0.16;
+  ctx.strokeStyle = colour; ctx.lineWidth = Math.max(1, 0.014 * unit);
+  for (const a of rects) {
+    ctx.save();
+    ctx.beginPath(); ctx.roundRect(a.x0, a.y0, a.x1 - a.x0, a.y1 - a.y0, rounding); ctx.clip();
+    ctx.beginPath();
+    const h = a.y1 - a.y0;
+    for (let x = a.x0 - h; x < a.x1; x += step) { ctx.moveTo(x, a.y1); ctx.lineTo(x + h, a.y0); }
+    ctx.stroke();
+    ctx.restore();
+  }
   ctx.restore();
 }
 
