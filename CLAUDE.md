@@ -90,10 +90,10 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
 | Picker, board look, matrix wiring (Model F, Concordia) | Pre-renumbering keycodes (`Legacy`) |
 | Macros: save and read-back (Concordia), creation on a Leyden Jar board | A Vial board playing a macro; locked-board writes |
 | Tap Dance (Model F) | Lighting hover notes |
-| QMK settings listed and read at their widths (Model F, a probe) | QMK settings written or reset from the section |
+| QMK settings listed, read at their widths and written from the section (Model F) | QMK settings reset from the section (Reset all) |
 | Lighting: underglow read, written, sliders live (Phoenix, VIA channels) | Lighting in the format before V3, and VialRGB |
-| | Combos and the combo term, read or written |
-| | Key overrides, read or written |
+| Combos and the combo term, read and written (Model F) | |
+| Key overrides, read and written (Model F) | |
 | | Alt repeat keys -- no board at hand has them |
 | Audio planned from a definition, and a firmware without audio said (Concordia, a test definition) | Audio and Clicky read or written, Play a sound -- no board at hand has audio built in |
 | A board's own menus: a few EC features (Concordia Type C); all 35909 registry controls parse (test) | |
