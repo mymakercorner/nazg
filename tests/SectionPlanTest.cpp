@@ -85,11 +85,13 @@ namespace
         keyboard.report.macroCount     = 16;
         keyboard.definition.menuIds    = { "qmk_rgb_matrix", "qmk_audio" };
         keyboard.definition.customMenus = {
-            { "Switch Configuration", { "Actuation", "Calibration" } },
-            { "Tap Dance", {} },
-            { "SOCD", { "SOCD Settings" } },
-            { "Mystery", {} },
+            { "Switch Configuration", {}, {} },
+            { "Tap Dance", { "{id_firmware_version} >= 5" }, {} },
+            { "SOCD", {}, {} },
+            { "Mystery", { "{id_mode} == 1" }, {} },
+            { "DKS", { "{id_firmware_version} >= 6" }, {} },
         };
+        keyboard.report.firmwareVersion = 5;
 
         const std::vector<PlannedSection> sections = nazg::PlanSections(keyboard);
         Check(NamesOf(sections) == std::vector<std::string>{ "Keymap", "Macros", "Lighting", "Audio", "Switch Configuration",
@@ -100,8 +102,15 @@ namespace
         Check(sections.size() == 8 && sections[4].icon == Icon::ArrowBarToDown && sections[5].icon == Icon::HandClick &&
                   sections[7].icon == Icon::None,
               "each menu's icon from its label; an unknown one gets a monogram");
-        Check(sections.size() == 8 && sections[4].subsections == std::vector<std::string>{ "Actuation", "Calibration" },
-              "a menu keeps its sections, for its placeholder");
+        Check(sections.size() == 8 && sections[5].customMenu == 1 && sections[7].customMenu == 3,
+              "each knows its menu in the definition");
+        Check(sections.size() == 8 && sections[5].name == "Tap Dance" && sections[7].name == "Mystery",
+              "a menu the firmware version allows is shown, as is one whose condition names another value -- the "
+              "section judges that one; DKS, which wants version 6, is left out");
+
+        keyboard.report.isVial = true;
+        const std::vector<std::string> vial = NamesOf(nazg::PlanSections(keyboard));
+        Check(std::find(vial.begin(), vial.end(), "SOCD") == vial.end(), "no custom menu on Vial");
     }
 
     void TestMenuIcons()

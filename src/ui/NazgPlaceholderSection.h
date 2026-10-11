@@ -2,9 +2,8 @@
 // SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com>
 //
 // PlaceholderSection - a section the board has that Nazg does not build yet: its row in the
-// column, the board as its definition draws it, and a panel that says so -- a custom menu's
-// listing the sections its definition declares. So the column shows every section a board
-// should have before each is built (ui/NazgSectionPlan.h).
+// column, the board as its definition draws it, and a panel that says so. So the column shows
+// every section a board should have before each is built (ui/NazgSectionPlan.h).
 //
 // ImGui only, no SDL: compiled into the application, not into nazg_core.
 

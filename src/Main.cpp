@@ -30,6 +30,7 @@
 #include "ui/NazgQmkSettingsSection.h"
 #include "ui/NazgBoardView.h"
 #include "ui/NazgCombosSection.h"
+#include "ui/NazgCustomMenuSection.h"
 #include "ui/NazgKeyOverridesSection.h"
 #include "ui/NazgDefinitionPicker.h"
 #include "ui/NazgKeyboardList.h"
@@ -1020,6 +1021,20 @@ namespace
             {
                 state.keyboard->report = co_await nazg::ReadBoardReport(protocol);
 
+                // A board's own menus may hang on its firmware version -- the column leaves out
+                // those it is too old for. A board that does not answer is version 0, QMK's default.
+                if (!state.keyboard->report.isVial && !state.keyboard->definition.customMenus.empty())
+                {
+                    try
+                    {
+                        state.keyboard->report.firmwareVersion =
+                            co_await protocol.GetKeyboardValue(nazg::ViaKeyboardValue::FirmwareVersion);
+                    }
+                    catch (const nazg::ProtocolError&)
+                    {
+                    }
+                }
+
                 // Keymap draws a tap dance from its slot. Unread, its keys say "TD n" and the Tap
                 // Dance section reads them itself.
                 if (const uint8_t count = state.keyboard->report.tapDanceCount; count > 0)
@@ -1856,6 +1871,10 @@ int main(int, char**)
                             else if (planned.kind == nazg::SectionKind::Lighting)
                                 boardState.sections.push_back(std::make_unique<nazg::LightingSection>(
                                     transport, boardState.path, *boardState.keyboard, settings.legends));
+                            else if (planned.kind == nazg::SectionKind::CustomMenu)
+                                boardState.sections.push_back(std::make_unique<nazg::CustomMenuSection>(
+                                    transport, boardState.path, *boardState.keyboard, settings.legends,
+                                    settings.advancedTools, planned.customMenu));
                             else if (planned.kind == nazg::SectionKind::Layout)
                                 boardState.sections.push_back(std::make_unique<nazg::LayoutSection>(
                                     transport, boardState.path, *boardState.keyboard, settings.legends));

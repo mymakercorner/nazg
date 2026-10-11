@@ -5,6 +5,8 @@
 
 #include <algorithm>
 
+#include "adapters/via/NazgViaCustomMenu.h"
+
 namespace nazg
 {
     namespace
@@ -83,7 +85,7 @@ namespace nazg
 
         std::vector<PlannedSection> sections;
         const auto add = [&](SectionKind kind, const char* name, Icon icon)
-        { sections.push_back({ kind, SectionGroup::Protocol, name, icon, {} }); };
+        { sections.push_back({ kind, SectionGroup::Protocol, name, icon }); };
 
         add(SectionKind::Keymap, "Keymap", Icon::Keyboard);
         if (!definition.layoutLabels.empty())
@@ -106,9 +108,23 @@ namespace nazg
         if (report.hasQmkSettings)
             add(SectionKind::QmkSettings, "QMK Settings", Icon::AdjustmentsHorizontal);
 
-        for (const KeyboardDefinition::CustomMenu& menu : definition.customMenus)
-            sections.push_back({ SectionKind::CustomMenu, SectionGroup::Board, menu.label, IconOfMenu(menu.label),
-                                 menu.sections });
+        // A menu the firmware is too old for is left out: the board does not have it (Rico, 2026-10-11).
+        // Only conditions on the firmware version alone are judged here; any other the section judges,
+        // once it has read what they name.
+        if (!report.isVial)
+            for (size_t index = 0; index < definition.customMenus.size(); ++index)
+            {
+                const CustomMenu& menu  = definition.customMenus[index];
+                const bool        shown = std::all_of(menu.conditions.begin(), menu.conditions.end(), [&](const std::string& condition)
+                {
+                    const std::vector<std::string> names = NamesIn(condition);
+                    const bool firmwareOnly = !names.empty() && std::all_of(names.begin(), names.end(), [](const std::string& name)
+                                                                            { return name == c_FirmwareVersionName; });
+                    return !firmwareOnly || ConditionHolds(condition, {}, report.firmwareVersion);
+                });
+                if (shown)
+                    sections.push_back({ SectionKind::CustomMenu, SectionGroup::Board, menu.label, IconOfMenu(menu.label), index });
+            }
 
         return sections;
     }

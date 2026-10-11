@@ -93,6 +93,8 @@ set(NAZG_CORE_SOURCES
   src/adapters/via/NazgViaLoader.cpp
   src/adapters/via/NazgViaBundle.h
   src/adapters/via/NazgViaBundle.cpp
+  src/adapters/via/NazgViaCustomMenu.h
+  src/adapters/via/NazgViaCustomMenu.cpp
   src/adapters/vial/NazgVialProtocol.h
   src/adapters/vial/NazgVialProtocol.cpp
   src/adapters/vial/NazgVialDefinition.h
@@ -184,6 +186,8 @@ set(NAZG_SOURCES
   src/ui/NazgKeymapSection.cpp
   src/ui/NazgPlaceholderSection.h
   src/ui/NazgPlaceholderSection.cpp
+  src/ui/NazgCustomMenuSection.h
+  src/ui/NazgCustomMenuSection.cpp
   src/ui/NazgLayoutSection.h
   src/ui/NazgLayoutSection.cpp
   src/ui/NazgMatrixView.h
@@ -327,6 +331,7 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(keycode_catalogue  tests/KeycodeCatalogueTest.cpp)
     nazg_add_test(qmk_expression     tests/QmkExpressionTest.cpp)
     nazg_add_test(section_plan       tests/SectionPlanTest.cpp)
+    nazg_add_test(custom_menu        tests/CustomMenuTest.cpp)
 
     # The legends in the real font, which needs ImGui's core -- no backend, no SDL window.
     add_executable(nazg_legend_font_test tests/LegendFontTest.cpp tests/TestSupport.h

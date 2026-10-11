@@ -27,6 +27,7 @@
 
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace nazg
@@ -75,6 +76,85 @@ namespace nazg
         }
     };
 
+    // A board's own menu, as VIA V3's `menus` describe it (@the-via/reader's menu-types; wire in
+    // via-vial-commands.md, "A board's own menus on the wire"): submenus of lines, each line a
+    // label and a control bound to a value of the custom value commands. Slices -- entries with
+    // content and no label -- only group entries under a condition: they are flattened, their
+    // condition handed down.
+    //
+    // A condition is VIA's `showIf`, kept as written: "{id_dks_enabled} == 1". All of an entry's
+    // must hold for it to show -- its own and those of the slices around it.
+
+    // A slider kept beyond another (VIA's range `constraints`): `operation` the other's value
+    // plus `offset` -- pushing the other along when `push`, else stopping there.
+    struct RangeConstraint
+    {
+        enum class Operation : uint8_t
+        {
+            Less,
+            LessOrEqual,
+            Greater,
+            GreaterOrEqual,
+        };
+
+        Operation   operation = Operation::GreaterOrEqual;
+        std::string reference;   // the other control's value name
+        int         offset = 0;
+        bool        push   = false;
+    };
+
+    struct CustomControl
+    {
+        enum class Type : uint8_t
+        {
+            Range,      // a slider, minimum to maximum
+            Dropdown,   // one of `options`
+            Toggle,     // `off` or `on`
+            Keycode,    // two bytes, big-endian
+            Colour,     // hue, then saturation
+            Button,     // sends `on`
+            Label,      // a fixed `text`, or -- bound -- a string the board sends
+        };
+
+        Type                     type = Type::Label;
+        std::string              label;
+        std::vector<std::string> conditions;
+
+        // The value it is bound to -- [name, channel, value id, extra...] -- the extra bytes sent
+        // after the value id, before the value. Not bound: a fixed label.
+        bool                 isBound = false;
+        std::string          name;   // "id_dks_threshold[0][1]", what conditions call it
+        uint8_t              channel = 0;
+        uint8_t              valueId = 0;
+        std::vector<uint8_t> extra;
+
+        int                     minimum = 0;     // Range
+        int                     maximum = 255;
+        std::string             unit;            // "mins"
+        std::vector<RangeConstraint> constraints;
+
+        std::vector<std::pair<std::string, uint8_t>> options;   // Dropdown: each name and its value
+
+        std::vector<uint8_t> off{ 0 };   // Toggle; a Button sends `on`
+        std::vector<uint8_t> on{ 1 };
+
+        std::string text;   // a fixed Label's
+    };
+
+    struct CustomSubmenu
+    {
+        std::string                label;   // "DKS 0 - DKS(0)"
+        std::vector<std::string>   conditions;
+        std::vector<CustomControl> controls;
+    };
+
+    struct CustomMenu
+    {
+        std::string                label;   // "DKS"; empty when the definition's is not text
+        std::vector<std::string>   conditions;
+        std::vector<CustomSubmenu> submenus;
+    };
+
     struct KeyboardDefinition
     {
         // A dynamic name -- an object whose value the board picks -- gives its first
@@ -92,13 +172,7 @@ namespace nazg
 
         // VIA V3's custom menus -- the `menus` entries that are objects -- in the definition's
         // order: each a section of its own in the column (ui-design.md, "Nazg's sections, then
-        // the board's menus"). Only the labels for now, the menu's and its first level's; what
-        // the controls are and the channels they set are read when custom menus are built.
-        struct CustomMenu
-        {
-            std::string              label;      // "Switch Configuration"
-            std::vector<std::string> sections;   // "Actuation", "Calibration"
-        };
+        // the board's menus", "A board's own menus").
         std::vector<CustomMenu> customMenus;
 
         // The board's own keycodes, named: `customKeycodes`, the first on QK_KB_0, the next on

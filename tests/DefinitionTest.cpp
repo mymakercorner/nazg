@@ -324,8 +324,8 @@ namespace
               "the standard menus' ids, kept apart from the custom menu");
     }
 
-    // VIA V3's custom menus, for the section column: each one's label and its sections' labels,
-    // in the definition's order.
+    // VIA V3's custom menus, for the section column: each one's label and its submenus' labels,
+    // in the definition's order. Their controls: tests/CustomMenuTest.cpp.
     void TestCustomMenus()
     {
         std::printf("custom menus\n");
@@ -341,13 +341,21 @@ namespace
 
         const auto& menus = definition.customMenus;
         Check(menus.size() == 3, "the menus that are objects, the standard one's id aside");
+        const auto labels = [](const nazg::CustomMenu& menu)
+        {
+            std::vector<std::string> names;
+            for (const nazg::CustomSubmenu& submenu : menu.submenus)
+                names.push_back(submenu.label);
+            return names;
+        };
         Check(menus.size() == 3 && menus[0].label == "Switch Configuration" &&
-                  menus[0].sections == std::vector<std::string>{ "Actuation", "Calibration" },
-              "a menu's label and its sections' labels, in order");
-        Check(menus.size() == 3 && menus[1].label == "System" && menus[1].sections.empty(),
-              "a menu with no content has no sections");
-        Check(menus.size() == 3 && menus[2].label.empty() && menus[2].sections == std::vector<std::string>{ "" },
-              "a label that is not a string is left empty, an entry that is not an object skipped");
+                  labels(menus[0]) == std::vector<std::string>{ "Actuation", "Calibration" },
+              "a menu's label and its submenus' labels, in order");
+        Check(menus.size() == 3 && menus[1].label == "System" && menus[1].submenus.empty(),
+              "a menu with no content has no submenus");
+        Check(menus.size() == 3 && menus[2].label.empty() && menus[2].submenus.empty(),
+              "a label that is not a string is left empty; a slice of nothing, and an entry that is not an object, give "
+              "nothing");
     }
 
     // The board's own keycodes, in order: the first is QK_KB_0.

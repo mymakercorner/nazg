@@ -4,6 +4,7 @@
 #include "NazgKeyboardDefinition.h"
 
 #include <cstdlib>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -402,6 +403,269 @@ namespace nazg
 
             return {};
         }
+
+        // ----------------------------------------------------------------------------------
+        // Custom menus. A menu the parser cannot make sense of in places is still the board's:
+        // what cannot be read is left out -- a control bound to nothing, an option that is not
+        // one -- never the whole definition.
+
+        // A label that is not a string is left empty rather than refused: the column names the
+        // menu somehow.
+        std::string LabelOf(const nlohmann::json& entry)
+        {
+            const auto label = entry.find("label");
+            return label != entry.end() && label->is_string() ? label->get<std::string>() : std::string();
+        }
+
+        // `conditions` with the entry's own showIf added.
+        std::vector<std::string> ConditionsOf(const nlohmann::json& entry, std::vector<std::string> conditions)
+        {
+            const auto showIf = entry.find("showIf");
+            if (showIf != entry.end() && showIf->is_string())
+                conditions.push_back(showIf->get<std::string>());
+            return conditions;
+        }
+
+        std::optional<uint8_t> ByteOf(const nlohmann::json& value)
+        {
+            if (value.is_number_integer() && value.get<int64_t>() >= 0 && value.get<int64_t>() <= 255)
+                return static_cast<uint8_t>(value.get<int64_t>());
+            return std::nullopt;
+        }
+
+        // A toggle's state, a number or an array of them.
+        std::optional<std::vector<uint8_t>> BytesOf(const nlohmann::json& value)
+        {
+            if (const std::optional<uint8_t> byte = ByteOf(value))
+                return std::vector<uint8_t>{ *byte };
+            if (!value.is_array() || value.empty())
+                return std::nullopt;
+            std::vector<uint8_t> bytes;
+            for (const nlohmann::json& each : value)
+            {
+                const std::optional<uint8_t> byte = ByteOf(each);
+                if (!byte)
+                    return std::nullopt;
+                bytes.push_back(*byte);
+            }
+            return bytes;
+        }
+
+        std::optional<RangeConstraint> ParseConstraint(const nlohmann::json& entry)
+        {
+            if (!entry.is_object())
+                return std::nullopt;
+            RangeConstraint constraint;
+            const std::string operation = entry.value("operator", std::string());
+            if (operation == "<")
+                constraint.operation = RangeConstraint::Operation::Less;
+            else if (operation == "<=")
+                constraint.operation = RangeConstraint::Operation::LessOrEqual;
+            else if (operation == ">")
+                constraint.operation = RangeConstraint::Operation::Greater;
+            else if (operation == ">=")
+                constraint.operation = RangeConstraint::Operation::GreaterOrEqual;
+            else
+                return std::nullopt;
+
+            // The other control by its value's name, or by its whole binding, whose name is first.
+            const auto reference = entry.find("reference");
+            if (reference != entry.end() && reference->is_string())
+                constraint.reference = reference->get<std::string>();
+            else if (reference != entry.end() && reference->is_array() && !reference->empty() && reference->front().is_string())
+                constraint.reference = reference->front().get<std::string>();
+            else
+                return std::nullopt;
+
+            if (const auto offset = entry.find("offset"); offset != entry.end() && offset->is_number_integer())
+                constraint.offset = offset->get<int>();
+            constraint.push = entry.value("onViolation", std::string()) == "push";
+            return constraint;
+        }
+
+        std::optional<CustomControl> ParseControl(const nlohmann::json& entry, std::vector<std::string> conditions)
+        {
+            using Type = CustomControl::Type;
+            CustomControl control;
+            control.label      = LabelOf(entry);
+            control.conditions = std::move(conditions);
+
+            const std::string type = entry.value("type", std::string());
+            if (type == "range")
+                control.type = Type::Range;
+            else if (type == "dropdown")
+                control.type = Type::Dropdown;
+            else if (type == "toggle")
+                control.type = Type::Toggle;
+            else if (type == "keycode")
+                control.type = Type::Keycode;
+            else if (type == "color")
+                control.type = Type::Colour;
+            else if (type == "button")
+                control.type = Type::Button;
+            else if (type == "label")
+                control.type = Type::Label;
+            else
+                return std::nullopt;   // VIA's color-palette, which no definition uses, or a typo
+
+            // [name, channel, value id, extra...] -- or a fixed label's [text].
+            const auto content = entry.find("content");
+            if (content == entry.end() || !content->is_array() || content->empty() || !content->front().is_string())
+                return std::nullopt;
+            if (content->size() == 1)
+            {
+                if (control.type != Type::Label)
+                    return std::nullopt;
+                control.text = content->front().get<std::string>();
+            }
+            else
+            {
+                if (content->size() < 3)
+                    return std::nullopt;
+                std::vector<uint8_t> bytes;
+                for (size_t index = 1; index < content->size(); ++index)
+                {
+                    const std::optional<uint8_t> byte = ByteOf((*content)[index]);
+                    if (!byte)
+                        return std::nullopt;
+                    bytes.push_back(*byte);
+                }
+                control.isBound = true;
+                control.name    = content->front().get<std::string>();
+                control.channel = bytes[0];
+                control.valueId = bytes[1];
+                control.extra.assign(bytes.begin() + 2, bytes.end());
+            }
+
+            const auto options = entry.find("options");
+            const bool hasList = options != entry.end() && options->is_array();
+            switch (control.type)
+            {
+                case Type::Range:
+                    if (!hasList || options->size() != 2 || !(*options)[0].is_number_integer() || !(*options)[1].is_number_integer())
+                        return std::nullopt;
+                    control.minimum = (*options)[0].get<int>();
+                    control.maximum = (*options)[1].get<int>();
+                    if (control.minimum < 0 || control.maximum > 0xFFFF || control.minimum > control.maximum)
+                        return std::nullopt;
+                    if (const auto unit = entry.find("unit"); unit != entry.end() && unit->is_string())
+                        control.unit = unit->get<std::string>();
+                    if (const auto constraints = entry.find("constraints"); constraints != entry.end() && constraints->is_array())
+                        for (const nlohmann::json& each : *constraints)
+                            if (const std::optional<RangeConstraint> constraint = ParseConstraint(each))
+                                control.constraints.push_back(*constraint);
+                    break;
+
+                case Type::Dropdown:
+                    if (!hasList)
+                        return std::nullopt;
+                    // A name alone is worth its place; a [name, value] pair its value -- as the VIA
+                    // app reads it, a value of 0 its place too.
+                    for (size_t index = 0; index < options->size(); ++index)
+                    {
+                        const nlohmann::json& option = (*options)[index];
+                        if (option.is_string())
+                            control.options.emplace_back(option.get<std::string>(), static_cast<uint8_t>(index));
+                        else if (option.is_array() && option.size() >= 2 && option[0].is_string())
+                        {
+                            const std::optional<uint8_t> value = ByteOf(option[1]);
+                            if (value)
+                                control.options.emplace_back(option[0].get<std::string>(),
+                                                             *value != 0 ? *value : static_cast<uint8_t>(index));
+                        }
+                    }
+                    break;
+
+                case Type::Toggle:
+                    if (hasList && options->size() == 2)
+                    {
+                        const std::optional<std::vector<uint8_t>> off = BytesOf((*options)[0]);
+                        const std::optional<std::vector<uint8_t>> on  = BytesOf((*options)[1]);
+                        if (off && on)
+                        {
+                            control.off = *off;
+                            control.on  = *on;
+                        }
+                    }
+                    break;
+
+                case Type::Button:
+                    if (hasList && options->size() == 1)
+                        if (const std::optional<uint8_t> value = ByteOf((*options)[0]))
+                            control.on = { *value };
+                    break;
+
+                default:
+                    break;
+            }
+            return control;
+        }
+
+        // A submenu's lines, slices flattened: an entry with a type is a control, one with content
+        // and no label a slice of them.
+        void ParseControls(const nlohmann::json& list, const std::vector<std::string>& conditions,
+                           std::vector<CustomControl>& controls)
+        {
+            if (!list.is_array())
+                return;
+            for (const nlohmann::json& entry : list)
+            {
+                if (!entry.is_object())
+                    continue;
+                std::vector<std::string> held = ConditionsOf(entry, conditions);
+                if (entry.contains("type"))
+                {
+                    if (std::optional<CustomControl> control = ParseControl(entry, std::move(held)))
+                        controls.push_back(std::move(*control));
+                }
+                else if (const auto content = entry.find("content"); content != entry.end())
+                {
+                    if (content->is_array() && !entry.contains("label"))
+                        ParseControls(*content, held, controls);
+                    else if (content->is_string())
+                    {
+                        // A line of text alone: VIA's text item.
+                        CustomControl text;
+                        text.label      = LabelOf(entry);
+                        text.conditions = std::move(held);
+                        text.text       = content->get<std::string>();
+                        controls.push_back(std::move(text));
+                    }
+                }
+            }
+        }
+
+        // A menu's submenus, slices flattened: an entry with a label is a submenu.
+        void ParseSubmenus(const nlohmann::json& list, const std::vector<std::string>& conditions,
+                           std::vector<CustomSubmenu>& submenus)
+        {
+            if (!list.is_array())
+                return;
+            for (const nlohmann::json& entry : list)
+            {
+                if (!entry.is_object())
+                    continue;
+                std::vector<std::string> held = ConditionsOf(entry, conditions);
+                const auto               content = entry.find("content");
+                if (entry.contains("label"))
+                {
+                    CustomSubmenu submenu{ LabelOf(entry), std::move(held), {} };
+                    if (content != entry.end())
+                        ParseControls(*content, {}, submenu.controls);
+                    submenus.push_back(std::move(submenu));
+                }
+                else if (content != entry.end())
+                    ParseSubmenus(*content, held, submenus);
+            }
+        }
+
+        CustomMenu ParseCustomMenu(const nlohmann::json& entry)
+        {
+            CustomMenu menu{ LabelOf(entry), ConditionsOf(entry, {}), {} };
+            if (const auto content = entry.find("content"); content != entry.end())
+                ParseSubmenus(*content, {}, menu.submenus);
+            return menu;
+        }
     }
 
     KeyboardDefinition ParseDefinition(const std::vector<uint8_t>& json)
@@ -463,26 +727,10 @@ namespace nazg
                         ids->push_back(id.get<std::string>());
         }
 
-        // A label that is not a string is left empty rather than refused: the menu is still
-        // the board's, and the column names it somehow.
-        const auto labelOf = [](const nlohmann::json& entry)
-        {
-            const auto label = entry.find("label");
-            return label != entry.end() && label->is_string() ? label->get<std::string>() : std::string();
-        };
         if (const auto menus = document.find("menus"); menus != document.end() && menus->is_array())
             for (const nlohmann::json& entry : *menus)
-            {
-                if (!entry.is_object())
-                    continue;
-
-                KeyboardDefinition::CustomMenu menu{ labelOf(entry), {} };
-                if (const auto content = entry.find("content"); content != entry.end() && content->is_array())
-                    for (const nlohmann::json& section : *content)
-                        if (section.is_object())
-                            menu.sections.push_back(labelOf(section));
-                definition.customMenus.push_back(std::move(menu));
-            }
+                if (entry.is_object())
+                    definition.customMenus.push_back(ParseCustomMenu(entry));
 
         // An entry that is not an object still takes its place: the order is the numbering.
         if (const auto custom = document.find("customKeycodes"); custom != document.end() && custom->is_array())

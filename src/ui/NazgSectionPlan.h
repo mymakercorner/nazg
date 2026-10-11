@@ -42,11 +42,13 @@ namespace nazg
         std::string  name;
         Icon         icon = Icon::None;
 
-        std::vector<std::string> subsections;   // a custom menu's, as its definition labels them
+        size_t customMenu = 0;   // a custom menu's place in the definition's `customMenus`
     };
 
     // Nazg's sections the board has -- Keymap always, Layout, Macros, Lighting, Audio, then Vial's
-    // features -- followed by its definition's custom menus, in the definition's order.
+    // features -- followed by its definition's custom menus, in the definition's order: those whose
+    // conditions on the firmware version hold, not on Vial, which speaks the custom values without
+    // their channel (via-vial-commands.md, "Lighting") and whose app never draws these menus.
     [[nodiscard]] std::vector<PlannedSection> PlanSections(const Keyboard& keyboard);
 
     // A custom menu's icon from its label: the label table, which holds every label of VIA's

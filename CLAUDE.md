@@ -65,6 +65,9 @@ exists, where, and how far it has been proven.
     saturation sliders; written at once -- shown while a slider moves, stored when let go. Read each
     time the section is shown. Three wire formats: `adapters/via/NazgViaLighting.*`.
   - **Matrix view** (Tools, with *Advanced tools* on) -- wiring and a live test.
+  - **A board's own menus** (VIA V3 custom menus, Board group) -- submenus in the strip, lines in two
+    columns, showIf, sliders tied by constraints, Keymap's picker under the lines, written at once
+    (`ui/NazgCustomMenuSection.*`, `adapters/via/NazgViaCustomMenu.*`). Read per submenu when shown.
   - Every other planned section is a `PlaceholderSection`.
   - Shared panel parts: `ui/NazgKeycodePicker.*`, `ui/NazgKeyLine.*` (Sent with and its popup),
     `ui/NazgSlotParts.*` (what the slot sections repeat: reading, Save / Revert, a tag's words).
@@ -88,6 +91,7 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
 | | Combos and the combo term, read or written |
 | | Key overrides, read or written |
 | | Alt repeat keys -- no board at hand has them |
+| All 35909 registry menu controls parse (test) | A board's own menus -- no board at hand has them |
 
 ## Traps already found
 
