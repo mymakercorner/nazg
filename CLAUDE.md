@@ -214,6 +214,12 @@ when it is absent. The pin is `resources/via-keyboards.commit`; `--update` moves
 `community_bundle_contents` checks it. `--update <tag>` moves the pin; `--from-file <path>` takes
 a bundle built locally by that repository's `tools/build_bundle.py`.
 
+**A Windows package for testers**: build Release, then `python tools/package_windows.py` writes
+`dist/nazg-<NAZG_VERSION>-windows-x64.zip` -- the app, its DLLs, the Visual C++ runtime
+app-local, fonts, both bundles, `resources/package/README.txt` and the licences. The version is
+`NAZG_VERSION` in `CMakeLists.txt` (first: `0.1.0-test.1`, a GitHub pre-release); a release is
+tagged `v<NAZG_VERSION>` on the commit it is built from.
+
 Ninja and VS2026 were both evaluated on
 2026-09-21 and **deliberately deferred** — nothing in the project needs the v145 toolset, and
 the current setup is verified working. Revisit later if desired; no known blockers (the

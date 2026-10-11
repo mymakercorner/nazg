@@ -1758,6 +1758,8 @@ int main(int, char**)
                 }
 
                 char line[128];
+                std::snprintf(line, sizeof(line), "Nazg %s", NAZG_VERSION);
+                view.about.emplace_back(line);
                 std::snprintf(line, sizeof(line), "SDL %d.%d.%d, Dear ImGui %s", SDL_MAJOR_VERSION, SDL_MINOR_VERSION,
                               SDL_MICRO_VERSION, IMGUI_VERSION);
                 view.about.emplace_back(line);

@@ -40,3 +40,6 @@ imgui.ini
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# Packages: tools/package_windows.py
+dist/

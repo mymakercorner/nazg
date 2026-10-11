@@ -254,6 +254,11 @@ target_include_directories(nazg PRIVATE
 # arrive through nazg_core, which links them PUBLIC.
 target_link_libraries(nazg PRIVATE nazg_core)
 
+# The version people see -- Settings' About, the package's name (tools/package_windows.py reads
+# it here). project()'s VERSION is numbers only; this one may carry a pre-release label.
+set(NAZG_VERSION "0.1.0-test.1")
+target_compile_definitions(nazg PRIVATE NAZG_VERSION="${NAZG_VERSION}")
+
 # VIA's official definitions, when tools/update_via_bundle.py has built them: copied beside
 # the executable after every build, where Main.cpp looks. Not in the repository -- the
 # pinned commit is (resources/via-keyboards.commit) -- so a build without it still works,
