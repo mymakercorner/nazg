@@ -5,7 +5,9 @@
 //
 // FIRST DRAFT, like the board view: each candidate drawn small beside its name and where
 // it came from, since names are unreliable and a layout tells apart at a glance. With no
-// candidate at all it says what to do instead: import the vendor's via.json.
+// candidate at all it says what to do instead: import the vendor's via.json. A file just
+// imported for another keyboard is said too: Nazg matches a definition by VID:PID only, and
+// a user must not take another keyboard's (Rico, 2026-10-12).
 //
 // It only draws and reports what was clicked; remembering the choice and loading the
 // board are the caller's. ImGui only, no SDL.
@@ -28,11 +30,13 @@ namespace nazg
     };
 
     // Into the current ImGui window. `current` marks the definition drawing the board now,
-    // when there is one; `canCancel` offers to leave the picker without choosing.
+    // when there is one; `canCancel` offers to leave the picker without choosing; `notes`
+    // are said above the candidates, as warnings.
     [[nodiscard]] DefinitionPickerAction DrawDefinitionPicker(const std::vector<DefinitionCandidate>& candidates,
                                                               const std::optional<DefinitionRef>&     current,
                                                               const DeviceIdentity&                   device,
-                                                              bool                                    canCancel);
+                                                              bool                                    canCancel,
+                                                              const std::vector<std::string>&         notes);
 
     // "user definition, imported from D:/d60b.json" or "official definition, from VIA".
     [[nodiscard]] std::string DescribeDefinitionSource(const DefinitionCandidate& candidate);

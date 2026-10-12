@@ -89,7 +89,7 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
 
 | Seen working | Never met real hardware |
 |---|---|
-| Vial and VIA loads, keymap decode, one-key edit (Model F, Aquanaut) | Vial unlock and lock -- the Model F is `VIAL_INSECURE` |
+| Vial and VIA loads, keymap decode, one-key edit (Model F, Aquanaut; a tester's Keychron Q6, 0.1.0-test.1) | Vial unlock and lock -- the Model F is `VIAL_INSECURE` |
 | All 2029 VIA V3 definitions parse and draw as VIA does (test) | The matrix live test reading keys -- stock firmware answers zeroes |
 | Official bundle, user library, choice (Phoenix) | Rotated keys on a real board (a forged definition only) |
 | Picker, board look, matrix wiring (Model F, Concordia) | Pre-renumbering keycodes (`Legacy`) |
@@ -97,7 +97,7 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
 | Tap Dance (Model F) | Lighting hover notes on two systems (`UG_*` driving the matrix) and `RM_*` |
 | Lighting keys by firmware: picker, faint `RGB_M_*` tiles and their notes with Advanced tools, a mode key's note on the board (Phoenix, firmware older than the overhaul, judged unknown) | |
 | QMK settings listed, read at their widths, written and reset from the section (Model F) | |
-| Lighting: underglow read, written, sliders live (Phoenix, VIA channels) | Lighting in the format before V3, and VialRGB |
+| Lighting: underglow read, written, sliders live (Phoenix, VIA channels; the tester's Q6) | Lighting in the format before V3, and VialRGB |
 | Combos and the combo term, read and written (Model F) | |
 | Key overrides, read and written (Model F) | |
 | | Alt repeat keys -- no board at hand has them |
@@ -120,6 +120,9 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
 - **Under review**: the user library's one-version backup ("Restore previous") -- Rico weighs its
   value against its complexity. "Export definition..." is for debugging only.
 - **Not done**: noticing an unplugged board (hotplug).
+- **Not to be done**: using a definition whose VID:PID differs from the board's (Rico, 2026-10-12) --
+  the picker says an import is for another keyboard and why it must not be used (a tester's K10 HE
+  reports `3434:0EA7`, which no published file carries; via-registry.md).
 - **Deferred**: the Leyden Jar diagnostics (far later -- already decided: the device stays open
   while a view polls, and key output is disabled while they show, RAM only, so every close and
   exit path must enable it again); library export / import (a web-build need).

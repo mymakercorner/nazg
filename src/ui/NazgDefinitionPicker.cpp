@@ -6,6 +6,7 @@
 #include "imgui.h"
 
 #include "ui/NazgBoardView.h"
+#include "ui/NazgTheme.h"
 
 namespace nazg
 {
@@ -26,14 +27,16 @@ namespace nazg
     DefinitionPickerAction DrawDefinitionPicker(const std::vector<DefinitionCandidate>& candidates,
                                                 const std::optional<DefinitionRef>&     current,
                                                 const DeviceIdentity&                   device,
-                                                bool                                    canCancel)
+                                                bool                                    canCancel,
+                                                const std::vector<std::string>&         notes)
     {
         DefinitionPickerAction action;
 
         if (candidates.empty())
         {
-            ImGui::TextWrapped("This board (%04X:%04X) is not in VIA's registry, and no user definition matches it. "
-                               "Your vendor probably provides a via.json for it -- import it.",
+            ImGui::TextWrapped("This board (%04X:%04X) is neither in VIA's registry nor among the community "
+                               "definitions, and no user definition matches it. Your vendor probably provides a "
+                               "via.json for it -- import it.",
                                device.vendorId, device.productId);
         }
         else if (candidates.size() == 1)
@@ -47,6 +50,14 @@ namespace nazg
             ImGui::TextWrapped("%zu definitions match %04X:%04X. Which one draws this board? Nazg remembers the "
                                "answer for it. The keymap on the board does not change, whichever you pick.",
                                candidates.size(), device.vendorId, device.productId);
+        }
+
+        for (const std::string& note : notes)
+        {
+            ImGui::Spacing();
+            ImGui::PushStyleColor(ImGuiCol_Text, ColourOf(PanelColour::Warning));
+            ImGui::TextWrapped("%s", note.c_str());
+            ImGui::PopStyleColor();
         }
 
         const float scale = ImGui::GetStyle().FontScaleDpi;

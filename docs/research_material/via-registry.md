@@ -712,8 +712,11 @@ with each candidate drawn small; verified by Rico on the Phoenix Project No 1 ag
 ortho definition on the same VID:PID. A choice is saved only when the user picks — never for a lone
 candidate — and removing a user definition removes the choices pointing at it. With no
 candidate at all the picker is the empty state of level 1 below, and an import that leaves
-exactly one candidate loads the board by itself. Not yet: "press a key to check", binding by
-hand a definition whose VID:PID does not match.
+exactly one candidate loads the board by itself. Not yet: "press a key to check". **Not to be
+done: binding by hand a definition whose VID:PID does not match** (Rico, 2026-10-12) -- users
+must not try another keyboard's definition themselves; an import for another id is kept in the
+library and the picker says why it is not offered, and that one made for another keyboard can put
+keys on the wrong switches.
 
 - **Always show which definition is in use** next to the board, with **"Change
   definition…"** — the same picker, current one marked — and **"Forget choice"**, so Nazg
@@ -939,6 +942,22 @@ HTTP cache handles it. Web-only limits:
   (`resources/nazg-community-definitions.release`); `CommunityDefinitionBundle` reads it; candidates
   are `community:<path>`, ranked between user and official, and the picker says "community
   definition, published by ..., unverified". The repository is local until Rico publishes it.
+- **2026-10-12 — Keychron's other branches, and a custom keycode check.** A tester's K10 HE
+  reported `3434:0EA7`, a product id no Keychron file carries -- site, fork or VIA -- so the
+  fork's branches besides `2025q3` were read (`vendor_definitions/tools/keychron_branches.py`):
+  only **15 boards** nobody else had (K Pro JIS and ISO knob variants, the K10 Pro SE2, Lemokey's
+  X series). Branch files for boards already collected are not taken: comparing them showed
+  **Keychron's `via_json` files can disagree with Keychron's own firmware**. A custom keycode
+  is `USER00` plus its place in `customKeycodes`, and the K8 Pro's and the Q0's GitHub files
+  leave out or move Mission Control and Launchpad, while the firmware enum at the same commit
+  (`keychron_common.h`, or the board's `keycodes_custom.h`) keeps them where the website files
+  put them -- every key after them named and written wrong. So the seed's licence-first rule
+  gained an exception: **a copy from a maker's repository whose custom keycodes disagree with
+  every site file of the same maker for that VID:PID is left out** (spelling forgiven, entries
+  added at the end allowed). The first bundle shipped ten such files (six K8 Pro, Q0 HE, Q0
+  Plus, V10, K11 Max ANSI White) and a wrong Q0, which VIA's own copy serves instead. Reseller
+  rehosts are not checked: no maker is known for them, and made-up ids (`0x320F:...`) join
+  unrelated boards. Result: **721 boards**, same tools.
 - **Proposed by Rico — implementation starts with the official definitions**, before any
   community work: ~2000 boards with no user action, no new storage, and it builds what the
   rest reuses. Steps: the converted-form entry in the parser (dynamic `name` accepted), with

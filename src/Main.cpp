@@ -607,12 +607,31 @@ namespace
         return Utf8FromPath(PathFromUtf8(path).filename());
     }
 
+    // What the picker says of a file just imported for another keyboard than the one it asks
+    // about: Nazg matches by VID:PID only, and another keyboard's definition, however alike,
+    // can put keys on the wrong switches -- a user is never to use one (Rico, 2026-10-12).
+    std::string ForeignImportNote(const std::string& path, const nazg::LibraryEntry& entry,
+                                  const nazg::DeviceIdentity& board)
+    {
+        char ids[64];
+        std::snprintf(ids, sizeof(ids), "(%04X:%04X), not this one (%04X:%04X)", entry.vendorId, entry.productId,
+                      board.vendorId, board.productId);
+        return FileName(path) + " is the definition of another keyboard " + ids +
+               ", so Nazg does not offer it here. Use only a definition made for this keyboard: one made for "
+               "another, however alike, can put keys on the wrong switches. The file stays in your definitions, "
+               "for the keyboard it describes.";
+    }
+
     // Copy files into the library. Each outcome is kept for the device list to show. With
     // `askOnSameBoard`, a file for a board the library already has is set aside for the
-    // user's answer -- Replace or Keep both -- rather than imported.
-    void ImportDefinitions(Library& library, const std::vector<std::string>& paths, bool askOnSameBoard)
+    // user's answer -- Replace or Keep both -- rather than imported. Returns what was
+    // imported, each with the path it came from.
+    std::vector<std::pair<std::string, nazg::LibraryEntry>> ImportDefinitions(Library& library,
+                                                                             const std::vector<std::string>& paths,
+                                                                             bool askOnSameBoard)
     {
         library.messages.clear();
+        std::vector<std::pair<std::string, nazg::LibraryEntry>> imported;
 
         for (const std::string& path : paths)
         {
@@ -629,12 +648,14 @@ namespace
 
                 const nazg::LibraryEntry& entry = library.library->Import(bytes, path, NowUtc());
                 library.messages.push_back("imported " + FileName(path) + ": " + entry.name);
+                imported.emplace_back(path, entry);
             }
             catch (const std::exception& failure)
             {
                 library.messages.push_back("not imported " + FileName(path) + ": " + failure.what());
             }
         }
+        return imported;
     }
 
     // A new version of an entry, in its place. A changed set of layout options is worth a
@@ -849,6 +870,7 @@ namespace
         // only another app or a restart changes it meanwhile. Unset on a VIA board.
         std::optional<nazg::VialUnlockStatus> lock;
         bool                                     isChoosing = false;   // the picker is showing
+        std::vector<std::string>                 foreignImports;       // the picker's notes: files just imported for another keyboard
 
         // The definition drawing the board as its source has it, when that is VIA's bundle or
         // the board itself -- for "Export definition...". Empty for a user definition, whose
@@ -957,6 +979,8 @@ namespace
         state.matrix = nullptr;
         state.keyboard.reset();
         state.lock.reset();
+        if (state.path != path)
+            state.foreignImports.clear();   // they were about another board
         state.path     = path;
         state.identity = identity;
 
@@ -1297,6 +1321,15 @@ int main(int, char**)
             startLoad(boardState.path, boardState.identity, std::nullopt);
     };
 
+    // An import while the picker asks about a VIA board, for another VID:PID: the picker says
+    // why it is not among the candidates.
+    const auto noteForeignImport = [&](const std::string& path, const nazg::LibraryEntry& entry)
+    {
+        if (boardState.isChoosing && boardState.isVia &&
+            (entry.vendorId != boardState.identity.vendorId || entry.productId != boardState.identity.productId))
+            boardState.foreignImports.push_back(ForeignImportNote(path, entry, boardState.identity));
+    };
+
     const auto showImportDialog = [&]
     {
         // Static: SDL may read the filters until the dialog closes.
@@ -1416,7 +1449,9 @@ int main(int, char**)
             }
             if (!picked.empty() && library.library)
             {
-                ImportDefinitions(library, picked, true);
+                boardState.foreignImports.clear();
+                for (const auto& [path, entry] : ImportDefinitions(library, picked, true))
+                    noteForeignImport(path, entry);
                 afterLibraryChange();
             }
         }
@@ -1719,6 +1754,7 @@ int main(int, char**)
                     {
                         const nazg::LibraryEntry& added = library.library->Import(pending.bytes, pending.path, NowUtc());
                         library.messages.push_back("imported " + FileName(pending.path) + ": " + added.name);
+                        noteForeignImport(pending.path, added);
                         afterLibraryChange();
                     }
                     catch (const std::exception& failure)
@@ -1843,14 +1879,17 @@ int main(int, char**)
                     ImGui::BeginDisabled(isBusy);
                     const nazg::DefinitionPickerAction action =
                         nazg::DrawDefinitionPicker(boardState.candidates, boardState.inUse, boardState.identity,
-                                                   boardState.keyboard.has_value());
+                                                   boardState.keyboard.has_value(), boardState.foreignImports);
                     ImGui::EndDisabled();
 
                     if (action.import && library.library)
                         showImportDialog();
 
                     if (action.cancel)
+                    {
                         boardState.isChoosing = false;
+                        boardState.foreignImports.clear();
+                    }
 
                     if (action.picked && !isBusy)
                     {
@@ -1872,6 +1911,7 @@ int main(int, char**)
                         }
 
                         boardState.isChoosing = false;
+                        boardState.foreignImports.clear();
                         if (!boardState.keyboard || boardState.inUse != picked)
                             startLoad(boardState.path, boardState.identity, picked);
                     }
