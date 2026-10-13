@@ -295,6 +295,73 @@ namespace
         Check(board.keys[1].fallthrough == Fallthrough::None, "and its own again on its own layer");
     }
 
+    // ui-design.md, "Knobs": a VIA knob's stacked lines, a Vial direction key's keycap, the turns
+    // through the encoder map -- and "?" without one; a knob with no push switch never reads a cell.
+    void TestKnobs()
+    {
+        std::printf("knobs\n");
+
+        using nazg::NamedKey;
+
+        nazg::Keyboard keyboard;
+        keyboard.definition.matrixRows    = 1;
+        keyboard.definition.matrixColumns = 2;
+
+        DefinitionKey via   = Key(0, 0, 0, 1);   // knob 0, its push switch on 0,1
+        via.encoderIndex    = 0;
+        via.encoderPush     = true;
+        DefinitionKey twist = Key(1, 0, 0, 0);   // knob 1, no push switch: its 0,0 means nothing
+        twist.encoderIndex  = 1;
+        DefinitionKey ccw   = Key(2, 0, 0, 0);   // a Vial pair for knob 1
+        ccw.encoderIndex     = 1;
+        ccw.encoderDirection = 0;
+        DefinitionKey cw     = ccw;
+        cw.x                 = 3;
+        cw.encoderDirection  = 1;
+        keyboard.definition.keys = { via, twist, ccw, cw, Key(4, 0, 0, 0) };
+
+        keyboard.keymap = nazg::Keymap(2, 1, 2);
+        keyboard.keymap.Set(0, 0, 0, NamedKey{ "KC_A" });
+        keyboard.keymap.Set(0, 0, 1, NamedKey{ "KC_MUTE" });
+        keyboard.keymap.Set(1, 0, 0, NamedKey{ "KC_TRNS" });
+        keyboard.keymap.Set(1, 0, 1, NamedKey{ "KC_TRNS" });
+
+        Check(!keyboard.definition.keys[1].IsSwitch() &&
+                  keyboard.KeycodeFor(keyboard.definition.keys[1], 0) == nazg::Keycode{ NamedKey{ "KC_NO" } },
+              "a knob without a push switch reads no cell");
+
+        nazg::BoardDescription board = DescribeKeyboard(keyboard);
+        Check(board.keys.size() == 5, "every knob key is on the board");
+
+        // No encoder map: the turns are unknown.
+        nazg::DescribeLegends(board, keyboard, 0, nazg::LegendSettings{});
+        Check(board.keys[0].knob && board.keys[0].knob->press.text == "Mute" &&
+                  board.keys[0].knob->counterClockwise.text == "?" && board.keys[0].knob->clockwise.text == "?",
+              "without a map: the press, and ? for each turn");
+        Check(board.keys[1].knob && board.keys[1].knob->press.text.empty(), "no push switch, no press line");
+        Check(std::get<nazg::KeycapLegend>(board.keys[2].legends).cylindrical.full == "?" && !board.keys[2].knob,
+              "a Vial direction key says ? on its keycap");
+
+        // With one: each turn's keycode, through transparent layers as the keymap's.
+        keyboard.encoderMap = {
+            { { NamedKey{ "KC_VOLD" }, NamedKey{ "KC_VOLU" } }, { NamedKey{ "KC_LEFT" }, NamedKey{ "KC_RGHT" } } },
+            { { NamedKey{ "KC_TRNS" }, NamedKey{ "KC_TRNS" } }, { NamedKey{ "KC_TRNS" }, NamedKey{ "KC_B" } } },
+        };
+        nazg::DescribeLegends(board, keyboard, 0, nazg::LegendSettings{});
+        Check(board.keys[0].knob->counterClockwise.text == "Vol −" && board.keys[0].knob->clockwise.text == "Vol +",
+              "a VIA knob's turns, in short words");
+        Check(board.keys[0].knob->clockwise.category == nazg::CommandCategory::Host, "with their category, to colour them");
+        Check(board.keys[1].knob->counterClockwise.text == "Left", "an arrow by its direction");
+
+        nazg::DescribeLegends(board, keyboard, 1, nazg::LegendSettings{});
+        Check(board.keys[0].knob->clockwise.text == "Vol +" && board.keys[0].knob->press.text == "Mute",
+              "transparent turns and press show what is below");
+        Check(std::get<nazg::KeycapLegend>(board.keys[3].legends).plain == "B" &&
+                  board.keys[3].fallthrough == nazg::Fallthrough::None,
+              "a Vial direction key wears its own turn");
+        Check(board.keys[2].fallthrough == nazg::Fallthrough::Transparent, "and falls through like a key");
+    }
+
     // ui-design.md, "Where the definition says it".
     void TestLightingSystems()
     {
@@ -443,6 +510,7 @@ int main()
     TestSides();
     TestDescribeLegends();
     TestResolveKey();
+    TestKnobs();
     TestLightingSystems();
     TestLightingFirmware();
     TestLightingNotes();

@@ -65,7 +65,7 @@ namespace nazg
         DescribeLegends(board, m_Keyboard, 0, m_Legends);
         for (BoardKey& key : board.keys)
         {
-            if (key.geometry.decal)
+            if (!key.geometry.IsSwitch())
                 continue;
 
             const bool inCombo = std::find(m_Combo.begin(), m_Combo.end(),

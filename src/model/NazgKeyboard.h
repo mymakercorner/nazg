@@ -152,8 +152,13 @@ namespace nazg
         // option are always shown; the alternatives to them are not.
         [[nodiscard]] bool IsKeyVisible(const DefinitionKey& key) const noexcept;
 
-        // KC_NO for a key whose cell is outside the keymap.
+        // KC_NO for a key whose cell is outside the keymap, and for one that is no switch -- a
+        // decal, a knob without a push switch -- whose row and column mean nothing.
         [[nodiscard]] Keycode KeycodeFor(const DefinitionKey& key, uint8_t layer) const;
+
+        // What knob `knob` sends turned one way on `layer`, from the encoder map; none when the
+        // map was not read or does not reach that far.
+        [[nodiscard]] std::optional<Keycode> TurnFor(int knob, bool clockwise, uint8_t layer) const;
     };
 
     // The label array mixes plain strings (toggles) with arrays whose first element is
@@ -192,8 +197,7 @@ namespace nazg
                                                        const std::vector<uint8_t>& selection);
 
     // The keys of one choice of one group, where PlaceKeys() would draw them -- on choice 0's
-    // place -- decals and knobs without a push switch left out: what the Layout section draws for
-    // an option on hover.
+    // place -- decals left out: what the Layout section draws for an option on hover.
     [[nodiscard]] std::vector<DefinitionKey> OptionKeys(const KeyboardDefinition& definition, size_t group,
                                                         uint8_t choice);
 

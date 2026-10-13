@@ -137,7 +137,7 @@ namespace nazg
         }
 
         MatrixFocus hovered;
-        if (events.hoveredKey)
+        if (events.hoveredKey && board.keys[*events.hoveredKey].geometry.IsSwitch())
         {
             const DefinitionKey& key = board.keys[*events.hoveredKey].geometry;
             hovered.row              = key.row;

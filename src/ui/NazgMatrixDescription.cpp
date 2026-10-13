@@ -13,9 +13,10 @@ namespace nazg
 {
     namespace
     {
+        // A switch of the matrix: not a decal, nor a knob without a push switch.
         bool IsWired(const BoardKey& key)
         {
-            return !key.geometry.decal;
+            return key.geometry.IsSwitch();
         }
 
         // The keys on one row or one column.

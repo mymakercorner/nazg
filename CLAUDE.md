@@ -20,7 +20,9 @@ exists, where, and how far it has been proven.
 - **Definitions.** One parser for both protocols (`adapters/via/NazgKeyboardDefinition.*`) --
   Vial's embedded document IS a VIA definition, inflated from XZ (`adapters/NazgXz.*`). Both
   forms: KLE source and VIA's converted `layouts.keys`. Layout options placed by `PlaceKeys()`
-  with VIA's pivot rule; KLE rotation drawn.
+  with VIA's pivot rule; KLE rotation drawn. Labels placed by KLE's alignment as VIA's reader
+  does; knobs read in both forms (`DefinitionKey::encoderIndex`, `IsSwitch()`): VIA's `e0` key,
+  Vial's two direction keys -- no longer phantom switches.
 - **Model.** A board loads into a plain `Keyboard` (`model/NazgKeyboard.h`) with a `BoardReport`
   of what it supports. `Keycode` (`model/NazgKeycode.h`) is a variant; `adapters/qmk/` encodes
   and decodes every QMK keycode version 0.0.1-0.0.9 plus the two pre-renumbering `Legacy` ones,
@@ -46,7 +48,10 @@ exists, where, and how far it has been proven.
   tests check every keycode and theme.
 - **Sections** (`ui/NazgSection.h`; the column planned by `PlanSections()`):
   - **Keymap** -- edit one key, written and read back; the keycode picker (tabs, search, 1u
-    tiles, the key line with the Any entry and When held / Sent with).
+    tiles, the key line with the Any entry and When held / Sent with). Knobs too (ui-design.md,
+    "Knobs"): a VIA knob a round key with its press and turns stacked, Vial's direction keys with a
+    ↺ / ↻ badge; the panel's action cards, written at once -- turns through the encoder map read
+    with the board (`adapters/vial/NazgEncoderMap.*`), "?" when the firmware keeps none.
   - **Layout** -- option groups, written at once.
   - **Macros** -- a chain edited in place, text typed with the host layout, Save / Revert.
   - **Tap Dance** -- four actions with gesture drawings and fallbacks, Save / Revert. The dances
@@ -93,6 +98,7 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
 | All 2029 VIA V3 definitions parse and draw as VIA does (test) | The matrix live test on a Vial board, unlocked |
 | The matrix live test reading keys (a tester's Keychron Q6: Keychron builds every board with `VIA_INSECURE`; stock QMK answers zeroes) |  |
 | Official bundle, user library, choice (Phoenix) | Rotated keys on a real board (a forged definition only) |
+| Knobs drawn, selected, a press written, "no encoder map" said (Phoenix, Concordia: forged definitions, 2026-10-13) | Knob turns read or written -- no board at hand has an encoder map; Vial's direction keys on a board |
 | Picker, board look, matrix wiring (Model F, Concordia) | Pre-renumbering keycodes (`Legacy`) |
 | Macros: save and read-back (Concordia), creation on a Leyden Jar board | A Vial board playing a macro; locked-board writes |
 | Tap Dance (Model F) | Lighting hover notes on two systems (`UG_*` driving the matrix) and `RM_*` |
@@ -131,13 +137,10 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
   while a view polls, and key output is disabled while they show, RAM only, so every close and
   exit path must enable it again); library export / import (a web-build need).
 
-**Next**: encoders (Rico's choice, 2026-10-11). None exist yet: `VialProtocol::GetEncoder()` is
-wrapped but unused, VIA's 0x14/0x15 are ids only. First the parser -- a Vial encoder key has a
-bare `e` in the centre label and `index,direction` top-left (two keys per knob), which Nazg now
-misreads as a matrix cell, drawing phantom keys that write the wrong switch; VIA's is `eN` in the
-centre with the push switch's `row,col` top-left, or none. Then the feature, after a mockup:
-Vial reads both directions in one reply, VIA >= 10 one call per direction; knobs edited with
-Keymap's layer strip. No board at hand has an encoder.
+**Next**: the second test build, `0.1.0-test.2` (Rico, 2026-10-13) -- knobs, the transport fix for
+Keychron's double replies, and the community definitions with the GeonWorks recrawl, left
+uncommitted in `nazg-community-definitions` for a release of its own first. A tester's Keychron Q6
+(VIA, a knob with an encoder map) and K10 HE are its first test.
 
 # Prior research — read before re-researching anything
 

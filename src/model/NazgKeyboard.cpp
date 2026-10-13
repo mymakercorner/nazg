@@ -186,7 +186,7 @@ namespace nazg
 
         std::vector<DefinitionKey> keys;
         for (const DefinitionKey& key : PlaceKeys(definition, selection))
-            if (key.layoutIndex == static_cast<int>(group) && key.IsSwitch())
+            if (key.layoutIndex == static_cast<int>(group) && !key.decal)
                 keys.push_back(key);
         return keys;
     }
@@ -242,10 +242,19 @@ namespace nazg
 
     Keycode Keyboard::KeycodeFor(const DefinitionKey& key, uint8_t layer) const
     {
-        if (!keymap.Contains(layer, key.row, key.column))
+        if (!key.IsSwitch() || !keymap.Contains(layer, key.row, key.column))
             return NamedKey{ "KC_NO" };
 
         return keymap.At(layer, key.row, key.column);
+    }
+
+    std::optional<Keycode> Keyboard::TurnFor(int knob, bool clockwise, uint8_t layer) const
+    {
+        if (knob < 0 || layer >= encoderMap.size() || static_cast<size_t>(knob) >= encoderMap[layer].size())
+            return std::nullopt;
+
+        const KnobTurns& turns = encoderMap[layer][static_cast<size_t>(knob)];
+        return clockwise ? turns.clockwise : turns.counterClockwise;
     }
 
     Keyboard BuildKeyboard(KeyboardDefinition definition,

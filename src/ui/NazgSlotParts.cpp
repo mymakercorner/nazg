@@ -84,7 +84,7 @@ namespace nazg
             return;
         for (BoardKey& key : board.keys)
             for (const auto& [row, column] : lock->unlockKeys)
-                if (key.geometry.row == row && key.geometry.column == column)
+                if (key.geometry.IsSwitch() && key.geometry.row == row && key.geometry.column == column)
                     key.marks |= Mark::Warning;
     }
 }

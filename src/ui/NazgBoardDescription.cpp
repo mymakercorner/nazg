@@ -42,6 +42,45 @@ namespace nazg
                 return KeyFill::Accent;
             return IsCharacterKey(name) ? KeyFill::Alpha : KeyFill::Modifier;
         }
+
+        bool IsNamed(const Keycode& keycode, std::string_view name)
+        {
+            const auto* named = std::get_if<NamedKey>(&keycode);
+            return named != nullptr && named->name == name;
+        }
+
+        // What a keycode is in one short line, for a knob's stacked legends: a character, an
+        // arrow's direction, or a key's words -- their short form where there is one.
+        KnobLine KnobLineOf(const KeycapLegend& legend)
+        {
+            static constexpr const char* c_Arrows[] = { "", "Up", "Down", "Left", "Right" };
+
+            KnobLine line;
+            line.category = legend.Band();
+            switch (legend.placement)
+            {
+            case PlacementClass::Blank: break;
+            case PlacementClass::Character: line.text = legend.plain; break;
+            case PlacementClass::Arrow: line.text = c_Arrows[static_cast<size_t>(legend.arrow)]; break;
+            default:
+                line.text = legend.cylindrical.shortForm.empty() ? legend.cylindrical.full : legend.cylindrical.shortForm;
+                if (line.text.empty())
+                    line.text = legend.header.words.shortForm.empty() ? legend.header.words.full
+                                                                       : legend.header.words.shortForm;
+                break;
+            }
+            return line;
+        }
+
+        // A turn the firmware keeps in its own code: no keycode to show.
+        KeycapLegend UnknownLegend()
+        {
+            KeycapLegend legend;
+            legend.placement   = PlacementClass::Command;
+            legend.cylindrical = Words{ "?", "" };
+            legend.spherical   = legend.cylindrical;
+            return legend;
+        }
     }
 
     Legend& BoardKey::operator[](LegendSlot slot)
@@ -51,39 +90,51 @@ namespace nazg
         return std::get<SlotLegends>(legends)[static_cast<size_t>(slot)];
     }
 
-    ResolvedKey ResolveKey(const Keyboard& keyboard, const DefinitionKey& key, uint8_t layer)
+    namespace
     {
-        const auto isNamed = [](const Keycode& keycode, std::string_view name)
+        // QMK's walk down the layers, for whatever `at` reads on a layer.
+        template <typename TAt>
+        ResolvedKey Resolve(uint8_t layer, TAt&& at)
         {
-            const auto* named = std::get_if<NamedKey>(&keycode);
-            return named != nullptr && named->name == name;
-        };
-
-        ResolvedKey resolved{ Fallthrough::None, keyboard.KeycodeFor(key, layer), layer };
-        if (isNamed(resolved.keycode, "KC_TRNS"))
-            resolved.fallthrough = Fallthrough::Transparent;
-        else if (isNamed(resolved.keycode, "KC_NO"))
-            resolved.fallthrough = Fallthrough::Disabled;
-        else
-            return resolved;
-
-        for (int below = layer - 1; below >= 0; --below)
-        {
-            Keycode keycode = keyboard.KeycodeFor(key, static_cast<uint8_t>(below));
-            if (isNamed(keycode, "KC_TRNS"))
-                continue;
-            if (isNamed(keycode, "KC_NO"))
-            {
+            ResolvedKey resolved{ Fallthrough::None, at(layer), layer };
+            if (IsNamed(resolved.keycode, "KC_TRNS"))
+                resolved.fallthrough = Fallthrough::Transparent;
+            else if (IsNamed(resolved.keycode, "KC_NO"))
                 resolved.fallthrough = Fallthrough::Disabled;
-                continue;
+            else
+                return resolved;
+
+            for (int below = layer - 1; below >= 0; --below)
+            {
+                Keycode keycode = at(static_cast<uint8_t>(below));
+                if (IsNamed(keycode, "KC_TRNS"))
+                    continue;
+                if (IsNamed(keycode, "KC_NO"))
+                {
+                    resolved.fallthrough = Fallthrough::Disabled;
+                    continue;
+                }
+
+                resolved.keycode = std::move(keycode);
+                resolved.layer   = static_cast<uint8_t>(below);
+                return resolved;
             }
 
-            resolved.keycode = std::move(keycode);
-            resolved.layer   = static_cast<uint8_t>(below);
-            return resolved;
+            return { Fallthrough::Disabled, NamedKey{ "KC_NO" }, std::nullopt };
         }
+    }
 
-        return { Fallthrough::Disabled, NamedKey{ "KC_NO" }, std::nullopt };
+    ResolvedKey ResolveKey(const Keyboard& keyboard, const DefinitionKey& key, uint8_t layer)
+    {
+        return Resolve(layer, [&](uint8_t at) { return keyboard.KeycodeFor(key, at); });
+    }
+
+    std::optional<ResolvedKey> ResolveTurn(const Keyboard& keyboard, int knob, bool clockwise, uint8_t layer)
+    {
+        if (!keyboard.TurnFor(knob, clockwise, layer))
+            return std::nullopt;
+        return Resolve(layer, [&](uint8_t at)
+                       { return keyboard.TurnFor(knob, clockwise, at).value_or(Keycode{ NamedKey{ "KC_NO" } }); });
     }
 
     void DescribeLegends(BoardDescription& board, const Keyboard& keyboard, uint8_t layer,
@@ -95,12 +146,43 @@ namespace nazg
 
         for (BoardKey& key : board.keys)
         {
-            if (key.geometry.decal)
+            const DefinitionKey& geometry = key.geometry;
+            if (geometry.decal)
                 continue;
 
-            const LegendContext context{ settings.Layout(), settings.modifierNames, SideOf(key.geometry, line),
+            const LegendContext context{ settings.Layout(), settings.modifierNames, SideOf(geometry, line),
                                          lighting, custom, keyboard.tapDances };
-            const ResolvedKey   resolved = ResolveKey(keyboard, key.geometry, layer);
+
+            // A Vial knob's direction: a keycap wearing its turn's keycode.
+            if (geometry.encoderIndex >= 0 && geometry.encoderDirection >= 0)
+            {
+                const std::optional<ResolvedKey> turn =
+                    ResolveTurn(keyboard, geometry.encoderIndex, geometry.encoderDirection == 1, layer);
+                key.legends     = turn ? LegendFor(turn->keycode, context) : UnknownLegend();
+                key.fallthrough = turn ? turn->fallthrough : Fallthrough::None;
+                continue;
+            }
+
+            // A VIA knob: its press, and its turns, stacked.
+            if (geometry.encoderIndex >= 0)
+            {
+                const auto turnLine = [&](bool clockwise)
+                {
+                    const std::optional<ResolvedKey> turn = ResolveTurn(keyboard, geometry.encoderIndex, clockwise, layer);
+                    return turn ? KnobLineOf(LegendFor(turn->keycode, context)) : KnobLine{ "?", CommandCategory::None };
+                };
+                KnobLegend knob;
+                if (geometry.IsSwitch())
+                    knob.press = KnobLineOf(LegendFor(ResolveKey(keyboard, geometry, layer).keycode, context));
+                knob.counterClockwise = turnLine(false);
+                knob.clockwise        = turnLine(true);
+                key.knob              = knob;
+                key.legends           = KeycapLegend{};
+                key.fallthrough       = Fallthrough::None;
+                continue;
+            }
+
+            const ResolvedKey resolved = ResolveKey(keyboard, geometry, layer);
             key.legends     = LegendFor(resolved.keycode, context);
             key.fallthrough = resolved.fallthrough;
         }
@@ -291,13 +373,13 @@ namespace nazg
         BoardDescription board;
         for (const DefinitionKey& key : PlaceKeys(keyboard.definition, keyboard.layoutSelection))
         {
-            // A knob without a push switch is not drawn yet: it has no cell to show a keycode of.
-            if (!key.decal && !key.IsSwitch())
-                continue;
-
             BoardKey described;
             described.geometry = key;
-            described.fill     = KeycapClassOf(keyboard.KeycodeFor(key, 0), key);
+            // A knob's class from what it does on layer 0: its press, else its clockwise turn.
+            Keycode base = keyboard.KeycodeFor(key, 0);
+            if (key.encoderIndex >= 0 && !key.IsSwitch())
+                base = keyboard.TurnFor(key.encoderIndex, key.encoderDirection != 0, 0).value_or(Keycode{ NamedKey{ "KC_NO" } });
+            described.fill = KeycapClassOf(base, key);
             board.keys.push_back(std::move(described));
         }
         return board;

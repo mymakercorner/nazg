@@ -20,8 +20,11 @@
 #include "adapters/qmk/NazgQmkKeycodes.h"
 #include "adapters/via/NazgViaKeymap.h"
 #include "adapters/via/NazgViaProtocol.h"
+#include "adapters/vial/NazgEncoderMap.h"
+#include "adapters/vial/NazgVialProtocol.h"
 #include "transport/NazgDeviceChannel.h"
 #include "ui/NazgBoardDescription.h"
+#include "ui/NazgBoardView.h"
 #include "ui/NazgKeycapLegend.h"
 #include "ui/NazgKeyLine.h"
 #include "ui/NazgKeycodeCatalogue.h"
@@ -94,11 +97,27 @@ namespace nazg
                 m_Order.push_back(cell);
         }
 
-        const bool flashing = m_Flash && ImGui::GetTime() < m_FlashUntil;
+        const bool flashing = ImGui::GetTime() < m_FlashUntil;
 
         for (BoardKey& key : board.keys)
         {
-            if (flashing && m_Flash->row == key.geometry.row && m_Flash->column == key.geometry.column)
+            const DefinitionKey& geometry = key.geometry;
+
+            // A knob: flashed after a write, outlined while selected -- a Vial knob's direction key
+            // when it is the action chosen.
+            if (geometry.encoderIndex >= 0)
+            {
+                if (flashing && m_FlashKnob == geometry.encoderIndex)
+                    key.marks |= Mark::Checked;
+                if (m_Knob && m_Knob->index == geometry.encoderIndex &&
+                    (geometry.encoderDirection < 0 ||
+                     (geometry.encoderDirection == 1) == (m_Knob->action == KnobAction::Clockwise)))
+                    key.marks |= Mark::Selected;
+                if (!geometry.IsSwitch())
+                    continue;
+            }
+
+            if (flashing && m_Flash && m_Flash->row == geometry.row && m_Flash->column == geometry.column)
                 key.marks |= Mark::Checked;
 
             if (!m_Selected || m_Selected->row != key.geometry.row || m_Selected->column != key.geometry.column)
@@ -123,6 +142,36 @@ namespace nazg
             return;
 
         const DefinitionKey& key = board.keys[*events.hoveredKey].geometry;
+
+        // A knob: what it does each way, and a click selects it -- the direction clicked on Vial,
+        // the press on a VIA knob that has one.
+        if (key.encoderIndex >= 0)
+        {
+            const auto turnText = [&](bool clockwise)
+            {
+                const std::optional<Keycode> turn = m_Keyboard.TurnFor(key.encoderIndex, clockwise, m_Layer);
+                return turn ? KeycodeHoverText(*turn, m_Keyboard.keycodeVersion) : std::string("kept by the firmware");
+            };
+            std::string text = "Knob " + std::to_string(key.encoderIndex) + "\nTurned left: " + turnText(false) +
+                               "\nTurned right: " + turnText(true);
+            if (key.encoderDirection < 0 && key.IsSwitch())
+                text += "\nPressed: " + KeycodeHoverText(m_Keyboard.KeycodeFor(key, m_Layer), m_Keyboard.keycodeVersion);
+            ImGui::SetTooltip("%s", text.c_str());
+
+            if (events.clickedKey)
+            {
+                KnobSelection selection{ key.encoderIndex, KnobAction::Clockwise };
+                if (key.encoderDirection >= 0)
+                    selection.action = key.encoderDirection == 1 ? KnobAction::Clockwise : KnobAction::CounterClockwise;
+                else if (m_Knob && m_Knob->index == key.encoderIndex)
+                    selection.action = m_Knob->action;
+                else if (key.IsSwitch())
+                    selection.action = KnobAction::Press;
+                m_Knob = selection;
+                m_Selected.reset();
+            }
+            return;
+        }
 
         // A definition can put a key outside its own matrix -- VIA's registry refuses that, an
         // imported file or a Vial board may not. The keymap has no cell for it: never selected.
@@ -168,7 +217,10 @@ namespace nazg
         ImGui::SetTooltip("%s\nrow %d, column %d", text.c_str(), key.row, key.column);
 
         if (events.clickedKey)
+        {
             m_Selected = Cell{ key.row, key.column };
+            m_Knob.reset();
+        }
     }
 
     void KeymapSection::DrawPanel()
@@ -176,8 +228,12 @@ namespace nazg
         std::optional<Keycode> current;
         if (m_Selected)
             current = m_Keyboard.keymap.At(m_Layer, m_Selected->row, m_Selected->column);
+        else if (m_Knob)
+            current = KnobKeycode(*m_Knob);
 
-        if (current)
+        if (m_Knob)
+            DrawKnobPanel();
+        else if (current)
             DrawKeyLine(*current);
         else
         {
@@ -198,9 +254,194 @@ namespace nazg
         ImGui::EndDisabled();
         m_Preview = events.preview;
 
-        // A pick keeps the key's hold or modifiers.
-        if (events.picked && current)
+        // A pick keeps the key's hold or modifiers; a knob's turn takes the keycode as it is.
+        if (events.picked && m_Knob)
+            WriteKnob(m_Knob->action == KnobAction::Press && current
+                          ? ComposeWithKey(*events.picked, *current, m_Keyboard.keycodeVersion)
+                          : *events.picked);
+        else if (events.picked && current)
             Write(ComposeWithKey(*events.picked, *current, m_Keyboard.keycodeVersion), true);
+    }
+
+    std::optional<KeymapSection::Cell> KeymapSection::PushCellOf(int knob) const
+    {
+        for (const DefinitionKey& key : m_Keyboard.definition.keys)
+            if (key.encoderIndex == knob && key.encoderPush && m_Keyboard.keymap.Contains(m_Layer, key.row, key.column))
+                return Cell{ key.row, key.column };
+        return std::nullopt;
+    }
+
+    std::optional<Keycode> KeymapSection::KnobKeycode(const KnobSelection& knob) const
+    {
+        if (knob.action == KnobAction::Press)
+        {
+            if (const std::optional<Cell> cell = PushCellOf(knob.index))
+                return m_Keyboard.keymap.At(m_Layer, cell->row, cell->column);
+            return std::nullopt;
+        }
+        return m_Keyboard.TurnFor(knob.index, knob.action == KnobAction::Clockwise, m_Layer);
+    }
+
+    void KeymapSection::WriteKnob(const Keycode& keycode)
+    {
+        if (!m_Knob || IsBusy())
+            return;
+
+        if (m_Knob->action == KnobAction::Press)
+        {
+            if (const std::optional<Cell> cell = PushCellOf(m_Knob->index))
+                m_Write = WriteKey(m_Layer, *cell, keycode, m_Keyboard.keycodeVersion);
+            return;
+        }
+
+        if (m_Keyboard.encoderMap.empty())
+            return;   // the firmware keeps its turns in its code: the panel says so
+
+        m_Write = WriteTurn(m_Layer, static_cast<uint8_t>(m_Knob->index), m_Knob->action == KnobAction::Clockwise,
+                            keycode, m_Keyboard.keycodeVersion, m_Keyboard.report.isVial);
+    }
+
+    namespace
+    {
+        // Pixels, before DPI scaling: a knob's action card, as Tap Dance's.
+        constexpr float c_KnobCardWidth = 132.0f;
+        constexpr float c_KnobCardGap   = 12.0f;
+        constexpr float c_KnobDrawing   = 26.0f;
+
+        // Text centred in [left, left + width), cut to it.
+        void CentredLine(ImDrawList* list, float left, float width, float y, ImU32 colour, const std::string& text)
+        {
+            const float w = ImGui::CalcTextSize(text.c_str()).x;
+            list->PushClipRect(ImVec2(left, y), ImVec2(left + width, y + ImGui::GetFontSize() * 2), true);
+            list->AddText(ImVec2(left + std::max(0.0f, (width - w) / 2), y), colour, text.c_str());
+            list->PopClipRect();
+        }
+    }
+
+    void KeymapSection::DrawKnobPanel()
+    {
+        const float scale   = ImGui::GetStyle().FontScaleDpi;
+        const bool  noMap   = m_Keyboard.encoderMap.empty();
+        const bool  isVial  = m_Keyboard.report.isVial;
+        const bool  canPush = !isVial && PushCellOf(m_Knob->index).has_value();
+
+        // The line over the cards: which knob, what the last write did, and a map the firmware lacks.
+        ImGui::AlignTextToFramePadding();
+        PushHeaderFont();
+        ImGui::Text("Knob %d", m_Knob->index);
+        ImGui::PopFont();
+        ImGui::SameLine();
+        if (noMap)
+            ColouredText(PanelColour::Warning, "%s",
+                         !isVial && m_Keyboard.report.viaProtocol < 10
+                             ? "VIA before protocol 10 has no encoder map: a turn does what the firmware's code says."
+                             : "This firmware keeps no encoder map (ENCODER_MAP_ENABLE): a turn does what its code says.");
+        else if (m_IsWriting)
+            ImGui::TextDisabled("writing...");
+        else if (!m_Message.empty())
+            ColouredText(m_IsWarning ? PanelColour::Warning : PanelColour::Success, "%s", m_Message.c_str());
+        else
+            ImGui::TextDisabled("Layer %d. Each action is written at once.", m_Layer);
+        if (isVial)
+        {
+            ImGui::SameLine();
+            ImGui::TextDisabled("Pressing it, if it can be, is a key of its own.");
+        }
+
+        struct Card
+        {
+            KnobAction  action;
+            const char* name;
+        };
+        std::vector<Card> cards{ { KnobAction::CounterClockwise, "Turn left" }, { KnobAction::Clockwise, "Turn right" } };
+        if (canPush)
+            cards.push_back({ KnobAction::Press, "Press" });
+        if (!canPush && m_Knob->action == KnobAction::Press)
+            m_Knob->action = KnobAction::Clockwise;
+
+        const ImVec2 tile  = TileSize();
+        const float  cardW = std::max(c_KnobCardWidth * scale, tile.x + 16 * scale);
+        const float  gap   = c_KnobCardGap * scale;
+        const float  pad   = 6 * scale;
+        const float  line  = ImGui::GetTextLineHeight();
+        const float  cardH = pad + line + 4 * scale + c_KnobDrawing * scale + 4 * scale + tile.y + 4 * scale + line + pad;
+        ImDrawList*  list  = ImGui::GetWindowDrawList();
+        const ImU32  muted = ImGui::GetColorU32(ImGuiCol_TextDisabled);
+        const ImU32  text  = ImGui::GetColorU32(ImGuiCol_Text);
+        const ImU32  ink   = ImGui::GetColorU32(ImGuiCol_Text);
+        const std::vector<Words> custom = CustomKeycodeWordsOf(m_Keyboard);
+        const LegendContext      legends{ m_Legends.Layout(), m_Legends.modifierNames, KeySide::Neither,
+                                          LightingSystemsOf(m_Keyboard), custom };
+
+        ImGui::Dummy(ImVec2(0, gap / 2));
+        const ImVec2 origin = ImGui::GetCursorScreenPos();
+        for (size_t index = 0; index < cards.size(); ++index)
+        {
+            const Card&  card     = cards[index];
+            const ImVec2 p0(origin.x + index * (cardW + gap), origin.y);
+            const ImVec2 p1(p0.x + cardW, p0.y + cardH);
+            const bool   selected = m_Knob->action == card.action;
+            const bool   isTurn   = card.action != KnobAction::Press;
+
+            ImGui::PushID(static_cast<int>(index));
+            ImGui::SetCursorScreenPos(p0);
+            if (ImGui::InvisibleButton("##knobaction", ImVec2(cardW, cardH)))
+                m_Knob->action = card.action;
+            const bool hovered = ImGui::IsItemHovered();
+            if (selected || hovered)
+                list->AddRectFilled(p0, p1, ImGui::GetColorU32(selected ? ImGuiCol_Header : ImGuiCol_HeaderHovered), 7 * scale);
+            if (selected)
+                list->AddRect(p0, p1, ImGui::GetColorU32(ImGuiCol_ButtonActive), 7 * scale, 0, std::max(1.0f, 1.5f * scale));
+
+            float y = p0.y + pad;
+            PushHeaderFont();
+            CentredLine(list, p0.x, cardW, y, text, card.name);
+            ImGui::PopFont();
+            y += line + 4 * scale;
+
+            // The gesture: the knob as a circle, turned by an arrow round it or pushed by one into it.
+            const ImVec2 knob(p0.x + cardW / 2, y + c_KnobDrawing * scale / 2);
+            const float  r = c_KnobDrawing * scale * 0.3f;
+            list->AddCircle(knob, r, ImGui::GetColorU32(ImGuiCol_Border), 0, 2 * scale);
+            if (isTurn)
+                DrawTurnArrow(list, knob, r + 3.5f * scale, card.action == KnobAction::Clockwise, ink, 1.6f * scale);
+            else
+            {
+                const float top = knob.y - r - 7 * scale;
+                list->AddLine(ImVec2(knob.x, top), ImVec2(knob.x, knob.y - r - 1 * scale), ink, 1.6f * scale);
+                list->AddTriangleFilled(ImVec2(knob.x - 4 * scale, knob.y - r - 4 * scale),
+                                        ImVec2(knob.x + 4 * scale, knob.y - r - 4 * scale),
+                                        ImVec2(knob.x, knob.y - r + 0.5f * scale), ink);
+            }
+            y += c_KnobDrawing * scale + 4 * scale;
+
+            const FaceBox box{ p0.x + (cardW - tile.x) / 2, y, p0.x + (cardW + tile.x) / 2, y + tile.y };
+            std::string   words;
+            if (const std::optional<Keycode> keycode = KnobKeycode({ m_Knob->index, card.action }))
+            {
+                KeycodeTile keyTile = TileOf(*keycode, legends, false);
+                keyTile.hovered     = hovered;
+                DrawKeycodeTile(keyTile, box);
+                if (hovered && ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+                    ImGui::SetTooltip("%s", KeycodeHoverText(*keycode, m_Keyboard.keycodeVersion).c_str());
+            }
+            else
+            {
+                list->AddRect(ImVec2(box.x0, box.y0), ImVec2(box.x1, box.y1), ImGui::GetColorU32(ImGuiCol_Border), 5 * scale,
+                              0, std::max(1.0f, scale));
+                CentredLine(list, box.x0, box.x1 - box.x0, (box.y0 + box.y1 - line) / 2, muted, "?");
+                words = "kept by the firmware";
+            }
+            if (!isTurn)
+                words = "its own switch";
+            y += tile.y + 4 * scale;
+            if (!words.empty())
+                CentredLine(list, p0.x + 2 * scale, cardW - 4 * scale, y, muted, words);
+            ImGui::PopID();
+        }
+
+        ImGui::SetCursorScreenPos(ImVec2(origin.x, origin.y + cardH));
+        ImGui::Dummy(ImVec2(cards.size() * (cardW + gap), gap / 2));
     }
 
     void KeymapSection::Write(const Keycode& keycode, bool advance)
@@ -438,6 +679,50 @@ namespace nazg
         }
 
         // Outside the catch: closing an id that never opened does nothing.
+        m_Transport.Close(device);
+        m_IsWriting = false;
+    }
+
+    // As WriteKey(), through the encoder map: the turn stored, read back, kept in the model.
+    Task<void> KeymapSection::WriteTurn(uint8_t layer, uint8_t knob, bool clockwise, Keycode keycode,
+                                        QmkKeycodeVersion version, bool isVial)
+    {
+        m_IsWriting = true;
+        m_Message.clear();
+        m_IsWarning = false;
+
+        DeviceId device = c_InvalidDevice;
+
+        try
+        {
+            device = co_await m_Transport.Open(m_Path);
+
+            HidDeviceChannel channel(m_Transport, device);
+            VialProtocol     protocol(channel);
+
+            const Keycode stored = co_await WriteKnobTurn(protocol, isVial, layer, knob, clockwise, keycode, version);
+            if (layer < m_Keyboard.encoderMap.size() && knob < m_Keyboard.encoderMap[layer].size())
+                (clockwise ? m_Keyboard.encoderMap[layer][knob].clockwise : m_Keyboard.encoderMap[layer][knob].counterClockwise) =
+                    stored;
+
+            if (EncodeQmkKeycode(stored, version) == EncodeQmkKeycode(keycode, version))
+                m_Message = "stored " + FormatKeycode(stored);
+            else
+            {
+                m_Message = "asked for " + FormatKeycode(keycode) + " but the board stored " + FormatKeycode(stored) +
+                            " -- a locked Vial board filters some keycodes";
+                m_IsWarning = true;
+            }
+
+            m_FlashKnob  = knob;
+            m_FlashUntil = ImGui::GetTime() + 0.9;
+        }
+        catch (const std::exception& failure)
+        {
+            m_Message   = std::string("write failed: ") + failure.what();
+            m_IsWarning = true;
+        }
+
         m_Transport.Close(device);
         m_IsWriting = false;
     }

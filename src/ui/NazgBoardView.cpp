@@ -349,6 +349,85 @@ namespace nazg
                               stroke);
         }
 
+        // A Vial knob's direction key: ↺ or ↻ on a badge in the face's top right corner -- the
+        // fallthrough badge's look, in the corner it leaves free (ui-design.md, "Knobs").
+        void DrawTurnBadge(ImDrawList* drawList, bool clockwise, KeyFill fill, float heat, ImVec2 p0, ImVec2 p1,
+                           float unit, bool dimmed)
+        {
+            const float scale = ImGui::GetStyle().FontScaleDpi;
+            const float size  = std::max(11.0f * scale, c_BadgeSize * unit);
+            const float inset = c_BadgeInset * unit;
+
+            const BoardColours::Keycap keycap = BoardColours::Fill(fill, heat);
+            ImU32 badge = Over(keycap.face, Faded(BoardColours::Legend(LegendInk::Legend, fill), c_BadgeStrength));
+            ImU32 mark  = keycap.face;
+            if (dimmed)
+            {
+                badge = Over(badge, BoardColours::Dimmed());
+                mark  = Over(mark, BoardColours::Dimmed());
+            }
+
+            const ImVec2 min(p1.x - inset - size, p0.y + inset);
+            const ImVec2 max(p1.x - inset, p0.y + inset + size);
+            drawList->AddRectFilled(min, max, badge, 0.25f * size);
+            DrawTurnArrow(drawList, ImVec2((min.x + max.x) / 2, (min.y + max.y) / 2), 0.28f * size, clockwise, mark,
+                          std::max(1.2f * scale, 0.09f * size));
+        }
+
+        // A VIA knob's legends, stacked in its circle: the press on top, then a line per turn --
+        // side by side they do not fit in 1u. The arrows share a column and the turns' keycodes
+        // start at one x, so the two line up; the block is centred as one (Rico, 2026-10-13).
+        void DrawKnobLegends(ImDrawList* drawList, const KnobLegend& knob, ImVec2 centre, float radius, float unit,
+                             KeyFill fill, float heat, bool dimmed)
+        {
+            const ImGuiTextMeasurer measurer(g_LegendFonts, ImGui::GetFont());
+            const float             size   = c_LetterShare * c_ModifierShare * unit;
+            ImFont*                 font   = measurer.FontFor(LegendWeight::Regular);
+            const float             imSize = measurer.ImGuiSize(size);
+            const float             line   = size * 1.3f;
+
+            const auto colourOf = [&](CommandCategory category)
+            {
+                ImU32 colour = BoardColours::Category(category, CategoryUse::Text, fill, heat)
+                                   .value_or(BoardColours::Legend(LegendInk::Legend, fill));
+                return dimmed ? Over(colour, BoardColours::Dimmed()) : colour;
+            };
+            const auto width = [&](const std::string& text) { return measurer.Width(text, size, LegendWeight::Regular); };
+
+            const float arrowRadius = size * 0.32f;
+            const float arrowWidth  = 2 * arrowRadius;
+            const float gap         = size * 0.3f;
+            const float block       = arrowWidth + gap + std::max(width(knob.counterClockwise.text), width(knob.clockwise.text));
+            const float left        = centre.x - block / 2;
+
+            const bool  hasPress = !knob.press.text.empty();
+            const int   lines    = hasPress ? 3 : 2;
+            const float top      = centre.y - lines * line / 2;
+
+            const float  room = radius * 0.92f;
+            const ImVec4 clip(centre.x - room, centre.y - room, centre.x + room, centre.y + room);
+            const auto   text = [&](float x, int row, const KnobLine& legend)
+            {
+                const float y = top + row * line + (line - imSize) / 2;
+                drawList->AddText(font, imSize, ImVec2(x, y), colourOf(legend.category), legend.text.c_str(), nullptr,
+                                  0.0f, &clip);
+            };
+
+            int row = 0;
+            if (hasPress)
+                text(centre.x - width(knob.press.text) / 2, row++, knob.press);
+
+            const ImU32 muted     = Faded(BoardColours::Legend(LegendInk::Legend, fill), 0.7f);
+            const float thickness = std::max(1.0f, size * 0.1f);
+            for (const auto& [legend, clockwise] : { std::pair{ &knob.counterClockwise, false },
+                                                     std::pair{ &knob.clockwise, true } })
+            {
+                DrawTurnArrow(drawList, ImVec2(left + arrowRadius, top + row * line + line / 2), arrowRadius, clockwise,
+                              dimmed ? Over(muted, BoardColours::Dimmed()) : muted, thickness);
+                text(left + arrowWidth + gap, row++, *legend);
+            }
+        }
+
         // A key is drawn in passes, each over every key before the next: the lips first, so an
         // L-shaped key shows its lip only where its contour has a bottom; the keycaps; then the
         // lines; then the legends, so a line runs over the keycaps and under their legends.
@@ -395,10 +474,65 @@ namespace nazg
             const bool                 isDimmed = (described.marks & Mark::Dimmed) != 0;
             const BoardColours::Keycap colours  = BoardColours::Fill(described.fill, described.heat);
 
+            // A VIA knob: a key, round -- the keycap's face, outline and states (ui-design.md, "Knobs").
+            if (key.encoderIndex >= 0 && key.encoderDirection < 0)
+            {
+                const ImVec2 centre((p0.x + p1.x) / 2, (p0.y + p1.y) / 2);
+                const float  radius = std::min(p1.x - p0.x, p1.y - p0.y) / 2;
+                const bool   onKnob = inView && std::hypot(mouse.x - centre.x, mouse.y - centre.y) <= radius;
+
+                if (pass == KeyPass::Legends)
+                {
+                    if (described.knob)
+                        DrawKnobLegends(drawList, *described.knob, centre, radius, unit, described.fill, described.heat,
+                                        isDimmed);
+                    else
+                        DrawLegends(drawList, described, p0, p1, unit, isDimmed);
+                }
+                else if (pass == KeyPass::Lip)
+                {
+                    drawList->AddCircleFilled(ImVec2(centre.x, centre.y + unit * c_Lip), radius,
+                                              WithStates(BoardColours::Lip(), described.marks, onKnob));
+                }
+                else
+                {
+                    drawList->AddCircleFilled(centre, radius, WithStates(colours.face, described.marks, onKnob));
+                    if (CurrentBoardStyle().keycaps == KeycapStyle::Outlined)
+                    {
+                        const float border = std::max(1.0f, scale);
+                        ImU32       colour = BoardColours::Outline();
+                        if (isDimmed)
+                            colour = Over(colour, BoardColours::Dimmed());
+                        drawList->AddCircle(centre, radius - border / 2, colour, 0, border);
+                    }
+
+                    const float thickness = std::max(2.0f, unit * 0.04f);
+                    float       inset     = 0.0f;
+                    for (const auto& [mark, colour] :
+                         { std::pair{ Mark::Selected, BoardColours::Selected() },
+                           std::pair{ Mark::Warning, BoardColours::Warning() },
+                           std::pair{ Mark::Highlighted, BoardColours::Highlighted() },
+                           std::pair{ Mark::HighlightedSecond, BoardColours::HighlightedSecond() } })
+                    {
+                        if ((described.marks & mark) == 0)
+                            continue;
+                        drawList->AddCircle(centre, radius - inset - thickness / 2, colour, 0, thickness);
+                        inset += thickness;
+                    }
+                }
+
+                if (key.rotation != 0.0f)
+                    for (int vertex = firstVertex; vertex < drawList->VtxBuffer.Size; ++vertex)
+                        drawList->VtxBuffer[vertex].pos = rotation.Apply(drawList->VtxBuffer[vertex].pos);
+                return onKnob;
+            }
+
             if (pass == KeyPass::Legends)
             {
                 DrawLegends(drawList, described, p0, p1, unit, isDimmed);
                 DrawFallthroughMark(drawList, described.fallthrough, described.fill, described.heat, p1, unit, isDimmed);
+                if (key.encoderIndex >= 0)
+                    DrawTurnBadge(drawList, key.encoderDirection == 1, described.fill, described.heat, p0, p1, unit, isDimmed);
             }
             else if (pass == KeyPass::Lip)
             {
@@ -604,6 +738,35 @@ namespace nazg
         g_LegendFonts = fonts;
     }
 
+    void DrawTurnArrow(ImDrawList* drawList, ImVec2 centre, float radius, bool clockwise, ImU32 colour, float thickness)
+    {
+        constexpr float c_Pi    = 3.14159265358979f;
+        constexpr int   c_Steps = 14;
+
+        // Drawn clockwise -- the angle grows clockwise on screen, y pointing down -- from the upper
+        // left round to the lower left; counter-clockwise is its mirror image.
+        const float side = clockwise ? 1.0f : -1.0f;
+        const float from = -0.85f * c_Pi;
+        const float to   = 0.55f * c_Pi;
+        const auto  at   = [&](float angle) { return ImVec2(centre.x + side * radius * std::cos(angle), centre.y + radius * std::sin(angle)); };
+
+        for (int step = 0; step <= c_Steps; ++step)
+            drawList->PathLineTo(at(from + (to - from) * step / c_Steps));
+        drawList->PathStroke(colour, ImDrawFlags_None, thickness);
+
+        // The head, along the arc's direction where it ends.
+        const ImVec2 end     = at(to);
+        const ImVec2 forward(side * -std::sin(to), std::cos(to));
+        const ImVec2 outward(side * std::cos(to), std::sin(to));
+        const float  head = std::max(thickness * 2.2f, radius * 0.75f);
+        drawList->AddTriangleFilled(ImVec2(end.x + forward.x * head * 0.55f, end.y + forward.y * head * 0.55f),
+                                    ImVec2(end.x - forward.x * head * 0.2f + outward.x * head * 0.5f,
+                                           end.y - forward.y * head * 0.2f + outward.y * head * 0.5f),
+                                    ImVec2(end.x - forward.x * head * 0.2f - outward.x * head * 0.5f,
+                                           end.y - forward.y * head * 0.2f - outward.y * head * 0.5f),
+                                    colour);
+    }
+
     BoardEvents DrawBoard(const BoardDescription& board, float maxHeight)
     {
         BoardEvents events;
@@ -790,7 +953,7 @@ namespace nazg
 
         for (const DefinitionKey& key : placed)
         {
-            if (!key.IsSwitch())
+            if (key.decal)
                 continue;
 
             // Rotated as the board is: drawn straight, then its vertices turned.
@@ -798,10 +961,14 @@ namespace nazg
             const int      firstVertex = drawList->VtxBuffer.Size;
 
             const ImVec2 p0(origin.x + key.x * unit + gap, origin.y + key.y * unit + gap);
-            drawList->AddRectFilled(p0, ImVec2(p0.x + key.width * unit - 2 * gap, p0.y + key.height * unit - 2 * gap),
-                                    fill, rounding);
+            const ImVec2 p1(p0.x + key.width * unit - 2 * gap, p0.y + key.height * unit - 2 * gap);
+            if (key.encoderIndex >= 0 && key.encoderDirection < 0)
+                drawList->AddCircleFilled(ImVec2((p0.x + p1.x) / 2, (p0.y + p1.y) / 2),
+                                          std::min(p1.x - p0.x, p1.y - p0.y) / 2, fill);   // a VIA knob, round
+            else
+                drawList->AddRectFilled(p0, p1, fill, rounding);
 
-            if (key.HasSecondRectangle())
+            if (key.HasSecondRectangle() && key.encoderIndex < 0)
             {
                 const ImVec2 q0(origin.x + (key.x + key.secondX) * unit + gap,
                                 origin.y + (key.y + key.secondY) * unit + gap);

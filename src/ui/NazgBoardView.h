@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include "imgui.h"
+
 #include "adapters/via/NazgKeyboardDefinition.h"
 #include "ui/NazgBoardDescription.h"
 #include "ui/NazgKeycapLayout.h"
@@ -52,4 +54,9 @@ namespace nazg
     };
 
     void DrawKeycodeTile(const KeycodeTile& tile, const FaceBox& box);
+
+    // A knob's turn, ↺ or ↻, drawn rather than set in a font: three quarters of a circle of
+    // `radius` about `centre` and a filled head where it ends -- the knob's legends, a Vial
+    // direction key's badge and the Keymap panel's actions alike.
+    void DrawTurnArrow(ImDrawList* drawList, ImVec2 centre, float radius, bool clockwise, ImU32 colour, float thickness);
 }

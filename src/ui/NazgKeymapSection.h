@@ -10,6 +10,11 @@
 // (adapters/via/NazgViaKeymap.h). The panel is the first-draft picker for now. Hovering a
 // layer in the strip shows it, as choosing it would, until the mouse leaves: a peek.
 //
+// Knobs are edited here too (ui-design.md, "Knobs"): a click on one selects it, and the panel
+// shows its actions side by side -- turned left, turned right and, on VIA, pressed -- the picker
+// writing the one chosen: a turn through the encoder map (adapters/vial/NazgEncoderMap.h), the
+// press as the key its push switch is.
+//
 // ImGui only, no SDL: compiled into the application, not into nazg_core.
 
 #pragma once
@@ -61,6 +66,33 @@ namespace nazg
         // Everything it needs across its co_awaits is passed by value, the version too,
         // rather than read back from the keyboard afterwards.
         Task<void> WriteKey(uint8_t layer, Cell cell, Keycode keycode, QmkKeycodeVersion version);
+        Task<void> WriteTurn(uint8_t layer, uint8_t knob, bool clockwise, Keycode keycode, QmkKeycodeVersion version,
+                             bool isVial);
+
+        // A knob selected, and which of its actions the picker writes.
+        enum class KnobAction : uint8_t
+        {
+            CounterClockwise,
+            Clockwise,
+            Press,
+        };
+
+        struct KnobSelection
+        {
+            int        index  = 0;
+            KnobAction action = KnobAction::Clockwise;
+        };
+
+        // A VIA knob's push switch -- its cell -- if it has one.
+        [[nodiscard]] std::optional<Cell> PushCellOf(int knob) const;
+
+        // What the selected action does on the chosen layer; none for a turn the firmware keeps.
+        [[nodiscard]] std::optional<Keycode> KnobKeycode(const KnobSelection& knob) const;
+
+        // The panel's top for a knob: its actions side by side, each a card -- its name, a drawing
+        // of the gesture, its keycode -- as Tap Dance's.
+        void DrawKnobPanel();
+        void WriteKnob(const Keycode& keycode);
 
         HidTransport&         m_Transport;
         std::string           m_Path;
@@ -93,8 +125,10 @@ namespace nazg
 
         uint8_t                m_Layer = 0;
         std::optional<uint8_t> m_Peek;   // a layer hovered in the strip, shown meanwhile
-        std::optional<Cell> m_Selected;
-        KeycodePickerState  m_Picker;
+        std::optional<Cell>          m_Selected;
+        std::optional<KnobSelection> m_Knob;        // instead of a key, never both
+        std::optional<int>           m_FlashKnob;   // the knob just written, as m_Flash
+        KeycodePickerState           m_Picker;
 
         // What a click on the tile under the mouse would write, shown on the selected key meanwhile.
         std::optional<Keycode> m_Preview;

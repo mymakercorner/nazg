@@ -1282,6 +1282,14 @@ The two protocols draw a knob differently, and the parser reads both (`Definitio
 - **No encoder map in the firmware**: the turns show "?" and cannot be edited -- they are the
   firmware's own code; the press, a key, still can be. As the mockup has it; not discussed further.
 
+**Built 2026-10-13**, seen by Rico on his Phoenix and Concordia with forged definitions (a knob
+with a push switch, one without) -- "works perfect": the round key, its stacked legends, the
+selection, the action cards and the "no encoder map" message; a press written. The definition
+preview and the Layout section's option drawing draw a knob round too. Never seen: turns read or
+written, and Vial's direction keys on a board. Code: `ui/NazgBoardView.cpp` (`DrawTurnArrow`, the
+round key, `DrawTurnBadge`), `ui/NazgBoardDescription.*` (`KnobLegend`, `ResolveTurn`),
+`ui/NazgKeymapSection.*` (`DrawKnobPanel`, `WriteTurn`).
+
 ## The Layout section
 
 The board's layout options -- split backspace, ISO Enter, bottom rows -- chosen in the panel.

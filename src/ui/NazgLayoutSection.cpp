@@ -112,6 +112,23 @@ namespace nazg
                 const float                gap     = std::max(1.0f, unit * 0.06f);
                 for (const DefinitionKey& key : shown)
                 {
+                    // A VIA knob, round: about the centre of its turned square.
+                    if (key.encoderIndex >= 0 && key.encoderDirection < 0)
+                    {
+                        float cx = 0.0f, cy = 0.0f;
+                        const std::vector<ContourPoint> corners = TurnedContour(key, 0.0f);
+                        for (const ContourPoint& point : corners)
+                        {
+                            cx += point.x / corners.size();
+                            cy += point.y / corners.size();
+                        }
+                        const ImVec2 centre(origin.x + (cx - x0) * unit, origin.y + (cy - y0) * unit);
+                        const float  radius = std::min(key.width, key.height) * unit / 2 - gap;
+                        list->AddCircleFilled(centre, radius, colours.face);
+                        list->AddCircle(centre, radius, BoardColours::Outline(), 0, std::max(1.0f, scale));
+                        continue;
+                    }
+
                     // Inset by the gap between keys, as the board draws them.
                     for (const ContourPoint& point : TurnedContour(key, gap / unit))
                         list->PathLineTo(ImVec2(origin.x + (point.x - x0) * unit, origin.y + (point.y - y0) * unit));

@@ -104,6 +104,23 @@ namespace nazg
         Disabled,      // KC_NO: the keycode it disables, if any
     };
 
+    // A VIA knob's legends (ui-design.md, "Knobs"), one short line each: what it does pressed --
+    // on its push switch; empty when it has none -- and turned counter-clockwise and clockwise --
+    // "?" when the firmware keeps no encoder map. The renderer draws the knob round and the lines
+    // stacked, the turns behind their arrows. A Vial knob's direction keys are ordinary keycaps.
+    struct KnobLine
+    {
+        std::string     text;
+        CommandCategory category = CommandCategory::None;
+    };
+
+    struct KnobLegend
+    {
+        KnobLine press;
+        KnobLine counterClockwise;
+        KnobLine clockwise;
+    };
+
     struct BoardKey
     {
         // Rule 3: where it is. The definition's key unless the section brings its own
@@ -117,6 +134,9 @@ namespace nazg
         // whose positions mean something themselves. Blank keycap legends to start with.
         std::variant<KeycapLegend, SlotLegends> legends;
         Fallthrough                             fallthrough = Fallthrough::None;
+
+        // A VIA knob's, set with the legends; none on any other key.
+        std::optional<KnobLegend> knob;
 
         KeyFill fill  = KeyFill::Neutral;
         float   heat  = 0.0f;   // with KeyFill::Heat
@@ -203,9 +223,16 @@ namespace nazg
 
     [[nodiscard]] ResolvedKey ResolveKey(const Keyboard& keyboard, const DefinitionKey& key, uint8_t layer);
 
+    // The same for knob `knob` turned one way, through the encoder map -- which QMK walks down the
+    // layers as the keymap. None when the map was not read.
+    [[nodiscard]] std::optional<ResolvedKey> ResolveTurn(const Keyboard& keyboard, int knob, bool clockwise,
+                                                         uint8_t layer);
+
     // Keymap's legends for every key of `board` but decals: what `layer` of `keyboard` does
     // there -- or below it, for a transparent or KC_NO key -- seen through `settings`, the key's
     // side of the board and the board's lighting. Matrix views fill layer 0's, to find the keys by.
+    // A knob's come from the encoder map: a Vial direction key wears its turn's keycode, a VIA
+    // knob its KnobLegend.
     void DescribeLegends(BoardDescription& board, const Keyboard& keyboard, uint8_t layer,
                          const LegendSettings& settings);
 
