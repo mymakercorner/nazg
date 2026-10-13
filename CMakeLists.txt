@@ -258,7 +258,7 @@ target_link_libraries(nazg PRIVATE nazg_core)
 
 # The version people see -- Settings' About, the package's name (tools/package_windows.py reads
 # it here). project()'s VERSION is numbers only; this one may carry a pre-release label.
-set(NAZG_VERSION "0.1.0-test.1")
+set(NAZG_VERSION "0.1.0-test.2")
 target_compile_definitions(nazg PRIVATE NAZG_VERSION="${NAZG_VERSION}")
 
 # VIA's official definitions, when tools/update_via_bundle.py has built them: copied beside

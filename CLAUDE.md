@@ -137,10 +137,10 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
   while a view polls, and key output is disabled while they show, RAM only, so every close and
   exit path must enable it again); library export / import (a web-build need).
 
-**Next**: the second test build, `0.1.0-test.2` (Rico, 2026-10-13) -- knobs, the transport fix for
-Keychron's double replies, and the community definitions with the GeonWorks recrawl, left
-uncommitted in `nazg-community-definitions` for a release of its own first. A tester's Keychron Q6
-(VIA, a knob with an encoder map) and K10 HE are its first test.
+**Next**: the testers' reports on the second test build, `0.1.0-test.2` (2026-10-13) -- knobs, the
+transport fix for Keychron's double replies, and the community definitions v2026.10.13 (737 boards,
+the GeonWorks recrawl). A tester's Keychron Q6 (VIA, a knob with an encoder map) and K10 HE are its
+first test, the week of 2026-10-19. Then CI: Windows, Linux and macOS building and running the tests.
 
 # Prior research — read before re-researching anything
 

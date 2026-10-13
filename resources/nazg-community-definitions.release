@@ -1,5 +1,5 @@
 # The release of github.com/mymakercorner/nazg-community-definitions whose bundle of community
 # definitions Nazg ships: its tag, and the SHA-256 of its community_definitions.tar.xz. Moved by
 # `python tools/update_community_bundle.py --update <tag>`; see that script.
-tag v2026.10.12
-sha256 3133b3b9a12021deb48d3f0ff52b8545f9f5f471197b31d1e30824ff1078ec95
+tag v2026.10.13
+sha256 875804cacbe1cc146ba5bc410e9d52a880d6df10a160bbebf8447a3c5152f0ba
