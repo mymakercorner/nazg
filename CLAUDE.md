@@ -90,7 +90,8 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
 | Seen working | Never met real hardware |
 |---|---|
 | Vial and VIA loads, keymap decode, one-key edit (Model F, Aquanaut; a tester's Keychron Q6, 0.1.0-test.1) | Vial unlock and lock -- the Model F is `VIAL_INSECURE` |
-| All 2029 VIA V3 definitions parse and draw as VIA does (test) | The matrix live test reading keys -- stock firmware answers zeroes |
+| All 2029 VIA V3 definitions parse and draw as VIA does (test) | The matrix live test on a Vial board, unlocked |
+| The matrix live test reading keys (a tester's Keychron Q6: Keychron builds every board with `VIA_INSECURE`; stock QMK answers zeroes) |  |
 | Official bundle, user library, choice (Phoenix) | Rotated keys on a real board (a forged definition only) |
 | Picker, board look, matrix wiring (Model F, Concordia) | Pre-renumbering keycodes (`Legacy`) |
 | Macros: save and read-back (Concordia), creation on a Leyden Jar board | A Vial board playing a macro; locked-board writes |
@@ -107,7 +108,10 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
 ## Traps already found
 
 - **No board is opened while protocols are being probed**: HID gives every open handle a copy of
-  each reply, and the transport drains leftovers only at open.
+  each reply. The transport discards what is waiting before each request, but a copy arriving
+  during one is still read as its reply.
+- **Some firmware answers a request twice**: Keychron's Hall-effect boards answer
+  `id_switch_matrix_state` from their own code, then again from QMK's -- hence the discarding.
 - A Vial board's keycode version comes from its **Vial** protocol (vial-qmk always reports VIA 9); a VIA board's from its VIA protocol
   (`adapters/via/NazgViaLoader.*`, keycodes.md).
 - Vial replies overwrite the buffer and echo unsupported commands: see via-vial-commands.md.

@@ -26,9 +26,34 @@ namespace nazg
         // from a QMK device can exceed it (RAW_EPSIZE is half that).
         constexpr size_t c_MaxReportSize = 64;
 
-        // Cap on the stale reports discarded when a device is opened, so a device that
-        // streams input cannot hold the worker in that loop.
+        // Cap on the stale reports discarded at once, so a device that streams input cannot
+        // hold the worker in that loop.
         constexpr int c_MaxStaleReports = 64;
+
+        // Throws away every report already waiting to be read. With strict request/response
+        // pairing, ONE report nobody asked for shifts every later reply by one command -- and
+        // hidapi keeps them: on Windows it asks the driver to buffer 64 input reports. Two
+        // sources are known:
+        //   - whoever held the device before: a fresh run read the previous run's last reply
+        //     and reported "reply 0x12 does not match command 0x01";
+        //   - a firmware answering twice. Keychron's Hall-effect boards answer
+        //     id_switch_matrix_state from their own code (send_analog_matrix(), from the
+        //     analog matrix), then let QMK's via.c answer it again (matrix_get_row()). The
+        //     live test, asking every 20 ms, fell 64 replies behind: a second late, with
+        //     every other reading from the second matrix (a K10 HE, 2026-10-13).
+        // WebHID drops a report nobody waits for, which is why the VIA app never sees either.
+        //
+        // A zero timeout makes each read a non-blocking poll, so this costs nothing when the
+        // queue is empty, which is the normal case.
+        void DiscardWaitingReports(hid_device* device)
+        {
+            unsigned char discarded[c_MaxReportSize];
+            for (int i = 0; i < c_MaxStaleReports; ++i)
+            {
+                if (hid_read_timeout(device, discarded, sizeof(discarded), 0) <= 0)
+                    break;
+            }
+        }
 
         // hidapi returns wchar_t strings whose width differs per platform (16-bit on
         // Windows, 32-bit elsewhere). Encode the code points as UTF-8 by hand rather
@@ -283,21 +308,9 @@ namespace nazg
             return;
         }
 
-        // Throw away anything already waiting to be read. A report queued before we
-        // opened cannot be an answer to a request we have not sent yet -- it is a
-        // leftover from whoever held the device last, and with strict request/response
-        // pairing ONE leftover shifts every reply by one command for the rest of the
-        // session. Observed for real: a fresh run read the previous run's last reply
-        // and reported "reply 0x12 does not match command 0x01".
-        //
-        // A zero timeout makes each read a non-blocking poll, so this costs nothing
-        // when the queue is empty, which is the normal case.
-        unsigned char discarded[c_MaxReportSize];
-        for (int i = 0; i < c_MaxStaleReports; ++i)
-        {
-            if (hid_read_timeout(device, discarded, sizeof(discarded), 0) <= 0)
-                break;
-        }
+        // A report queued before we opened cannot be an answer to a request we have not
+        // sent yet.
+        DiscardWaitingReports(device);
 
         // Ids come from a counter that is never reset and never reuses a value, so an
         // id kept past its Close() fails cleanly instead of hitting a later device.
@@ -316,6 +329,10 @@ namespace nazg
         }
 
         hid_device* device = entry->second;
+
+        // Nothing waiting can be the answer to this request, which is not sent yet: a second
+        // answer to the last one, or a report nobody asked for.
+        DiscardWaitingReports(device);
 
         // hidapi wants the report ID as the first byte on every platform. QMK's raw
         // HID interface uses unnumbered reports, so that byte is 0 and the firmware

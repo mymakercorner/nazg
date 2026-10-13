@@ -27,7 +27,9 @@
 // Left out deliberately:
 //   - Unsolicited reports (XAP broadcasts). Delivering them means continuously
 //     polling every open device, which is a different worker loop, and XAP is a
-//     later decision. Nothing in the API below has to change to add them.
+//     later decision. Nothing in the API below has to change to add them. Until then
+//     a request first discards whatever is waiting -- a report nobody asked for, or a
+//     firmware's second answer to the last request -- so neither is taken for its reply.
 //   - Report padding. The transport writes exactly the bytes it is handed, prefixed
 //     with the report ID byte hidapi expects. QMK's 32-byte RAW_EPSIZE frame is the
 //     protocol layer's business, not the pipe's.

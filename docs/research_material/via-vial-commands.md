@@ -74,6 +74,16 @@ zero timeout until it comes back empty. Anything queued at that moment predates 
 request and cannot be an answer to it. This is cheap, and without it the failure mode is
 baffling: every command appears to return the wrong thing, one step out of phase.
 
+*Found again 2026-10-13, and drained before every request since.* **A firmware can answer one
+request twice**, and then the queue grows by one report per request until the host's buffer is
+full (hidapi asks Windows for 64). Keychron's Hall-effect boards do it for
+`id_switch_matrix_state`: `kc_raw_hid_rx()` sends its own reply from the analog matrix
+(`send_analog_matrix()`, `keyboards/keychron/common/keychron_raw_hid.c`) and returns `false`,
+so QMK's `via.c` answers the same request again from `matrix_get_row()`. A K10 HE's live test,
+asking every 20 ms, ran a second behind. WebHID drops a report nobody waits for, so the VIA app
+and Keychron's Launcher never notice; a client reading from a queue must discard what is waiting
+before each request.
+
 ---
 
 ## VIA — command set
@@ -156,6 +166,10 @@ compile-time `#if`); a bigger matrix is answered with the request echoed back, e
 released. The VIA app picks the layout by `protocol >= 12` (`use-matrix-test.ts`); a Vial
 board reports VIA protocol 9 whatever it is built from, so it always gets the whole layout,
 which is what vial-qmk still sends.
+
+**Keychron** builds every board with `VIA_INSECURE` (`keyboards/keychron/common/keychron_common.mk`
+in its fork), so its boards answer the matrix -- seen on a Q6, 2026-10-13. Its Hall-effect boards
+answer it twice: "Stale reports desynchronise everything after them", above.
 
 ### Custom channels (`id_custom_*`)
 
