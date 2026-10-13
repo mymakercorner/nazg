@@ -149,6 +149,12 @@ namespace nazg
         [[nodiscard]] Task<uint16_t> GetKeycode(uint8_t layer, uint8_t row, uint8_t column);
         [[nodiscard]] Task<void>     SetKeycode(uint8_t layer, uint8_t row, uint8_t column, uint16_t keycode);
 
+        // 0x14 / 0x15, VIA protocol 10 on: what one knob sends turned one way on one layer -- the
+        // encoder map, built with ENCODER_MAP_ENABLE; without it the firmware answers 0xFF. A
+        // call per direction. vial-qmk answers neither: VialProtocol::GetVialEncoder() is Vial's.
+        [[nodiscard]] Task<uint16_t> GetEncoder(uint8_t layer, uint8_t index, bool clockwise);
+        [[nodiscard]] Task<void>     SetEncoder(uint8_t layer, uint8_t index, bool clockwise, uint16_t keycode);
+
         // 0x12. The whole keymap in 28-byte chunks -- the batched read that exists
         // because asking key by key was too chatty. One round trip per chunk.
         [[nodiscard]] Task<std::vector<uint8_t>> GetKeymapBuffer(uint16_t offset, uint16_t length);

@@ -102,6 +102,20 @@ namespace nazg
         uint32_t firmwareVersion = 0;
     };
 
+    // What a knob sends turned each way, on one layer (ui-design.md, "Knobs"). Its press is a key
+    // of the keymap.
+    struct KnobTurns
+    {
+        Keycode counterClockwise = NamedKey{ "KC_NO" };
+        Keycode clockwise        = NamedKey{ "KC_NO" };
+
+        bool operator==(const KnobTurns&) const = default;
+    };
+
+    // How many knobs the definition draws: one past the highest encoder index, any layout
+    // option's. 0 when it draws none.
+    [[nodiscard]] uint8_t KnobCount(const KeyboardDefinition& definition) noexcept;
+
     struct Keyboard
     {
         KeyboardDefinition definition;
@@ -121,6 +135,11 @@ namespace nazg
         // TD(n) key from its slot. Empty on VIA, or when they could not be read. The Tap Dance
         // section keeps them as the board stores them after each write.
         std::vector<TapDance> tapDances;
+
+        // The knobs' encoder map, [layer][knob], read after the load (ReadEncoderMap()). Empty when
+        // the board has no knob, or keeps no encoder map -- its firmware's turns are then its own
+        // code -- or when it could not be read.
+        std::vector<std::vector<KnobTurns>> encoderMap;
 
         // QMK Settings' combo term, ms, as the board holds it: read by whichever of Combos and QMK
         // Settings is shown first, and kept by both after their writes, so the two always agree.

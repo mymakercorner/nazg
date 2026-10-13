@@ -3,6 +3,7 @@
 
 #include "NazgKeyboard.h"
 
+#include <algorithm>
 #include <cassert>
 #include <string>
 #include <utility>
@@ -224,6 +225,14 @@ namespace nazg
         }
 
         return placed;
+    }
+
+    uint8_t KnobCount(const KeyboardDefinition& definition) noexcept
+    {
+        int count = 0;
+        for (const DefinitionKey& key : definition.keys)
+            count = std::max(count, key.encoderIndex + 1);
+        return static_cast<uint8_t>(std::min(count, 255));
     }
 
     bool Keyboard::IsKeyVisible(const DefinitionKey& key) const noexcept

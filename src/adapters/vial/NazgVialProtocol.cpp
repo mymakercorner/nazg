@@ -355,7 +355,7 @@ namespace nazg
         co_await SendVial(VialCommand::Lock, {}, false);
     }
 
-    Task<VialProtocol::EncoderPair> VialProtocol::GetEncoder(uint8_t layer, uint8_t index)
+    Task<VialProtocol::EncoderPair> VialProtocol::GetVialEncoder(uint8_t layer, uint8_t index)
     {
         std::vector<uint8_t> reply = co_await SendVial(VialCommand::GetEncoder, { layer, index });
 
@@ -364,5 +364,13 @@ namespace nazg
         pair.clockwise        = ReadBigEndian16(reply, 2);
 
         co_return pair;
+    }
+
+    Task<void> VialProtocol::SetVialEncoder(uint8_t layer, uint8_t index, bool clockwise, uint16_t keycode)
+    {
+        co_await SendVial(VialCommand::SetEncoder,
+                          { layer, index, static_cast<uint8_t>(clockwise ? 1 : 0), static_cast<uint8_t>(keycode >> 8),
+                            static_cast<uint8_t>(keycode & 0xFF) },
+                          false);
     }
 }

@@ -21,6 +21,7 @@
 #include "adapters/via/NazgViaBundle.h"
 #include "adapters/via/NazgViaKeymap.h"
 #include "adapters/via/NazgViaLoader.h"
+#include "adapters/vial/NazgEncoderMap.h"
 #include "adapters/vial/NazgVialLoader.h"
 #include "async/NazgTask.h"
 #include "library/NazgDefinitionLibrary.h"
@@ -1111,6 +1112,22 @@ namespace
                     {
                         state.keyboard->tapDances =
                             co_await nazg::ReadTapDances(protocol, count, state.keyboard->keycodeVersion);
+                    }
+                    catch (const nazg::ProtocolError&)
+                    {
+                    }
+                }
+
+                // Keymap draws a knob's turns from the encoder map. Unread, or kept by no map, they
+                // are its firmware's own code.
+                if (const uint8_t knobs = nazg::KnobCount(state.keyboard->definition); knobs > 0)
+                {
+                    try
+                    {
+                        const nazg::BoardReport& report = state.keyboard->report;
+                        state.keyboard->encoderMap      = co_await nazg::ReadEncoderMap(
+                            protocol, report.isVial, report.viaProtocol, state.keyboard->keymap.Layers(), knobs,
+                            state.keyboard->keycodeVersion);
                     }
                     catch (const nazg::ProtocolError&)
                     {

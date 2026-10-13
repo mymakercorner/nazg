@@ -508,13 +508,13 @@ namespace
         FakeDeviceChannel channel;
         VialProtocol      vial(channel);
 
-        // Exactly what GetEncoder(0, 0) sends: prefix, sub-command, layer, index.
+        // Exactly what GetVialEncoder(0, 0) sends: prefix, sub-command, layer, index.
         std::vector<uint8_t> echo(nazg::c_ViaReportSize, 0x00);
         echo[0] = 0xFE;
         echo[1] = 0x03;
         channel.ReplyRaw(echo);
 
-        Check(Throws([&] { Run(vial.GetEncoder(0, 0)); }),
+        Check(Throws([&] { Run(vial.GetVialEncoder(0, 0)); }),
               "an echoed request is reported as unsupported, not parsed as data");
     }
 
@@ -544,7 +544,7 @@ namespace
 
         channel.Reply({ 0x00, 0x2A, 0x00, 0x2B });
 
-        const auto encoder = Run(vial.GetEncoder(1, 0));
+        const auto encoder = Run(vial.GetVialEncoder(1, 0));
 
         Check(encoder.counterClockwise == 0x002A, "counter-clockwise comes first");
         Check(encoder.clockwise == 0x002B, "clockwise follows, both big-endian");

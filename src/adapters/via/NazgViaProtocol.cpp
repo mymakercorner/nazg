@@ -171,6 +171,20 @@ namespace nazg
                         static_cast<uint8_t>(keycode >> 8), static_cast<uint8_t>(keycode & 0xFF) });
     }
 
+    Task<uint16_t> ViaProtocol::GetEncoder(uint8_t layer, uint8_t index, bool clockwise)
+    {
+        std::vector<uint8_t> reply =
+            co_await Send(ViaCommand::DynamicKeymapGetEncoder, { layer, index, static_cast<uint8_t>(clockwise ? 1 : 0) });
+        co_return ReadBigEndian16(reply, 4);
+    }
+
+    Task<void> ViaProtocol::SetEncoder(uint8_t layer, uint8_t index, bool clockwise, uint16_t keycode)
+    {
+        co_await Send(ViaCommand::DynamicKeymapSetEncoder,
+                      { layer, index, static_cast<uint8_t>(clockwise ? 1 : 0), static_cast<uint8_t>(keycode >> 8),
+                        static_cast<uint8_t>(keycode & 0xFF) });
+    }
+
     Task<uint8_t> ViaProtocol::GetMacroCount()
     {
         std::vector<uint8_t> reply = co_await Send(ViaCommand::MacroGetCount, {});

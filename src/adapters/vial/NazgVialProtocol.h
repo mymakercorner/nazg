@@ -250,13 +250,18 @@ namespace nazg
         [[nodiscard]] Task<void> Lock();
 
         // 0xFE 0x03. Vial returns BOTH directions in one reply, where VIA needs a call
-        // per direction -- and vial-qmk does not implement VIA's 0x14/0x15 at all.
+        // per direction -- and vial-qmk does not implement VIA's 0x14/0x15 at all. A firmware
+        // built without ENCODER_MAP_ENABLE echoes the request: ProtocolError.
         struct EncoderPair
         {
             uint16_t counterClockwise = 0;
             uint16_t clockwise        = 0;
         };
-        [[nodiscard]] Task<EncoderPair> GetEncoder(uint8_t layer, uint8_t index);
+        [[nodiscard]] Task<EncoderPair> GetVialEncoder(uint8_t layer, uint8_t index);
+
+        // 0xFE 0x04. One direction. It answers nothing, so nothing tells a firmware without an
+        // encoder map from one with -- read first.
+        [[nodiscard]] Task<void> SetVialEncoder(uint8_t layer, uint8_t index, bool clockwise, uint16_t keycode);
 
     private:
         // Like ViaProtocol::Send but checked differently, for the reason in the header

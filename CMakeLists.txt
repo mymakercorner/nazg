@@ -107,6 +107,8 @@ set(NAZG_CORE_SOURCES
   src/adapters/vial/NazgVialDefinition.cpp
   src/adapters/vial/NazgVialLoader.h
   src/adapters/vial/NazgVialLoader.cpp
+  src/adapters/vial/NazgEncoderMap.h
+  src/adapters/vial/NazgEncoderMap.cpp
   src/library/NazgDefinitionChoice.h
   src/library/NazgDefinitionChoice.cpp
   src/library/NazgDefinitionLibrary.h
@@ -335,6 +337,7 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(host_typing        tests/HostTypingTest.cpp)
     nazg_add_test(macro_steps        tests/MacroStepsTest.cpp)
     nazg_add_test(tap_dance          tests/TapDanceTest.cpp)
+    nazg_add_test(encoder_map        tests/EncoderMapTest.cpp)
     nazg_add_test(combo              tests/ComboTest.cpp)
     nazg_add_test(key_override       tests/KeyOverrideTest.cpp)
     nazg_add_test(alt_repeat_key     tests/AltRepeatKeyTest.cpp)
