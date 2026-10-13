@@ -63,6 +63,126 @@ A tool like `tools/update_via_bundle.py` downloads `releases/download/<tag>/<fil
 the hash and writes it to `build_resources/`. A takedown is a new release and the old asset
 deleted; a checkout pinned to it then fails to download, and the tool says to move the pin.
 
+## Linux: one build for most distributions
+
+*Added 2026-10-13. A plan, nothing built; the decisions it leaves open are Rico's, marked below.*
+
+### One binary
+
+The **glibc of the build machine is the floor**: a binary built against glibc 2.35 (Ubuntu
+22.04) does not start on RHEL / Rocky 9 (2.34) or Debian 11 (2.31). So the release build runs
+in an old distribution's container, while the CI job's tests can stay on `ubuntu-latest`:
+
+- **AlmaLinux 8, glibc 2.28** -- the `manylinux_2_28` image Python wheels are built in, usable
+  as a GitHub Actions container. It covers Debian 10+, Ubuntu 20.04+, RHEL / Rocky 8+, Fedora
+  and Arch. Nazg is C++20 with coroutines, so GCC 10 or later: `gcc-toolset-13` there.
+- **The C++ runtime linked statically** (`-static-libstdc++ -static-libgcc`): what is left is
+  glibc and libudev, which every distribution has (systemd's, or eudev's where there is no
+  systemd).
+- **SDL3 from the submodule** loads X11, Wayland, libdecor and Vulkan when it runs, not when it
+  is built: their development headers in the container compile the backends in, and the
+  binary does not depend on them. `libSDL3.so.0` ships beside `nazg` with RPATH `$ORIGIN`, or
+  SDL3 is linked statically.
+- **hidapi with hidraw only** (`-DHIDAPI_WITH_LIBUSB=OFF`): the libusb backend would detach the
+  keyboard's kernel driver, and adds a dependency for nothing.
+- **arm64** is one more job, on `ubuntu-24.04-arm` with the aarch64 image.
+
+**Vulkan is the real risk, not the packaging.** SDL_GPU is Vulkan on Linux, with no OpenGL
+fallback of its own. Any recent Mesa or NVIDIA driver has it, and Mesa's lavapipe gives a
+software Vulkan in most virtual machines; a very old GPU, or a VM without Mesa's Vulkan
+drivers, fails. The answer would be the `imgui_impl_opengl3` fallback CLAUDE.md names, chosen
+in `Main.cpp` when no GPU device can be created -- only once a tester meets it.
+
+Vial does the same: its AppImage is built in an Ubuntu 18.04 container
+(`vial-gui/util/linux-builder/Dockerfile`, glibc 2.27), packed with pkg2appimage and fpm.
+
+### Formats
+
+| Format | For | Against |
+|---|---|---|
+| **tar.gz** (a `tools/package_linux.py` beside `package_windows.py`) | The Windows zip's twin; nothing installed; enough for testers | The udev rule is the user's to install (see below) |
+| **AppImage** | One file; what VIA and Vial ship | Needs FUSE -- the older runtime wants `libfuse2`, which Ubuntu 22.04+ no longer installs, so the current static runtime; cannot install a udev rule |
+| **.deb and .rpm** (fpm or nfpm, from the same binary) | Install a desktop entry, an icon -- and could install a udev rule | Two more assets per release |
+| **Flatpak / Flathub** | Found in software centres; its runtime removes the glibc question | Flathub builds from source on its own manifest and review; `--device=all`; the rule is still needed on the host |
+
+Snap fits badly: its hidraw access is connected device by device. A likely order: tar.gz for
+testers first; AppImage and .deb / .rpm with the public release; Flathub later, if asked for.
+
+### Permissions: the udev rule
+
+Linux gives `/dev/hidraw*` to root only, so on a stock distribution Nazg cannot open any
+keyboard -- VIA, Vial and Chrome's WebHID all ask their users for a udev rule. Vial's empty
+keyboard list links to its manual page (`main_window.py`); VIA's desktop wrapper carries a
+udev prompt (via-registry.md, "The native application").
+
+What every such rule needs: a name sorting **before `73-seat-late.rules`** (`60-nazg.rules`),
+so that `TAG+="uaccess"` hands the device to whoever is logged in at the screen -- no group,
+no logging out -- then `udevadm control --reload-rules` and
+`udevadm trigger --subsystem-match=hidraw` for the boards already plugged in. uaccess needs
+systemd-logind or elogind, which nearly every desktop distribution has; the others need a
+group-based rule (`MODE="0660", GROUP=...`, the group differing by distribution).
+
+**How wide** -- *Rico's decision, open*:
+
+| Rule | For | Against |
+|---|---|---|
+| Every hidraw device | One rule ever; every VIA and Vial board | Opens every HID device to any program the user runs |
+| Vial's serial marker, `ATTRS{serial}=="*vial:f64c2b3c*"` | Tight | Vial only; VIA boards carry no marker |
+| One line per VID:PID | Tight; as wide as Vial's own rule (the whole board, its typing interface too) | A line per board -- which only Nazg itself can write without guessing, see below |
+| A helper udev runs on each hidraw device, keeping the `0xFF60` interfaces | Tight, both protocols, every board | A program of Nazg's installed at a fixed path; most to build |
+
+Narrowing one board's line to its raw HID interface alone is possible, but takes chained
+rules: the vendor and product sit on the USB device, the interface number on its interface,
+and one udev rule matches `ATTRS` of a single parent.
+
+### Proposed: Nazg allowing the boards itself
+
+*Proposed 2026-10-13; not decided, not drawn. The notice is UI, so a mockup comes first and
+the screen then goes into ui-design.md.* On Windows and macOS, and on a Linux whose rules
+already allow the boards, nothing of this appears.
+
+1. **Noticing.** Listing needs no permission -- hidapi reads each interface's usage page from
+   sysfs, readable by anyone -- so the board and its `0xFF60` interface are listed; only
+   opening fails, with `EACCES`. **Today the probe calls that "no answer"** (`Main.cpp`,
+   the probing loop), which reads as "no VIA in this firmware". The fix stands alone: when
+   `hid_open_path` fails on Linux, `ExecuteOpen` checks `access(path, R_OK | W_OK)`, raises a
+   permission error of its own, and the list says **"not allowed"**.
+2. **Saying it.** With at least one board not allowed, one notice above the list: Linux does
+   not let Nazg open these keyboards yet; Nazg can add the rule, and the system will ask for
+   the password. *Allow these keyboards...*, and *Show the commands instead* -- the rule and
+   the `sudo` lines with Copy, for those who prefer it and for systems where step 3 cannot run.
+3. **Installing it** with **`pkexec`**, the desktop's way to run one command as root: the
+   password dialog is the desktop's (GNOME, KDE...), and **Nazg never sees the password**.
+   One `pkexec /bin/sh -c '...'`, so one prompt: the rule written with its text inside the
+   command (no temporary file to swap), then the reload and the trigger. Then Nazg refreshes
+   the list itself. Still refused: "unplug the keyboard and plug it back in, then Refresh"
+   (hotplug is not noticed yet). Dialog dismissed (exit code 126): nothing changes. No
+   `pkexec`, or no polkit agent running (a bare window manager, a Flatpak): *Show the
+   commands*. pkexec waits on the user, so it runs off the frame loop like a board request.
+   The code is POSIX (`posix_spawn`, `access`), Linux only, no SDL -- `Main.cpp` keeps its
+   role.
+4. **What it writes**, if one line per board is chosen: Nazg knows the VID:PID of each board
+   it was refused, which a package installed beforehand cannot. A new board is one more
+   password and one more line; Nazg reads the file (anyone can) and writes it back with the
+   line added:
+
+   ```
+   # Written by Nazg. One line per keyboard allowed; delete a line to take the permission back.
+   # Keychron K10 HE, added 2026-10-13
+   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3434", ATTRS{idProduct}=="0ea7", TAG+="uaccess"
+   ```
+
+   Taking a permission back is deleting its line, as the header says; a Settings list of the
+   boards allowed could come later, if someone asks.
+
+This works from the tar.gz, the AppImage and the .deb / .rpm alike, so the packages need not
+install a rule of their own; a Flatpak gets the commands only.
+
+**Open** -- *Rico's decisions*: the rule's width; whether the "not allowed" fix of step 1 goes
+in before any Linux build exists (small, but it cannot be tried on Windows). **Testing** needs
+Linux with a board at hand: a live USB stick, or a VM with the Model F or the Phoenix passed
+through.
+
 ## Signing
 
 Unsigned builds work, with warnings: **Windows SmartScreen** warns on an unsigned
@@ -75,6 +195,7 @@ repository. It matters for public releases only, not for CI builds.
 
 1. The workflow: build and test on the three runners, artifacts only. Fix what Linux and
    macOS find.
-2. Releases from tags: zips per platform, VIA's bundle included.
-3. Signing, when releases are public.
+2. Releases from tags: zips per platform, VIA's bundle included; for Linux, a tar.gz built in
+   the AlmaLinux 8 container ("Linux: one build for most distributions").
+3. Signing, when releases are public; with them, Linux's AppImage and .deb / .rpm.
 4. The community repository's own workflow and release, when it exists.
