@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- Mockup of the knobs -- rotary encoders -- in the Keymap section (ui-design.md, "Sections, and
+     the strip that belongs to them": "Keymap, encoders | layers").
+
+     First round (2026-10-13). A knob does three things per layer: turned counter-clockwise, turned
+     clockwise, pressed. The turns are an encoder map -- VIA from protocol 10 (0x14 / 0x15, one
+     direction per call), Vial's own 0xFE 0x03 / 0x04 (both directions in one reply) -- and need the
+     firmware built with ENCODER_MAP_ENABLE; the press is an ordinary switch of the matrix.
+
+     The two protocols draw a knob differently (counted 2026-10-13):
+       VIA  -- one key, "e0" in its centre label, with its push switch's cell when it has one: 341 of
+               the registry's 348 knobs do; 333 are 1u; 186 sit in a layout option (knob or key).
+       Vial -- one key per direction, a bare "e" in the centre and "index,direction" where the cell
+               would be (0 counter-clockwise, 1 clockwise); the push switch, if any, is a key of its
+               own. 665 of vial-qmk's 667 such keys are 1u; a knob's pair side by side 166 times
+               (counter-clockwise on the left 161), stacked 37 times.
+     The board is the same in both: Keychron's Q1 V2 ANSI Knob, VIA's file and vial-qmk's.
+
+     Variants: how a VIA knob is drawn, how Vial's two keys are drawn, what the panel shows for a
+     knob, and a firmware without an encoder map.
+
+     Settled 2026-10-13 (Rico): a VIA knob is a round key -- a keycap's look, no grip marks -- its
+     legends stacked, the turns' arrows in one column and their keycodes aligned, the block centred;
+     Vial's keys as drawn; the panel's actions side by side. Three zones -- the knob split into three clickable
+     parts -- dropped as too cramped in 1u, and taken out; the other toggles keep the alternatives. ui-design.md, "Knobs". -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knobs mockup</title>
+<style>
+:root{--window:#f3f3f5;--menubar:#e3e4e9;--text:#1d1e22;--muted:#6b6e78;--control:#ffffff;--border:#c8cad2;--accent:#3b82f6;--accent-text:#fff;--panel:#f8f8fa;--column:#ebecf0;--hover:rgba(0,0,0,.06);--selected:rgba(59,130,246,.16);
+--plate:#d3d4d8;--key:#ffffff;--keyline:#b4b7c2;--lit:#dbe7fb;--litline:#3b82f6;--ok:#15803d;--warn:#c2410c;
+--host:#0891b2;--hostface:#e6f6fa;--fw:#dc2626;--fwface:#fdecec;--knob:#eef0f4;--knobline:#9aa0ae;--zone:rgba(59,130,246,.10)}
+:root[data-theme="dark"]{--window:#0f0f11;--menubar:#24252b;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--accent:#4296fa;--accent-text:#fff;--panel:#16171b;--column:#16171b;--hover:rgba(255,255,255,.07);--selected:rgba(66,150,250,.22);
+--plate:#1c1d23;--key:#3a3c48;--keyline:#4b4e5c;--lit:#2a4a78;--litline:#4296fa;--ok:#4ade80;--warn:#fb923c;
+--host:#22d3ee;--hostface:#173a44;--fw:#f87171;--fwface:#3d1e22;--knob:#2e303a;--knobline:#6b6f80;--zone:rgba(66,150,250,.16)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--window);color:var(--text);font-family:Arimo,"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+.controls{display:flex;flex-wrap:wrap;gap:8px 22px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.group .name{color:var(--muted);margin-right:4px}
+button{font:inherit;padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--control);color:var(--text);cursor:pointer}
+button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+.stage{padding:16px;overflow-x:auto}
+.frame{margin:0 auto;width:1160px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--window);box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.menubar{display:flex;gap:18px;align-items:center;background:var(--menubar);padding:5px 14px}
+.menubar .board{font-weight:600}
+.muted{color:var(--muted)}
+.menubar .right{margin-left:auto;color:var(--muted)}
+.body{display:flex;min-height:560px}
+.col{flex:none;width:180px;background:var(--column);border-right:1px solid var(--border);padding:6px 5px;display:flex;flex-direction:column;gap:2px}
+.entry{padding:7px 10px;border-radius:6px;color:var(--muted)}
+.entry.on{background:var(--selected);color:var(--text);box-shadow:inset 3px 0 0 var(--accent)}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;padding:10px 14px 14px;gap:10px}
+.strip{display:flex;gap:3px;align-items:center;padding:4px 0}
+.strip button{padding:2px 0;width:44px;font-size:12px}
+.boardarea{display:flex;justify-content:center}
+svg.board{display:block}
+svg.board .hit{cursor:pointer}
+.panel{border:1px solid var(--border);border-radius:6px;background:var(--panel)}
+.mline{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;padding:6px 12px;border-bottom:1px solid var(--border);min-height:41px}
+.mline .title{font-weight:700}
+.msg{font-size:12px}
+.msg .warn{color:var(--warn)}
+.lines{display:flex;flex-direction:column;padding:6px 8px}
+.line{display:flex;align-items:center;gap:12px;padding:4px 8px;border-radius:6px;cursor:pointer;border:1px solid transparent}
+.line:hover{background:var(--hover)}
+.line.sel{border-color:var(--accent);background:var(--selected)}
+.line .lbl{width:150px;display:flex;align-items:center;gap:8px}
+.line .why{color:var(--muted);font-size:12px}
+.actions{display:flex;align-items:flex-start;gap:12px;padding:10px 12px 8px;flex-wrap:wrap}
+.act{display:flex;flex-direction:column;align-items:center;gap:5px;width:132px;padding:6px 4px 7px;border-radius:7px;cursor:pointer;border:1px solid transparent}
+.act:hover{background:var(--hover)}
+.act.sel{border-color:var(--accent);background:var(--selected)}
+.act .lbl{font-weight:600;font-size:12px}
+.act .why{font-size:11px;color:var(--muted);text-align:center;line-height:1.3;max-width:126px}
+.cap{width:58px;height:46px;border-radius:6px;background:var(--key);border:1px solid var(--keyline);box-shadow:inset 0 -3px 0 rgba(0,0,0,.08);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.15;text-align:center;font-size:13px}
+.cap.host{background:var(--hostface);border-color:var(--host)}
+.cap.fw{background:var(--fwface);border-color:var(--fw);color:var(--fw)}
+.cap.ghost{opacity:.42;box-shadow:none}
+.tabs{display:flex;align-items:flex-end;gap:2px;padding:8px 10px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.tabs .tab{border:1px solid transparent;border-bottom:none;border-radius:5px 5px 0 0;padding:5px 9px 4px;cursor:pointer;color:var(--muted)}
+.tabs .tab.on{background:var(--window);border-color:var(--border);color:var(--text);margin-bottom:-1px}
+.tiles{display:flex;flex-wrap:wrap;gap:4px;padding:10px;background:var(--window)}
+.tiles .cap{cursor:pointer}
+.notes{max-width:1160px;margin:0 auto;padding:4px 16px 30px;color:var(--muted);line-height:1.55}
+.notes b{color:var(--text);font-weight:600}
+.notes p{margin:0 0 8px}
+</style>
+</head>
+<body>
+<div class="controls" id="controls"></div>
+<div class="stage"><div class="frame" id="frame"></div></div>
+<div class="notes" id="notes"></div>
+<script>
+"use strict";
+// The two definitions of the board, `layouts` as their files have them.
+const BOARDS = {"via":{"name":"Keychron Q1V2 ANSI Knob","source":"VIA registry, v3/keychron/q1/v2/ansi_knob.json","protocol":"VIA 12","keymap":[[{"c":"#777777"},"0,0\nESC",{"x":0.25,"c":"#cccccc"},"0,1","0,2","0,3","0,4",{"x":0.25,"c":"#aaaaaa"},"0,5","0,6","0,7","0,8",{"x":0.25,"c":"#cccccc"},"0,9","0,10","0,11","0,12",{"x":0.25,"c":"#aaaaaa"},"0,13",{"x":0.25},"0,15\n\n\n\n\n\n\n\n\ne0"],[{"y":0.25,"c":"#cccccc"},"1,0","1,1","1,2","1,3","1,4","1,5","1,6","1,7","1,8","1,9","1,10","1,11","1,12",{"c":"#aaaaaa","w":2},"1,13",{"x":0.25},"1,15"],[{"w":1.5},"2,0",{"c":"#cccccc"},"2,1","2,2","2,3","2,4","2,5","2,6","2,7","2,8","2,9","2,10","2,11","2,12",{"w":1.5},"2,13",{"x":0.25,"c":"#aaaaaa"},"2,15"],[{"w":1.75},"3,0",{"c":"#cccccc"},"3,1","3,2","3,3","3,4","3,5","3,6","3,7","3,8","3,9","3,10","3,11",{"c":"#777777","w":2.25},"3,13",{"x":0.25,"c":"#aaaaaa"},"3,15"],[{"w":2.25},"4,0",{"c":"#cccccc"},"4,2","4,3","4,4","4,5","4,6","4,7","4,8","4,9","4,10","4,11",{"c":"#aaaaaa","w":1.75},"4,13"],[{"y":-0.75,"x":14.25,"c":"#777777"},"4,14"],[{"y":-0.25,"c":"#aaaaaa","w":1.25},"5,0",{"w":1.25},"5,1",{"w":1.25},"5,2",{"c":"#cccccc","w":6.25},"5,6",{"c":"#aaaaaa"},"5,10","5,11","5,12"],[{"y":-0.75,"x":13.25,"c":"#777777"},"5,13","5,14","5,15"]]},
+"vial":{"name":"Keychron Q1V2 ANSI Knob","source":"vial-qmk, keyboards/keychron/q1v2/ansi_encoder/keymaps/vial/vial.json","protocol":"Vial 6","keymap":[[{"x":14.75,"c":"#aaaaaa"},"0,0\n\n\n\n\n\n\n\n\ne","0,1\n\n\n\n\n\n\n\n\ne"],[{"c":"#777777"},"0,0\nESC",{"x":0.25,"c":"#cccccc"},"0,1","0,2","0,3","0,4",{"x":0.25,"c":"#aaaaaa"},"0,5","0,6","0,7","0,8",{"x":0.25,"c":"#cccccc"},"0,9","0,10","0,11","0,12",{"x":0.25,"c":"#aaaaaa"},"0,13",{"x":0.25},"0,15"],[{"y":0.25,"c":"#cccccc"},"1,0","1,1","1,2","1,3","1,4","1,5","1,6","1,7","1,8","1,9","1,10","1,11","1,12",{"c":"#aaaaaa","w":2},"1,13",{"x":0.25},"1,15"],[{"w":1.5},"2,0",{"c":"#cccccc"},"2,1","2,2","2,3","2,4","2,5","2,6","2,7","2,8","2,9","2,10","2,11","2,12",{"w":1.5},"2,13",{"x":0.25,"c":"#aaaaaa"},"2,15"],[{"w":1.75},"3,0",{"c":"#cccccc"},"3,1","3,2","3,3","3,4","3,5","3,6","3,7","3,8","3,9","3,10","3,11",{"c":"#777777","w":2.25},"3,13",{"x":0.25,"c":"#aaaaaa"},"3,15"],[{"w":2.25},"4,0",{"c":"#cccccc"},"4,2","4,3","4,4","4,5","4,6","4,7","4,8","4,9","4,10","4,11",{"c":"#aaaaaa","w":1.75},"4,13"],[{"y":-0.75,"x":14.25,"c":"#777777"},"4,14"],[{"y":-0.25,"c":"#aaaaaa","w":1.25},"5,0",{"w":1.25},"5,1",{"w":1.25},"5,2",{"c":"#cccccc","w":6.25},"5,6",{"c":"#aaaaaa"},"5,10","5,11","5,12"],[{"y":-0.75,"x":13.25,"c":"#777777"},"5,13","5,14","5,15"]]}};
+
+// ---------------------------------------------------------------------------------------------
+// KLE as Nazg now reads it: the labels in their places by alignment, then a key is a decal, a
+// Vial knob's direction (bare "e" in the centre, "index,direction" top-left), a VIA knob ("e0" in
+// the centre, the push switch's cell top-left when it has one), or a switch.
+const PLACES = [[0,6,2,8,9,11,3,5,1,4,7,10],[1,7,-1,-1,9,11,4,-1,-1,-1,-1,10],[3,-1,5,-1,9,11,-1,-1,4,-1,-1,10],[4,-1,-1,-1,9,11,-1,-1,-1,-1,-1,10],
+                [0,6,2,8,10,-1,3,5,1,4,7,-1],[1,7,-1,-1,10,-1,4,-1,-1,-1,-1,-1],[3,-1,5,-1,10,-1,-1,-1,4,-1,-1,-1],[4,-1,-1,-1,10,-1,-1,-1,-1,-1,-1,-1]];
+function parseKle(rows) {
+  const keys = [];
+  let x = 0, y = 0, a = 0, w = 1, h = 1;
+  const pair = s => { const m = /^\s*(\d+)\s*,\s*(\d+)\s*$/.exec(s || ''); return m ? [+m[1], +m[2]] : null; };
+  for (const row of rows) {
+    for (const item of row) {
+      if (typeof item === 'object') {
+        if ('a' in item) a = item.a;
+        if ('x' in item) x += item.x;
+        if ('y' in item) y += item.y;
+        if ('w' in item) w = item.w;
+        if ('h' in item) h = item.h;
+        continue;
+      }
+      const lab = Array(12).fill('');
+      item.split('\n').slice(0, 12).forEach((l, i) => { const p = PLACES[a][i]; if (p >= 0) lab[p] = l.trim(); });
+      const k = { x, y, w, h };
+      let m;
+      if (lab[4] === 'e' && (m = pair(lab[0]))) { k.knob = m[0]; k.dir = m[1]; keys.push(k); }
+      else if ((m = /^[eE](\d+)$/.exec(lab[4]))) { k.knob = +m[1]; k.dir = -1; const c = pair(lab[0]); if (c) k.cell = c; keys.push(k); }
+      else if ((m = pair(lab[0]))) { k.cell = m; keys.push(k); }
+      x += w; w = 1; h = 1;
+    }
+    x = 0; y += 1;
+  }
+  return keys;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The board's keymap, four layers, and the knob's encoder map -- Keychron's defaults, Windows
+// layers 2 and 3 the same as Mac's 0 and 1.
+const L0 = {'0,0':'Esc','0,13':'Del','0,15':'Mute','1,0':'`','1,11':'-','1,12':'=','1,13':'Bksp','1,15':'PgUp','2,0':'Tab','2,11':'[','2,12':']','2,13':'\\','2,15':'PgDn',
+  '3,0':'Caps','3,10':';','3,11':"'",'3,13':'Enter','3,15':'Home','4,0':'Shift','4,9':',','4,10':'.','4,11':'/','4,13':'Shift','4,14':'↑','5,0':'Ctrl','5,1':'Win','5,2':'Alt','5,6':'',
+  '5,10':'Alt','5,11':'Fn','5,12':'Ctrl','5,13':'←','5,14':'↓','5,15':'→'};
+for (let i = 1; i <= 12; i++) L0['0,' + i] = 'F' + i;
+'1234567890'.split('').forEach((c, i) => L0['1,' + (i + 1)] = c);
+'QWERTYUIOP'.split('').forEach((c, i) => L0['2,' + (i + 1)] = c);
+'ASDFGHJKL'.split('').forEach((c, i) => L0['3,' + (i + 1)] = c);
+'ZXCVBNM'.split('').forEach((c, i) => L0['4,' + (i + 2)] = c);
+const L1 = {'0,1':'Bri-','0,2':'Bri+','0,3':'Task','0,4':'Files','0,5':'RGB V-','0,6':'RGB V+','0,7':'Prev','0,8':'Play','0,9':'Next','0,10':'Mute','0,11':'Vol-','0,12':'Vol+','0,15':'RGB Tog','2,1':'RGB Mod','2,2':'RGB V+','2,3':'RGB H+'};
+const keymap = [L0, L1, L0, L1].map(l => Object.assign({}, l));
+const encmap = [['Vol-', 'Vol+'], ['RGB V-', 'RGB V+'], ['Vol-', 'Vol+'], ['RGB V-', 'RGB V+']];
+
+const PICKER = {
+  'Media': ['Vol-', 'Vol+', 'Mute', 'Prev', 'Play', 'Next', 'Bri-', 'Bri+'],
+  'Lighting': ['RGB Tog', 'RGB Mod', 'RGB V-', 'RGB V+', 'RGB H-', 'RGB H+', 'RGB S-', 'RGB S+'],
+  'Keys': ['Esc', 'PgUp', 'PgDn', 'Home', 'End', '←', '→', '↑', '↓', 'Tab', 'Del'],
+  'Mouse': ['Wh Up', 'Wh Down', 'Wh Left', 'Wh Right'],
+  'Layers': ['▽', '✕', 'MO(1)', 'TG(1)'],
+};
+const HOST = new Set(PICKER['Media'].concat(PICKER['Mouse']));
+const FW = new Set(PICKER['Lighting']);
+
+// ---------------------------------------------------------------------------------------------
+const V = { board: 'via', viaLook: 'ring', vialLook: 'drawn', panel: 'tiles', map: 'yes', theme: 'light' };
+let layer = 0, sel = { kind: 'knob', knob: 0, act: 'cw' }, tab = 'Media';
+
+const OPTIONS = [
+  ['board', 'Board', [['via', 'VIA'], ['vial', 'Vial']]],
+  ['viaLook', 'VIA knob', [['ring', 'Round, three legends'], ['push', 'Round, press only']]],
+  ['vialLook', 'Vial keys', [['drawn', 'As drawn'], ['one', 'One knob']]],
+  ['panel', 'Panel', [['tiles', 'Actions'], ['lines', 'Lines']]],
+  ['map', 'Encoder map', [['yes', 'In the firmware'], ['no', 'Not built in']]],
+  ['theme', 'Theme', [['light', 'Light'], ['dark', 'Dark']]],
+];
+
+function renderControls() {
+  document.getElementById('controls').innerHTML = OPTIONS.map(([k, name, vals]) =>
+    `<div class="group"><span class="name">${name}</span>` +
+    vals.map(([v, t]) => `<button class="${V[k] === v ? 'on' : ''}" onclick="setV('${k}','${v}')">${t}</button>`).join('') + '</div>').join('');
+}
+function setV(k, v) {
+  V[k] = v;
+  document.documentElement.dataset.theme = V.theme;
+  if (k === 'board') sel = { kind: 'knob', knob: 0, act: 'cw' };
+  render();
+}
+
+// What a knob does: its two turns from the encoder map, its press from the keymap -- VIA's push
+// switch is the knob's own cell; Vial's is a key of its own (0,15 on this board), not tied to it.
+function pressCell() { return V.board === 'via' ? '0,15' : null; }
+function actionKeycode(act) {
+  if (act === 'push') return keymap[layer][pressCell()] || '▽';
+  return encmap[layer][act === 'ccw' ? 0 : 1];
+}
+function capClass(t) { return HOST.has(t) ? 'host' : FW.has(t) ? 'fw' : ''; }
+
+// ---------------------------------------------------------------------------------------------
+// The board.
+const U = 52, PAD = 10;
+function boardSvg() {
+  const keys = parseKle(BOARDS[V.board].keymap);
+  const maxX = Math.max(...keys.map(k => k.x + k.w)), maxY = Math.max(...keys.map(k => k.y + k.h));
+  const W = maxX * U + 2 * PAD, H = maxY * U + 2 * PAD;
+  const fs = Math.round(U * 0.27), ss = Math.round(U * 0.2);
+  let s = `<svg class="board" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+  s += `<style>.plate{fill:var(--plate)}.k{fill:var(--key);stroke:var(--keyline)}.k.cur{fill:var(--lit);stroke:var(--litline);stroke-width:2}.t{font:${fs}px Arimo,Arial;fill:var(--text);text-anchor:middle}.t.s{font-size:${ss}px}.t.m{fill:var(--muted)}.t.h{fill:var(--host)}.t.f{fill:var(--fw)}.ghost{opacity:.4}</style>`;
+  const X = v => PAD + v * U, Y = v => PAD + v * U, g = 2;
+  // The plate under the board's keys -- not under Vial's direction keys, drawn outside it.
+  const onPlate = keys.filter(k => k.dir === undefined || k.dir < 0);
+  const px0 = X(Math.min(...onPlate.map(k => k.x))) - 6, py0 = Y(Math.min(...onPlate.map(k => k.y))) - 6;
+  const px1 = X(Math.max(...onPlate.map(k => k.x + k.w))) + 6, py1 = Y(Math.max(...onPlate.map(k => k.y + k.h))) + 6;
+  s += `<rect class="plate" x="${px0}" y="${py0}" width="${px1 - px0}" height="${py1 - py0}" rx="8"/>`;
+  const tcls = t => HOST.has(t) ? 't h' : FW.has(t) ? 't f' : 't';
+  const noMap = V.map === 'no';
+
+  // Vial's pairs, for "one knob": the two keys of a knob become one round knob over both.
+  const pairs = {};
+  if (V.board === 'vial' && V.vialLook === 'one')
+    for (const k of keys) if (k.knob !== undefined) (pairs[k.knob] = pairs[k.knob] || []).push(k);
+
+  for (const k of keys) {
+    const x = X(k.x) + g, y = Y(k.y) + g, w = k.w * U - 2 * g, h = k.h * U - 2 * g, cx = x + w / 2, cy = y + h / 2;
+    if (k.knob === undefined) {
+      const id = k.cell.join(',');
+      const t = keymap[layer][id] === undefined ? '▽' : keymap[layer][id];
+      const cur = sel.kind === 'key' && sel.cell === id;
+      s += `<g class="hit" onclick="pickKey('${id}')"><rect class="k${cur ? ' cur' : ''}" x="${x}" y="${y}" width="${w}" height="${h}" rx="5"/>`;
+      s += `<text class="${t === '▽' ? 't m' : tcls(t)}${t.length > 4 ? ' s' : ''}" x="${cx}" y="${cy + fs * 0.35}">${t}</text></g>`;
+      continue;
+    }
+    if (V.board === 'vial') {
+      if (V.vialLook === 'one') {
+        const pair = pairs[k.knob];
+        if (pair[0] !== k) continue;   // drawn once, over both keys
+        const x0 = Math.min(...pair.map(p => X(p.x))), x1 = Math.max(...pair.map(p => X(p.x + p.w)));
+        const y0 = Math.min(...pair.map(p => Y(p.y))), y1 = Math.max(...pair.map(p => Y(p.y + p.h)));
+        s += knobSvg((x0 + x1) / 2, (y0 + y1) / 2, Math.min(x1 - x0, y1 - y0) / 2 - g, k.knob, false, fs, ss, tcls, noMap);
+        continue;
+      }
+      // As drawn: a key per direction, its keycode, and an arrow badge in the corner.
+      const act = k.dir === 0 ? 'ccw' : 'cw', t = noMap ? '?' : encmap[layer][k.dir];
+      const cur = sel.kind === 'knob' && sel.knob === k.knob && sel.act === act;
+      s += `<g class="hit${noMap ? ' ghost' : ''}" onclick="pickKnob(${k.knob},'${act}')"><rect class="k${cur ? ' cur' : ''}" x="${x}" y="${y}" width="${w}" height="${h}" rx="5"/>`;
+      s += `<rect x="${x + w - 15}" y="${y}" width="15" height="15" rx="3" fill="var(--knobline)"/><text class="t" style="font-size:12px;fill:var(--key)" x="${x + w - 7.5}" y="${y + 12}">${k.dir === 0 ? '↺' : '↻'}</text>`;
+      s += `<text class="${tcls(t)}${t.length > 4 ? ' s' : ''}" x="${cx}" y="${cy + fs * 0.45}">${t}</text></g>`;
+      continue;
+    }
+    s += knobSvg(cx, cy, Math.min(w, h) / 2, k.knob, true, fs, ss, tcls, noMap);
+  }
+  return s + '</svg>';
+}
+
+// A VIA knob, or Vial's pair drawn as one: round, its press in the centre (VIA only), its turns
+// as the look says.
+function knobSvg(cx, cy, r, index, hasPress, fs, ss, tcls, noMap) {
+  const curK = sel.kind === 'knob' && sel.knob === index;
+  const ccw = noMap ? '?' : encmap[layer][0], cw = noMap ? '?' : encmap[layer][1];
+  const press = hasPress ? (keymap[layer][pressCell()] || '▽') : '';
+  const look = V.board === 'via' ? V.viaLook : 'ring';
+  // A key, round: the keycap's face, outline and selection.
+  let s = `<circle class="k${curK ? ' cur' : ''}" cx="${cx}" cy="${cy}" r="${r}"/>`;
+  const sm = Math.round(ss * 0.9);
+  s += `<circle class="hit" cx="${cx}" cy="${cy}" r="${r}" fill="transparent" onclick="pickKnob(${index},'${hasPress ? 'push' : 'cw'}')"/>`;
+  if (look === 'ring') {
+    // Stacked: the press on top, then a line per turn -- side by side they do not fit in 1u. The
+    // arrows share a column and the keycodes start at one x, so the two turns line up; the
+    // block -- arrow, gap, the longer keycode -- is centred as one.
+    const line = sm + 2, top = cy - (hasPress ? line : line / 2) + sm * 0.35;
+    if (hasPress) s += `<text class="${tcls(press)}" style="font-size:${sm}px;pointer-events:none" x="${cx}" y="${top}">${short(press)}</text>`;
+    const arrowW = textWidth('↻', sm), gap = sm * 0.25;
+    const blockW = arrowW + gap + Math.max(textWidth(short(ccw), sm), textWidth(short(cw), sm));
+    const arrowX = cx - blockW / 2 + arrowW / 2, textX = cx - blockW / 2 + arrowW + gap;
+    const tx = (t, i, arrow) => {
+      const y = top + (hasPress ? i + 1 : i) * line;
+      return `<text class="t m" style="font-size:${sm}px;pointer-events:none" x="${arrowX}" y="${y}">${arrow}</text>` +
+        `<text class="${noMap ? 't m' : tcls(t)}" style="font-size:${sm}px;text-anchor:start;pointer-events:none" x="${textX}" y="${y}">${short(t)}</text>`;
+    };
+    s += tx(ccw, 0, '↺') + tx(cw, 1, '↻');
+  } else {
+    // Press only: the turns are in the panel; a circular arrow says it turns.
+    if (hasPress) s += `<text class="${tcls(press)}" style="font-size:${sm + 1}px;pointer-events:none" x="${cx}" y="${cy + sm * 0.35}">${short(press)}</text>`;
+    s += `<text class="t m" style="font-size:${sm}px;pointer-events:none" x="${cx + r * 0.62}" y="${cy - r * 0.45}">↻</text>`;
+  }
+  return s;
+}
+function short(t) { return t.replace('RGB ', '').replace(' ', ''); }
+// A legend's width at this size, measured as the board draws it.
+const measure = document.createElement('canvas').getContext('2d');
+function textWidth(t, size) { measure.font = `${size}px Arimo, Arial`; return measure.measureText(t).width; }
+
+function pickKey(id) {
+  // On VIA, the knob's own cell is its press: picking it there is picking the knob.
+  sel = { kind: 'key', cell: id };
+  render();
+}
+function pickKnob(index, act) { sel = { kind: 'knob', knob: index, act }; render(); }
+function pickAct(act) { sel.act = act; render(); }
+function assign(t) {
+  if (sel.kind === 'key') keymap[layer][sel.cell] = t;
+  else if (sel.act === 'push') keymap[layer][pressCell()] = t;
+  else if (V.map === 'yes') encmap[layer][sel.act === 'ccw' ? 0 : 1] = t;
+  render();
+}
+
+// ---------------------------------------------------------------------------------------------
+// The panel.
+const ACTS = [['ccw', 'Turn left', '↺'], ['cw', 'Turn right', '↻'], ['push', 'Press', '●']];
+function gesture(act) {
+  if (act === 'push') return `<svg width="44" height="30"><circle cx="22" cy="17" r="11" fill="none" stroke="var(--knobline)" stroke-width="2"/><path d="M22 0 v9 M18 5 l4 4 4-4" stroke="var(--text)" stroke-width="1.6" fill="none"/></svg>`;
+  const cw = act === 'cw';
+  return `<svg width="44" height="30"><circle cx="22" cy="16" r="11" fill="none" stroke="var(--knobline)" stroke-width="2"/>` +
+    `<path d="M${cw ? 12 : 32} 6 A 13 13 0 0 ${cw ? 1 : 0} ${cw ? 34 : 10} 12" stroke="var(--text)" stroke-width="1.6" fill="none"/>` +
+    `<path d="M${cw ? 34 : 10} 12 l${cw ? -1 : 1} -5 M${cw ? 34 : 10} 12 l${cw ? -5 : 5} -1" stroke="var(--text)" stroke-width="1.6"/></svg>`;
+}
+function renderPanel() {
+  const noMap = V.map === 'no';
+  if (sel.kind === 'key') {
+    const t = keymap[layer][sel.cell] || '▽';
+    return `<div class="mline"><span class="title">Key ${sel.cell}</span><div class="cap ${capClass(t)}">${t}</div><span class="msg muted">Pick a keycode below: written at once.</span></div>`;
+  }
+  const acts = ACTS.filter(([a]) => a !== 'push' || V.board === 'via');
+  const why = a => {
+    if (a === 'push') return V.board === 'via' ? 'the knob\'s own switch (0,15)' : '';
+    return noMap ? 'what the firmware was built with' : 'one step of the knob';
+  };
+  let s = `<div class="mline"><span class="title">Knob ${sel.knob}</span><span class="msg">`;
+  if (noMap)
+    s += `<span class="warn">${V.board === 'via' ? 'This firmware has no encoder map -- VIA 9: the map came with protocol 10' : 'This firmware was built without ENCODER_MAP_ENABLE'} -- so a turn does what its code says, and Nazg cannot read or change it.</span>${V.board === 'via' ? ' The press is a key: it can be.' : ''}`;
+  else
+    s += `<span class="muted">Layer ${layer}. Each action is written at once, as a key is.</span>`;
+  if (V.board === 'vial') s += `<span class="muted"> Pressing it, if it can be pressed, is a key of its own -- Vial's definitions do not say which.</span>`;
+  s += '</span></div>';
+  if (V.panel === 'tiles') {
+    s += '<div class="actions">' + acts.map(([a, lbl]) => {
+      const t = noMap && a !== 'push' ? '?' : actionKeycode(a);
+      return `<div class="act${sel.act === a ? ' sel' : ''}" onclick="pickAct('${a}')">${gesture(a)}<span class="lbl">${lbl}</span>` +
+        `<div class="cap ${noMap && a !== 'push' ? 'ghost' : capClass(t)}">${t}</div><span class="why">${why(a)}</span></div>`;
+    }).join('') + '</div>';
+  } else {
+    s += '<div class="lines">' + acts.map(([a, lbl, sym]) => {
+      const t = noMap && a !== 'push' ? '?' : actionKeycode(a);
+      return `<div class="line${sel.act === a ? ' sel' : ''}" onclick="pickAct('${a}')"><span class="lbl">${sym} ${lbl}</span>` +
+        `<div class="cap ${noMap && a !== 'push' ? 'ghost' : capClass(t)}" style="height:34px">${t}</div><span class="why">${why(a)}</span></div>`;
+    }).join('') + '</div>';
+  }
+  return s;
+}
+function renderPicker() {
+  return `<div class="tabs">${Object.keys(PICKER).map(t => `<span class="tab${tab === t ? ' on' : ''}" onclick="tab='${t}';render()">${t}</span>`).join('')}</div>` +
+    `<div class="tiles">${PICKER[tab].map(t => `<div class="cap ${capClass(t)}" onclick="assign('${t}')">${t}</div>`).join('')}</div>`;
+}
+
+function render() {
+  renderControls();
+  const b = BOARDS[V.board];
+  document.getElementById('frame').innerHTML =
+    `<div class="menubar"><span class="board">${b.name}</span><span class="muted">${b.protocol}</span><span class="right">Settings</span></div>` +
+    `<div class="body"><div class="col">${['Keymap', 'Layout', 'Macros', 'Lighting', 'QMK Settings'].filter(e => V.board === 'vial' || e !== 'QMK Settings')
+      .map((e, i) => `<div class="entry${i === 0 ? ' on' : ''}">${e}</div>`).join('')}</div>` +
+    `<div class="main"><div class="strip">${[0, 1, 2, 3].map(l => `<button class="${l === layer ? 'on' : ''}" onclick="layer=${l};render()">${l}</button>`).join('')}</div>` +
+    `<div class="boardarea">${boardSvg()}</div><div class="panel">${renderPanel()}${renderPicker()}</div></div></div>`;
+  document.getElementById('notes').innerHTML = NOTES;
+}
+
+const NOTES = `
+<p><b>The board</b> is Keychron's Q1 V2 ANSI Knob in both protocols: VIA's registry file, where the knob is one key at
+the top right, its push switch the matrix cell 0,15 under it; and vial-qmk's, where the knob is two keys in a row above
+the board -- one per direction -- and 0,15, the push switch, an ordinary key in the top row.</p>
+<p><b>VIA knob</b> -- <i>Round, three legends</i>: the press in the centre, each turn under it with its arrow, all
+visible at once as a key's legend is; one click selects the knob. <i>Round, press only</i>: what a key shows, the
+turns only in the panel.</p>
+<p><b>Vial keys</b> -- <i>As drawn</i>: the definition's two keys, each a direction with a corner badge, like ▽ / ✕,
+clicked like keys. <i>One knob</i>: the pair drawn as one round knob over both, as VIA's; its press cannot be shown,
+since a Vial definition does not tie the push switch to the knob.</p>
+<p><b>Panel</b> -- <i>Actions</i>: the knob's actions side by side with a small drawing, as Tap Dance's are.
+<i>Lines</i>: one row per action. Either way the picker below assigns to the action selected, on the layer the
+strip shows; written at once, as Keymap writes.</p>
+<p><b>Encoder map not built in</b>: VIA before protocol 10 has no command for it, and a firmware built without
+ENCODER_MAP_ENABLE answers VIA's with 0xFF and Vial's by echoing the request (via-vial-commands.md). The turns are then
+the firmware's own code: shown as "?", not editable; the press, a key, still is.</p>`;
+
+render();
+</script>
+</body>
+</html>

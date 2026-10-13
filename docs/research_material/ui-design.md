@@ -1248,6 +1248,40 @@ and VIA do, hover saying what it needs. A tab left with no group is not shown.
 - **Found by the mockup**: `KC_SPC` always prints blank (`PlacementClass::Blank`), so
   `LT(1,KC_SPC)` on a 1u key shows only "L1"; Space should be blank only on keys 3u and wider.
 
+## Knobs
+
+Mockup: `ui-design/encoders.html` (2026-10-13), on Keychron's Q1 V2 ANSI Knob in both protocols.
+A knob -- a rotary encoder -- does three things per layer: turned counter-clockwise, turned
+clockwise, pressed. The turns are an **encoder map**: VIA's `0x14` / `0x15` from protocol 10, one
+direction per call; Vial's `0xFE 0x03` / `0x04`, both directions in one reply; either only with
+`ENCODER_MAP_ENABLE` built in (via-vial-commands.md). The press is a switch of the matrix, a key.
+
+The two protocols draw a knob differently, and the parser reads both (`DefinitionKey::encoderIndex`,
+`encoderDirection`, `encoderPush`):
+
+| | VIA | Vial |
+|---|---|---|
+| Keys per knob | one: `e0` in the centre label | one per direction: a bare `e` centre, `index,direction` top-left |
+| The press | the knob's own cell, top-left -- 341 of the registry's 348 knobs have one | a key of its own, not tied to the knob |
+| Size, place | 1u for 333; in a layout option (knob or key) for 186 | 1u; the pair side by side 166 times, counter-clockwise left 161; stacked 37 |
+
+**Settled 2026-10-13 (Rico):**
+
+- **Knobs are edited in Keymap**, on its board and with its layer strip -- no section of their own.
+- **A VIA knob is a round key**: the keycap's face, outline and selection, round; no grip marks.
+  Its legends stacked, as they do not fit side by side in 1u: the press on top, then a line per
+  turn, the ↺ and ↻ arrows in one column and the keycodes starting at one x, the block centred as
+  one. One click selects the knob. Drawing only the press, and the knob split into three clickable
+  zones, were the other choices -- the zones too cramped in 1u.
+- **A Vial knob is drawn as its definition draws it**: a keycap per direction where the file puts
+  it, with a ↺ / ↻ corner badge as ▽ / ✕ have, clicked like a key. Merging the pair into one round
+  knob was the other choice; it could not show the press anyway.
+- **The panel shows the knob's actions side by side** -- Turn left, Turn right and, on VIA, Press --
+  each with a small drawing, as Tap Dance's actions; the picker assigns to the one selected, on the
+  strip's layer, **written at once** as Keymap writes. One line per action was the other choice.
+- **No encoder map in the firmware**: the turns show "?" and cannot be edited -- they are the
+  firmware's own code; the press, a key, still can be. As the mockup has it; not discussed further.
+
 ## The Layout section
 
 The board's layout options -- split backspace, ISO Enter, bottom rows -- chosen in the panel.
