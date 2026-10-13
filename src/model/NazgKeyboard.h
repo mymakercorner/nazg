@@ -173,7 +173,8 @@ namespace nazg
                                                        const std::vector<uint8_t>& selection);
 
     // The keys of one choice of one group, where PlaceKeys() would draw them -- on choice 0's
-    // place -- decals left out: what the Layout section draws for an option on hover.
+    // place -- decals and knobs without a push switch left out: what the Layout section draws for
+    // an option on hover.
     [[nodiscard]] std::vector<DefinitionKey> OptionKeys(const KeyboardDefinition& definition, size_t group,
                                                         uint8_t choice);
 

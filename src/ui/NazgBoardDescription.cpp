@@ -291,6 +291,10 @@ namespace nazg
         BoardDescription board;
         for (const DefinitionKey& key : PlaceKeys(keyboard.definition, keyboard.layoutSelection))
         {
+            // A knob without a push switch is not drawn yet: it has no cell to show a keycode of.
+            if (!key.decal && !key.IsSwitch())
+                continue;
+
             BoardKey described;
             described.geometry = key;
             described.fill     = KeycapClassOf(keyboard.KeycodeFor(key, 0), key);

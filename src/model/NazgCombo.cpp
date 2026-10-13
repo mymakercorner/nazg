@@ -95,7 +95,7 @@ namespace nazg
             if (layer < 16 ? (layers & (1u << layer)) == 0 : layers != 0xFFFF)
                 continue;
             for (const DefinitionKey& key : keyboard.definition.keys)
-                if (!key.decal && keyboard.IsKeyVisible(key) &&
+                if (key.IsSwitch() && keyboard.IsKeyVisible(key) &&
                     keyboard.KeycodeFor(key, static_cast<uint8_t>(layer)) == keycode)
                     return static_cast<uint8_t>(layer);
         }
@@ -109,7 +109,7 @@ namespace nazg
             return std::nullopt;
         for (const DefinitionKey& key : keyboard.definition.keys)
         {
-            if (key.decal || !keyboard.IsKeyVisible(key))
+            if (!key.IsSwitch() || !keyboard.IsKeyVisible(key))
                 continue;
             const Keycode sent = keyboard.KeycodeFor(key, 0);
             if (const std::optional<std::string_view> tap = TapOf(sent); tap && *tap == named->name)

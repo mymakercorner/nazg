@@ -39,7 +39,7 @@ namespace nazg
         void CheckMatrix(const KeyboardDefinition& definition, std::vector<std::string>& problems)
         {
             for (const DefinitionKey& key : definition.keys)
-                if (!key.decal && (key.row >= definition.matrixRows || key.column >= definition.matrixColumns))
+                if (key.IsSwitch() && (key.row >= definition.matrixRows || key.column >= definition.matrixColumns))
                 {
                     problems.push_back("key " + Position(key) + " is outside the " +
                                        std::to_string(definition.matrixRows) + " x " +

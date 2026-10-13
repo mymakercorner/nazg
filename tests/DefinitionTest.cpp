@@ -288,6 +288,57 @@ namespace
               "a space before the comma of a layout option is allowed");
     }
 
+    // Knobs. Vial's: one key per direction, a bare "e" in the centre and "index,direction"
+    // where the cell would be -- read as a cell, they were phantom keys on real switches. VIA's:
+    // "e3" in the centre, with the push switch's cell when there is one. The centre is the
+    // label's 10th line at alignment 0 or 4.
+    void TestEncoders()
+    {
+        std::printf("encoders\n");
+
+        auto parse = [](const char* keymap)
+        {
+            const std::string text = std::string(R"({"matrix":{"rows":4,"cols":4},"layouts":{"keymap":)") + keymap + "}}";
+            return ParseDefinition(std::vector<uint8_t>(text.begin(), text.end()));
+        };
+
+        const KeyboardDefinition vial =
+            parse(R"([["0,0","0,0\n\n\n\n\n\n\n\n\ne","0,1\n\n\n\n\n\n\n\n\ne","0,1"]])");
+        Check(vial.keys.size() == 4, "two switches and the knob's two directions");
+        Check(vial.keys[1].encoderIndex == 0 && vial.keys[1].encoderDirection == 0 && vial.keys[1].x == 1.0f,
+              "a Vial knob's counter-clockwise key");
+        Check(vial.keys[2].encoderIndex == 0 && vial.keys[2].encoderDirection == 1, "and its clockwise key");
+        Check(!vial.keys[1].IsSwitch() && !vial.keys[2].IsSwitch(), "neither is a switch");
+        Check(vial.keys[0].IsSwitch() && vial.keys[3].IsSwitch() && vial.keys[3].column == 1,
+              "the switches around them are as they were");
+
+        const KeyboardDefinition via = parse(R"([["0,0","\n\n\n\n\n\n\n\n\ne0","1,2\n\n\n\n\n\n\n\n\nE1  "]])");
+        Check(via.keys.size() == 3, "a switch and two VIA knobs");
+        Check(via.keys[1].encoderIndex == 0 && via.keys[1].encoderDirection == -1 && !via.keys[1].IsSwitch(),
+              "a knob turned both ways, with no push switch");
+        Check(via.keys[2].encoderIndex == 1 && via.keys[2].encoderPush && via.keys[2].IsSwitch() &&
+                  via.keys[2].row == 1 && via.keys[2].column == 2,
+              "a knob with a push switch keeps its cell");
+
+        // The alignment moves the lines: at 7 a single line is the centre, and it holds for the
+        // next key; at 6 the centre is the 9th line; at 0 the cell and the layout option are the
+        // 1st and 4th. A cell on a line the alignment centres is still read, as Nazg always read
+        // it -- VIA refuses the file (Keychron's V1 JIS, Keyboard Co's K8 Pro).
+        const KeyboardDefinition aligned =
+            parse(R"([[{"a":7},"e2","3,3"],[{"a":6},"\n\n\n\n\n\n\n\ne4"],[{"a":0},"2,0\n\n\n1,1"]])");
+        Check(aligned.keys.size() == 4, "two knobs and two switches");
+        Check(aligned.keys[0].encoderIndex == 2 && aligned.keys[2].encoderIndex == 4,
+              "the centre found at alignments 7 and 6");
+        Check(aligned.keys[1].IsSwitch() && aligned.keys[1].row == 3 && aligned.keys[1].column == 3,
+              "a centred cell read from the first line");
+        Check(aligned.keys[3].IsSwitch() && aligned.keys[3].row == 2 && aligned.keys[3].column == 0 &&
+                  aligned.keys[3].layoutIndex == 1 && aligned.keys[3].layoutOption == 1,
+              "and the cell and the layout option at alignment 0");
+
+        Check(Throws([&] { (void)parse(R"([["\n\n\n\n\n\n\n\n\ne0"]])"); }),
+              "knobs without a push switch are not keys: a layout of them alone is rejected");
+    }
+
     // ogr, fallacy: string ids are hex even without "0x", as VIA reads them.
     void TestUsbIdStrings()
     {
@@ -412,17 +463,22 @@ namespace
     {
         std::printf("converted form: edge cases\n");
 
-        // An encoder drawn on the board has no matrix cell and is not a decal: skipped,
-        // like a legend-only key in the source form. A cell id too large for a byte is
-        // skipped too, rather than wrapped into a real cell.
+        // A knob, `ei`, is kept with no matrix cell; a key with neither is skipped, like a
+        // legend-only key in the source form. A cell id too large for a byte is skipped too,
+        // rather than wrapped into a real cell.
         const KeyboardDefinition definition = ParseDefinition(IsoMacroBytes(
             R"({"name":{"options":["EC60X","DC60"],"content":["id_board_variant",0,245]},)"
             R"("vendorProductId":1298469376,"matrix":{"rows":1,"cols":2},"layouts":{"keys":[)"
             R"({"row":0,"col":0,"x":0,"y":0,"r":-10,"rx":2.5,"ry":-1},)"
             R"({"row":-1,"col":-1,"x":1,"y":0,"ei":0},)"
-            R"({"row":4294967296,"col":1,"x":2,"y":0}]}})"));
+            R"({"row":0,"col":1,"x":2,"y":0,"ei":1},)"
+            R"({"row":-1,"col":-1,"x":3,"y":0},)"
+            R"({"row":4294967296,"col":1,"x":4,"y":0}]}})"));
 
-        Check(definition.keys.size() == 1, "only the key with a real matrix cell is kept");
+        Check(definition.keys.size() == 3, "the switch and both knobs are kept");
+        Check(definition.keys[1].encoderIndex == 0 && !definition.keys[1].IsSwitch(), "a knob with no cell");
+        Check(definition.keys[2].encoderIndex == 1 && definition.keys[2].IsSwitch() && definition.keys[2].column == 1,
+              "a knob with a push switch");
         Check(definition.keys[0].rotation == -10.0f && definition.keys[0].rotationX == 2.5f &&
                   definition.keys[0].rotationY == -1.0f,
               "r, rx and ry are read as they are");
@@ -451,6 +507,7 @@ int main()
     TestDecalsAdvanceWithoutBecomingKeys();
     TestSourceDecalMarkedWithD();
     TestKleDetails();
+    TestEncoders();
     TestUsbIdStrings();
     TestLightingFields();
     TestCustomMenus();

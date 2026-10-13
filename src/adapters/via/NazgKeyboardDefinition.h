@@ -70,9 +70,25 @@ namespace nazg
         // drawn. Its row and column mean nothing.
         bool decal = false;
 
+        // A rotary encoder's knob: its index, -1 on any other key. VIA gives a knob one key,
+        // turned both ways -- encoderDirection -1 -- with its push switch's matrix cell in row
+        // and column when it has one (encoderPush). Vial gives it one key per direction,
+        // encoderDirection 0 counter-clockwise and 1 clockwise, and never a cell: its push
+        // switch, if any, is a key of its own.
+        int  encoderIndex     = -1;
+        int  encoderDirection = -1;
+        bool encoderPush      = false;
+
         bool HasSecondRectangle() const noexcept
         {
             return secondWidth != 0.0f && secondHeight != 0.0f;
+        }
+
+        // A switch of the matrix, at row and column: not a decal, nor a knob without a push
+        // switch.
+        [[nodiscard]] bool IsSwitch() const noexcept
+        {
+            return !decal && (encoderIndex < 0 || encoderPush);
         }
     };
 

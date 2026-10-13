@@ -120,7 +120,7 @@ int main(int argc, char** argv)
                 // VID:PID and the same wiring describe one board.
                 std::vector<std::string> wiring;
                 for (const nazg::DefinitionKey& key : check.definition->keys)
-                    if (!key.decal)
+                    if (key.IsSwitch())
                         wiring.push_back(std::to_string(key.row) + "," + std::to_string(key.column));
                 std::sort(wiring.begin(), wiring.end());
                 wiring.erase(std::unique(wiring.begin(), wiring.end()), wiring.end());

@@ -185,7 +185,7 @@ namespace nazg
 
         std::vector<DefinitionKey> keys;
         for (const DefinitionKey& key : PlaceKeys(definition, selection))
-            if (key.layoutIndex == static_cast<int>(group) && !key.decal)
+            if (key.layoutIndex == static_cast<int>(group) && key.IsSwitch())
                 keys.push_back(key);
         return keys;
     }

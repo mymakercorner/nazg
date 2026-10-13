@@ -100,7 +100,7 @@ namespace nazg
         {
             for (int layer = 0; layer < keyboard.keymap.Layers(); ++layer)
                 for (const DefinitionKey& key : keyboard.definition.keys)
-                    if (!key.decal && keyboard.IsKeyVisible(key) &&
+                    if (key.IsSwitch() && keyboard.IsKeyVisible(key) &&
                         Types(keyboard.KeycodeFor(key, static_cast<uint8_t>(layer)), base))
                         return static_cast<uint8_t>(layer);
             return std::nullopt;

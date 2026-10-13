@@ -3,6 +3,7 @@
 
 #include "NazgKeyboardDefinition.h"
 
+#include <array>
 #include <cstdlib>
 #include <optional>
 #include <stdexcept>
@@ -52,13 +53,8 @@ namespace nazg
             throw ProtocolError(std::string("definition has no usable ") + what);
         }
 
-        // A KLE key label is newline-separated positions. Position 0 carries the matrix
-        // cell as "row,col"; position 3, when present, carries "layoutIndex,option".
-        // Anything else -- a decal, a legend-only key -- has no position 0 to parse and
-        // is skipped by the caller.
-        //
-        // Spaces around either number are allowed, as VIA allows them: real definitions
-        // have "0,8    " and "1 ,0".
+        // Spaces around a number are allowed, as VIA allows them: real definitions have
+        // "0,8    " and "1 ,0".
         bool ParseNumber(const std::string& text, int& value)
         {
             const std::string trimmed = Trim(text);
@@ -110,6 +106,59 @@ namespace nazg
             return parts;
         }
 
+        // KLE writes a key's labels newline-separated, in an order that depends on its
+        // alignment `a`: each alignment sends them to its own places among a key's twelve
+        // (kle-serial's table, which VIA's reader and vial-gui use). Of those places, VIA and
+        // Vial read three: 0, the top-left -- the matrix cell "row,col" --, 4, the centre -- an
+        // encoder --, and 8, the bottom-right -- the layout option "layoutIndex,option".
+        // Alignments 0 and 4, nearly every definition's, take those three from the same lines,
+        // the 1st, 10th and 4th. -1: the line is not shown, and not read.
+        constexpr int c_LabelPlaces[8][12] = {
+            { 0, 6, 2, 8, 9, 11, 3, 5, 1, 4, 7, 10 },           // 0: nothing centred
+            { 1, 7, -1, -1, 9, 11, 4, -1, -1, -1, -1, 10 },     // 1: centred across
+            { 3, -1, 5, -1, 9, 11, -1, -1, 4, -1, -1, 10 },     // 2: centred down
+            { 4, -1, -1, -1, 9, 11, -1, -1, -1, -1, -1, 10 },   // 3: both
+            { 0, 6, 2, 8, 10, -1, 3, 5, 1, 4, 7, -1 },          // 4: front centred, KLE's default
+            { 1, 7, -1, -1, 10, -1, 4, -1, -1, -1, -1, -1 },    // 5: front, across
+            { 3, -1, 5, -1, 10, -1, -1, -1, 4, -1, -1, -1 },    // 6: front, down
+            { 4, -1, -1, -1, 10, -1, -1, -1, -1, -1, -1, -1 },  // 7: front, both
+        };
+
+        constexpr size_t c_CellLabel    = 0;
+        constexpr size_t c_EncoderLabel = 4;
+        constexpr size_t c_OptionLabel  = 8;
+
+        // A key's labels in their places, trimmed as VIA trims them. An alignment KLE does
+        // not have reads as 0, VIA's default.
+        std::array<std::string, 12> PlaceLabels(const std::string& text, int alignment)
+        {
+            const int(&places)[12] = c_LabelPlaces[alignment >= 0 && alignment < 8 ? alignment : 0];
+
+            std::array<std::string, 12>    placed;
+            const std::vector<std::string> lines = SplitLabels(text);
+            for (size_t line = 0; line < lines.size() && line < 12; ++line)
+                if (places[line] >= 0)
+                    placed[static_cast<size_t>(places[line])] = Trim(lines[line]);
+            return placed;
+        }
+
+        // A key's first label line, trimmed: where KLE writes when nothing else is set.
+        std::string FirstLine(const std::string& text)
+        {
+            return Trim(text.substr(0, text.find('\n')));
+        }
+
+        // VIA's encoder label, "e3" -- an e and the knob's index -- as its reader matches it.
+        bool ParseViaEncoder(const std::string& label, int& index)
+        {
+            if (label.size() < 2 || label.size() > 4 || (label[0] != 'e' && label[0] != 'E') ||
+                label.find_first_not_of("0123456789", 1) != std::string::npos)
+                return false;
+
+            index = std::stoi(label.substr(1));
+            return index <= 255;
+        }
+
         float ReadFloat(const nlohmann::json& object, const char* key, float fallback)
         {
             const auto found = object.find(key);
@@ -145,6 +194,10 @@ namespace nazg
             // Set by r, and kept -- across keys and rows -- until the next r.
             float rotation = 0.0f;
 
+            // Set by a, and kept likewise: where the labels' lines go (PlaceLabels()). VIA's
+            // reader starts at 0, KLE's editor at 4; the two agree on what is read.
+            int alignment = 0;
+
             float width        = 1.0f;
             float height       = 1.0f;
             float secondX      = 0.0f;
@@ -157,7 +210,8 @@ namespace nazg
             // gives the next key a width of 2.25.
             void Apply(const nlohmann::json& entry)
             {
-                rotation = ReadFloat(entry, "r", rotation);
+                rotation  = ReadFloat(entry, "r", rotation);
+                alignment = static_cast<int>(ReadFloat(entry, "a", static_cast<float>(alignment)));
 
                 const bool movesCluster = entry.contains("rx") || entry.contains("ry");
                 clusterX = ReadFloat(entry, "rx", clusterX);
@@ -225,17 +279,60 @@ namespace nazg
                 if (!entry.is_string())
                     continue;
 
-                const std::vector<std::string> labels = SplitLabels(entry.get<std::string>());
+                const std::array<std::string, 12> labels = PlaceLabels(entry.get<std::string>(), cursor.alignment);
 
-                // A key marked "d" is a decal whatever its label says -- VIA ignores its
-                // matrix cell too -- but it keeps its layout option, since lining up that
-                // option's choices may depend on it.
-                int        row_     = 0;
-                int        column   = 0;
-                const bool isSwitch = !cursor.decal && !labels.empty() && ParsePair(labels[0], row_, column);
-                if (isSwitch || cursor.decal)
+                // A key is one of four. A decal, marked "d", whatever its labels say -- VIA
+                // ignores its matrix cell too -- but it keeps its layout option, since lining up
+                // that option's choices may depend on it. A Vial knob's direction: a bare "e" in
+                // the centre and "index,direction" where the cell would be (vial-gui,
+                // keyboard_comm.py). A VIA knob: "e3" in the centre, and its push switch's cell
+                // when it has one. A switch: its cell. Anything else is a legend-only key, not
+                // recorded.
+                //
+                // One leniency VIA does not have: a cell written on the first line of a key whose
+                // alignment sends that line elsewhere -- "5,6" centred, at 7 -- is still read when
+                // the top-left is empty. VIA refuses such a file ("'Row,col' pairs must be placed in
+                // the top-left legend"); 16 vendor files do it, Keychron's own V1 JIS among them,
+                // and Nazg always read them.
+                DefinitionKey key;
+                int           first  = 0;
+                int           second = 0;
+                bool          keep   = false;
+                if (cursor.decal)
                 {
-                    DefinitionKey key;
+                    key.decal = true;
+                    keep      = true;
+                }
+                else if (labels[c_EncoderLabel] == "e")
+                {
+                    if (ParsePair(labels[c_CellLabel], first, second) && first <= 255 && second <= 1)
+                    {
+                        key.encoderIndex     = first;
+                        key.encoderDirection = second;
+                        keep                 = true;
+                    }
+                }
+                else if (ParseViaEncoder(labels[c_EncoderLabel], first))
+                {
+                    key.encoderIndex = first;
+                    keep             = true;
+                    if (ParsePair(labels[c_CellLabel], first, second))
+                    {
+                        key.encoderPush = true;
+                        key.row         = static_cast<uint8_t>(first);
+                        key.column      = static_cast<uint8_t>(second);
+                    }
+                }
+                else if (ParsePair(labels[c_CellLabel], first, second) ||
+                         (labels[c_CellLabel].empty() && ParsePair(FirstLine(entry.get<std::string>()), first, second)))
+                {
+                    key.row    = static_cast<uint8_t>(first);
+                    key.column = static_cast<uint8_t>(second);
+                    keep       = true;
+                }
+
+                if (keep)
+                {
                     key.x            = cursor.x;
                     key.y            = cursor.y;
                     key.width        = cursor.width;
@@ -247,16 +344,10 @@ namespace nazg
                     key.rotation     = cursor.rotation;
                     key.rotationX    = cursor.clusterX;
                     key.rotationY    = cursor.clusterY;
-                    key.decal        = cursor.decal;
-                    if (isSwitch)
-                    {
-                        key.row    = static_cast<uint8_t>(row_);
-                        key.column = static_cast<uint8_t>(column);
-                    }
 
                     int layoutIndex  = 0;
                     int layoutOption = 0;
-                    if (labels.size() > 3 && ParsePair(labels[3], layoutIndex, layoutOption))
+                    if (ParsePair(labels[c_OptionLabel], layoutIndex, layoutOption))
                     {
                         key.layoutIndex  = layoutIndex;
                         key.layoutOption = layoutOption;
@@ -264,8 +355,8 @@ namespace nazg
 
                     keys.push_back(key);
                 }
-                // else: a legend-only key with no matrix cell. It occupies space but is
-                // not a switch, so it advances the cursor without being recorded.
+                // else: a legend-only key. It occupies space but is nothing VIA reads, so
+                // it advances the cursor without being recorded.
 
                 cursor.Advance();
             }
@@ -285,10 +376,11 @@ namespace nazg
         }
 
         // One key of the converted form: every field explicit, positions absolute. Only
-        // what DefinitionKey holds is read -- colour, encoder and LED indexes are not.
+        // what DefinitionKey holds is read -- colour and LED indexes are not.
         //
-        // A key with no matrix cell (row -1) that is not a decal is an encoder drawn on
-        // the board; like the source form's legend-only keys, it is not recorded.
+        // A key with an encoder index, `ei`, is a knob, with a push switch when it has a matrix
+        // cell too. Any other key with no cell (row -1) that is not a decal is not recorded,
+        // like the source form's legend-only keys.
         void ParseConvertedKey(const nlohmann::json& entry, int layoutIndex, int layoutOption,
                                std::vector<DefinitionKey>& keys)
         {
@@ -312,10 +404,21 @@ namespace nazg
             int64_t    column  = 0;
             const bool hasCell = readCell("row", row) && readCell("col", column);
 
-            if (!key.decal && !hasCell)
+            if (!key.decal)
+            {
+                const auto encoder = entry.find("ei");
+                if (encoder != entry.end() && encoder->is_number_integer() && encoder->get<int64_t>() >= 0 &&
+                    encoder->get<int64_t>() <= 255)
+                {
+                    key.encoderIndex = static_cast<int>(encoder->get<int64_t>());
+                    key.encoderPush  = hasCell;
+                }
+            }
+
+            if (!key.decal && key.encoderIndex < 0 && !hasCell)
                 return;
 
-            if (!key.decal)
+            if (key.IsSwitch())
             {
                 key.row    = static_cast<uint8_t>(row);
                 key.column = static_cast<uint8_t>(column);
@@ -783,7 +886,7 @@ namespace nazg
 
         bool hasSwitch = false;
         for (const DefinitionKey& key : definition.keys)
-            hasSwitch = hasSwitch || !key.decal;
+            hasSwitch = hasSwitch || key.IsSwitch();
 
         if (!hasSwitch)
             throw ProtocolError("the definition describes no keys");

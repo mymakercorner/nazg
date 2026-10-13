@@ -790,7 +790,7 @@ namespace nazg
 
         for (const DefinitionKey& key : placed)
         {
-            if (key.decal)
+            if (!key.IsSwitch())
                 continue;
 
             // Rotated as the board is: drawn straight, then its vertices turned.
