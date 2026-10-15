@@ -1285,8 +1285,9 @@ The two protocols draw a knob differently, and the parser reads both (`Definitio
 **Built 2026-10-13**, seen by Rico on his Phoenix and Concordia with forged definitions (a knob
 with a push switch, one without) -- "works perfect": the round key, its stacked legends, the
 selection, the action cards and the "no encoder map" message; a press written. The definition
-preview and the Layout section's option drawing draw a knob round too. Never seen: turns read or
-written, and Vial's direction keys on a board. Code: `ui/NazgBoardView.cpp` (`DrawTurnArrow`, the
+preview and the Layout section's option drawing draw a knob round too. On a real board with an
+encoder map, a tester's Keychron Q6 with 0.1.0-test.2 (2026-10-15): fully working, turns read and
+written. Never seen: Vial's direction keys on a board. Code: `ui/NazgBoardView.cpp` (`DrawTurnArrow`, the
 round key, `DrawTurnBadge`), `ui/NazgBoardDescription.*` (`KnobLegend`, `ResolveTurn`),
 `ui/NazgKeymapSection.*` (`DrawKnobPanel`, `WriteTurn`).
 

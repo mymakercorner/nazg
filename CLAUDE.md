@@ -98,7 +98,7 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
 | All 2029 VIA V3 definitions parse and draw as VIA does (test) | The matrix live test on a Vial board, unlocked |
 | The matrix live test reading keys (a tester's Keychron Q6: Keychron builds every board with `VIA_INSECURE`; stock QMK answers zeroes) |  |
 | Official bundle, user library, choice (Phoenix) | Rotated keys on a real board (a forged definition only) |
-| Knobs drawn, selected, a press written, "no encoder map" said (Phoenix, Concordia: forged definitions, 2026-10-13) | Knob turns read or written -- no board at hand has an encoder map; Vial's direction keys on a board |
+| Knobs fully working: turns read and written through the encoder map (a tester's Keychron Q6, 0.1.0-test.2); "no encoder map" said (Phoenix, Concordia: forged definitions) | Vial's direction keys on a board |
 | Picker, board look, matrix wiring (Model F, Concordia) | Pre-renumbering keycodes (`Legacy`) |
 | Macros: save and read-back (Concordia), creation on a Leyden Jar board | A Vial board playing a macro; locked-board writes |
 | Tap Dance (Model F) | Lighting hover notes on two systems (`UG_*` driving the matrix) and `RM_*` |
@@ -142,8 +142,8 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
 
 **Next**: the testers' reports on the second test build, `0.1.0-test.2` (2026-10-13) -- knobs, the
 transport fix for Keychron's double replies, and the community definitions v2026.10.13 (737 boards,
-the GeonWorks recrawl). A tester's Keychron Q6 (VIA, a knob with an encoder map) and K10 HE are its
-first test, the week of 2026-10-19. Then CI: Windows, Linux and macOS building and running the tests.
+the GeonWorks recrawl). The tester's Keychron Q6 knob works fully (2026-10-15); the K10 HE
+retest -- the transport fix -- is due the week of 2026-10-19. Then CI: Windows, Linux and macOS building and running the tests.
 
 # Prior research — read before re-researching anything
 
