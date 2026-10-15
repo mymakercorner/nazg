@@ -82,7 +82,10 @@ full (hidapi asks Windows for 64). Keychron's Hall-effect boards do it for
 so QMK's `via.c` answers the same request again from `matrix_get_row()`. A K10 HE's live test,
 asking every 20 ms, ran a second behind. WebHID drops a report nobody waits for, so the VIA app
 and Keychron's Launcher never notice; a client reading from a queue must discard what is waiting
-before each request.
+before each request. Keychron's `2025q3` branch answers once (`return true`), but boards in the
+field run the older `hall_effect_playground` code; its newer builds instead send reports nobody
+asked for, on every layer change ([keychron-commands.md](keychron-commands.md), "Unsolicited
+reports").
 
 ---
 

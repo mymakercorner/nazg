@@ -20,6 +20,7 @@ registry, a browser dependency, or a firmware fork?
 | [zmk-studio.md](zmk-studio.md) | ZMK Studio — protobuf over CDC-ACM/BLE, fully self-describing |
 | [client-architecture.md](client-architecture.md) | Design notes for a multi-protocol configurator client |
 | [via-vial-commands.md](via-vial-commands.md) | **Implementation level** — every VIA and VIAL command, payload layouts, and the protocol version history of both *(added 2026-09-22)* |
+| [keychron-commands.md](keychron-commands.md) | **Implementation level** — Keychron's own commands on top of VIA (`0xA0`–`0xAB`), read from its QMK fork: the misc settings, Keychron RGB, and every Hall-effect setting with the profile's byte layout *(added 2026-10-15)* |
 | [keycodes.md](keycodes.md) | **Implementation level** — QMK keycode versions, VIA/VIAL dictionary coverage, choosing a dictionary per board, and a protocol-neutral keycode representation *(added 2026-09-23)* |
 | [via-registry.md](via-registry.md) | **Implementation level** — how VIA builds, serves and caches keyboard definitions, web and desktop; what a client of the registry must handle *(added 2026-09-24)* |
 | [ui-inventory.md](ui-inventory.md) | **Design input** — how Vial, VIA and ZMK Studio lay out their screens and edit a key, and what Nazg draws today *(added 2026-09-26)* |

@@ -158,7 +158,10 @@ layout, and the protocol version history of both — is in
 [docs/research_material/via-vial-commands.md](docs/research_material/via-vial-commands.md),
 which ends with the traps that shape the backend. Keycodes — their version history, what
 VIA and Vial cover, and the protocol-neutral representation — are in
-[docs/research_material/keycodes.md](docs/research_material/keycodes.md).
+[docs/research_material/keycodes.md](docs/research_material/keycodes.md). Keychron's own
+commands on top of VIA -- the Hall-effect settings among them, read from its QMK fork, not yet
+seen on a board -- are in
+[docs/research_material/keychron-commands.md](docs/research_material/keychron-commands.md).
 
 **Do not re-derive conclusions already written there.** If something in it is wrong, correct
 the document rather than working around it.
