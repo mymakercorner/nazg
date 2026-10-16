@@ -5,7 +5,7 @@
 
 #include <variant>
 
-namespace nazg
+namespace nazg::qmk
 {
     namespace
     {
@@ -65,15 +65,15 @@ namespace nazg
 
         // The basic keycode a wrapper holds in its low byte, by name. nullptr if that
         // byte is not a keycode in this version.
-        const char* BasicKeyName(uint16_t value, QmkKeycodeVersion version) noexcept
+        const char* BasicKeyName(uint16_t value, KeycodeVersion version) noexcept
         {
-            const QmkKeycode* keycode = FindQmkKeycode(value & 0xFF, version);
+            const KeycodeEntry* keycode = FindKeycode(value & 0xFF, version);
             return keycode != nullptr ? keycode->name : nullptr;
         }
 
-        std::optional<uint8_t> BasicKeyValue(std::string_view name, QmkKeycodeVersion version) noexcept
+        std::optional<uint8_t> BasicKeyValue(std::string_view name, KeycodeVersion version) noexcept
         {
-            const QmkKeycode* keycode = FindQmkKeycodeByName(name, version);
+            const KeycodeEntry* keycode = FindKeycodeByName(name, version);
             if (keycode == nullptr || keycode->value > 0xFF)
                 return std::nullopt;
 
@@ -82,7 +82,7 @@ namespace nazg
 
         // LCTL(kc), MT(mods, kc), LT(layer, kc) -- the three wrappers of a basic key, whose
         // layouts only differ in the MT base between the numberings.
-        Keycode DecodeWrapped(uint16_t value, uint16_t modTapBase, QmkKeycodeVersion version)
+        Keycode DecodeWrapped(uint16_t value, uint16_t modTapBase, KeycodeVersion version)
         {
             const char* key = BasicKeyName(value, version);
             if (key == nullptr)
@@ -101,7 +101,7 @@ namespace nazg
             return ModifiedKey{ *mods, key };
         }
 
-        Keycode DecodeLayerOps(uint16_t value, QmkKeycodeVersion version)
+        Keycode DecodeLayerOps(uint16_t value, KeycodeVersion version)
         {
             const auto    block = static_cast<LayerBlock>((value >> 5) & 0x07);
             const uint8_t low   = value & 0x1F;
@@ -121,7 +121,7 @@ namespace nazg
                 break;
 
             case LayerBlock::PersistentDefault:
-                if (version >= QmkKeycodeVersion::V0_0_6)
+                if (version >= KeycodeVersion::V0_0_6)
                     return LayerKey{ LayerOp::PersistentDefault, low };
                 break;
             }
@@ -130,7 +130,7 @@ namespace nazg
         }
 
         // Everything below 0x5800 that is not a fixed keycode, in the current numbering.
-        Keycode DecodeRange(uint16_t value, QmkKeycodeVersion version)
+        Keycode DecodeRange(uint16_t value, KeycodeVersion version)
         {
             if (value >= c_QkMods && value < c_QkLayerMod)
                 return DecodeWrapped(value, c_QkModTap, version);
@@ -161,7 +161,7 @@ namespace nazg
         }
 
         // The same, in the numbering before #18643.
-        Keycode DecodeLegacyRange(uint16_t value, QmkKeycodeVersion version)
+        Keycode DecodeLegacyRange(uint16_t value, KeycodeVersion version)
         {
             if ((value >= c_QkMods && value < 0x2000) || (value >= c_QkLayerTap && value < 0x5000) ||
                 (value >= c_OldModTap && value < 0x8000))
@@ -174,7 +174,7 @@ namespace nazg
             case c_OldTo:
                 // Legacy boards carry the ON_PRESS bit; anything else was a TO that never
                 // fired, and is shown for what it is.
-                if (version == QmkKeycodeVersion::LegacyVia10)
+                if (version == KeycodeVersion::LegacyVia10)
                     return LayerKey{ LayerOp::To, low };
                 if ((low & 0xF0) == c_OldToOnPress)
                     return LayerKey{ LayerOp::To, static_cast<uint8_t>(low & 0x0F) };
@@ -213,13 +213,13 @@ namespace nazg
         // One overload per Keycode alternative; std::visit picks the right one.
         struct Encoder
         {
-            QmkKeycodeVersion version;
+            KeycodeVersion version;
 
             bool Legacy() const noexcept { return IsLegacy(version); }
 
             std::optional<uint16_t> operator()(const NamedKey& k) const
             {
-                const QmkKeycode* keycode = FindQmkKeycodeByName(k.name, version);
+                const KeycodeEntry* keycode = FindKeycodeByName(k.name, version);
                 if (keycode == nullptr)
                     return std::nullopt;
 
@@ -336,7 +336,7 @@ namespace nazg
                 case LayerOp::TapToggle: block = LayerBlock::TapToggle;    break;
 
                 case LayerOp::PersistentDefault:
-                    if (version < QmkKeycodeVersion::V0_0_6)
+                    if (version < KeycodeVersion::V0_0_6)
                         return std::nullopt;
                     block = LayerBlock::PersistentDefault;
                     break;
@@ -351,7 +351,7 @@ namespace nazg
                 {
                 case LayerOp::To:
                     // The two Legacy versions exist for this one line.
-                    if (version == QmkKeycodeVersion::LegacyVia10)
+                    if (version == KeycodeVersion::LegacyVia10)
                         return static_cast<uint16_t>(c_OldTo | k.layer);
                     if (k.layer > 0x0F)
                         return std::nullopt;
@@ -372,7 +372,7 @@ namespace nazg
         };
     }
 
-    Keycode DecodeQmkKeycode(uint16_t value, QmkKeycodeVersion version)
+    Keycode DecodeKeycode(uint16_t value, KeycodeVersion version)
     {
         // Macros first: MC_0..MC_31 are table entries too, but a macro is a macro by its
         // index, whatever the table names it -- and indices past 31 have no name at all.
@@ -386,13 +386,13 @@ namespace nazg
             return MacroKey{ static_cast<uint8_t>(value & 0x7F) };
         }
 
-        if (const QmkKeycode* keycode = FindQmkKeycode(value, version))
+        if (const KeycodeEntry* keycode = FindKeycode(value, version))
             return NamedKey{ keycode->name };
 
         return IsLegacy(version) ? DecodeLegacyRange(value, version) : DecodeRange(value, version);
     }
 
-    std::optional<uint16_t> EncodeQmkKeycode(const Keycode& keycode, QmkKeycodeVersion version)
+    std::optional<uint16_t> EncodeKeycode(const Keycode& keycode, KeycodeVersion version)
     {
         return std::visit(Encoder{ version }, keycode);
     }

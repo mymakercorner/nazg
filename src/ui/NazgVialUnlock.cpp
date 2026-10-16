@@ -50,10 +50,10 @@ namespace nazg
 
         ImGui::TextUnformatted("Hold the outlined keys until the bar fills.");
         ColouredText(PanelColour::Muted, "Letting go starts over. It takes about %.0f seconds.",
-                     c_VialUnlockSteps * c_PollInterval);
+                     vial::c_UnlockSteps * c_PollInterval);
 
-        const float done = static_cast<float>(c_VialUnlockSteps - std::min(m_Countdown, c_VialUnlockSteps)) /
-                           static_cast<float>(c_VialUnlockSteps);
+        const float done = static_cast<float>(vial::c_UnlockSteps - std::min(m_Countdown, vial::c_UnlockSteps)) /
+                           static_cast<float>(vial::c_UnlockSteps);
         ImGui::ProgressBar(done, ImVec2(-1.0f, 0.0f), m_Stage == Stage::Starting ? "starting..." : "");
 
         ColouredText(PanelColour::Muted, "The board takes no other change until it is unlocked. To give up, "
@@ -85,7 +85,7 @@ namespace nazg
             device = co_await m_Transport.Open(m_Path);
 
             HidDeviceChannel channel(m_Transport, device);
-            VialProtocol     vial(channel);
+            vial::Protocol   vial(channel);
             co_await vial.StartUnlock();
 
             m_Stage = Stage::Holding;
@@ -107,9 +107,9 @@ namespace nazg
         {
             device = co_await m_Transport.Open(m_Path);
 
-            HidDeviceChannel         channel(m_Transport, device);
-            VialProtocol             vial(channel);
-            const VialUnlockProgress progress = co_await vial.PollUnlock();
+            HidDeviceChannel           channel(m_Transport, device);
+            vial::Protocol             vial(channel);
+            const vial::UnlockProgress progress = co_await vial.PollUnlock();
 
             m_Countdown = progress.countdown;
             if (progress.unlocked)

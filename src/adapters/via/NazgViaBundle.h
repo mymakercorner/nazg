@@ -28,12 +28,12 @@
 #include <unordered_map>
 #include <vector>
 
-namespace nazg
+namespace nazg::via
 {
     // Where VIA keeps a board's definition: named vendorId * 65536 + productId in decimal,
     // under v3/ for VIA protocol 11 and later and v2/ below -- the choice VIA's app makes
     // (devicesThunks.ts).
-    [[nodiscard]] std::string ViaDefinitionPath(uint16_t vendorId, uint16_t productId, uint16_t viaProtocol);
+    [[nodiscard]] std::string DefinitionPath(uint16_t vendorId, uint16_t productId, uint16_t viaProtocol);
 
     // Walks the regular files of an uncompressed ustar archive in order, handing each
     // one's path and bytes to `visit` until it returns false. A leading "./" on a name is
@@ -48,19 +48,19 @@ namespace nazg
                                                                      const std::string&          path);
 
     // What tools/update_via_bundle.py records in the bundle's manifest.json.
-    struct ViaBundleManifest
+    struct BundleManifest
     {
         std::string commit;   // of github.com/the-via/keyboards
         int         v2 = 0;   // how many definitions of each version
         int         v3 = 0;
     };
 
-    class ViaDefinitionBundle
+    class DefinitionBundle
     {
     public:
         // Inflates the bundle's bytes and indexes every file in it. Throws ProtocolError if
         // the bundle is corrupt.
-        explicit ViaDefinitionBundle(const std::vector<uint8_t>& bundle);
+        explicit DefinitionBundle(const std::vector<uint8_t>& bundle);
 
         // A board's definition; nullopt when VIA has none for it.
         [[nodiscard]] std::optional<std::vector<uint8_t>> Find(uint16_t vendorId, uint16_t productId,
@@ -68,7 +68,7 @@ namespace nazg
 
         // What manifest.json says; nullopt for a bundle without one, or with one that
         // does not read.
-        [[nodiscard]] const std::optional<ViaBundleManifest>& Manifest() const noexcept { return m_Manifest; }
+        [[nodiscard]] const std::optional<BundleManifest>& Manifest() const noexcept { return m_Manifest; }
 
     private:
         struct Span
@@ -79,6 +79,6 @@ namespace nazg
 
         std::vector<uint8_t>                  m_Tar;     // the whole bundle, inflated
         std::unordered_map<std::string, Span> m_Files;   // path -> where it is in m_Tar
-        std::optional<ViaBundleManifest>      m_Manifest;
+        std::optional<BundleManifest>         m_Manifest;
     };
 }

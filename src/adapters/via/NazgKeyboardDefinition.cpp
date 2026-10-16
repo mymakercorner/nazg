@@ -12,9 +12,9 @@
 
 #include <nlohmann/json.hpp>
 
-#include "adapters/via/NazgViaProtocol.h"   // ProtocolError
+#include "adapters/NazgProtocolError.h"
 
-namespace nazg
+namespace nazg::via
 {
     namespace
     {

@@ -16,13 +16,12 @@
 #include <string>
 #include <vector>
 
+namespace qmk = nazg::qmk;
+namespace via = nazg::via;
+
 using nazg::FormatKeycode;
 using nazg::Keyboard;
-using nazg::KeyboardDefinition;
-using nazg::QmkKeycodeVersion;
-using nazg::QmkKeycodeVersionForVia;
 using nazg::Task;
-using nazg::ViaProtocol;
 
 namespace
 {
@@ -36,18 +35,18 @@ namespace
     }
 
     // A 1 x 2 board -- the smallest that still shows cells landing where they should.
-    KeyboardDefinition TinyDefinition()
+    via::KeyboardDefinition TinyDefinition()
     {
-        KeyboardDefinition definition;
+        via::KeyboardDefinition definition;
         definition.name          = "tiny";
         definition.matrixRows    = 1;
         definition.matrixColumns = 2;
 
-        nazg::DefinitionKey left;
+        via::DefinitionKey left;
         left.row    = 0;
         left.column = 0;
 
-        nazg::DefinitionKey right = left;
+        via::DefinitionKey right = left;
         right.x      = 1.0f;
         right.column = 1;
 
@@ -70,12 +69,12 @@ namespace
     {
         std::printf("keycode version from the VIA protocol\n");
 
-        Check(QmkKeycodeVersionForVia(12) == QmkKeycodeVersion::V0_0_8,
+        Check(via::KeycodeVersionFor(12) == qmk::KeycodeVersion::V0_0_8,
               "12 -- the Aquanaut -- takes 0.0.8, the newest a protocol-12 build can have");
-        Check(QmkKeycodeVersionForVia(11) == QmkKeycodeVersion::V0_0_1, "11 came with 0.0.1");
-        Check(QmkKeycodeVersionForVia(10) == QmkKeycodeVersion::LegacyVia10,
+        Check(via::KeycodeVersionFor(11) == qmk::KeycodeVersion::V0_0_1, "11 came with 0.0.1");
+        Check(via::KeycodeVersionFor(10) == qmk::KeycodeVersion::LegacyVia10,
               "10 is pre-renumbering, with TO(n) as 0x5000 | n");
-        Check(QmkKeycodeVersionForVia(9) == QmkKeycodeVersion::Legacy, "9 and below carry TO's ON_PRESS bit");
+        Check(via::KeycodeVersionFor(9) == qmk::KeycodeVersion::Legacy, "9 and below carry TO's ON_PRESS bit");
     }
 
     void TestProtocol12()
@@ -83,15 +82,15 @@ namespace
         std::printf("load, protocol 12\n");
 
         FakeDeviceChannel channel;
-        ViaProtocol       via(channel);
+        via::Protocol     via(channel);
 
         channel.Reply({ 0x01, 0x00, 0x0C });              // protocol version 12
         ReplyKeymap(channel);
 
-        const Keyboard keyboard = Run(nazg::LoadViaKeyboard(via, TinyDefinition()));
+        const Keyboard keyboard = Run(via::LoadKeyboard(via, TinyDefinition()));
 
         Check(keyboard.Name() == "tiny", "the definition the caller brought is the board's");
-        Check(keyboard.keycodeVersion == QmkKeycodeVersion::V0_0_8, "protocol 12 reads with 0.0.8");
+        Check(keyboard.keycodeVersion == qmk::KeycodeVersion::V0_0_8, "protocol 12 reads with 0.0.8");
         Check(keyboard.keymap.Layers() == 2, "two layers");
         Check(FormatKeycode(keyboard.keymap.At(0, 0, 0)) == "KC_A" &&
               FormatKeycode(keyboard.keymap.At(0, 0, 1)) == "MO(1)" &&
@@ -107,15 +106,15 @@ namespace
 
         {
             FakeDeviceChannel channel;
-            ViaProtocol       via(channel);
+            via::Protocol     via(channel);
 
             channel.Reply({ 0x01, 0x00, 0x0D });                       // protocol version 13
             channel.Reply({ 0x02, 0x06, 0x00, 0x00, 0x00, 0x07 });     // keycodes version 0.0.7
             ReplyKeymap(channel);
 
-            const Keyboard keyboard = Run(nazg::LoadViaKeyboard(via, TinyDefinition()));
+            const Keyboard keyboard = Run(via::LoadKeyboard(via, TinyDefinition()));
 
-            Check(keyboard.keycodeVersion == QmkKeycodeVersion::V0_0_7,
+            Check(keyboard.keycodeVersion == qmk::KeycodeVersion::V0_0_7,
                   "protocol 13 is asked, and its answer is used");
             Check(channel.RequestAt(1)[0] == 0x02 && channel.RequestAt(1)[1] == 0x06,
                   "the question is id_get_keyboard_value(id_keycodes_version)");
@@ -123,15 +122,15 @@ namespace
 
         {
             FakeDeviceChannel channel;
-            ViaProtocol       via(channel);
+            via::Protocol     via(channel);
 
             channel.Reply({ 0x01, 0x00, 0x0D });
             channel.Reply({ 0x02, 0x06, 0x00, 0x00, 0x00, 0x10 });     // 0.0.10, newer than this build
             ReplyKeymap(channel);
 
-            const Keyboard keyboard = Run(nazg::LoadViaKeyboard(via, TinyDefinition()));
+            const Keyboard keyboard = Run(via::LoadKeyboard(via, TinyDefinition()));
 
-            Check(keyboard.keycodeVersion == nazg::c_LatestQmkKeycodeVersion,
+            Check(keyboard.keycodeVersion == qmk::c_LatestKeycodeVersion,
                   "a version newer than the table reads with the newest there is");
         }
     }
@@ -143,7 +142,7 @@ namespace
         std::printf("load, pre-renumbering\n");
 
         FakeDeviceChannel channel;
-        ViaProtocol       via(channel);
+        via::Protocol     via(channel);
 
         channel.Reply({ 0x01, 0x00, 0x09 });              // protocol version 9
         channel.Reply({ 0x11, 2 });
@@ -152,9 +151,9 @@ namespace
                         0x00, 0x04, 0x51, 0x01,
                         0x00, 0x01, 0x5C, 0x00 });
 
-        const Keyboard keyboard = Run(nazg::LoadViaKeyboard(via, TinyDefinition()));
+        const Keyboard keyboard = Run(via::LoadKeyboard(via, TinyDefinition()));
 
-        Check(keyboard.keycodeVersion == QmkKeycodeVersion::Legacy, "protocol 9 reads with the Legacy table");
+        Check(keyboard.keycodeVersion == qmk::KeycodeVersion::Legacy, "protocol 9 reads with the Legacy table");
         Check(FormatKeycode(keyboard.keymap.At(0, 0, 0)) == "KC_A" &&
               FormatKeycode(keyboard.keymap.At(0, 0, 1)) == "MO(1)" &&
               FormatKeycode(keyboard.keymap.At(1, 0, 1)) == "QK_BOOT",

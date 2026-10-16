@@ -51,7 +51,7 @@ namespace nazg
         }
     }
 
-    std::vector<ContourPoint> KeyContour(const DefinitionKey& key)
+    std::vector<ContourPoint> KeyContour(const via::DefinitionKey& key)
     {
         std::vector<Rectangle> rectangles{ { key.x, key.y, key.x + key.width, key.y + key.height } };
         if (key.HasSecondRectangle())

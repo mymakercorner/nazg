@@ -11,9 +11,10 @@
 #include "model/NazgCombo.h"
 #include "TestSupport.h"
 
+namespace via = nazg::via;
+
 using nazg::Combo;
 using nazg::ComboRelation;
-using nazg::DefinitionKey;
 using nazg::Keycode;
 using nazg::LayerKey;
 using nazg::LayerOp;
@@ -75,9 +76,9 @@ namespace
               "a gap counts as the firmware reads it: J alone, inside J+K");
     }
 
-    DefinitionKey Key(float x, uint8_t column)
+    via::DefinitionKey Key(float x, uint8_t column)
     {
-        DefinitionKey key;
+        via::DefinitionKey key;
         key.x      = x;
         key.column = column;
         return key;

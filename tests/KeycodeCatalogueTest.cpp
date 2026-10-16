@@ -19,14 +19,15 @@
 #include <string>
 #include <variant>
 
+namespace qmk = nazg::qmk;
+
 using nazg::CatalogueTab;
 using nazg::Keyboard;
 using nazg::Keycode;
-using nazg::QmkKeycodeVersion;
 
 namespace
 {
-    Keyboard MakeKeyboard(QmkKeycodeVersion version, uint8_t layers)
+    Keyboard MakeKeyboard(qmk::KeycodeVersion version, uint8_t layers)
     {
         Keyboard keyboard;
         keyboard.keymap         = nazg::Keymap(layers, 1, 1);
@@ -70,7 +71,7 @@ namespace
     {
         std::printf("every keycode has a tab\n");
 
-        Keyboard keyboard = MakeKeyboard(QmkKeycodeVersion::V0_0_9, 4);
+        Keyboard keyboard = MakeKeyboard(qmk::KeycodeVersion::V0_0_9, 4);
         keyboard.report.viaProtocol    = 13;   // new firmware: UG_ and RM_ apart
         keyboard.report.macroCount     = 16;
         keyboard.definition.lighting   = "qmk_backlight_rgblight";
@@ -80,9 +81,9 @@ namespace
         const std::set<std::string>     names = NamesIn(tabs);
 
         std::string missing;
-        for (const nazg::QmkKeycode& row : nazg::QmkKeycodeTable())
+        for (const qmk::KeycodeEntry& row : qmk::KeycodeTable())
             if (row.ExistsIn(keyboard.keycodeVersion) && names.count(nazg::FormatKeycode(
-                                                             nazg::DecodeQmkKeycode(row.value, keyboard.keycodeVersion))) == 0 &&
+                                                             qmk::DecodeKeycode(row.value, keyboard.keycodeVersion))) == 0 &&
                 !LeftOut(row.name))
                 missing += std::string(" ") + row.name;
 
@@ -93,7 +94,7 @@ namespace
     {
         std::printf("nothing the board refuses\n");
 
-        for (QmkKeycodeVersion version : { QmkKeycodeVersion::Legacy, QmkKeycodeVersion::V0_0_1, QmkKeycodeVersion::V0_0_7 })
+        for (qmk::KeycodeVersion version : { qmk::KeycodeVersion::Legacy, qmk::KeycodeVersion::V0_0_1, qmk::KeycodeVersion::V0_0_7 })
         {
             Keyboard keyboard = MakeKeyboard(version, 4);
             keyboard.report.macroCount = 16;
@@ -101,11 +102,11 @@ namespace
             for (const CatalogueTab& tab : nazg::BuildKeycodeCatalogue(keyboard, {}))
                 for (const nazg::CatalogueGroup& group : tab.groups)
                     for (const Keycode& keycode : group.keycodes)
-                        all = all && nazg::EncodeQmkKeycode(keycode, version).has_value();
-            Check(all, ("every offered keycode encodes on " + std::string(nazg::QmkKeycodeVersionName(version))).c_str());
+                        all = all && qmk::EncodeKeycode(keycode, version).has_value();
+            Check(all, ("every offered keycode encodes on " + std::string(qmk::KeycodeVersionName(version))).c_str());
         }
 
-        Keyboard legacy = MakeKeyboard(QmkKeycodeVersion::Legacy, 4);
+        Keyboard legacy = MakeKeyboard(qmk::KeycodeVersion::Legacy, 4);
         Check(!Offers(nazg::BuildKeycodeCatalogue(legacy, {}), "PDF(0)"), "PDF from 0.0.6 only");
     }
 
@@ -113,7 +114,7 @@ namespace
     {
         std::printf("what the board says\n");
 
-        Keyboard vial = MakeKeyboard(QmkKeycodeVersion::V0_0_7, 3);
+        Keyboard vial = MakeKeyboard(qmk::KeycodeVersion::V0_0_7, 3);
         vial.report.isVial        = true;
         vial.report.vialProtocol  = 6;
         vial.report.viaProtocol   = 9;
@@ -132,7 +133,7 @@ namespace
         const CatalogueTab* layers = FindTab(tabs, "layers");
         Check(layers != nullptr && layers->groups.front().title == "Hold", "the operations, Hold first");
 
-        Keyboard via = MakeKeyboard(QmkKeycodeVersion::V0_0_8, 4);
+        Keyboard via = MakeKeyboard(qmk::KeycodeVersion::V0_0_8, 4);
         via.report.viaProtocol = 12;
         const std::vector<CatalogueTab> viaTabs = nazg::BuildKeycodeCatalogue(via, {});
         Check(Offers(viaTabs, "CW_TOGG") && Offers(viaTabs, "QK_LLCK"), "VIA says nothing: both offered");
@@ -144,7 +145,7 @@ namespace
     {
         std::printf("lighting by the policy\n");
 
-        Keyboard board = MakeKeyboard(QmkKeycodeVersion::V0_0_8, 2);
+        Keyboard board = MakeKeyboard(qmk::KeycodeVersion::V0_0_8, 2);
         board.definition.lighting = "qmk_rgblight";
         board.definition.menuIds  = { "qmk_rgb_matrix" };
 
@@ -158,13 +159,13 @@ namespace
         Check(Offers(tabs, "UG_TOGG") && Offers(tabs, "RM_TOGG") && !Offers(tabs, "RGB_M_P"), "new: a set per system");
 
         board.report.viaProtocol = 11;   // old
-        board.keycodeVersion     = QmkKeycodeVersion::V0_0_1;
+        board.keycodeVersion     = qmk::KeycodeVersion::V0_0_1;
         tabs = nazg::BuildKeycodeCatalogue(board, {});
         Check(Offers(tabs, "UG_TOGG") && !Offers(tabs, "RM_TOGG") && Offers(tabs, "RGB_M_P"), "old: one set and the modes");
 
         // Advanced tools: every set and mode for the systems declared, whatever the state.
         board.report.viaProtocol = 12;   // unknown
-        board.keycodeVersion     = QmkKeycodeVersion::V0_0_8;
+        board.keycodeVersion     = qmk::KeycodeVersion::V0_0_8;
         tabs = nazg::BuildKeycodeCatalogue(board, {}, true);
         Check(Offers(tabs, "UG_TOGG") && Offers(tabs, "RM_TOGG") && Offers(tabs, "RGB_M_P") && Offers(tabs, "RGB_M_T"),
               "every lighting key: both sets and every mode");
@@ -175,7 +176,7 @@ namespace
     {
         std::printf("custom keys and search\n");
 
-        Keyboard board = MakeKeyboard(QmkKeycodeVersion::V0_0_8, 2);
+        Keyboard board = MakeKeyboard(qmk::KeycodeVersion::V0_0_8, 2);
         board.definition.customKeycodes = { { "Mission Control", "Mission Control in macOS", "MCtrl" }, { "Siri", "", "" } };
         const std::vector<CatalogueTab> tabs   = nazg::BuildKeycodeCatalogue(board, {});
         const CatalogueTab*             custom = FindTab(tabs, "custom");
@@ -183,9 +184,9 @@ namespace
               "a definition's names: only those keys, by name");
 
         const nazg::LegendContext context{ nazg::UsHostLayout() };
-        const std::string         escape = nazg::SearchTextOf(nazg::NamedKey{ "KC_ESC" }, QmkKeycodeVersion::V0_0_8, context);
+        const std::string         escape = nazg::SearchTextOf(nazg::NamedKey{ "KC_ESC" }, qmk::KeycodeVersion::V0_0_8, context);
         Check(nazg::MatchesSearch(escape, "ESC") && nazg::MatchesSearch(escape, " kc_esc "), "QMK's name, any case");
-        const std::string play = nazg::SearchTextOf(nazg::NamedKey{ "KC_MPLY" }, QmkKeycodeVersion::V0_0_8, context);
+        const std::string play = nazg::SearchTextOf(nazg::NamedKey{ "KC_MPLY" }, qmk::KeycodeVersion::V0_0_8, context);
         Check(nazg::MatchesSearch(play, "play/pause") && nazg::MatchesSearch(play, "media"), "its label and its words");
         Check(!nazg::MatchesSearch(play, "volume"), "and nothing else");
     }
@@ -199,8 +200,8 @@ namespace
         std::printf("compose with the key\n");
 
         using nazg::ComposeWithKey;
-        constexpr QmkKeycodeVersion version = QmkKeycodeVersion::V0_0_8;
-        const Keycode               space   = nazg::NamedKey{ "KC_SPC" };
+        constexpr qmk::KeycodeVersion version = qmk::KeycodeVersion::V0_0_8;
+        const Keycode                 space   = nazg::NamedKey{ "KC_SPC" };
 
         Check(nazg::FormatKeycode(ComposeWithKey(space, nazg::LayerTapKey{ 1, "KC_A" }, version)) == "LT(1,KC_SPC)",
               "a hold is kept");

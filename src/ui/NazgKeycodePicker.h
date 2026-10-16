@@ -59,7 +59,7 @@ namespace nazg
     {
         const std::vector<CatalogueTab>& tabs;
         const LegendContext&             context;   // on no board: KeySide::Neither
-        QmkKeycodeVersion                version;
+        qmk::KeycodeVersion              version;
 
         // The selected key's keycode, outlined among the tiles, and what a pick composes with
         // (ComposeWithKey()); none while no key is selected.
@@ -88,9 +88,9 @@ namespace nazg
     [[nodiscard]] ImVec2      TileSize();
 
     // QMK's name and label, for a tooltip: "KC_MPLY -- Play/Pause".
-    [[nodiscard]] std::string KeycodeHoverText(const Keycode& keycode, QmkKeycodeVersion version);
+    [[nodiscard]] std::string KeycodeHoverText(const Keycode& keycode, qmk::KeycodeVersion version);
 
     // A keycode for people, in a sentence: QMK's label when it has one -- "Escape" -- else its
     // expression, "MO(1)".
-    [[nodiscard]] std::string KeycodeLabel(const Keycode& keycode, QmkKeycodeVersion version);
+    [[nodiscard]] std::string KeycodeLabel(const Keycode& keycode, qmk::KeycodeVersion version);
 }

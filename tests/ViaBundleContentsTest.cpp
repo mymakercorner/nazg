@@ -10,7 +10,7 @@
 //
 // Every file is checked as any bundled definition is (adapters/via/NazgDefinitionCheck.h), then
 // for what a lookup relies on: the VID:PID inside it is the one its name says, and
-// ViaDefinitionBundle::Find() returns it for those ids.
+// via::DefinitionBundle::Find() returns it for those ids.
 //
 // Registered with CTest:  ctest --test-dir build_VS2022 -C Debug --output-on-failure
 
@@ -26,6 +26,8 @@
 #include <iterator>
 #include <string>
 #include <vector>
+
+namespace via = nazg::via;
 
 namespace
 {
@@ -48,15 +50,15 @@ int main(int argc, char** argv)
 
     std::printf("the bundle at %s\n", path.string().c_str());
 
-    const std::vector<uint8_t>      tar = nazg::DecompressXz(bundle, 256u * 1024u * 1024u, "the bundle");
-    const nazg::ViaDefinitionBundle kept(bundle);
+    const std::vector<uint8_t>  tar = nazg::DecompressXz(bundle, 256u * 1024u * 1024u, "the bundle");
+    const via::DefinitionBundle kept(bundle);
 
     int                      parsed[2] = { 0, 0 };   // V2, V3
     std::vector<std::string> failures;
 
     size_t controls = 0;
 
-    nazg::ForEachTarFile(tar, [&](const std::string& name, const uint8_t* data, size_t size)
+    via::ForEachTarFile(tar, [&](const std::string& name, const uint8_t* data, size_t size)
     {
         const std::vector<uint8_t> bytes(data, data + size);
 
@@ -71,13 +73,13 @@ int main(int argc, char** argv)
         }
 
         // Nazg's checks for any definition it bundles, then what a lookup relies on.
-        const nazg::DefinitionCheck check = nazg::CheckDefinition(bytes);
+        const via::DefinitionCheck check = via::CheckDefinition(bytes);
         for (const std::string& problem : check.problems)
             failures.push_back(name + ": " + problem);
         if (!check.definition)
             return true;
 
-        const nazg::KeyboardDefinition& definition = *check.definition;
+        const via::KeyboardDefinition& definition = *check.definition;
         controls += check.menuControls;
         const uint32_t id = (static_cast<uint32_t>(definition.vendorId) << 16) | definition.productId;
         // What a board with these ids gets from the kept bundle, at a protocol that picks this

@@ -27,6 +27,8 @@
 #include <string>
 #include <vector>
 
+namespace via = nazg::via;
+
 namespace
 {
     // CTest's SKIP_RETURN_CODE for this test, set in CMakeLists.txt.
@@ -47,13 +49,13 @@ int main(int argc, char** argv)
     const std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
 
     std::printf("the bundle at %s\n", path.string().c_str());
-    const nazg::CommunityDefinitionBundle bundle(bytes);
+    const via::CommunityDefinitionBundle bundle(bytes);
 
     std::vector<std::string> failures;
     size_t                   passed = 0;
-    for (const nazg::CommunityDefinition& entry : bundle.Definitions())
+    for (const via::CommunityDefinition& entry : bundle.Definitions())
     {
-        const nazg::DefinitionCheck check = nazg::CheckDefinition(*bundle.Bytes(entry.path));
+        const via::DefinitionCheck check = via::CheckDefinition(*bundle.Bytes(entry.path));
         for (const std::string& problem : check.problems)
             failures.push_back(entry.path + ": " + problem);
         if (!check.definition)

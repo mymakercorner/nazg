@@ -16,16 +16,17 @@
 #include <string>
 #include <variant>
 
+namespace qmk = nazg::qmk;
+
 using nazg::Keycode;
-using nazg::QmkKeycodeVersion;
 
 namespace
 {
-    constexpr QmkKeycodeVersion c_Version = QmkKeycodeVersion::V0_0_8;
+    constexpr qmk::KeycodeVersion c_Version = qmk::KeycodeVersion::V0_0_8;
 
-    std::string Read(std::string_view text, QmkKeycodeVersion version = c_Version)
+    std::string Read(std::string_view text, qmk::KeycodeVersion version = c_Version)
     {
-        const std::optional<Keycode> keycode = nazg::ParseQmkExpression(text, version);
+        const std::optional<Keycode> keycode = qmk::ParseExpression(text, version);
         return keycode ? nazg::FormatKeycode(*keycode) : std::string("(none)");
     }
 
@@ -33,15 +34,15 @@ namespace
     {
         std::printf("round trip\n");
 
-        for (QmkKeycodeVersion version : { QmkKeycodeVersion::Legacy, QmkKeycodeVersion::V0_0_1, QmkKeycodeVersion::V0_0_9 })
+        for (qmk::KeycodeVersion version : { qmk::KeycodeVersion::Legacy, qmk::KeycodeVersion::V0_0_1, qmk::KeycodeVersion::V0_0_9 })
         {
             int failures = 0;
-            for (const nazg::QmkKeycode& row : nazg::QmkKeycodeTable())
+            for (const qmk::KeycodeEntry& row : qmk::KeycodeTable())
             {
                 if (!row.ExistsIn(version))
                     continue;
-                const Keycode                keycode = nazg::DecodeQmkKeycode(row.value, version);
-                const std::optional<Keycode> read    = nazg::ParseQmkExpression(nazg::FormatKeycode(keycode), version);
+                const Keycode                keycode = qmk::DecodeKeycode(row.value, version);
+                const std::optional<Keycode> read    = qmk::ParseExpression(nazg::FormatKeycode(keycode), version);
                 if (!read || *read != keycode)
                 {
                     if (++failures <= 10)
@@ -49,14 +50,14 @@ namespace
                                     read ? nazg::FormatKeycode(*read).c_str() : "nothing");
                 }
             }
-            Check(failures == 0, ("every named keycode of " + std::string(nazg::QmkKeycodeVersionName(version)) +
+            Check(failures == 0, ("every named keycode of " + std::string(qmk::KeycodeVersionName(version)) +
                                   " reads back as itself").c_str());
         }
 
         int failures = 0;
         const auto check = [&](const Keycode& keycode)
         {
-            const std::optional<Keycode> read = nazg::ParseQmkExpression(nazg::FormatKeycode(keycode), c_Version);
+            const std::optional<Keycode> read = qmk::ParseExpression(nazg::FormatKeycode(keycode), c_Version);
             if (!read || *read != keycode)
             {
                 ++failures;
@@ -83,7 +84,7 @@ namespace
 
         // A value this version leaves unassigned stays a raw value.
         for (uint32_t value = 0x7E00; value < 0x8000; ++value)
-            if (const Keycode keycode = nazg::DecodeQmkKeycode(static_cast<uint16_t>(value), c_Version);
+            if (const Keycode keycode = qmk::DecodeKeycode(static_cast<uint16_t>(value), c_Version);
                 std::holds_alternative<nazg::UnknownKey>(keycode))
             {
                 check(keycode);
@@ -114,9 +115,9 @@ namespace
 
         for (const char* text : { "", "KC_NOPE", "LT(1,LCTL(KC_A))", "MT(KC_A,KC_B)", "MO(x)", "MO(1", "MO(1))",
                                   "LCTL(MO(1))", "OSM(0)", "TD(300)", "KC_A KC_B" })
-            Check(!nazg::ParseQmkExpression(text, c_Version).has_value(), ("not a keycode: \"" + std::string(text) + "\"").c_str());
+            Check(!qmk::ParseExpression(text, c_Version).has_value(), ("not a keycode: \"" + std::string(text) + "\"").c_str());
 
-        Check(!nazg::ParseQmkExpression("QK_LLCK", QmkKeycodeVersion::V0_0_1).has_value(),
+        Check(!qmk::ParseExpression("QK_LLCK", qmk::KeycodeVersion::V0_0_1).has_value(),
               "a name the board's version does not have");
     }
 }

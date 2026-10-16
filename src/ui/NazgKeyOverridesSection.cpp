@@ -99,7 +99,7 @@ namespace nazg
     }
 
     KeyOverridesSection::KeyOverridesSection(HidTransport& transport, std::string path, Keyboard& keyboard,
-                                             const LegendSettings& legends, const std::optional<VialUnlockStatus>& lock,
+                                             const LegendSettings& legends, const std::optional<vial::UnlockStatus>& lock,
                                              const bool& advancedTools)
         : m_Transport(transport), m_Path(std::move(path)), m_Keyboard(keyboard), m_Legends(legends), m_Lock(lock),
           m_AdvancedTools(advancedTools)
@@ -173,7 +173,7 @@ namespace nazg
 
     bool KeyOverridesSection::CanSend(const Keycode& keycode) const
     {
-        const std::optional<uint16_t> raw = EncodeQmkKeycode(keycode, m_Keyboard.keycodeVersion);
+        const std::optional<uint16_t> raw = qmk::EncodeKeycode(keycode, m_Keyboard.keycodeVersion);
         return raw && CanBeSent(*raw);
     }
 
@@ -295,9 +295,9 @@ namespace nazg
             return;
 
         // What the key sends on the override's first layer that has something there; else layer 0.
-        const KeyOverride&   keyOverride = m_Overrides[m_Slot];
-        const DefinitionKey& geometry    = board.keys[*events.hoveredKey].geometry;
-        Keycode              sent        = m_Keyboard.KeycodeFor(geometry, 0);
+        const KeyOverride&        keyOverride = m_Overrides[m_Slot];
+        const via::DefinitionKey& geometry    = board.keys[*events.hoveredKey].geometry;
+        Keycode                   sent        = m_Keyboard.KeycodeFor(geometry, 0);
         for (int layer = 0; layer < m_Keyboard.keymap.Layers() && layer < 16; ++layer)
             if ((keyOverride.layers & (1u << layer)) != 0)
             {
@@ -330,9 +330,9 @@ namespace nazg
         {
             device = co_await m_Transport.Open(m_Path);
             HidDeviceChannel channel(m_Transport, device);
-            VialProtocol     vial(channel);
+            vial::Protocol   vial(channel);
 
-            m_Stored    = co_await ReadKeyOverrides(vial, m_Keyboard.report.keyOverrideCount, m_Keyboard.keycodeVersion);
+            m_Stored    = co_await vial::ReadKeyOverrides(vial, m_Keyboard.report.keyOverrideCount, m_Keyboard.keycodeVersion);
             m_Overrides = m_Stored;
             m_IsLoaded  = true;
             OnStripChosen(m_Slot);
@@ -354,7 +354,7 @@ namespace nazg
         for (size_t slot = 0; slot < m_Overrides.size(); ++slot)
             if (IsChanged(slot))
             {
-                if (!EncodeKeyOverride(m_Overrides[slot], m_Keyboard.keycodeVersion))
+                if (!vial::EncodeKeyOverride(m_Overrides[slot], m_Keyboard.keycodeVersion))
                 {
                     m_Message   = SlotName(slot) + " holds a key this board cannot store";
                     m_IsWarning = true;
@@ -374,17 +374,17 @@ namespace nazg
         {
             device = co_await m_Transport.Open(m_Path);
             HidDeviceChannel channel(m_Transport, device);
-            VialProtocol     vial(channel);
+            vial::Protocol   vial(channel);
 
             // Each slot written, then read back: what the board holds now, whatever was asked.
             std::vector<std::string> notKept;
             for (size_t slot : slots)
             {
-                const VialKeyOverrideEntry entry = *EncodeKeyOverride(m_Overrides[slot], m_Keyboard.keycodeVersion);
-                const uint8_t              index = static_cast<uint8_t>(slot);
+                const vial::KeyOverrideEntry entry = *vial::EncodeKeyOverride(m_Overrides[slot], m_Keyboard.keycodeVersion);
+                const uint8_t                index = static_cast<uint8_t>(slot);
                 co_await vial.SetKeyOverride(index, entry);
-                const VialKeyOverrideEntry stored = co_await vial.GetKeyOverride(index);
-                m_Stored[slot]                    = DecodeKeyOverride(stored, m_Keyboard.keycodeVersion);
+                const vial::KeyOverrideEntry stored = co_await vial.GetKeyOverride(index);
+                m_Stored[slot]                    = vial::DecodeKeyOverride(stored, m_Keyboard.keycodeVersion);
                 if (stored == entry)
                     m_Overrides[slot] = m_Stored[slot];
                 else

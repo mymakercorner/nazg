@@ -13,7 +13,7 @@
 #include "adapters/via/NazgViaProtocol.h"
 #include "async/NazgTask.h"
 
-namespace nazg
+namespace nazg::via
 {
     struct AudioValues
     {
@@ -28,13 +28,13 @@ namespace nazg
         Clicky = 2,   // id_qmk_audio_clicky_enable
     };
 
-    [[nodiscard]] Task<AudioValues> ReadAudio(ViaProtocol& via);
+    [[nodiscard]] Task<AudioValues> ReadAudio(Protocol& via);
 
     // Sets one bit and stores the channel. Silent, unlike the AU_ON key, which plays a song.
-    [[nodiscard]] Task<void> WriteAudio(ViaProtocol& via, AudioSetting setting, bool value);
+    [[nodiscard]] Task<void> WriteAudio(Protocol& via, AudioSetting setting, bool value);
 
     // Device indication 0 then 1: QMK's default plays STARTUP_SOUND on 0 and toggles each lighting
     // system once per call, so the pair leaves the lighting as it was. Boards override it -- the
     // WT60-XT plays its own song only. ProtocolError if the firmware has no device indication.
-    [[nodiscard]] Task<void> PlayIndication(ViaProtocol& via);
+    [[nodiscard]] Task<void> PlayIndication(Protocol& via);
 }

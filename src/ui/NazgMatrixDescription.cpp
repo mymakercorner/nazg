@@ -25,7 +25,7 @@ namespace nazg
             std::vector<size_t> keys;
             for (size_t index = 0; index < board.keys.size(); ++index)
             {
-                const DefinitionKey& key = board.keys[index].geometry;
+                const via::DefinitionKey& key = board.keys[index].geometry;
                 if (IsWired(board.keys[index]) && (isRow ? key.row : key.column) == line)
                     keys.push_back(index);
             }
@@ -40,7 +40,7 @@ namespace nazg
             std::vector<size_t> kept;
             for (size_t key : keys)
             {
-                const DefinitionKey& geometry = board.keys[key].geometry;
+                const via::DefinitionKey& geometry = board.keys[key].geometry;
                 const bool isRepeat = std::any_of(kept.begin(), kept.end(), [&](size_t other) {
                     return board.keys[other].geometry.row == geometry.row &&
                            board.keys[other].geometry.column == geometry.column;
@@ -113,7 +113,7 @@ namespace nazg
         }
     }
 
-    void AddReading(MatrixLive& live, const SwitchMatrixState& reading)
+    void AddReading(MatrixLive& live, const via::SwitchMatrixState& reading)
     {
         if (live.seen.bytes.size() != reading.bytes.size())
         {
@@ -239,7 +239,7 @@ namespace nazg
         // Placed keys come from the same numbers moved by the same offset, so "the same
         // place" needs only a little slack.
         const auto same = [](float a, float b) { return std::fabs(a - b) < 0.001f; };
-        const auto onTop = [&](const DefinitionKey& a, const DefinitionKey& b) {
+        const auto onTop = [&](const via::DefinitionKey& a, const via::DefinitionKey& b) {
             return same(a.x, b.x) && same(a.y, b.y) && same(a.width, b.width) && same(a.height, b.height) &&
                    same(a.rotation, b.rotation) && same(a.rotationX, b.rotationX) && same(a.rotationY, b.rotationY);
         };

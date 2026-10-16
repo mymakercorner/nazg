@@ -22,7 +22,7 @@
 #include "adapters/qmk/NazgQmkKeycodes.h"
 #include "model/NazgKeycode.h"
 
-namespace nazg
+namespace nazg::qmk
 {
-    [[nodiscard]] std::optional<Keycode> ParseQmkExpression(std::string_view text, QmkKeycodeVersion version);
+    [[nodiscard]] std::optional<Keycode> ParseExpression(std::string_view text, KeycodeVersion version);
 }

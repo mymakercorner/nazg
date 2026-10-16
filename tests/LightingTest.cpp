@@ -23,6 +23,8 @@
 #include <string>
 #include <vector>
 
+namespace via = nazg::via;
+
 using nazg::Keyboard;
 using nazg::LightingKind;
 using nazg::LightingLine;
@@ -30,7 +32,6 @@ using nazg::LightingTarget;
 using nazg::LightingValues;
 using nazg::LightingWire;
 using nazg::Task;
-using nazg::ViaProtocol;
 
 namespace
 {
@@ -51,7 +52,7 @@ namespace
 
     bool Starts(const std::vector<uint8_t>& frame, std::vector<uint8_t> bytes)
     {
-        if (frame.size() != nazg::c_ViaReportSize)
+        if (frame.size() != via::c_ReportSize)
             return false;
         for (size_t at = 0; at < bytes.size(); ++at)
             if (frame[at] != bytes[at])
@@ -105,7 +106,7 @@ namespace
 
         const std::string json = R"({"name":"Crkbd","lighting":{"extends":"qmk_rgblight"},"matrix":{"rows":1,"cols":1},)"
                                  R"("layouts":{"keymap":[["0,0"]]}})";
-        const nazg::KeyboardDefinition definition = nazg::ParseDefinition(std::vector<uint8_t>(json.begin(), json.end()));
+        const via::KeyboardDefinition definition = via::ParseDefinition(std::vector<uint8_t>(json.begin(), json.end()));
         Check(definition.lighting == "qmk_rgblight", "the preset it extends, as the Corne's vial.json writes it");
     }
 
@@ -169,13 +170,13 @@ namespace
 
         const LightingTarget target{ LightingKind::Underglow, LightingWire::Channels };
         FakeDeviceChannel    channel;
-        ViaProtocol          via(channel);
+        via::Protocol        via(channel);
 
         channel.Reply({ 0x08, 2, 1, 200 });
         channel.Reply({ 0x08, 2, 2, 3 });
         channel.Reply({ 0x08, 2, 3, 0 });
         channel.Reply({ 0x08, 2, 4, 170, 255 });
-        const LightingValues read = Run(nazg::ReadLighting(via, target));
+        const LightingValues read = Run(via::ReadLighting(via, target));
         Check(Starts(channel.RequestAt(0), { 0x08, 2, 1 }) && Starts(channel.RequestAt(3), { 0x08, 2, 4 }),
               "get: [0x08][channel 2][value id]");
         Check(read.brightness == 200 && read.effect == 3 && read.hue == 170 && read.saturation == 255 && read.on == true,
@@ -185,38 +186,38 @@ namespace
         channel.Reply({ 0x08, 2, 2, 0 });
         channel.Reply({ 0x08, 2, 3, 0 });
         channel.Reply({ 0x08, 2, 4, 0, 0 });
-        Check(Run(nazg::ReadLighting(via, target)).on == false, "effect 0: off");
+        Check(Run(via::ReadLighting(via, target)).on == false, "effect 0: off");
 
         LightingValues values = read;
         values.brightness     = 128;
         channel.Reply({ 0x07 });
-        Run(nazg::WriteLighting(via, target, LightingLine::Brightness, values));
+        Run(via::WriteLighting(via, target, LightingLine::Brightness, values));
         Check(Starts(channel.Requests().back(), { 0x07, 2, 1, 128 }), "set brightness: [0x07][2][1][value]");
 
         values.on = false;
         channel.Reply({ 0x07 });
-        Run(nazg::WriteLighting(via, target, LightingLine::On, values));
+        Run(via::WriteLighting(via, target, LightingLine::On, values));
         Check(Starts(channel.Requests().back(), { 0x07, 2, 2, 0 }), "off: effect 0");
 
         values.on     = true;
         values.effect = 9;
         channel.Reply({ 0x07 });
-        Run(nazg::WriteLighting(via, target, LightingLine::Effect, values));
+        Run(via::WriteLighting(via, target, LightingLine::Effect, values));
         Check(Starts(channel.Requests().back(), { 0x07, 2, 2, 9 }), "an effect, once");
 
         channel.Reply({ 0x07 });
-        Run(nazg::WriteLighting(via, target, LightingLine::Colour, values));
+        Run(via::WriteLighting(via, target, LightingLine::Colour, values));
         Check(Starts(channel.Requests().back(), { 0x07, 2, 4, 170, 255 }), "colour: hue then saturation");
 
         channel.Reply({ 0x09 });
-        Run(nazg::SaveLighting(via, target));
+        Run(via::SaveLighting(via, target));
         Check(Starts(channel.Requests().back(), { 0x09, 2 }), "save: [0x09][channel]");
 
         channel.ReplyUnhandled();
         bool refused = false;
         try
         {
-            Run(nazg::SaveLighting(via, target));
+            Run(via::SaveLighting(via, target));
         }
         catch (const nazg::ProtocolError&)
         {
@@ -230,14 +231,14 @@ namespace
         std::printf("the format before V3, as vial-qmk speaks it\n");
 
         FakeDeviceChannel channel;
-        ViaProtocol       via(channel);
+        via::Protocol     via(channel);
 
         const LightingTarget underglow{ LightingKind::Underglow, LightingWire::Legacy };
         channel.Reply({ 0x08, 0x80, 120 });
         channel.Reply({ 0x08, 0x81, 1 });
         channel.Reply({ 0x08, 0x82, 0 });
         channel.Reply({ 0x08, 0x83, 85, 200 });
-        const LightingValues read = Run(nazg::ReadLighting(via, underglow));
+        const LightingValues read = Run(via::ReadLighting(via, underglow));
         Check(Starts(channel.RequestAt(0), { 0x08, 0x80 }) && Starts(channel.RequestAt(3), { 0x08, 0x83 }),
               "get: [0x08][value id], ids 0x80-0x83");
         Check(read.brightness == 120 && read.effect == 1 && read.hue == 85 && !read.on.has_value(),
@@ -248,24 +249,24 @@ namespace
         values.effect         = 6;
         channel.Reply({ 0x07 });
         channel.Reply({ 0x07 });
-        Run(nazg::WriteLighting(via, underglow, LightingLine::Effect, values));
+        Run(via::WriteLighting(via, underglow, LightingLine::Effect, values));
         Check(channel.RequestCount() == 6 && Starts(channel.RequestAt(4), { 0x07, 0x81, 6 }) &&
                   Starts(channel.RequestAt(5), { 0x07, 0x81, 6 }),
               "an effect twice: the first only turns on a light that was off");
 
         values.on = false;
         channel.Reply({ 0x07 });
-        Run(nazg::WriteLighting(via, underglow, LightingLine::On, values));
+        Run(via::WriteLighting(via, underglow, LightingLine::On, values));
         Check(channel.RequestCount() == 7 && Starts(channel.Requests().back(), { 0x07, 0x81, 0 }), "off: effect 0, once");
 
         const LightingTarget backlight{ LightingKind::Backlight, LightingWire::Legacy };
         values.brightness = 170;
         channel.Reply({ 0x07 });
-        Run(nazg::WriteLighting(via, backlight, LightingLine::Brightness, values));
+        Run(via::WriteLighting(via, backlight, LightingLine::Brightness, values));
         Check(Starts(channel.Requests().back(), { 0x07, 0x09, 170 }), "the backlight's brightness: id 0x09");
 
         channel.Reply({ 0x09 });
-        Run(nazg::SaveLighting(via, backlight));
+        Run(via::SaveLighting(via, backlight));
         Check(Starts(channel.Requests().back(), { 0x09 }), "save: [0x09], no channel");
     }
 
@@ -274,11 +275,11 @@ namespace
         std::printf("VialRGB\n");
 
         FakeDeviceChannel    channel;
-        ViaProtocol          via(channel);
+        via::Protocol        via(channel);
         const LightingTarget target{ LightingKind::RgbMatrix, LightingWire::VialRgb };
 
         channel.Reply({ 0x08, 0x40, 1, 0, 200 });
-        const nazg::VialRgbInfo info = Run(nazg::ReadVialRgbInfo(via));
+        const via::VialRgbInfo info = Run(via::ReadVialRgbInfo(via));
         Check(Starts(channel.RequestAt(0), { 0x08, 0x40 }) && info.version == 1 && info.maxBrightness == 200,
               "info: version 1, brightness up to 200");
 
@@ -288,12 +289,12 @@ namespace
             full.insert(full.end(), { static_cast<uint8_t>(id), 0 });
         channel.Reply(full);
         channel.Reply({ 0x08, 0x42, 17, 0, 0xFF, 0xFF });
-        const std::vector<uint16_t> effects = Run(nazg::ReadVialRgbEffects(via));
+        const std::vector<uint16_t> effects = Run(via::ReadVialRgbEffects(via));
         Check(effects.size() == 16 && effects.front() == 2 && effects.back() == 17, "every effect, over two replies");
         Check(Starts(channel.RequestAt(2), { 0x08, 0x42, 16, 0 }), "asked again from the last");
 
         channel.Reply({ 0x08, 0x41, 14, 0, 128, 10, 255, 100 });
-        const LightingValues read = Run(nazg::ReadLighting(via, target, 200));
+        const LightingValues read = Run(via::ReadLighting(via, target, 200));
         Check(read.effect == 14 && read.speed == 128 && read.hue == 10 && read.saturation == 255 && read.brightness == 128 &&
                   read.on == true,
               "mode: Cycle Left Right, speed, colour, brightness 100 of 200 as 128");
@@ -301,7 +302,7 @@ namespace
         LightingValues values = read;
         values.on             = false;
         channel.Reply({ 0x07 });
-        Run(nazg::WriteLighting(via, target, LightingLine::On, values, 200));
+        Run(via::WriteLighting(via, target, LightingLine::On, values, 200));
         Check(Starts(channel.Requests().back(), { 0x07, 0x41, 0, 0, 128, 10, 255, 100 }),
               "off: effect 0, the rest kept, brightness back on its scale");
     }

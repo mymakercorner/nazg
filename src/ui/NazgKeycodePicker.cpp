@@ -91,7 +91,7 @@ namespace nazg
             }
 
             tile.legend   = std::move(legend);
-            tile.fill     = KeycapClassOf(keycode, DefinitionKey{});
+            tile.fill     = KeycapClassOf(keycode, via::DefinitionKey{});
             tile.mark     = IsNamed(keycode, "KC_TRNS") ? Fallthrough::Transparent
                           : IsNamed(keycode, "KC_NO")   ? Fallthrough::Disabled
                                                         : Fallthrough::None;
@@ -254,20 +254,20 @@ namespace nazg
         }
     }
 
-    std::string KeycodeHoverText(const Keycode& keycode, QmkKeycodeVersion version)
+    std::string KeycodeHoverText(const Keycode& keycode, qmk::KeycodeVersion version)
     {
         std::string text = FormatKeycode(keycode);
         if (const auto* named = std::get_if<NamedKey>(&keycode))
-            if (const QmkKeycode* row = FindQmkKeycodeByName(named->name, version);
+            if (const qmk::KeycodeEntry* row = qmk::FindKeycodeByName(named->name, version);
                 row != nullptr && row->label[0] != '\0' && text != row->label)
                 text += std::string(" -- ") + row->label;
         return text;
     }
 
-    std::string KeycodeLabel(const Keycode& keycode, QmkKeycodeVersion version)
+    std::string KeycodeLabel(const Keycode& keycode, qmk::KeycodeVersion version)
     {
         if (const auto* named = std::get_if<NamedKey>(&keycode))
-            if (const QmkKeycode* row = FindQmkKeycodeByName(named->name, version); row != nullptr && row->label[0] != '\0')
+            if (const qmk::KeycodeEntry* row = qmk::FindKeycodeByName(named->name, version); row != nullptr && row->label[0] != '\0')
                 return row->label;
         return FormatKeycode(keycode);
     }

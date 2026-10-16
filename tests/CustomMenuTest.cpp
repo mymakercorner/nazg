@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com>
 //
-// Pins a board's own menus (adapters/via/NazgViaCustomMenu.h, the parser's CustomMenu): what the
+// Pins a board's own menus (adapters/via/NazgViaCustomMenu.h, the parser's via::CustomMenu): what the
 // definition's controls become, the width of each value, VIA's showIf conditions as pelpi reads
 // them, the constraints tying sliders together as the VIA app resolves them, and the bytes on the
 // wire -- the extra numbers after the value id sent before the value, and echoed before it.
@@ -22,12 +22,10 @@
 #include <string>
 #include <vector>
 
-using nazg::CustomControl;
-using nazg::CustomValues;
-using nazg::KeyboardDefinition;
+namespace via = nazg::via;
+
 using nazg::Task;
-using nazg::ViaProtocol;
-using Type = nazg::CustomControl::Type;
+using Type = via::CustomControl::Type;
 
 namespace
 {
@@ -48,7 +46,7 @@ namespace
 
     bool Starts(const std::vector<uint8_t>& frame, std::vector<uint8_t> bytes)
     {
-        if (frame.size() != nazg::c_ViaReportSize)
+        if (frame.size() != via::c_ReportSize)
             return false;
         for (size_t at = 0; at < bytes.size(); ++at)
             if (frame[at] != bytes[at])
@@ -59,11 +57,11 @@ namespace
         return true;
     }
 
-    KeyboardDefinition Parse(const char* menus)
+    via::KeyboardDefinition Parse(const char* menus)
     {
         const std::string text = std::string(R"({"matrix":{"rows":1,"cols":1},"layouts":{"keymap":[["0,0"]]},"menus":)") +
                                  menus + "}";
-        return nazg::ParseDefinition(std::vector<uint8_t>(text.begin(), text.end()));
+        return via::ParseDefinition(std::vector<uint8_t>(text.begin(), text.end()));
     }
 
     // The EC Theca's Switch Configuration, its DKS slot 0 cut to five lines, and the FAve65S's
@@ -106,8 +104,8 @@ namespace
     {
         std::printf("the controls, as the definition writes them\n");
 
-        const KeyboardDefinition definition = Parse(c_Menus);
-        const auto&              menus      = definition.customMenus;
+        const via::KeyboardDefinition definition = Parse(c_Menus);
+        const auto&                   menus      = definition.customMenus;
         Check(menus.size() == 3, "three menus, the standard one's id aside");
         if (menus.size() != 3)
             return;
@@ -116,7 +114,7 @@ namespace
         Check(menus[0].label == "Switch Configuration" && menus[0].submenus.size() == 2 && actuation.label == "Actuation" &&
                   actuation.controls.size() == 4,
               "a menu's submenus, and a slice's lines flattened into its submenu");
-        const CustomControl& threshold = actuation.controls[1];
+        const via::CustomControl& threshold = actuation.controls[1];
         Check(threshold.type == Type::Range && threshold.name == "id_apc_actuation_threshold" && threshold.channel == 0 &&
                   threshold.valueId == 2 && threshold.extra.empty() && threshold.minimum == 1 && threshold.maximum == 1023,
               "a range: its value's name, channel, value id and limits");
@@ -124,7 +122,7 @@ namespace
               "a slice's condition handed down to its lines");
         Check(threshold.constraints.size() == 1 && threshold.constraints[0].reference == "id_apc_release_threshold" &&
                   threshold.constraints[0].offset == 50 && threshold.constraints[0].push &&
-                  threshold.constraints[0].operation == nazg::RangeConstraint::Operation::GreaterOrEqual,
+                  threshold.constraints[0].operation == via::RangeConstraint::Operation::GreaterOrEqual,
               "a constraint: kept 50 above the release threshold, pushing it");
         Check(actuation.controls[3].type == Type::Button && actuation.controls[3].on == std::vector<uint8_t>{ 0 },
               "a button sends its one option");
@@ -135,7 +133,7 @@ namespace
         Check(menus[1].conditions == std::vector<std::string>{ "{id_firmware_version} >= 6" } &&
                   menus[1].submenus.at(1).conditions == std::vector<std::string>{ "{id_dks_enabled} == 1" },
               "a menu's and a submenu's own conditions");
-        const CustomControl& output = menus[1].submenus.at(1).controls.at(0);
+        const via::CustomControl& output = menus[1].submenus.at(1).controls.at(0);
         Check(output.type == Type::Keycode && output.channel == 11 && output.valueId == 3 &&
                   output.extra == std::vector<uint8_t>{ 0, 0 },
               "the numbers after the value id: sent with it");
@@ -158,36 +156,36 @@ namespace
     {
         std::printf("each value's width\n");
 
-        const KeyboardDefinition definition = Parse(c_Menus);
-        const auto&              actuation  = definition.customMenus.at(0).submenus.at(0).controls;
-        const auto&              lighting   = definition.customMenus.at(2).submenus.at(0).controls;
+        const via::KeyboardDefinition definition = Parse(c_Menus);
+        const auto&                   actuation  = definition.customMenus.at(0).submenus.at(0).controls;
+        const auto&                   lighting   = definition.customMenus.at(2).submenus.at(0).controls;
 
-        Check(nazg::ValueWidth(actuation.at(1)) == 2, "a range past 255: two bytes");
-        Check(nazg::ValueWidth(actuation.at(0)) == 1, "a dropdown: one");
-        Check(nazg::ValueWidth(definition.customMenus.at(1).submenus.at(1).controls.at(0)) == 2, "a keycode: two");
-        Check(nazg::ValueWidth(lighting.at(1)) == 2, "a colour: hue and saturation");
-        Check(nazg::ValueWidth(lighting.at(4)) == 2, "a toggle: its longest state");
-        Check(nazg::ValueWidth(lighting.at(2)) == 29, "a bound label: what the frame holds after [0x08][ch][id]");
+        Check(via::ValueWidth(actuation.at(1)) == 2, "a range past 255: two bytes");
+        Check(via::ValueWidth(actuation.at(0)) == 1, "a dropdown: one");
+        Check(via::ValueWidth(definition.customMenus.at(1).submenus.at(1).controls.at(0)) == 2, "a keycode: two");
+        Check(via::ValueWidth(lighting.at(1)) == 2, "a colour: hue and saturation");
+        Check(via::ValueWidth(lighting.at(4)) == 2, "a toggle: its longest state");
+        Check(via::ValueWidth(lighting.at(2)) == 29, "a bound label: what the frame holds after [0x08][ch][id]");
 
-        Check(nazg::RangeValueOf(actuation.at(1), { 0x02, 0x58 }) == 600 &&
-                  nazg::RangeBytes(actuation.at(1), 600) == std::vector<uint8_t>{ 0x02, 0x58 },
+        Check(via::RangeValueOf(actuation.at(1), { 0x02, 0x58 }) == 600 &&
+                  via::RangeBytes(actuation.at(1), 600) == std::vector<uint8_t>{ 0x02, 0x58 },
               "a two-byte range: big-endian");
-        Check(nazg::IsToggledOn(lighting.at(4), { 254, 0 }) && !nazg::IsToggledOn(lighting.at(4), { 255, 0 }) &&
-                  !nazg::IsToggledOn(lighting.at(4), { 7, 7 }),
+        Check(via::IsToggledOn(lighting.at(4), { 254, 0 }) && !via::IsToggledOn(lighting.at(4), { 255, 0 }) &&
+                  !via::IsToggledOn(lighting.at(4), { 7, 7 }),
               "a toggle is on at its on state only");
-        Check(nazg::TextOf({ '1', '.', '6', 0, 'x' }) == "1.6", "a label's text ends at a zero");
+        Check(via::TextOf({ '1', '.', '6', 0, 'x' }) == "1.6", "a label's text ends at a zero");
     }
 
     void TestConditions()
     {
         std::printf("showIf, as pelpi reads it\n");
 
-        const CustomValues values{ { "id_dks_enabled", { 1 } },
+        const via::CustomValues values{ { "id_dks_enabled", { 1 } },
                                    { "id_dks_keycode_0_0", { 0x00, 0x1A } },
                                    { "id_threshold", { 0x02, 0x58 } },
                                    { "id_mode", { 2 } } };
         const auto holds = [&](const char* condition, uint32_t firmware = 6)
-        { return nazg::ConditionHolds(condition, values, firmware); };
+        { return via::ConditionHolds(condition, values, firmware); };
 
         Check(holds("{id_dks_enabled} == 1") && !holds("{id_dks_enabled} == 0"), "a value compared");
         Check(holds("{id_dks_keycode_0_0.0} != 0 || {id_dks_keycode_0_0.1} != 0"), "a byte other than the first, by .n");
@@ -205,13 +203,13 @@ namespace
               "|| splits before &&");
         Check(holds("{broken") && holds("{id_mode} == == 2") && holds("") && holds("{id_mode} ~ 2"),
               "a condition Nazg cannot read holds: the line shows");
-        Check(!nazg::IsReadableCondition("{id_mode} == == 2") && nazg::IsReadableCondition("!({id_mode} == 2)"),
+        Check(!via::IsReadableCondition("{id_mode} == == 2") && via::IsReadableCondition("!({id_mode} == 2)"),
               "and is known to be one");
-        Check(nazg::ConditionsHold({ "{id_dks_enabled} == 1", "{id_mode} == 2" }, values, 0) &&
-                  !nazg::ConditionsHold({ "{id_dks_enabled} == 1", "{id_mode} == 3" }, values, 0),
+        Check(via::ConditionsHold({ "{id_dks_enabled} == 1", "{id_mode} == 2" }, values, 0) &&
+                  !via::ConditionsHold({ "{id_dks_enabled} == 1", "{id_mode} == 3" }, values, 0),
               "every condition must hold");
 
-        Check(nazg::NamesIn("{id_dks_keycode_0_0.0} != 0 || {id_dks_keycode_0_0.1} != 0 && {id_x[1][2]} == 1") ==
+        Check(via::NamesIn("{id_dks_keycode_0_0.0} != 0 || {id_dks_keycode_0_0.1} != 0 && {id_x[1][2]} == 1") ==
                   std::vector<std::string>{ "id_dks_keycode_0_0", "id_x[1][2]" },
               "the values a condition reads, each once, brackets in names kept");
     }
@@ -222,7 +220,7 @@ namespace
     {
         std::printf("sliders tied together\n");
 
-        const KeyboardDefinition definition = Parse(R"json([{"label":"DKS","content":[{"label":"DKS 0","content":[
+        const via::KeyboardDefinition definition = Parse(R"json([{"label":"DKS","content":[{"label":"DKS 0","content":[
             {"label":"Shallow press","type":"range","options":[1,1023],"content":["t0",11,2,0,0],"constraints":[
                 {"operator":">=","reference":"t3","offset":50,"onViolation":"push"},
                 {"operator":"<=","reference":"t2","offset":-50,"onViolation":"push"}]},
@@ -236,32 +234,32 @@ namespace
             {"label":"Stopped","type":"range","options":[0,100],"content":["s",0,1],"constraints":[
                 {"operator":"<","reference":"t3","offset":-250}]}]}]}])json");
 
-        std::vector<const CustomControl*> ranges;
-        for (const CustomControl& control : definition.customMenus.at(0).submenus.at(0).controls)
+        std::vector<const via::CustomControl*> ranges;
+        for (const via::CustomControl& control : definition.customMenus.at(0).submenus.at(0).controls)
             ranges.push_back(&control);
         const auto at = [&](size_t index) { return *ranges.at(index); };
 
-        CustomValues values{ { "t0", nazg::RangeBytes(at(0), 400) }, { "t1", nazg::RangeBytes(at(1), 800) },
-                             { "t2", nazg::RangeBytes(at(2), 700) }, { "t3", nazg::RangeBytes(at(3), 300) },
+        via::CustomValues values{ { "t0", via::RangeBytes(at(0), 400) }, { "t1", via::RangeBytes(at(1), 800) },
+                             { "t2", via::RangeBytes(at(2), 700) }, { "t3", via::RangeBytes(at(3), 300) },
                              { "s", { 20 } } };
 
-        Check(nazg::ResolveRange(ranges, values, "t0", 500) == std::map<std::string, int>{ { "t0", 500 } },
+        Check(via::ResolveRange(ranges, values, "t0", 500) == std::map<std::string, int>{ { "t0", 500 } },
               "a move within the rules changes that slider alone");
-        Check(nazg::ResolveRange(ranges, values, "t0", 690) == std::map<std::string, int>{ { "t0", 690 }, { "t2", 740 } },
+        Check(via::ResolveRange(ranges, values, "t0", 690) == std::map<std::string, int>{ { "t0", 690 }, { "t2", 740 } },
               "the shallow press past the deep release less 50 pushes it along");
-        Check(nazg::ResolveRange(ranges, values, "t0", 790) ==
+        Check(via::ResolveRange(ranges, values, "t0", 790) ==
                   std::map<std::string, int>{ { "t0", 790 }, { "t1", 890 }, { "t2", 840 } },
               "and the deep press after it: each pushed slider's own rules too");
-        Check(nazg::ResolveRange(ranges, values, "t3", 600) == std::map<std::string, int>{ { "t0", 650 }, { "t3", 600 } },
+        Check(via::ResolveRange(ranges, values, "t3", 600) == std::map<std::string, int>{ { "t0", 650 }, { "t3", 600 } },
               "the shallow release up pushes the shallow press, which then breaks no rule of its own");
-        Check(nazg::ResolveRange(ranges, values, "t1", 2000) == std::map<std::string, int>{ { "t1", 1023 } },
+        Check(via::ResolveRange(ranges, values, "t1", 2000) == std::map<std::string, int>{ { "t1", 1023 } },
               "held within its own limits");
-        Check(nazg::ResolveRange(ranges, values, "t1", 720) == std::map<std::string, int>{ { "t1", 720 }, { "t2", 670 } },
+        Check(via::ResolveRange(ranges, values, "t1", 720) == std::map<std::string, int>{ { "t1", 720 }, { "t2", 670 } },
               "the deep press down pushes the deep release down");
 
-        Check(nazg::RangeBounds(at(4), ranges, values) == std::pair<int, int>{ 0, 49 },
+        Check(via::RangeBounds(at(4), ranges, values) == std::pair<int, int>{ 0, 49 },
               "a constraint that does not push narrows the slider: under 300 - 250");
-        Check(nazg::RangeBounds(at(0), ranges, values) == std::pair<int, int>{ 1, 1023 },
+        Check(via::RangeBounds(at(0), ranges, values) == std::pair<int, int>{ 1, 1023 },
               "constraints that push leave the slider its limits");
     }
 
@@ -269,35 +267,35 @@ namespace
     {
         std::printf("the bytes on the wire\n");
 
-        const KeyboardDefinition definition = Parse(c_Menus);
-        const CustomControl&     threshold  = definition.customMenus.at(0).submenus.at(0).controls.at(1);
-        const CustomControl&     output     = definition.customMenus.at(1).submenus.at(1).controls.at(0);
-        const CustomControl&     button     = definition.customMenus.at(0).submenus.at(0).controls.at(3);
-        const CustomControl&     firmware   = definition.customMenus.at(2).submenus.at(0).controls.at(2);
+        const via::KeyboardDefinition definition = Parse(c_Menus);
+        const via::CustomControl&     threshold  = definition.customMenus.at(0).submenus.at(0).controls.at(1);
+        const via::CustomControl&     output     = definition.customMenus.at(1).submenus.at(1).controls.at(0);
+        const via::CustomControl&     button     = definition.customMenus.at(0).submenus.at(0).controls.at(3);
+        const via::CustomControl&     firmware   = definition.customMenus.at(2).submenus.at(0).controls.at(2);
 
         FakeDeviceChannel channel;
-        ViaProtocol       via(channel);
+        via::Protocol     via(channel);
 
         channel.Reply({ 0x08, 0, 2, 0x02, 0x58 });
-        Check(Run(nazg::ReadCustomValue(via, threshold)) == std::vector<uint8_t>{ 0x02, 0x58 } &&
+        Check(Run(via::ReadCustomValue(via, threshold)) == std::vector<uint8_t>{ 0x02, 0x58 } &&
                   Starts(channel.Requests().back(), { 0x08, 0, 2 }),
               "get [0x08][channel][value id]: the value after them, at its width");
 
         channel.Reply({ 0x08, 11, 3, 0, 0, 0x00, 0x1A });
-        Check(Run(nazg::ReadCustomValue(via, output)) == std::vector<uint8_t>{ 0x00, 0x1A } &&
+        Check(Run(via::ReadCustomValue(via, output)) == std::vector<uint8_t>{ 0x00, 0x1A } &&
                   Starts(channel.Requests().back(), { 0x08, 11, 3, 0, 0 }),
               "the extra bytes sent after the value id, the value after their echo");
 
         channel.Reply({ 0x08, 0, 26, '1', '.', '6', 0 });
-        Check(nazg::TextOf(Run(nazg::ReadCustomValue(via, firmware))) == "1.6", "a bound label's text");
+        Check(via::TextOf(Run(via::ReadCustomValue(via, firmware))) == "1.6", "a bound label's text");
 
         channel.Reply({ 0x07 });
-        Run(nazg::WriteCustomValue(via, output, { 0x00, 0x04 }));
+        Run(via::WriteCustomValue(via, output, { 0x00, 0x04 }));
         Check(Starts(channel.Requests().back(), { 0x07, 11, 3, 0, 0, 0x00, 0x04 }),
               "set [0x07][channel][value id][extra][value]");
 
         channel.Reply({ 0x07 });
-        Run(nazg::WriteCustomValue(via, button, button.on));
+        Run(via::WriteCustomValue(via, button, button.on));
         Check(Starts(channel.Requests().back(), { 0x07, 0, 4, 0 }), "a button sends its value");
 
         channel.Reply({ 0x09 });
@@ -308,7 +306,7 @@ namespace
         bool refused = false;
         try
         {
-            Run(nazg::ReadCustomValue(via, threshold));
+            Run(via::ReadCustomValue(via, threshold));
         }
         catch (const nazg::ProtocolError&)
         {

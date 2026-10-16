@@ -110,7 +110,7 @@ namespace nazg
 
         // The entry a definition would replace: the first with its VID:PID and name. Null
         // when there is none, and the import is simply a new entry.
-        [[nodiscard]] const LibraryEntry* FindSameBoard(const KeyboardDefinition& definition) const noexcept;
+        [[nodiscard]] const LibraryEntry* FindSameBoard(const via::KeyboardDefinition& definition) const noexcept;
 
         // The stored bytes of an entry's current revision. Throws LibraryError if its file
         // cannot be read.

@@ -172,9 +172,9 @@ namespace nazg
 
     std::vector<LightingTarget> LightingTargetsOf(const Keyboard& keyboard)
     {
-        const KeyboardDefinition& definition = keyboard.definition;
-        const std::string&        preset     = definition.lighting;
-        const auto                declares   = [&](std::string_view id) { return preset == id || Contains(definition.menuIds, id); };
+        const via::KeyboardDefinition& definition = keyboard.definition;
+        const std::string&             preset     = definition.lighting;
+        const auto                     declares   = [&](std::string_view id) { return preset == id || Contains(definition.menuIds, id); };
 
         const bool backlight = declares("qmk_backlight") || declares("qmk_backlight_rgblight");
         const bool underglow = declares("qmk_rgblight") || declares("qmk_backlight_rgblight");

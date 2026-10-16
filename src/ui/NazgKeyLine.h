@@ -39,5 +39,5 @@ namespace nazg
     // already sent with modifiers; anything else draws nothing. `key` is changed in place by a
     // click. True when it drew. `words` name the modifiers' part: "Held with it" for a key that is
     // matched rather than sent.
-    bool DrawSentWith(Keycode& key, const LegendSettings& legends, QmkKeycodeVersion version, const char* words = "Sent with");
+    bool DrawSentWith(Keycode& key, const LegendSettings& legends, qmk::KeycodeVersion version, const char* words = "Sent with");
 }

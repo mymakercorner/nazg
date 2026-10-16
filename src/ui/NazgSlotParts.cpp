@@ -78,7 +78,7 @@ namespace nazg
         return clicked;
     }
 
-    void MarkUnlockKeys(BoardDescription& board, const std::optional<VialUnlockStatus>& lock)
+    void MarkUnlockKeys(BoardDescription& board, const std::optional<vial::UnlockStatus>& lock)
     {
         if (!lock || lock->unlocked)
             return;

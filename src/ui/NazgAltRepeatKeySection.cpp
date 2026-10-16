@@ -99,7 +99,7 @@ namespace nazg
         std::optional<uint8_t> LayerTyping(const Keyboard& keyboard, const Keycode& base)
         {
             for (int layer = 0; layer < keyboard.keymap.Layers(); ++layer)
-                for (const DefinitionKey& key : keyboard.definition.keys)
+                for (const via::DefinitionKey& key : keyboard.definition.keys)
                     if (key.IsSwitch() && keyboard.IsKeyVisible(key) &&
                         Types(keyboard.KeycodeFor(key, static_cast<uint8_t>(layer)), base))
                         return static_cast<uint8_t>(layer);
@@ -108,7 +108,7 @@ namespace nazg
     }
 
     AltRepeatKeySection::AltRepeatKeySection(HidTransport& transport, std::string path, Keyboard& keyboard,
-                                             const LegendSettings& legends, const std::optional<VialUnlockStatus>& lock,
+                                             const LegendSettings& legends, const std::optional<vial::UnlockStatus>& lock,
                                              const bool& advancedTools)
         : m_Transport(transport), m_Path(std::move(path)), m_Keyboard(keyboard), m_Legends(legends), m_Lock(lock),
           m_AdvancedTools(advancedTools)
@@ -294,8 +294,8 @@ namespace nazg
             return;
 
         // What the key sends on layer 0, else on the first layer that has something there.
-        const DefinitionKey& geometry = board.keys[*events.hoveredKey].geometry;
-        Keycode              sent     = m_Keyboard.KeycodeFor(geometry, 0);
+        const via::DefinitionKey& geometry = board.keys[*events.hoveredKey].geometry;
+        Keycode                   sent     = m_Keyboard.KeycodeFor(geometry, 0);
         for (int layer = 1; IsNothing(sent) && layer < m_Keyboard.keymap.Layers(); ++layer)
             sent = m_Keyboard.KeycodeFor(geometry, static_cast<uint8_t>(layer));
         if (IsNothing(sent))
@@ -340,9 +340,9 @@ namespace nazg
         {
             device = co_await m_Transport.Open(m_Path);
             HidDeviceChannel channel(m_Transport, device);
-            VialProtocol     vial(channel);
+            vial::Protocol   vial(channel);
 
-            m_Stored   = co_await ReadAltRepeatKeys(vial, m_Keyboard.report.altRepeatKeyCount, m_Keyboard.keycodeVersion);
+            m_Stored   = co_await vial::ReadAltRepeatKeys(vial, m_Keyboard.report.altRepeatKeyCount, m_Keyboard.keycodeVersion);
             m_Entries  = m_Stored;
             m_IsLoaded = true;
             OnStripChosen(m_Slot);
@@ -364,7 +364,7 @@ namespace nazg
         for (size_t slot = 0; slot < m_Entries.size(); ++slot)
             if (IsChanged(slot))
             {
-                if (!EncodeAltRepeatKey(m_Entries[slot], m_Keyboard.keycodeVersion))
+                if (!vial::EncodeAltRepeatKey(m_Entries[slot], m_Keyboard.keycodeVersion))
                 {
                     m_Message   = SlotName(slot) + " holds a key this board cannot store";
                     m_IsWarning = true;
@@ -384,17 +384,17 @@ namespace nazg
         {
             device = co_await m_Transport.Open(m_Path);
             HidDeviceChannel channel(m_Transport, device);
-            VialProtocol     vial(channel);
+            vial::Protocol   vial(channel);
 
             // Each slot written, then read back: what the board holds now, whatever was asked.
             std::vector<std::string> notKept;
             for (size_t slot : slots)
             {
-                const VialAltRepeatKeyEntry entry = *EncodeAltRepeatKey(m_Entries[slot], m_Keyboard.keycodeVersion);
-                const uint8_t               index = static_cast<uint8_t>(slot);
+                const vial::AltRepeatKeyEntry entry = *vial::EncodeAltRepeatKey(m_Entries[slot], m_Keyboard.keycodeVersion);
+                const uint8_t                 index = static_cast<uint8_t>(slot);
                 co_await vial.SetAltRepeatKey(index, entry);
-                const VialAltRepeatKeyEntry stored = co_await vial.GetAltRepeatKey(index);
-                m_Stored[slot]                     = DecodeAltRepeatKey(stored, m_Keyboard.keycodeVersion);
+                const vial::AltRepeatKeyEntry stored = co_await vial.GetAltRepeatKey(index);
+                m_Stored[slot]                     = vial::DecodeAltRepeatKey(stored, m_Keyboard.keycodeVersion);
                 if (stored == entry)
                     m_Entries[slot] = m_Stored[slot];
                 else

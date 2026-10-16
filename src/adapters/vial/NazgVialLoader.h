@@ -14,8 +14,8 @@
 //     {
 //         DeviceId device = co_await transport.Open(path);
 //         HidDeviceChannel channel(transport, device);
-//         VialProtocol protocol(channel);
-//         state.keyboard = co_await LoadVialKeyboard(protocol);
+//         vial::Protocol protocol(channel);
+//         state.keyboard = co_await vial::LoadKeyboard(protocol);
 //         transport.Close(device);
 //     }
 //
@@ -36,7 +36,7 @@
 #include "model/NazgKeyOverride.h"
 #include "model/NazgKeyboard.h"
 
-namespace nazg
+namespace nazg::vial
 {
     // Which QMK keycode table a Vial board uses, from its VIAL protocol version -- never
     // its VIA one, which vial-qmk hard-codes to 9 whatever its keycodes are.
@@ -50,53 +50,53 @@ namespace nazg
     // Protocol 5 and below are Legacy, with TO(n) carrying its ON_PRESS bit as vial-gui's
     // own v5 table assumes. See docs/research_material/keycodes.md, "Vial's protocol
     // history against QMK's renumbering".
-    [[nodiscard]] QmkKeycodeVersion QmkKeycodeVersionForVial(uint32_t vialProtocol) noexcept;
+    [[nodiscard]] qmk::KeycodeVersion KeycodeVersionFor(uint32_t vialProtocol) noexcept;
 
     // Throws HidTransportError if the device goes away, or ProtocolError if it answers
     // something unusable -- including when it turns out not to be a Vial board.
     //
     // `definitionJson`, when given, receives the definition as the board serves it, inflated
     // -- the JSON document, for exporting. It must outlive the load.
-    [[nodiscard]] Task<Keyboard> LoadVialKeyboard(VialProtocol& protocol, std::vector<uint8_t>* definitionJson = nullptr);
+    [[nodiscard]] Task<Keyboard> LoadKeyboard(Protocol& protocol, std::vector<uint8_t>* definitionJson = nullptr);
 
     // What a board -- Vial or VIA -- says about itself beyond its keymap (BoardReport, in
     // model/NazgKeyboard.h), read after either load: a few round trips more. A query the firmware
     // refuses -- macros compiled out, a Vial build older than its entry counts -- leaves its
     // field at zero.
-    [[nodiscard]] Task<BoardReport> ReadBoardReport(VialProtocol& protocol);
+    [[nodiscard]] Task<BoardReport> ReadBoardReport(Protocol& protocol);
 
     // A tap dance slot as Nazg models it, and back: a 0 keycode is an empty action. Encoding fails
     // for a keycode the board's version cannot store.
-    [[nodiscard]] TapDance                         DecodeTapDance(const VialTapDanceEntry& entry, QmkKeycodeVersion version);
-    [[nodiscard]] std::optional<VialTapDanceEntry> EncodeTapDance(const TapDance& dance, QmkKeycodeVersion version);
+    [[nodiscard]] TapDance                     DecodeTapDance(const TapDanceEntry& entry, qmk::KeycodeVersion version);
+    [[nodiscard]] std::optional<TapDanceEntry> EncodeTapDance(const TapDance& dance, qmk::KeycodeVersion version);
 
     // The board's `count` tap dances, one round trip each -- some 0.45 s for the Model F's 32.
-    [[nodiscard]] Task<std::vector<TapDance>> ReadTapDances(VialProtocol& protocol, uint8_t count, QmkKeycodeVersion version);
+    [[nodiscard]] Task<std::vector<TapDance>> ReadTapDances(Protocol& protocol, uint8_t count, qmk::KeycodeVersion version);
 
     // A combo slot as Nazg models it, and back: a 0 keycode is an empty input or output, kept
     // where it is -- a gap the board holds stays one. Encoding fails for a keycode the board's
     // version cannot store.
-    [[nodiscard]] Combo                         DecodeCombo(const VialComboEntry& entry, QmkKeycodeVersion version);
-    [[nodiscard]] std::optional<VialComboEntry> EncodeCombo(const Combo& combo, QmkKeycodeVersion version);
+    [[nodiscard]] Combo                     DecodeCombo(const ComboEntry& entry, qmk::KeycodeVersion version);
+    [[nodiscard]] std::optional<ComboEntry> EncodeCombo(const Combo& combo, qmk::KeycodeVersion version);
 
     // The board's `count` combos, one round trip each.
-    [[nodiscard]] Task<std::vector<Combo>> ReadCombos(VialProtocol& protocol, uint8_t count, QmkKeycodeVersion version);
+    [[nodiscard]] Task<std::vector<Combo>> ReadCombos(Protocol& protocol, uint8_t count, qmk::KeycodeVersion version);
 
     // A key override slot as Nazg models it, and back: a 0 keycode is no trigger or nothing sent;
     // the masks, layers and options pass unchanged. Encoding fails for a keycode the board's
     // version cannot store.
-    [[nodiscard]] KeyOverride                         DecodeKeyOverride(const VialKeyOverrideEntry& entry, QmkKeycodeVersion version);
-    [[nodiscard]] std::optional<VialKeyOverrideEntry> EncodeKeyOverride(const KeyOverride& keyOverride, QmkKeycodeVersion version);
+    [[nodiscard]] KeyOverride                     DecodeKeyOverride(const KeyOverrideEntry& entry, qmk::KeycodeVersion version);
+    [[nodiscard]] std::optional<KeyOverrideEntry> EncodeKeyOverride(const KeyOverride& keyOverride, qmk::KeycodeVersion version);
 
     // The board's `count` key overrides, one round trip each.
-    [[nodiscard]] Task<std::vector<KeyOverride>> ReadKeyOverrides(VialProtocol& protocol, uint8_t count, QmkKeycodeVersion version);
+    [[nodiscard]] Task<std::vector<KeyOverride>> ReadKeyOverrides(Protocol& protocol, uint8_t count, qmk::KeycodeVersion version);
 
     // An alt repeat key slot as Nazg models it, and back: a 0 keycode is no key; the allowed
     // modifiers and the options pass unchanged. Encoding fails for a keycode the board's version
     // cannot store.
-    [[nodiscard]] AltRepeatKey                         DecodeAltRepeatKey(const VialAltRepeatKeyEntry& entry, QmkKeycodeVersion version);
-    [[nodiscard]] std::optional<VialAltRepeatKeyEntry> EncodeAltRepeatKey(const AltRepeatKey& altRepeatKey, QmkKeycodeVersion version);
+    [[nodiscard]] AltRepeatKey                     DecodeAltRepeatKey(const AltRepeatKeyEntry& entry, qmk::KeycodeVersion version);
+    [[nodiscard]] std::optional<AltRepeatKeyEntry> EncodeAltRepeatKey(const AltRepeatKey& altRepeatKey, qmk::KeycodeVersion version);
 
     // The board's `count` alt repeat keys, one round trip each.
-    [[nodiscard]] Task<std::vector<AltRepeatKey>> ReadAltRepeatKeys(VialProtocol& protocol, uint8_t count, QmkKeycodeVersion version);
+    [[nodiscard]] Task<std::vector<AltRepeatKey>> ReadAltRepeatKeys(Protocol& protocol, uint8_t count, qmk::KeycodeVersion version);
 }

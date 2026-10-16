@@ -25,12 +25,12 @@
 
 #include "adapters/via/NazgKeyboardDefinition.h"
 
-namespace nazg
+namespace nazg::vial
 {
     // Inflate the XZ stream. Throws ProtocolError if it is not a valid stream, if the
     // checksum fails, or if it claims an implausible size.
     [[nodiscard]] std::vector<uint8_t> DecompressDefinition(const std::vector<uint8_t>& compressed);
 
     // Inflate and parse, which is what a caller almost always wants.
-    [[nodiscard]] KeyboardDefinition DecodeDefinition(const std::vector<uint8_t>& compressed);
+    [[nodiscard]] via::KeyboardDefinition DecodeDefinition(const std::vector<uint8_t>& compressed);
 }

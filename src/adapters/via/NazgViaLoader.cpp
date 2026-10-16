@@ -9,39 +9,39 @@
 
 #include "adapters/via/NazgViaKeymap.h"
 
-namespace nazg
+namespace nazg::via
 {
-    QmkKeycodeVersion QmkKeycodeVersionForVia(uint16_t viaProtocol) noexcept
+    qmk::KeycodeVersion KeycodeVersionFor(uint16_t viaProtocol) noexcept
     {
         if (viaProtocol >= 12)
-            return QmkKeycodeVersion::V0_0_8;
+            return qmk::KeycodeVersion::V0_0_8;
         if (viaProtocol == 11)
-            return QmkKeycodeVersion::V0_0_1;
+            return qmk::KeycodeVersion::V0_0_1;
         if (viaProtocol == 10)
-            return QmkKeycodeVersion::LegacyVia10;
+            return qmk::KeycodeVersion::LegacyVia10;
 
-        return QmkKeycodeVersion::Legacy;
+        return qmk::KeycodeVersion::Legacy;
     }
 
     // `definition` by value: it lives in the coroutine frame for the whole load, whatever
     // happens to the caller's copy meanwhile.
-    Task<Keyboard> LoadViaKeyboard(ViaProtocol& protocol, KeyboardDefinition definition)
+    Task<Keyboard> LoadKeyboard(Protocol& protocol, KeyboardDefinition definition)
     {
         const uint16_t viaProtocol = co_await protocol.GetProtocolVersion();
 
-        QmkKeycodeVersion keycodeVersion = QmkKeycodeVersionForVia(viaProtocol);
+        qmk::KeycodeVersion keycodeVersion = KeycodeVersionFor(viaProtocol);
 
         if (viaProtocol >= 13)
         {
             // The board says which keycodes it has. One newer than this build's table
             // is read with the newest table there is: keycodes added since decode as
             // unknown values and write back unchanged, which beats refusing the board.
-            const uint32_t bcd = co_await protocol.GetKeyboardValue(ViaKeyboardValue::KeycodesVersion);
+            const uint32_t bcd = co_await protocol.GetKeyboardValue(KeyboardValue::KeycodesVersion);
 
             if (bcd == 0)
                 throw ProtocolError("the board reports keycode version 0.0.0");
 
-            keycodeVersion = QmkKeycodeVersionFromBcd(bcd).value_or(c_LatestQmkKeycodeVersion);
+            keycodeVersion = qmk::KeycodeVersionFromBcd(bcd).value_or(qmk::c_LatestKeycodeVersion);
         }
 
         const uint8_t layers = co_await protocol.GetLayerCount();
@@ -55,7 +55,7 @@ namespace nazg
 
         try
         {
-            layoutOptions = co_await protocol.GetKeyboardValue(ViaKeyboardValue::LayoutOptions);
+            layoutOptions = co_await protocol.GetKeyboardValue(KeyboardValue::LayoutOptions);
         }
         catch (const ProtocolError&)
         {
@@ -65,13 +65,13 @@ namespace nazg
         if (!hasLayouts)
             layoutOptions = 0;
 
-        const size_t byteCount = ViaKeymapByteCount(layers, definition.matrixRows, definition.matrixColumns);
+        const size_t byteCount = KeymapByteCount(layers, definition.matrixRows, definition.matrixColumns);
 
         const std::vector<uint8_t> keymapBytes =
             co_await protocol.GetKeymapBuffer(0, static_cast<uint16_t>(byteCount));
 
-        Keymap keymap = DecodeViaKeymap(keymapBytes, layers, definition.matrixRows, definition.matrixColumns,
-                                        keycodeVersion);
+        Keymap keymap = DecodeKeymap(keymapBytes, layers, definition.matrixRows, definition.matrixColumns,
+                                     keycodeVersion);
 
         co_return BuildKeyboard(std::move(definition), std::move(keymap), layoutOptions, keycodeVersion);
     }

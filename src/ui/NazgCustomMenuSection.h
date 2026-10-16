@@ -66,36 +66,36 @@ namespace nazg
     private:
         struct PendingWrite
         {
-            std::vector<std::pair<const CustomControl*, std::vector<uint8_t>>> values;
-            const CustomControl*                                               button = nullptr;
-            bool                                                               store  = false;
+            std::vector<std::pair<const via::CustomControl*, std::vector<uint8_t>>> values;
+            const via::CustomControl*                                               button = nullptr;
+            bool                                                                    store  = false;
         };
 
-        [[nodiscard]] const CustomMenu&          Menu() const;
+        [[nodiscard]] const via::CustomMenu&     Menu() const;
         [[nodiscard]] std::vector<size_t>        ShownSubmenus() const;
-        [[nodiscard]] std::vector<const CustomControl*> ShownLines(const CustomSubmenu& submenu) const;
+        [[nodiscard]] std::vector<const via::CustomControl*> ShownLines(const via::CustomSubmenu& submenu) const;
         [[nodiscard]] bool                       Holds(const std::vector<std::string>& conditions) const;
 
         // The control a value is read through: the first bound to `name` that is not a button.
-        [[nodiscard]] const CustomControl* Binding(const std::string& name) const;
+        [[nodiscard]] const via::CustomControl* Binding(const std::string& name) const;
 
         // What the panel needs read: the strip's conditions' values, then the chosen submenu's --
         // its controls', what their conditions name and the sliders they are tied to.
         [[nodiscard]] std::vector<std::string> Needed() const;
 
         // A line's control, and the parts of the panel.
-        void DrawHeader(const CustomSubmenu& submenu);
-        void DrawLines(const std::vector<const CustomControl*>& lines);
-        void DrawLine(const CustomControl& control);
-        void DrawRange(const CustomControl& control);
-        void DrawDropdown(const CustomControl& control);
-        void DrawKey(const CustomControl& control);
-        void DrawColour(const CustomControl& control);
-        void DrawPicker(const CustomControl& control);
+        void DrawHeader(const via::CustomSubmenu& submenu);
+        void DrawLines(const std::vector<const via::CustomControl*>& lines);
+        void DrawLine(const via::CustomControl& control);
+        void DrawRange(const via::CustomControl& control);
+        void DrawDropdown(const via::CustomControl& control);
+        void DrawKey(const via::CustomControl& control);
+        void DrawColour(const via::CustomControl& control);
+        void DrawPicker(const via::CustomControl& control);
 
         // A key line's keycode, and setting it.
-        [[nodiscard]] Keycode KeycodeOf(const CustomControl& control) const;
-        void                  SetKeycode(const CustomControl& control, const Keycode& keycode);
+        [[nodiscard]] Keycode KeycodeOf(const via::CustomControl& control) const;
+        void                  SetKeycode(const via::CustomControl& control, const Keycode& keycode);
 
         // Queues `names` for writing, as m_Values holds them: `store`, the channels written stored.
         void Change(const std::vector<std::string>& names, bool store);
@@ -112,9 +112,9 @@ namespace nazg
         std::string           m_Name;
 
         // Every range of the board's menus: a constraint may name any.
-        std::vector<const CustomControl*> m_Ranges;
+        std::vector<const via::CustomControl*> m_Ranges;
 
-        CustomValues          m_Values;      // as read, or as being written
+        via::CustomValues     m_Values;      // as read, or as being written
         std::set<std::string> m_Known;       // read, or the board did not answer
         std::set<std::string> m_Unanswered;  // the board refused to read them
 
@@ -129,18 +129,18 @@ namespace nazg
 
         // Waiting to be written: the values changed since the last write, whether to store, a
         // button clicked -- and the channels written since the last store.
-        std::set<std::string>  m_Dirty;
-        bool                   m_StoreWanted = false;
-        const CustomControl*   m_Button      = nullptr;
-        std::set<uint8_t>      m_Unsaved;
+        std::set<std::string>     m_Dirty;
+        bool                      m_StoreWanted = false;
+        const via::CustomControl* m_Button      = nullptr;
+        std::set<uint8_t>         m_Unsaved;
 
         // Sliders a move pushed along, and where to, for the message once let go.
         std::map<std::string, int> m_Pushed;
 
         // The key line the picker sets, and the line under the pointer last frame and this one.
-        const CustomControl* m_Selected   = nullptr;
-        const CustomControl* m_Hovered    = nullptr;
-        const CustomControl* m_HoveredNow = nullptr;
+        const via::CustomControl* m_Selected   = nullptr;
+        const via::CustomControl* m_Hovered    = nullptr;
+        const via::CustomControl* m_HoveredNow = nullptr;
 
         KeycodePickerState m_Picker;
     };

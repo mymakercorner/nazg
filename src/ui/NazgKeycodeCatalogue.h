@@ -50,11 +50,11 @@ namespace nazg
     // plain key picked onto a key that holds -- MT, LT -- or is sent with modifiers keeps that:
     // Space onto LT(1, KC_A) is LT(1, KC_SPC). Anything else, or a key the hold cannot take --
     // only basic keycodes, QMK's bottom byte -- is written as picked.
-    [[nodiscard]] Keycode ComposeWithKey(const Keycode& picked, const Keycode& current, QmkKeycodeVersion version);
+    [[nodiscard]] Keycode ComposeWithKey(const Keycode& picked, const Keycode& current, qmk::KeycodeVersion version);
 
     // What a search looks through for one keycode, lower case: QMK's name and label, and the
     // words its keycap prints.
-    [[nodiscard]] std::string SearchTextOf(const Keycode& keycode, QmkKeycodeVersion version, const LegendContext& context);
+    [[nodiscard]] std::string SearchTextOf(const Keycode& keycode, qmk::KeycodeVersion version, const LegendContext& context);
 
     // Whether `query` -- any case, spaces at its ends ignored -- is in `text`, a SearchTextOf().
     [[nodiscard]] bool MatchesSearch(std::string_view text, std::string_view query);

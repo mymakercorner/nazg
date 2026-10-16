@@ -24,9 +24,12 @@
 #include <stdexcept>
 #include <vector>
 
+namespace qmk  = nazg::qmk;
+namespace via  = nazg::via;
+namespace vial = nazg::vial;
+
 using nazg::ProtocolError;
 using nazg::Task;
-using nazg::VialProtocol;
 
 namespace
 {
@@ -58,7 +61,7 @@ namespace
         std::printf("detect on a Vial board\n");
 
         FakeDeviceChannel channel;
-        VialProtocol      vial(channel);
+        vial::Protocol    vial(channel);
 
         // [0..3] protocol version little-endian, [4..11] keyboard UID, [12] VialRGB.
         channel.Reply({ 0x06, 0x00, 0x00, 0x00,
@@ -84,7 +87,7 @@ namespace
         std::printf("detect on a plain VIA board\n");
 
         FakeDeviceChannel channel;
-        VialProtocol      vial(channel);
+        vial::Protocol    vial(channel);
 
         channel.ReplyUnhandled();
 
@@ -98,13 +101,13 @@ namespace
         std::printf("definition download\n");
 
         FakeDeviceChannel channel;
-        VialProtocol      vial(channel);
+        vial::Protocol    vial(channel);
 
         // 70 bytes is three pages: 32 + 32 + 6, with the last one truncated.
         channel.Reply({ 70, 0x00, 0x00, 0x00 });
 
         for (uint8_t marker = 1; marker <= 3; ++marker)
-            channel.Reply(std::vector<uint8_t>(nazg::c_ViaReportSize, marker));
+            channel.Reply(std::vector<uint8_t>(via::c_ReportSize, marker));
 
         const std::vector<uint8_t> definition = Run(vial.DownloadDefinition());
 
@@ -125,7 +128,7 @@ namespace
         std::printf("implausible definition size\n");
 
         FakeDeviceChannel channel;
-        VialProtocol      vial(channel);
+        vial::Protocol    vial(channel);
 
         channel.Reply({ 0xFF, 0xFF, 0xFF, 0x7F });   // ~2 GB
 
@@ -141,9 +144,9 @@ namespace
         std::printf("dynamic entry counts\n");
 
         FakeDeviceChannel channel;
-        VialProtocol      vial(channel);
+        vial::Protocol    vial(channel);
 
-        std::vector<uint8_t> reply(nazg::c_ViaReportSize, 0x00);
+        std::vector<uint8_t> reply(via::c_ReportSize, 0x00);
         reply[0] = 8;    // tap dance
         reply[1] = 16;   // combo
         reply[2] = 4;    // key override
@@ -168,35 +171,35 @@ namespace
         std::printf("tap dance get and set\n");
 
         FakeDeviceChannel channel;
-        VialProtocol      vial(channel);
+        vial::Protocol    vial(channel);
 
-        std::vector<uint8_t> reply(nazg::c_ViaReportSize, 0x00);
+        std::vector<uint8_t> reply(via::c_ReportSize, 0x00);
         const uint8_t entry[] = { 0x29, 0x00,  0x21, 0x52,  0x39, 0x00,  0x00, 0x00,  0xC8, 0x00 };
         std::copy(std::begin(entry), std::end(entry), reply.begin() + 1);
         channel.ReplyRaw(reply);
 
-        const nazg::VialTapDanceEntry read = Run(vial.GetTapDance(3));
+        const vial::TapDanceEntry read = Run(vial.GetTapDance(3));
         Check(read.onTap == 0x0029 && read.onHold == 0x5221, "keycodes are little-endian here, unlike the keymap's");
         Check(read.onDoubleTap == 0x0039 && read.onTapHold == 0, "an empty action is 0");
         Check(read.tappingTerm == 200, "the slot's own term follows the keycodes");
         Check(channel.RequestAt(0)[1] == 0x0D && channel.RequestAt(0)[2] == 0x01 && channel.RequestAt(0)[3] == 3,
               "get is the entry op's 0x01, then the slot");
 
-        channel.ReplyRaw(std::vector<uint8_t>(nazg::c_ViaReportSize, 0x00));
+        channel.ReplyRaw(std::vector<uint8_t>(via::c_ReportSize, 0x00));
         Run(vial.SetTapDance(5, read));
         const std::vector<uint8_t> sent = channel.RequestAt(1);
         Check(sent[2] == 0x02 && sent[3] == 5, "set is the entry op's 0x02, then the slot");
         Check(std::equal(std::begin(entry), std::end(entry), sent.begin() + 4), "the entry follows, as the board stores it");
 
         // As Nazg models it: 0 is an empty action, and the entry encodes back unchanged.
-        const nazg::TapDance dance = nazg::DecodeTapDance(read, nazg::QmkKeycodeVersion::V0_0_7);
+        const nazg::TapDance dance = vial::DecodeTapDance(read, qmk::KeycodeVersion::V0_0_7);
         Check(dance[nazg::DanceAction::Tap] == nazg::Keycode{ nazg::NamedKey{ "KC_ESC" } } &&
                   dance[nazg::DanceAction::Hold] == nazg::Keycode{ nazg::LayerKey{ nazg::LayerOp::Momentary, 1 } } &&
                   !dance[nazg::DanceAction::TapHold] && dance.tappingTerm == 200,
               "decoded: Esc, L1 held, Caps twice, nothing tapped then held");
-        Check(nazg::EncodeTapDance(dance, nazg::QmkKeycodeVersion::V0_0_7) == read, "and encoded back unchanged");
+        Check(vial::EncodeTapDance(dance, qmk::KeycodeVersion::V0_0_7) == read, "and encoded back unchanged");
 
-        std::vector<uint8_t> refused(nazg::c_ViaReportSize, 0x00);
+        std::vector<uint8_t> refused(via::c_ReportSize, 0x00);
         refused[0] = 0xFF;
         channel.ReplyRaw(refused);
         Check(Throws([&] { Run(vial.GetTapDance(40)); }), "a slot past the count answers a non-zero status");
@@ -208,40 +211,40 @@ namespace
         std::printf("combo get and set\n");
 
         FakeDeviceChannel channel;
-        VialProtocol      vial(channel);
+        vial::Protocol    vial(channel);
 
         // J + K (0x0D, 0x0E) for Esc (0x29); the other two inputs empty.
-        std::vector<uint8_t> reply(nazg::c_ViaReportSize, 0x00);
+        std::vector<uint8_t> reply(via::c_ReportSize, 0x00);
         const uint8_t entry[] = { 0x0D, 0x00,  0x0E, 0x00,  0x00, 0x00,  0x00, 0x00,  0x29, 0x00 };
         std::copy(std::begin(entry), std::end(entry), reply.begin() + 1);
         channel.ReplyRaw(reply);
 
-        const nazg::VialComboEntry read = Run(vial.GetCombo(2));
+        const vial::ComboEntry read = Run(vial.GetCombo(2));
         Check(read.inputs[0] == 0x000D && read.inputs[1] == 0x000E && read.inputs[2] == 0 && read.inputs[3] == 0,
               "the four inputs, an empty one 0");
         Check(read.output == 0x0029, "the output follows them");
         Check(channel.RequestAt(0)[2] == 0x03 && channel.RequestAt(0)[3] == 2, "get is the entry op's 0x03, then the slot");
 
-        channel.ReplyRaw(std::vector<uint8_t>(nazg::c_ViaReportSize, 0x00));
+        channel.ReplyRaw(std::vector<uint8_t>(via::c_ReportSize, 0x00));
         Run(vial.SetCombo(7, read));
         const std::vector<uint8_t> sent = channel.RequestAt(1);
         Check(sent[2] == 0x04 && sent[3] == 7, "set is the entry op's 0x04, then the slot");
         Check(std::equal(std::begin(entry), std::end(entry), sent.begin() + 4), "the entry follows, as the board stores it");
 
-        const nazg::Combo combo = nazg::DecodeCombo(read, nazg::QmkKeycodeVersion::V0_0_7);
+        const nazg::Combo combo = vial::DecodeCombo(read, qmk::KeycodeVersion::V0_0_7);
         Check(combo.MatchedInputs() == std::vector<nazg::Keycode>{ nazg::NamedKey{ "KC_J" }, nazg::NamedKey{ "KC_K" } } &&
                   combo.output == nazg::Keycode{ nazg::NamedKey{ "KC_ESC" } },
               "decoded: J and K for Esc");
-        Check(nazg::EncodeCombo(combo, nazg::QmkKeycodeVersion::V0_0_7) == read, "and encoded back unchanged");
+        Check(vial::EncodeCombo(combo, qmk::KeycodeVersion::V0_0_7) == read, "and encoded back unchanged");
 
         // A gap the board holds stays one, both ways.
-        nazg::VialComboEntry gap = read;
+        vial::ComboEntry gap = read;
         gap.inputs               = { 0x001D, 0x0000, 0x001B, 0x0000 };
-        Check(nazg::DecodeCombo(gap, nazg::QmkKeycodeVersion::V0_0_7).HasGap(), "Z, nothing, X: a gap");
-        Check(nazg::EncodeCombo(nazg::DecodeCombo(gap, nazg::QmkKeycodeVersion::V0_0_7), nazg::QmkKeycodeVersion::V0_0_7) == gap,
+        Check(vial::DecodeCombo(gap, qmk::KeycodeVersion::V0_0_7).HasGap(), "Z, nothing, X: a gap");
+        Check(vial::EncodeCombo(vial::DecodeCombo(gap, qmk::KeycodeVersion::V0_0_7), qmk::KeycodeVersion::V0_0_7) == gap,
               "written back where it was");
 
-        std::vector<uint8_t> refused(nazg::c_ViaReportSize, 0x00);
+        std::vector<uint8_t> refused(via::c_ReportSize, 0x00);
         refused[0] = 0xFF;
         channel.ReplyRaw(refused);
         Check(Throws([&] { Run(vial.GetCombo(40)); }), "a slot past the count answers a non-zero status");
@@ -253,40 +256,40 @@ namespace
         std::printf("key override get and set\n");
 
         FakeDeviceChannel channel;
-        VialProtocol      vial(channel);
+        vial::Protocol    vial(channel);
 
         // Shift + Backspace (0x2A) for Delete (0x4C), every layer, Shift held and hidden either
         // side, not while Ctrl; on, with QMK's three activations.
-        std::vector<uint8_t> reply(nazg::c_ViaReportSize, 0x00);
+        std::vector<uint8_t> reply(via::c_ReportSize, 0x00);
         const uint8_t entry[] = { 0x2A, 0x00,  0x4C, 0x00,  0xFF, 0xFF,  0x22,  0x11,  0x22,  0x87 };
         std::copy(std::begin(entry), std::end(entry), reply.begin() + 1);
         channel.ReplyRaw(reply);
 
-        const nazg::VialKeyOverrideEntry read = Run(vial.GetKeyOverride(3));
+        const vial::KeyOverrideEntry read = Run(vial.GetKeyOverride(3));
         Check(read.trigger == 0x002A && read.replacement == 0x004C && read.layers == 0xFFFF, "the keycodes, then the layers");
         Check(read.triggerMods == 0x22 && read.negativeModMask == 0x11 && read.suppressedMods == 0x22 && read.options == 0x87,
               "the three masks and the options follow");
         Check(channel.RequestAt(0)[2] == 0x05 && channel.RequestAt(0)[3] == 3, "get is the entry op's 0x05, then the slot");
 
-        channel.ReplyRaw(std::vector<uint8_t>(nazg::c_ViaReportSize, 0x00));
+        channel.ReplyRaw(std::vector<uint8_t>(via::c_ReportSize, 0x00));
         Run(vial.SetKeyOverride(9, read));
         const std::vector<uint8_t> sent = channel.RequestAt(1);
         Check(sent[2] == 0x06 && sent[3] == 9, "set is the entry op's 0x06, then the slot");
         Check(std::equal(std::begin(entry), std::end(entry), sent.begin() + 4), "the entry follows, as the board stores it");
 
-        const nazg::KeyOverride decoded = nazg::DecodeKeyOverride(read, nazg::QmkKeycodeVersion::V0_0_7);
+        const nazg::KeyOverride decoded = vial::DecodeKeyOverride(read, qmk::KeycodeVersion::V0_0_7);
         Check(decoded.trigger == nazg::Keycode{ nazg::NamedKey{ "KC_BSPC" } } &&
                   decoded.replacement == nazg::Keycode{ nazg::NamedKey{ "KC_DEL" } } && decoded.IsOn() &&
                   decoded.held == (nazg::Mod::LeftShift | nazg::Mod::RightShift),
               "decoded: Shift + Backspace for Delete, on");
-        Check(nazg::EncodeKeyOverride(decoded, nazg::QmkKeycodeVersion::V0_0_7) == read, "and encoded back unchanged");
+        Check(vial::EncodeKeyOverride(decoded, qmk::KeycodeVersion::V0_0_7) == read, "and encoded back unchanged");
 
-        const nazg::VialKeyOverrideEntry reset{};
-        const nazg::KeyOverride          empty = nazg::DecodeKeyOverride(reset, nazg::QmkKeycodeVersion::V0_0_7);
+        const vial::KeyOverrideEntry reset{};
+        const nazg::KeyOverride      empty = vial::DecodeKeyOverride(reset, qmk::KeycodeVersion::V0_0_7);
         Check(empty.IsEmpty() && !empty.trigger && !empty.replacement, "a reset slot: no key, nothing sent");
-        Check(nazg::EncodeKeyOverride(empty, nazg::QmkKeycodeVersion::V0_0_7) == reset, "written back as zeros");
+        Check(vial::EncodeKeyOverride(empty, qmk::KeycodeVersion::V0_0_7) == reset, "written back as zeros");
 
-        std::vector<uint8_t> refused(nazg::c_ViaReportSize, 0x00);
+        std::vector<uint8_t> refused(via::c_ReportSize, 0x00);
         refused[0] = 0xFF;
         channel.ReplyRaw(refused);
         Check(Throws([&] { Run(vial.GetKeyOverride(40)); }), "a slot past the count answers a non-zero status");
@@ -298,39 +301,39 @@ namespace
         std::printf("alt repeat key get and set\n");
 
         FakeDeviceChannel channel;
-        VialProtocol      vial(channel);
+        vial::Protocol    vial(channel);
 
         // After Ctrl+Z (0x011D), Ctrl+Y (0x011C); Shift allowed either side; on, both ways, left and
         // right alike.
-        std::vector<uint8_t> reply(nazg::c_ViaReportSize, 0x00);
+        std::vector<uint8_t> reply(via::c_ReportSize, 0x00);
         const uint8_t entry[] = { 0x1D, 0x01,  0x1C, 0x01,  0x22,  0x0E };
         std::copy(std::begin(entry), std::end(entry), reply.begin() + 1);
         channel.ReplyRaw(reply);
 
-        const nazg::VialAltRepeatKeyEntry read = Run(vial.GetAltRepeatKey(2));
+        const vial::AltRepeatKeyEntry read = Run(vial.GetAltRepeatKey(2));
         Check(read.keycode == 0x011D && read.altKeycode == 0x011C, "the last key, then the alt key");
         Check(read.allowedMods == 0x22 && read.options == 0x0E, "the allowed modifiers and the options follow");
         Check(channel.RequestAt(0)[2] == 0x07 && channel.RequestAt(0)[3] == 2, "get is the entry op's 0x07, then the slot");
 
-        channel.ReplyRaw(std::vector<uint8_t>(nazg::c_ViaReportSize, 0x00));
+        channel.ReplyRaw(std::vector<uint8_t>(via::c_ReportSize, 0x00));
         Run(vial.SetAltRepeatKey(5, read));
         const std::vector<uint8_t> sent = channel.RequestAt(1);
         Check(sent[2] == 0x08 && sent[3] == 5, "set is the entry op's 0x08, then the slot");
         Check(std::equal(std::begin(entry), std::end(entry), sent.begin() + 4), "the entry follows, as the board stores it");
 
-        const nazg::AltRepeatKey decoded = nazg::DecodeAltRepeatKey(read, nazg::QmkKeycodeVersion::V0_0_7);
+        const nazg::AltRepeatKey decoded = vial::DecodeAltRepeatKey(read, qmk::KeycodeVersion::V0_0_7);
         Check(decoded.lastKey == nazg::Keycode{ nazg::ModifiedKey{ nazg::Mod::LeftCtrl, "KC_Z" } } &&
                   decoded.altKey == nazg::Keycode{ nazg::ModifiedKey{ nazg::Mod::LeftCtrl, "KC_Y" } } && decoded.IsOn() &&
                   decoded.Has(nazg::AltRepeatOption::Bidirectional),
               "decoded: Ctrl+Z, Ctrl+Y, on, both ways");
-        Check(nazg::EncodeAltRepeatKey(decoded, nazg::QmkKeycodeVersion::V0_0_7) == read, "and encoded back unchanged");
+        Check(vial::EncodeAltRepeatKey(decoded, qmk::KeycodeVersion::V0_0_7) == read, "and encoded back unchanged");
 
-        const nazg::VialAltRepeatKeyEntry reset{};
-        const nazg::AltRepeatKey          empty = nazg::DecodeAltRepeatKey(reset, nazg::QmkKeycodeVersion::V0_0_7);
+        const vial::AltRepeatKeyEntry reset{};
+        const nazg::AltRepeatKey      empty = vial::DecodeAltRepeatKey(reset, qmk::KeycodeVersion::V0_0_7);
         Check(empty.IsEmpty() && !empty.lastKey && !empty.altKey, "a reset slot: no key either side");
-        Check(nazg::EncodeAltRepeatKey(empty, nazg::QmkKeycodeVersion::V0_0_7) == reset, "written back as zeros");
+        Check(vial::EncodeAltRepeatKey(empty, qmk::KeycodeVersion::V0_0_7) == reset, "written back as zeros");
 
-        std::vector<uint8_t> refused(nazg::c_ViaReportSize, 0x00);
+        std::vector<uint8_t> refused(via::c_ReportSize, 0x00);
         refused[0] = 0xFF;
         channel.ReplyRaw(refused);
         Check(Throws([&] { Run(vial.GetAltRepeatKey(40)); }), "a slot past the count answers a non-zero status");
@@ -343,10 +346,10 @@ namespace
         std::printf("QMK setting get and set\n");
 
         FakeDeviceChannel channel;
-        VialProtocol      vial(channel);
+        vial::Protocol    vial(channel);
 
         // The request comes back with the status and a u16 written over its start.
-        std::vector<uint8_t> reply(nazg::c_ViaReportSize, 0x00);
+        std::vector<uint8_t> reply(via::c_ReportSize, 0x00);
         reply[0] = 0x00;                    // status
         reply[1] = 0x2C; reply[2] = 0x01;   // 300 ms
         reply[3] = 0x00;                    // the request's id, high byte, left in place
@@ -355,13 +358,13 @@ namespace
         Check(channel.RequestAt(0)[1] == 0x0A && channel.RequestAt(0)[2] == 0x02 && channel.RequestAt(0)[3] == 0x00,
               "get is 0x0A, then the id, little-endian");
 
-        channel.ReplyRaw(std::vector<uint8_t>(nazg::c_ViaReportSize, 0x00));
+        channel.ReplyRaw(std::vector<uint8_t>(via::c_ReportSize, 0x00));
         Run(vial.SetQmkSetting(nazg::QmkSetting::ComboTerm, 45));
         const std::vector<uint8_t> sent = channel.RequestAt(1);
         Check(sent[1] == 0x0B && sent[2] == 0x02 && sent[3] == 0x00, "set is 0x0B, then the id");
         Check(sent[4] == 45 && sent[5] == 0 && sent[6] == 0 && sent[7] == 0, "then the value, little-endian");
 
-        std::vector<uint8_t> refused(nazg::c_ViaReportSize, 0x00);
+        std::vector<uint8_t> refused(via::c_ReportSize, 0x00);
         refused[0] = 0xFF;
         channel.ReplyRaw(refused);
         Check(Throws([&] { Run(vial.GetQmkSetting(0x7777, 2)); }), "a setting the firmware lacks: a non-zero status");
@@ -373,9 +376,9 @@ namespace
         std::printf("QMK settings query\n");
 
         FakeDeviceChannel channel;
-        VialProtocol      vial(channel);
+        vial::Protocol    vial(channel);
 
-        std::vector<uint8_t> reply(nazg::c_ViaReportSize, 0xFF);
+        std::vector<uint8_t> reply(via::c_ReportSize, 0xFF);
         reply[0] = 0x03; reply[1] = 0x00;
         reply[2] = 0x15; reply[3] = 0x01;   // 0x0115: the ids are little-endian
         channel.ReplyRaw(reply);
@@ -385,7 +388,7 @@ namespace
         Check(channel.RequestAt(0)[1] == 0x09 && channel.RequestAt(0)[2] == 0x02 && channel.RequestAt(0)[3] == 0x01,
               "the id to start after, little-endian");
 
-        channel.ReplyRaw(std::vector<uint8_t>(nazg::c_ViaReportSize, 0xFF));
+        channel.ReplyRaw(std::vector<uint8_t>(via::c_ReportSize, 0xFF));
         Check(Run(vial.QueryQmkSettings(0)).empty(), "compiled out: a report of 0xFF, no ids");
     }
 
@@ -396,9 +399,9 @@ namespace
         std::printf("QMK settings reset\n");
 
         FakeDeviceChannel channel;
-        VialProtocol      vial(channel);
+        vial::Protocol    vial(channel);
 
-        std::vector<uint8_t> echo(nazg::c_ViaReportSize, 0x00);
+        std::vector<uint8_t> echo(via::c_ReportSize, 0x00);
         echo[0] = 0xFE;
         echo[1] = 0x0C;
         channel.ReplyRaw(echo);
@@ -414,11 +417,11 @@ namespace
         std::printf("QMK settings listed whole\n");
 
         FakeDeviceChannel channel;
-        VialProtocol      vial(channel);
+        vial::Protocol    vial(channel);
 
         const auto page = [&](uint16_t first, uint16_t last)
         {
-            std::vector<uint8_t> reply(nazg::c_ViaReportSize, 0xFF);
+            std::vector<uint8_t> reply(via::c_ReportSize, 0xFF);
             for (uint16_t id = first; id <= last; ++id)
             {
                 reply[2 * (id - first)]     = static_cast<uint8_t>(id & 0xFF);
@@ -442,10 +445,10 @@ namespace
         std::printf("unlock status\n");
 
         FakeDeviceChannel channel;
-        VialProtocol      vial(channel);
+        vial::Protocol    vial(channel);
 
         // The firmware fills the report with 0xFF, then writes status and combo over it.
-        std::vector<uint8_t> reply(nazg::c_ViaReportSize, 0xFF);
+        std::vector<uint8_t> reply(via::c_ReportSize, 0xFF);
         reply[0] = 0;    // locked
         reply[1] = 1;    // unlock in progress
         reply[2] = 3; reply[3] = 4;
@@ -468,20 +471,20 @@ namespace
         std::printf("unlock commands\n");
 
         FakeDeviceChannel channel;
-        VialProtocol      vial(channel);
+        vial::Protocol    vial(channel);
 
-        std::vector<uint8_t> startEcho(nazg::c_ViaReportSize, 0x00);
+        std::vector<uint8_t> startEcho(via::c_ReportSize, 0x00);
         startEcho[0] = 0xFE;
         startEcho[1] = 0x06;
         channel.ReplyRaw(startEcho);
 
-        std::vector<uint8_t> poll(nazg::c_ViaReportSize, 0x00);
+        std::vector<uint8_t> poll(via::c_ReportSize, 0x00);
         poll[0] = 0;    // not unlocked yet
         poll[1] = 1;    // in progress
         poll[2] = 37;   // steps left
         channel.ReplyRaw(poll);
 
-        std::vector<uint8_t> lockEcho(nazg::c_ViaReportSize, 0x00);
+        std::vector<uint8_t> lockEcho(via::c_ReportSize, 0x00);
         lockEcho[0] = 0xFE;
         lockEcho[1] = 0x08;
         channel.ReplyRaw(lockEcho);
@@ -506,10 +509,10 @@ namespace
         std::printf("unsupported Vial sub-command\n");
 
         FakeDeviceChannel channel;
-        VialProtocol      vial(channel);
+        vial::Protocol    vial(channel);
 
         // Exactly what GetVialEncoder(0, 0) sends: prefix, sub-command, layer, index.
-        std::vector<uint8_t> echo(nazg::c_ViaReportSize, 0x00);
+        std::vector<uint8_t> echo(via::c_ReportSize, 0x00);
         echo[0] = 0xFE;
         echo[1] = 0x03;
         channel.ReplyRaw(echo);
@@ -525,9 +528,9 @@ namespace
         std::printf("detect on an echoing device\n");
 
         FakeDeviceChannel channel;
-        VialProtocol      vial(channel);
+        vial::Protocol    vial(channel);
 
-        std::vector<uint8_t> echo(nazg::c_ViaReportSize, 0x00);
+        std::vector<uint8_t> echo(via::c_ReportSize, 0x00);
         echo[0] = 0xFE;
         echo[1] = 0x00;
         channel.ReplyRaw(echo);
@@ -540,7 +543,7 @@ namespace
         std::printf("encoder\n");
 
         FakeDeviceChannel channel;
-        VialProtocol      vial(channel);
+        vial::Protocol    vial(channel);
 
         channel.Reply({ 0x00, 0x2A, 0x00, 0x2B });
 
@@ -551,13 +554,13 @@ namespace
         Check(channel.RequestCount() == 1, "Vial returns both directions in ONE round trip, unlike VIA");
     }
 
-    // The point of deriving from ViaProtocol: the shared commands are not reimplemented.
+    // The point of deriving from via::Protocol: the shared commands are not reimplemented.
     void TestInheritedViaCommands()
     {
         std::printf("inherited VIA commands\n");
 
         FakeDeviceChannel channel;
-        VialProtocol      vial(channel);
+        vial::Protocol    vial(channel);
 
         channel.Reply({ 0x01, 0x00, 0x09 });
         const uint16_t version = Run(vial.GetProtocolVersion());
@@ -574,14 +577,14 @@ namespace
     {
         std::printf("keycode version from the Vial protocol\n");
 
-        using nazg::QmkKeycodeVersion;
-        using nazg::QmkKeycodeVersionForVial;
+        using qmk::KeycodeVersion;
+        using vial::KeycodeVersionFor;
 
-        Check(QmkKeycodeVersionForVial(6) == QmkKeycodeVersion::V0_0_7,
+        Check(vial::KeycodeVersionFor(6) == qmk::KeycodeVersion::V0_0_7,
               "protocol 6 -- the Model F -- uses vial-qmk's keycodes, 0.0.7");
-        Check(QmkKeycodeVersionForVial(5) == QmkKeycodeVersion::Legacy,
+        Check(vial::KeycodeVersionFor(5) == qmk::KeycodeVersion::Legacy,
               "protocol 5 is pre-renumbering, with TO's ON_PRESS bit as vial-gui's v5 table has it");
-        Check(QmkKeycodeVersionForVial(0) == QmkKeycodeVersion::Legacy, "and so is anything older");
+        Check(vial::KeycodeVersionFor(0) == qmk::KeycodeVersion::Legacy, "and so is anything older");
     }
 
     // What the keycode picker and the lighting policy read after a load: VIA's protocol, Vial's
@@ -592,24 +595,24 @@ namespace
 
         {
             FakeDeviceChannel channel;
-            VialProtocol      vial(channel);
+            vial::Protocol    vial(channel);
 
             channel.Reply({ 0x01, 0x00, 0x09 });   // VIA protocol 9, as vial-qmk always says
             channel.Reply({ 0x06, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x00 });
-            std::vector<uint8_t> counts(nazg::c_ViaReportSize, 0x00);
+            std::vector<uint8_t> counts(via::c_ReportSize, 0x00);
             counts[0]  = 8;      // tap dance
             counts[1]  = 6;      // combos
             counts[2]  = 4;      // key overrides
             counts[3]  = 2;      // alt repeat key
             counts[31] = 0x01;   // Caps Word, no Layer Lock
             channel.ReplyRaw(counts);
-            std::vector<uint8_t> settings(nazg::c_ViaReportSize, 0xFF);   // QMK settings 1 and 2
+            std::vector<uint8_t> settings(via::c_ReportSize, 0xFF);   // QMK settings 1 and 2
             settings[0] = 1; settings[1] = 0;
             settings[2] = 2; settings[3] = 0;
             channel.ReplyRaw(settings);
             channel.Reply({ 0x0C, 16 });   // macros
 
-            const nazg::BoardReport report = Run(nazg::ReadBoardReport(vial));
+            const nazg::BoardReport report = Run(vial::ReadBoardReport(vial));
             Check(report.viaProtocol == 9 && report.isVial && report.vialProtocol == 6, "a Vial 6 board");
             Check(report.tapDanceCount == 8 && report.comboCount == 6 && report.keyOverrideCount == 4 &&
                       report.altRepeatKeyCount == 2,
@@ -621,18 +624,18 @@ namespace
 
         {
             FakeDeviceChannel channel;
-            VialProtocol      vial(channel);
+            vial::Protocol    vial(channel);
 
             channel.Reply({ 0x01, 0x00, 0x05 });   // Vial 5 on VIA 9's numbering
             channel.Reply({ 0x05, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x00 });
-            std::vector<uint8_t> echo(nazg::c_ViaReportSize, 0x00);   // no dynamic entries in this build
+            std::vector<uint8_t> echo(via::c_ReportSize, 0x00);   // no dynamic entries in this build
             echo[0] = 0xFE;
             echo[1] = 0x0D;
             channel.ReplyRaw(echo);
-            channel.ReplyRaw(std::vector<uint8_t>(nazg::c_ViaReportSize, 0xFF));   // QMK settings compiled out
+            channel.ReplyRaw(std::vector<uint8_t>(via::c_ReportSize, 0xFF));   // QMK settings compiled out
             channel.Reply({ 0x0C, 4 });
 
-            const nazg::BoardReport report = Run(nazg::ReadBoardReport(vial));
+            const nazg::BoardReport report = Run(vial::ReadBoardReport(vial));
             Check(report.isVial && report.vialProtocol == 5 && report.tapDanceCount == 0 && !report.capsWord,
                   "a build without entry counts reports none, not an error");
             Check(!report.hasQmkSettings, "QMK settings compiled out: none");
@@ -641,13 +644,13 @@ namespace
 
         {
             FakeDeviceChannel channel;
-            VialProtocol      vial(channel);
+            vial::Protocol    vial(channel);
 
             channel.Reply({ 0x01, 0x00, 0x0C });   // VIA 12
             channel.ReplyUnhandled();              // not Vial
             channel.ReplyUnhandled();              // macros compiled out
 
-            const nazg::BoardReport report = Run(nazg::ReadBoardReport(vial));
+            const nazg::BoardReport report = Run(vial::ReadBoardReport(vial));
             Check(report.viaProtocol == 12 && !report.isVial, "a VIA 12 board");
             Check(report.macroCount == 0, "macros compiled out: none");
         }

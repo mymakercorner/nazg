@@ -82,7 +82,7 @@ namespace nazg
     }
 
     TapDanceSection::TapDanceSection(HidTransport& transport, std::string path, Keyboard& keyboard,
-                                     const LegendSettings& legends, const std::optional<VialUnlockStatus>& lock,
+                                     const LegendSettings& legends, const std::optional<vial::UnlockStatus>& lock,
                                      const bool& advancedTools)
         : m_Transport(transport), m_Path(std::move(path)), m_Keyboard(keyboard), m_Legends(legends), m_Lock(lock),
           m_AdvancedTools(advancedTools)
@@ -133,7 +133,7 @@ namespace nazg
     size_t TapDanceSection::KeysHolding(size_t dance) const
     {
         std::set<std::tuple<int, int, int>> holding;
-        for (const DefinitionKey& key : m_Keyboard.definition.keys)
+        for (const via::DefinitionKey& key : m_Keyboard.definition.keys)
             for (int layer = 0; layer < m_Keyboard.keymap.Layers(); ++layer)
             {
                 const Keycode keycode = m_Keyboard.KeycodeFor(key, static_cast<uint8_t>(layer));
@@ -200,7 +200,7 @@ namespace nazg
     {
         if (!events.hoveredKey)
             return;
-        const DefinitionKey& key = board.keys[*events.hoveredKey].geometry;
+        const via::DefinitionKey& key = board.keys[*events.hoveredKey].geometry;
         for (int layer = 0; layer < m_Keyboard.keymap.Layers(); ++layer)
         {
             const Keycode keycode = m_Keyboard.KeycodeFor(key, static_cast<uint8_t>(layer));
@@ -225,10 +225,10 @@ namespace nazg
         {
             device = co_await m_Transport.Open(m_Path);
             HidDeviceChannel channel(m_Transport, device);
-            VialProtocol     vial(channel);
+            vial::Protocol   vial(channel);
 
             m_Keyboard.tapDances =
-                co_await ReadTapDances(vial, m_Keyboard.report.tapDanceCount, m_Keyboard.keycodeVersion);
+                co_await vial::ReadTapDances(vial, m_Keyboard.report.tapDanceCount, m_Keyboard.keycodeVersion);
             m_Dances   = m_Keyboard.tapDances;
             m_IsLoaded = true;
         }
@@ -249,7 +249,7 @@ namespace nazg
         for (size_t dance = 0; dance < m_Dances.size(); ++dance)
             if (IsChanged(dance))
             {
-                if (!EncodeTapDance(m_Dances[dance], m_Keyboard.keycodeVersion))
+                if (!vial::EncodeTapDance(m_Dances[dance], m_Keyboard.keycodeVersion))
                 {
                     m_Message   = "TD " + std::to_string(dance) + " holds a key this board cannot store";
                     m_IsWarning = true;
@@ -269,17 +269,17 @@ namespace nazg
         {
             device = co_await m_Transport.Open(m_Path);
             HidDeviceChannel channel(m_Transport, device);
-            VialProtocol     vial(channel);
+            vial::Protocol   vial(channel);
 
             // Each slot written, then read back: what the board holds now, whatever was asked.
             std::vector<std::string> notKept;
             for (size_t dance : dances)
             {
-                const VialTapDanceEntry entry = *EncodeTapDance(m_Dances[dance], m_Keyboard.keycodeVersion);
-                const uint8_t           index = static_cast<uint8_t>(dance);
+                const vial::TapDanceEntry entry = *vial::EncodeTapDance(m_Dances[dance], m_Keyboard.keycodeVersion);
+                const uint8_t             index = static_cast<uint8_t>(dance);
                 co_await vial.SetTapDance(index, entry);
-                const VialTapDanceEntry stored = co_await vial.GetTapDance(index);
-                m_Keyboard.tapDances[dance]    = DecodeTapDance(stored, m_Keyboard.keycodeVersion);
+                const vial::TapDanceEntry stored = co_await vial.GetTapDance(index);
+                m_Keyboard.tapDances[dance]    = vial::DecodeTapDance(stored, m_Keyboard.keycodeVersion);
                 if (stored == entry)
                     m_Dances[dance] = m_Keyboard.tapDances[dance];
                 else

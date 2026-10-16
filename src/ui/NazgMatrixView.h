@@ -116,13 +116,13 @@ namespace nazg
         std::string                m_Outside;  // FindInDefinition()'s findings, as positions
         std::string                m_Stacked;
 
-        Live               m_Live = Live::Off;
-        std::string        m_LiveMessage;
-        bool               m_WantsWiring = false;   // chosen while a request was in flight
-        DeviceId           m_Device      = c_InvalidDevice;
-        SwitchMatrixFormat m_Format      = SwitchMatrixFormat::Paged;
-        MatrixLive         m_Readings;
-        Task<void>         m_Request;
-        double             m_LastPoll = 0.0;   // ImGui::GetTime() of the last poll sent
+        Live                    m_Live = Live::Off;
+        std::string             m_LiveMessage;
+        bool                    m_WantsWiring = false;   // chosen while a request was in flight
+        DeviceId                m_Device      = c_InvalidDevice;
+        via::SwitchMatrixFormat m_Format      = via::SwitchMatrixFormat::Paged;
+        MatrixLive              m_Readings;
+        Task<void>              m_Request;
+        double                  m_LastPoll = 0.0;   // ImGui::GetTime() of the last poll sent
     };
 }

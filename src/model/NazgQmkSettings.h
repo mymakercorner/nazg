@@ -130,5 +130,5 @@ namespace nazg
     // the rows' stagger, and the key itself is either; any other at its widest gap between key
     // centres. Positions before rotation, as QMK's layouts give them. A guess: the firmware's
     // build used its own layout, and may say a key's hand outright.
-    [[nodiscard]] std::vector<char> GuessHands(const std::vector<DefinitionKey>& keys);
+    [[nodiscard]] std::vector<char> GuessHands(const std::vector<via::DefinitionKey>& keys);
 }

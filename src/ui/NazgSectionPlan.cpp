@@ -17,7 +17,7 @@ namespace nazg
                                                          "qmk_rgb_matrix", "qmk_led_matrix" };
         constexpr std::string_view c_AudioMenu       = "qmk_audio";
 
-        bool HasLighting(const KeyboardDefinition& definition)
+        bool HasLighting(const via::KeyboardDefinition& definition)
         {
             if (!definition.lighting.empty() && definition.lighting != "none")
                 return true;
@@ -80,8 +80,8 @@ namespace nazg
 
     std::vector<PlannedSection> PlanSections(const Keyboard& keyboard)
     {
-        const KeyboardDefinition& definition = keyboard.definition;
-        const BoardReport&        report     = keyboard.report;
+        const via::KeyboardDefinition& definition = keyboard.definition;
+        const BoardReport&             report     = keyboard.report;
 
         std::vector<PlannedSection> sections;
         const auto add = [&](SectionKind kind, const char* name, Icon icon)
@@ -117,13 +117,13 @@ namespace nazg
         if (!report.isVial)
             for (size_t index = 0; index < definition.customMenus.size(); ++index)
             {
-                const CustomMenu& menu  = definition.customMenus[index];
-                const bool        shown = std::all_of(menu.conditions.begin(), menu.conditions.end(), [&](const std::string& condition)
+                const via::CustomMenu& menu  = definition.customMenus[index];
+                const bool             shown = std::all_of(menu.conditions.begin(), menu.conditions.end(), [&](const std::string& condition)
                 {
-                    const std::vector<std::string> names = NamesIn(condition);
+                    const std::vector<std::string> names = via::NamesIn(condition);
                     const bool firmwareOnly = !names.empty() && std::all_of(names.begin(), names.end(), [](const std::string& name)
-                                                                            { return name == c_FirmwareVersionName; });
-                    return !firmwareOnly || ConditionHolds(condition, {}, report.firmwareVersion);
+                                                                            { return name == via::c_FirmwareVersionName; });
+                    return !firmwareOnly || via::ConditionHolds(condition, {}, report.firmwareVersion);
                 });
                 if (shown)
                     sections.push_back({ SectionKind::CustomMenu, SectionGroup::Board, menu.label, IconOfMenu(menu.label), index });

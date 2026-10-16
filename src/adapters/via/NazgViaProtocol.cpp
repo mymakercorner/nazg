@@ -8,7 +8,7 @@
 
 #include "adapters/NazgByteOrder.h"
 
-namespace nazg
+namespace nazg::via
 {
     namespace
     {
@@ -21,7 +21,7 @@ namespace nazg
         }
     }
 
-    SwitchMatrixFormat SwitchMatrixFormatForVia(uint16_t viaProtocol) noexcept
+    SwitchMatrixFormat SwitchMatrixFormatFor(uint16_t viaProtocol) noexcept
     {
         return viaProtocol >= 12 ? SwitchMatrixFormat::Paged : SwitchMatrixFormat::Whole;
     }
@@ -41,11 +41,11 @@ namespace nazg
         return index < bytes.size() && ((bytes[index] >> (column % 8u)) & 1u) != 0;
     }
 
-    std::vector<uint8_t> ViaProtocol::MakeFrame(uint8_t command, std::initializer_list<uint8_t> arguments)
+    std::vector<uint8_t> Protocol::MakeFrame(uint8_t command, std::initializer_list<uint8_t> arguments)
     {
         // Always the full 32 bytes, zero-padded: QMK's raw HID endpoint takes exactly
         // RAW_EPSIZE and a short write would be rejected by the host stack.
-        std::vector<uint8_t> frame(c_ViaReportSize, 0x00);
+        std::vector<uint8_t> frame(c_ReportSize, 0x00);
         frame[0] = command;
 
         size_t index = 1;
@@ -55,20 +55,20 @@ namespace nazg
         return frame;
     }
 
-    Task<std::vector<uint8_t>> ViaProtocol::Send(ViaCommand command, std::initializer_list<uint8_t> arguments)
+    Task<std::vector<uint8_t>> Protocol::Send(Command command, std::initializer_list<uint8_t> arguments)
     {
         co_return co_await SendFrame(MakeFrame(static_cast<uint8_t>(command), arguments), arguments.size() > 0);
     }
 
-    Task<std::vector<uint8_t>> ViaProtocol::SendFrame(std::vector<uint8_t> frame, bool hasArguments)
+    Task<std::vector<uint8_t>> Protocol::SendFrame(std::vector<uint8_t> frame, bool hasArguments)
     {
-        const uint8_t    commandId = frame[0];
-        const ViaCommand command   = static_cast<ViaCommand>(commandId);
-        const uint8_t    subId     = frame[1];
+        const uint8_t commandId = frame[0];
+        const Command command   = static_cast<Command>(commandId);
+        const uint8_t subId     = frame[1];
 
         std::vector<uint8_t> reply = co_await m_Channel.Request(std::move(frame));
 
-        if (reply.size() < c_ViaReportSize)
+        if (reply.size() < c_ReportSize)
             throw ProtocolError("short reply to command " + Hex(commandId) + ": " +
                                 std::to_string(reply.size()) + " bytes");
 
@@ -76,7 +76,7 @@ namespace nazg
         // it does not recognise the command -- or when the command was compiled out,
         // or when the command is known but its sub-id is not. All three arrive
         // identically, so the message names the sub-id too rather than guessing which.
-        if (reply[0] == static_cast<uint8_t>(ViaCommand::Unhandled) && command != ViaCommand::Unhandled)
+        if (reply[0] == static_cast<uint8_t>(Command::Unhandled) && command != Command::Unhandled)
         {
             std::string what = "command " + Hex(commandId);
             if (hasArguments)
@@ -91,37 +91,37 @@ namespace nazg
         co_return reply;
     }
 
-    Task<bool> ViaProtocol::Supports(ViaCommand command, std::initializer_list<uint8_t> arguments)
+    Task<bool> Protocol::Supports(Command command, std::initializer_list<uint8_t> arguments)
     {
         std::vector<uint8_t> reply = co_await m_Channel.Request(MakeFrame(static_cast<uint8_t>(command), arguments));
 
-        co_return reply.size() >= c_ViaReportSize &&
+        co_return reply.size() >= c_ReportSize &&
                   reply[0] == static_cast<uint8_t>(command);
     }
 
-    Task<uint16_t> ViaProtocol::GetProtocolVersion()
+    Task<uint16_t> Protocol::GetProtocolVersion()
     {
-        std::vector<uint8_t> reply = co_await Send(ViaCommand::GetProtocolVersion, {});
+        std::vector<uint8_t> reply = co_await Send(Command::GetProtocolVersion, {});
         co_return ReadBigEndian16(reply, 1);
     }
 
-    Task<uint32_t> ViaProtocol::GetKeyboardValue(ViaKeyboardValue value)
+    Task<uint32_t> Protocol::GetKeyboardValue(KeyboardValue value)
     {
-        std::vector<uint8_t> reply = co_await Send(ViaCommand::GetKeyboardValue, { static_cast<uint8_t>(value) });
+        std::vector<uint8_t> reply = co_await Send(Command::GetKeyboardValue, { static_cast<uint8_t>(value) });
         co_return ReadBigEndian32(reply, 2);
     }
 
-    Task<void> ViaProtocol::SetKeyboardValue(ViaKeyboardValue value, uint32_t data)
+    Task<void> Protocol::SetKeyboardValue(KeyboardValue value, uint32_t data)
     {
-        co_await Send(ViaCommand::SetKeyboardValue,
+        co_await Send(Command::SetKeyboardValue,
                       { static_cast<uint8_t>(value), static_cast<uint8_t>(data >> 24), static_cast<uint8_t>(data >> 16),
                         static_cast<uint8_t>(data >> 8), static_cast<uint8_t>(data) });
     }
 
-    Task<SwitchMatrixState> ViaProtocol::GetSwitchMatrixState(SwitchMatrixFormat format, uint8_t rows,
-                                                              uint8_t columns)
+    Task<SwitchMatrixState> Protocol::GetSwitchMatrixState(SwitchMatrixFormat format, uint8_t rows,
+                                                           uint8_t columns)
     {
-        const uint8_t id       = static_cast<uint8_t>(ViaKeyboardValue::SwitchMatrixState);
+        const uint8_t id       = static_cast<uint8_t>(KeyboardValue::SwitchMatrixState);
         const size_t  rowBytes = (columns + 7u) / 8u;
 
         SwitchMatrixState state;
@@ -131,7 +131,7 @@ namespace nazg
 
         if (format == SwitchMatrixFormat::Whole)
         {
-            std::vector<uint8_t> reply = co_await Send(ViaCommand::GetKeyboardValue, { id });
+            std::vector<uint8_t> reply = co_await Send(Command::GetKeyboardValue, { id });
 
             const size_t length = std::min(rows * rowBytes, reply.size() - 2);
             state.bytes.assign(reply.begin() + 2, reply.begin() + 2 + length);
@@ -139,10 +139,10 @@ namespace nazg
             co_return state;
         }
 
-        const uint8_t rowsPerReply = static_cast<uint8_t>(std::max<size_t>(1, c_ViaBufferChunk / rowBytes));
+        const uint8_t rowsPerReply = static_cast<uint8_t>(std::max<size_t>(1, c_BufferChunk / rowBytes));
         for (uint8_t first = 0; first < rows; first = static_cast<uint8_t>(first + rowsPerReply))
         {
-            std::vector<uint8_t> reply = co_await Send(ViaCommand::GetKeyboardValue, { id, first });
+            std::vector<uint8_t> reply = co_await Send(Command::GetKeyboardValue, { id, first });
 
             const size_t count  = std::min<size_t>(rowsPerReply, rows - first);
             const size_t length = std::min(count * rowBytes, reply.size() - 3);
@@ -152,69 +152,69 @@ namespace nazg
         co_return state;
     }
 
-    Task<uint8_t> ViaProtocol::GetLayerCount()
+    Task<uint8_t> Protocol::GetLayerCount()
     {
-        std::vector<uint8_t> reply = co_await Send(ViaCommand::DynamicKeymapGetLayerCount, {});
+        std::vector<uint8_t> reply = co_await Send(Command::DynamicKeymapGetLayerCount, {});
         co_return reply[1];
     }
 
-    Task<uint16_t> ViaProtocol::GetKeycode(uint8_t layer, uint8_t row, uint8_t column)
+    Task<uint16_t> Protocol::GetKeycode(uint8_t layer, uint8_t row, uint8_t column)
     {
-        std::vector<uint8_t> reply = co_await Send(ViaCommand::DynamicKeymapGetKeycode, { layer, row, column });
+        std::vector<uint8_t> reply = co_await Send(Command::DynamicKeymapGetKeycode, { layer, row, column });
         co_return ReadBigEndian16(reply, 4);
     }
 
-    Task<void> ViaProtocol::SetKeycode(uint8_t layer, uint8_t row, uint8_t column, uint16_t keycode)
+    Task<void> Protocol::SetKeycode(uint8_t layer, uint8_t row, uint8_t column, uint16_t keycode)
     {
-        co_await Send(ViaCommand::DynamicKeymapSetKeycode,
+        co_await Send(Command::DynamicKeymapSetKeycode,
                       { layer, row, column,
                         static_cast<uint8_t>(keycode >> 8), static_cast<uint8_t>(keycode & 0xFF) });
     }
 
-    Task<uint16_t> ViaProtocol::GetEncoder(uint8_t layer, uint8_t index, bool clockwise)
+    Task<uint16_t> Protocol::GetEncoder(uint8_t layer, uint8_t index, bool clockwise)
     {
         std::vector<uint8_t> reply =
-            co_await Send(ViaCommand::DynamicKeymapGetEncoder, { layer, index, static_cast<uint8_t>(clockwise ? 1 : 0) });
+            co_await Send(Command::DynamicKeymapGetEncoder, { layer, index, static_cast<uint8_t>(clockwise ? 1 : 0) });
         co_return ReadBigEndian16(reply, 4);
     }
 
-    Task<void> ViaProtocol::SetEncoder(uint8_t layer, uint8_t index, bool clockwise, uint16_t keycode)
+    Task<void> Protocol::SetEncoder(uint8_t layer, uint8_t index, bool clockwise, uint16_t keycode)
     {
-        co_await Send(ViaCommand::DynamicKeymapSetEncoder,
+        co_await Send(Command::DynamicKeymapSetEncoder,
                       { layer, index, static_cast<uint8_t>(clockwise ? 1 : 0), static_cast<uint8_t>(keycode >> 8),
                         static_cast<uint8_t>(keycode & 0xFF) });
     }
 
-    Task<uint8_t> ViaProtocol::GetMacroCount()
+    Task<uint8_t> Protocol::GetMacroCount()
     {
-        std::vector<uint8_t> reply = co_await Send(ViaCommand::MacroGetCount, {});
+        std::vector<uint8_t> reply = co_await Send(Command::MacroGetCount, {});
         co_return reply[1];
     }
 
-    Task<uint16_t> ViaProtocol::GetMacroBufferSize()
+    Task<uint16_t> Protocol::GetMacroBufferSize()
     {
-        std::vector<uint8_t> reply = co_await Send(ViaCommand::MacroGetBufferSize, {});
+        std::vector<uint8_t> reply = co_await Send(Command::MacroGetBufferSize, {});
         co_return ReadBigEndian16(reply, 1);
     }
 
-    Task<std::vector<uint8_t>> ViaProtocol::GetKeymapBuffer(uint16_t offset, uint16_t length)
+    Task<std::vector<uint8_t>> Protocol::GetKeymapBuffer(uint16_t offset, uint16_t length)
     {
-        co_return co_await ReadChunked(ViaCommand::DynamicKeymapGetBuffer, offset, length);
+        co_return co_await ReadChunked(Command::DynamicKeymapGetBuffer, offset, length);
     }
 
-    Task<std::vector<uint8_t>> ViaProtocol::GetMacroBuffer(uint16_t offset, uint16_t length)
+    Task<std::vector<uint8_t>> Protocol::GetMacroBuffer(uint16_t offset, uint16_t length)
     {
-        co_return co_await ReadChunked(ViaCommand::MacroGetBuffer, offset, length);
+        co_return co_await ReadChunked(Command::MacroGetBuffer, offset, length);
     }
 
-    Task<void> ViaProtocol::SetMacroBuffer(uint16_t offset, const std::vector<uint8_t>& bytes)
+    Task<void> Protocol::SetMacroBuffer(uint16_t offset, const std::vector<uint8_t>& bytes)
     {
         for (size_t done = 0; done < bytes.size();)
         {
             const uint16_t position = static_cast<uint16_t>(offset + done);
-            const size_t   size     = std::min<size_t>(c_ViaBufferChunk, bytes.size() - done);
+            const size_t   size     = std::min<size_t>(c_BufferChunk, bytes.size() - done);
 
-            std::vector<uint8_t> frame = MakeFrame(static_cast<uint8_t>(ViaCommand::MacroSetBuffer),
+            std::vector<uint8_t> frame = MakeFrame(static_cast<uint8_t>(Command::MacroSetBuffer),
                                                    { static_cast<uint8_t>(position >> 8),
                                                      static_cast<uint8_t>(position & 0xFF),
                                                      static_cast<uint8_t>(size) });
@@ -227,10 +227,10 @@ namespace nazg
     namespace
     {
         // A custom value frame: the command, the channel when there is one, the value id, then `rest`.
-        std::vector<uint8_t> CustomFrame(ViaCommand command, std::optional<uint8_t> channel, uint8_t valueId,
+        std::vector<uint8_t> CustomFrame(Command command, std::optional<uint8_t> channel, uint8_t valueId,
                                          const std::vector<uint8_t>& rest)
         {
-            std::vector<uint8_t> frame(c_ViaReportSize, 0x00);
+            std::vector<uint8_t> frame(c_ReportSize, 0x00);
             frame[0]     = static_cast<uint8_t>(command);
             size_t index = 1;
             if (channel)
@@ -243,36 +243,36 @@ namespace nazg
         }
     }
 
-    Task<std::vector<uint8_t>> ViaProtocol::GetCustomValue(std::optional<uint8_t> channel, uint8_t valueId,
-                                                           std::vector<uint8_t> arguments, size_t length)
+    Task<std::vector<uint8_t>> Protocol::GetCustomValue(std::optional<uint8_t> channel, uint8_t valueId,
+                                                        std::vector<uint8_t> arguments, size_t length)
     {
-        const std::vector<uint8_t> reply = co_await SendFrame(CustomFrame(ViaCommand::CustomGetValue, channel, valueId, arguments),
+        const std::vector<uint8_t> reply = co_await SendFrame(CustomFrame(Command::CustomGetValue, channel, valueId, arguments),
                                                               true);
         const size_t first = channel ? 3 : 2;
         co_return std::vector<uint8_t>(reply.begin() + first, reply.begin() + std::min(reply.size(), first + length));
     }
 
-    Task<void> ViaProtocol::SetCustomValue(std::optional<uint8_t> channel, uint8_t valueId, const std::vector<uint8_t>& value)
+    Task<void> Protocol::SetCustomValue(std::optional<uint8_t> channel, uint8_t valueId, const std::vector<uint8_t>& value)
     {
-        co_await SendFrame(CustomFrame(ViaCommand::CustomSetValue, channel, valueId, value), true);
+        co_await SendFrame(CustomFrame(Command::CustomSetValue, channel, valueId, value), true);
     }
 
-    Task<void> ViaProtocol::SaveCustomValues(std::optional<uint8_t> channel)
+    Task<void> Protocol::SaveCustomValues(std::optional<uint8_t> channel)
     {
-        std::vector<uint8_t> frame(c_ViaReportSize, 0x00);
-        frame[0] = static_cast<uint8_t>(ViaCommand::CustomSave);
+        std::vector<uint8_t> frame(c_ReportSize, 0x00);
+        frame[0] = static_cast<uint8_t>(Command::CustomSave);
         if (channel)
             frame[1] = *channel;
         co_await SendFrame(std::move(frame), channel.has_value());
     }
 
-    Task<std::vector<uint8_t>> ViaProtocol::ReadMacros(uint8_t count, uint16_t bufferSize)
+    Task<std::vector<uint8_t>> Protocol::ReadMacros(uint8_t count, uint16_t bufferSize)
     {
         std::vector<uint8_t> bytes;
         uint8_t              seen = 0;
         while (seen < count && bytes.size() < bufferSize)
         {
-            const uint16_t wanted = std::min<uint16_t>(c_ViaBufferChunk, static_cast<uint16_t>(bufferSize - bytes.size()));
+            const uint16_t wanted = std::min<uint16_t>(c_BufferChunk, static_cast<uint16_t>(bufferSize - bytes.size()));
             std::vector<uint8_t> chunk = co_await GetMacroBuffer(static_cast<uint16_t>(bytes.size()), wanted);
             for (uint8_t byte : chunk)
             {
@@ -284,8 +284,8 @@ namespace nazg
         co_return bytes;
     }
 
-    Task<void> ViaProtocol::WriteMacros(const std::vector<uint8_t>& stored, const std::vector<uint8_t>& bytes,
-                                        uint16_t bufferSize)
+    Task<void> Protocol::WriteMacros(const std::vector<uint8_t>& stored, const std::vector<uint8_t>& bytes,
+                                     uint16_t bufferSize)
     {
         if (bytes.size() > bufferSize)
             throw ProtocolError("the macros need " + std::to_string(bytes.size()) + " bytes, the board has " +
@@ -304,7 +304,7 @@ namespace nazg
         co_await SetMacroBuffer(last, { 0x00 });
     }
 
-    Task<std::vector<uint8_t>> ViaProtocol::ReadChunked(ViaCommand command, uint16_t offset, uint16_t length)
+    Task<std::vector<uint8_t>> Protocol::ReadChunked(Command command, uint16_t offset, uint16_t length)
     {
         std::vector<uint8_t> out;
         out.reserve(length);
@@ -314,7 +314,7 @@ namespace nazg
         while (out.size() < length)
         {
             const uint16_t position = static_cast<uint16_t>(offset + out.size());
-            const uint16_t wanted   = std::min<uint16_t>(c_ViaBufferChunk,
+            const uint16_t wanted   = std::min<uint16_t>(c_BufferChunk,
                                                          static_cast<uint16_t>(length - out.size()));
 
             std::vector<uint8_t> reply = co_await Send(command,

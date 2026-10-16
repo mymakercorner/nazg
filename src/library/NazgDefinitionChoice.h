@@ -99,10 +99,10 @@ namespace nazg
     // A definition that could draw a board, parsed, with where it came from.
     struct DefinitionCandidate
     {
-        DefinitionRef      ref;
-        KeyboardDefinition definition;
-        std::string        origin;   // a user definition's: where it was imported from; a community one's: its publisher
-        std::string        status;   // a community definition's: "unverified" -- from its publisher's file -- or "verified"
+        DefinitionRef           ref;
+        via::KeyboardDefinition definition;
+        std::string             origin;   // a user definition's: where it was imported from; a community one's: its publisher
+        std::string             status;   // a community definition's: "unverified" -- from its publisher's file -- or "verified"
     };
 
     // Puts candidates in the order a picker offers them: user definitions, then community

@@ -16,6 +16,8 @@
 #include "async/NazgTask.h"
 #include "transport/NazgDeviceChannel.h"
 
+namespace via = nazg::via;
+
 class FakeDeviceChannel : public nazg::DeviceChannel
 {
 public:
@@ -23,7 +25,7 @@ public:
     // spells out the bytes it cares about.
     void Reply(std::vector<uint8_t> reply)
     {
-        reply.resize(nazg::c_ViaReportSize, 0x00);
+        reply.resize(via::c_ReportSize, 0x00);
         m_Replies.push_back(std::move(reply));
     }
 

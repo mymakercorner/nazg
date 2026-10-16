@@ -44,8 +44,8 @@ namespace nazg
         // What waits to go to the board: a setting written and stored, or the song played.
         struct PendingWrite
         {
-            std::optional<AudioSetting> setting;   // none: play
-            bool                        value = false;
+            std::optional<via::AudioSetting> setting;   // none: play
+            bool                             value = false;
         };
 
         void DrawLines();
@@ -60,7 +60,7 @@ namespace nazg
         Keyboard&             m_Keyboard;
         const LegendSettings& m_Legends;
 
-        AudioValues m_Values;   // as the board holds them, or as being written
+        via::AudioValues m_Values;   // as the board holds them, or as being written
 
         bool        m_IsLoaded  = false;
         bool        m_IsStale   = false;   // shown again since read: read again
@@ -72,7 +72,7 @@ namespace nazg
         std::optional<PendingWrite> m_Pending;
 
         // The line under the pointer last frame, for the board, and this frame's.
-        std::optional<AudioSetting> m_Hovered;
-        std::optional<AudioSetting> m_HoveredNow;
+        std::optional<via::AudioSetting> m_Hovered;
+        std::optional<via::AudioSetting> m_HoveredNow;
     };
 }

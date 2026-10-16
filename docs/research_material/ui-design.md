@@ -1241,7 +1241,7 @@ and VIA do, hover saying what it needs. A tab left with no group is not shown.
 - **The definition parser keeps `customKeycodes`** (name, title, short name) for Custom's names,
   and Vial's `midi` field, should MIDI come to be gated on it (see "Open points").
 - **What the board reports reaches the picker**: Vial's entry counts and feature bits
-  (`VialEntryCounts`, already read), the macro count (`GetMacroCount()`), the layer count, the
+  (`vial::EntryCounts`, already read), the macro count (`GetMacroCount()`), the layer count, the
   keycode version, the lighting state.
 - **The splitter** in `NazgWorkspace`, in place of `c_BoardMaxShare`, its board height in `imgui.ini`.
 - **The Settings screen** gains the after-a-pick preference.
@@ -1469,7 +1469,7 @@ What the firmware does, from vial-qmk's `quantum/vial.c` (`dance_step`, `on_danc
 
 The section:
 
-- **In the column** when the board reports tap dances (`VialEntryCounts::tapDance` above zero);
+- **In the column** when the board reports tap dances (`vial::EntryCounts::tapDance` above zero);
   **the strip holds the slots**, TD 0 to the count, an empty one -- four actions empty -- outlined and unfilled. **Solid outlines, not dashes** (Rico, 2026-10-10, after seeing both sections built: dashes added little to see and many lines to draw) -- the same for Macros' empty slots.
 - **The board stays drawn**, the keys holding a tap dance marked, the selected one's lit, "L1"
   when on another layer -- as in Macros.
@@ -1563,7 +1563,7 @@ Decided with Rico 2026-10-10 on the mockup `ui-design/combos-section.html` -- th
 (Vial 6, 32 slots) and the Corne (crkbd's Vial definition, rotated thumbs, as an RP2040 build
 with combos on and no QMK Settings):
 
-- **In the column** when the board reports combos (`VialEntryCounts::combo` above zero); **the
+- **In the column** when the board reports combos (`vial::EntryCounts::combo` above zero); **the
   strip holds the slots, numbered** -- C 0 to the count, an empty one outlined, as Tap Dance
   (Rico). Set aside: the strip named by each combo's keys ("J+K", the empty slots folded into
   one "+ New"), and a list of the combos in the panel with no strip.
@@ -1648,7 +1648,7 @@ says what a slot does, nothing marks a used slot, and any keycode is offered as 
 Decided with Rico 2026-10-10 on the mockup `ui-design/key-overrides-section.html` -- the Model F
 B104 (Vial 6, 32 slots) and the Corne:
 
-- **In the column** when the board reports key overrides (`VialEntryCounts::keyOverride` above
+- **In the column** when the board reports key overrides (`vial::EntryCounts::keyOverride` above
   zero); **the strip holds the slots, numbered** -- KO 0 to the count, an empty one outlined, an
   override off struck through. Set aside: the strip named by each override's keys.
 - **The board shows the selected override** (Rico): the keys sending its key on its layers lit
@@ -1736,7 +1736,7 @@ Decided with Rico 2026-10-10 on the mockup `ui-design/alt-repeat-key-section.htm
 with Repeat and Alt Repeat on its thumbs, and the Model F B104 with no Alt Repeat key (32 slots,
 as it would report rebuilt on today's vial-qmk):
 
-- **In the column** when the board reports alt repeat slots (`VialEntryCounts::altRepeatKey`
+- **In the column** when the board reports alt repeat slots (`vial::EntryCounts::altRepeatKey`
   above zero) -- **kept there though few use it** (Rico, 2026-10-10: not hidden until an Alt
   Repeat key or an entry is in use); **the strip holds the slots, numbered** -- AR 0 to the count, an empty one
   outlined, an entry off struck through, as Key Overrides. Set aside: named by their keys.

@@ -94,7 +94,7 @@ namespace nazg
             // Past the sixteen bits, only "every layer" takes them.
             if (layer < 16 ? (layers & (1u << layer)) == 0 : layers != 0xFFFF)
                 continue;
-            for (const DefinitionKey& key : keyboard.definition.keys)
+            for (const via::DefinitionKey& key : keyboard.definition.keys)
                 if (key.IsSwitch() && keyboard.IsKeyVisible(key) &&
                     keyboard.KeycodeFor(key, static_cast<uint8_t>(layer)) == keycode)
                     return static_cast<uint8_t>(layer);
@@ -107,7 +107,7 @@ namespace nazg
         const auto* named = std::get_if<NamedKey>(&keycode);
         if (!named || LayerSending(keyboard, keycode))
             return std::nullopt;
-        for (const DefinitionKey& key : keyboard.definition.keys)
+        for (const via::DefinitionKey& key : keyboard.definition.keys)
         {
             if (!key.IsSwitch() || !keyboard.IsKeyVisible(key))
                 continue;

@@ -14,7 +14,7 @@ namespace nazg
 {
     namespace
     {
-        using Kind = MacroAction::Kind;
+        using Kind = via::MacroAction::Kind;
 
         constexpr uint32_t c_LeftShift = 0xE1;   // KC_LSFT
         constexpr uint32_t c_RightAlt  = 0xE6;   // KC_RALT
@@ -93,9 +93,9 @@ namespace nazg
             return std::nullopt;
         }
 
-        std::optional<uint16_t> ValueOf(std::string_view name, QmkKeycodeVersion version)
+        std::optional<uint16_t> ValueOf(std::string_view name, qmk::KeycodeVersion version)
         {
-            const QmkKeycode* found = FindQmkKeycodeByName(name, version);
+            const qmk::KeycodeEntry* found = qmk::FindKeycodeByName(name, version);
             if (!found)
                 return std::nullopt;
             return found->value;
@@ -160,19 +160,19 @@ namespace nazg
             return stroke;
         }
 
-        bool IsAction(const MacroActions& actions, size_t at, Kind kind, uint32_t value)
+        bool IsAction(const via::MacroActions& actions, size_t at, Kind kind, uint32_t value)
         {
             return at < actions.size() && actions[at].kind == kind && actions[at].value == value;
         }
 
-        bool IsAction(const MacroActions& actions, size_t at, Kind kind)
+        bool IsAction(const via::MacroActions& actions, size_t at, Kind kind)
         {
             return at < actions.size() && actions[at].kind == kind;
         }
 
         // Right Alt pressed around taps -- with Shift pressed around some -- the way AltGr text is
         // written where keys are 8-bit. The index after it, or nothing.
-        std::optional<size_t> ReadAltGrRun(const MacroActions& actions, size_t at, const MacroContext& context,
+        std::optional<size_t> ReadAltGrRun(const via::MacroActions& actions, size_t at, const MacroContext& context,
                                            std::vector<HostStroke>& strokes)
         {
             if (!IsAction(actions, at, Kind::Press, c_RightAlt))
@@ -182,7 +182,7 @@ namespace nazg
             {
                 if (IsAction(actions, next, Kind::Tap))
                 {
-                    const Keycode key = DecodeQmkKeycode(static_cast<uint16_t>(actions[next].value), context.version);
+                    const Keycode key = qmk::DecodeKeycode(static_cast<uint16_t>(actions[next].value), context.version);
                     const NamedKey* named = std::get_if<NamedKey>(&key);
                     if (!named || !TypedBy({ named->name, 2 }, context.host))
                         return std::nullopt;
@@ -192,7 +192,7 @@ namespace nazg
                 else if (IsAction(actions, next, Kind::Press, c_LeftShift) && IsAction(actions, next + 1, Kind::Tap) &&
                          IsAction(actions, next + 2, Kind::Release, c_LeftShift))
                 {
-                    const Keycode key = DecodeQmkKeycode(static_cast<uint16_t>(actions[next + 1].value), context.version);
+                    const Keycode key = qmk::DecodeKeycode(static_cast<uint16_t>(actions[next + 1].value), context.version);
                     const NamedKey* named = std::get_if<NamedKey>(&key);
                     if (!named || !TypedBy({ named->name, 3 }, context.host))
                         return std::nullopt;
@@ -211,7 +211,7 @@ namespace nazg
 
         // Modifiers pressed, one key tapped -- or pressed and released -- the modifiers released in
         // reverse: VIA's chord, and how a key sent with modifiers is written where keys are 8-bit.
-        std::optional<size_t> ReadChord(const MacroActions& actions, size_t at, const MacroContext& context,
+        std::optional<size_t> ReadChord(const via::MacroActions& actions, size_t at, const MacroContext& context,
                                         Keycode& keycode)
         {
             std::vector<uint32_t> held;
@@ -246,7 +246,7 @@ namespace nazg
                 ++next;
             }
 
-            const Keycode decoded = DecodeQmkKeycode(static_cast<uint16_t>(key), context.version);
+            const Keycode decoded = qmk::DecodeKeycode(static_cast<uint16_t>(key), context.version);
             const NamedKey* named = std::get_if<NamedKey>(&decoded);
             if (!named || key > 0xFF)
                 return std::nullopt;
@@ -255,7 +255,7 @@ namespace nazg
         }
 
         // Writing: one keystroke of text.
-        bool WriteStroke(HostStroke stroke, const MacroContext& context, MacroActions& actions)
+        bool WriteStroke(HostStroke stroke, const MacroContext& context, via::MacroActions& actions)
         {
             if (stroke.level <= 1)
             {
@@ -275,10 +275,10 @@ namespace nazg
                 actions.push_back({ Kind::Tap, *key });
                 return true;
             }
-            if (HoldsAnyKeycode(context.format))
+            if (via::HoldsAnyKeycode(context.format))
             {
-                const std::optional<uint16_t> value = EncodeQmkKeycode(ModifiedKey{ ModsOfLevel(stroke.level), stroke.key },
-                                                                       context.version);
+                const std::optional<uint16_t> value = qmk::EncodeKeycode(ModifiedKey{ ModsOfLevel(stroke.level), stroke.key },
+                                                                         context.version);
                 if (!value)
                     return false;
                 actions.push_back({ Kind::Tap, *value });
@@ -302,12 +302,12 @@ namespace nazg
         }
     }
 
-    Macro StepsOf(const MacroActions& actions, const MacroContext& context)
+    Macro StepsOf(const via::MacroActions& actions, const MacroContext& context)
     {
         Reader reader(context);
         for (size_t at = 0; at < actions.size();)
         {
-            const MacroAction& action = actions[at];
+            const via::MacroAction& action = actions[at];
             if (action.kind == Kind::Character)
             {
                 if (const std::optional<std::string_view> control = ControlKey(action.value))
@@ -324,7 +324,7 @@ namespace nazg
                 continue;
             }
 
-            const Keycode keycode = DecodeQmkKeycode(static_cast<uint16_t>(action.value), context.version);
+            const Keycode keycode = qmk::DecodeKeycode(static_cast<uint16_t>(action.value), context.version);
             if (action.kind == Kind::Tap)
             {
                 if (const std::optional<HostStroke> stroke = TextStroke(keycode, context))
@@ -348,7 +348,7 @@ namespace nazg
                 if (action.value == c_LeftShift && IsAction(actions, at + 1, Kind::Tap) &&
                     IsAction(actions, at + 2, Kind::Release, c_LeftShift))
                 {
-                    const Keycode key = DecodeQmkKeycode(static_cast<uint16_t>(actions[at + 1].value), context.version);
+                    const Keycode key = qmk::DecodeKeycode(static_cast<uint16_t>(actions[at + 1].value), context.version);
                     if (const std::optional<HostStroke> stroke =
                             TextStroke(std::holds_alternative<NamedKey>(key)
                                            ? Keycode{ ModifiedKey{ Mod::LeftShift, std::get<NamedKey>(key).name } }
@@ -380,7 +380,7 @@ namespace nazg
     MacroWriting ActionsOf(const Macro& macro, const MacroContext& context)
     {
         MacroWriting writing;
-        const bool anyKeycode = HoldsAnyKeycode(context.format);
+        const bool anyKeycode = via::HoldsAnyKeycode(context.format);
         for (size_t index = 0; index < macro.size(); ++index)
         {
             const MacroStep& step = macro[index];
@@ -408,7 +408,7 @@ namespace nazg
 
             case MacroStep::Kind::Key:
             {
-                const std::optional<uint16_t> value = EncodeQmkKeycode(step.key, context.version);
+                const std::optional<uint16_t> value = qmk::EncodeKeycode(step.key, context.version);
                 if (value && (*value <= 0xFF || anyKeycode))
                 {
                     writing.actions.push_back({ Kind::Tap, *value });
@@ -437,7 +437,7 @@ namespace nazg
             case MacroStep::Kind::Press:
             case MacroStep::Kind::Release:
             {
-                const std::optional<uint16_t> value = EncodeQmkKeycode(step.key, context.version);
+                const std::optional<uint16_t> value = qmk::EncodeKeycode(step.key, context.version);
                 if (!value || (*value > 0xFF && !anyKeycode))
                 {
                     problem(Named(step.key) + " is not a basic key: this board's macros hold basic keys only");
@@ -448,10 +448,10 @@ namespace nazg
             }
 
             case MacroStep::Kind::Wait:
-                if (!HasWaits(context.format))
+                if (!via::HasWaits(context.format))
                     problem("this board's firmware has no waits");
-                else if (step.milliseconds > LongestWait(context.format))
-                    problem("waits go up to " + std::to_string(LongestWait(context.format)) + " ms on this board");
+                else if (step.milliseconds > via::LongestWait(context.format))
+                    problem("waits go up to " + std::to_string(via::LongestWait(context.format)) + " ms on this board");
                 else
                     writing.actions.push_back({ Kind::Wait, step.milliseconds });
                 break;
@@ -500,11 +500,11 @@ namespace nazg
         return script;
     }
 
-    size_t BytesOf(const MacroActions& actions, MacroFormat format) noexcept
+    size_t BytesOf(const via::MacroActions& actions, via::MacroFormat format) noexcept
     {
         size_t bytes = 1;
-        for (const MacroAction& action : actions)
-            bytes += ActionSize(action, format).value_or(0);
+        for (const via::MacroAction& action : actions)
+            bytes += via::ActionSize(action, format).value_or(0);
         return bytes;
     }
 }

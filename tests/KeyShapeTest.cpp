@@ -13,8 +13,9 @@
 #include <cmath>
 #include <vector>
 
+namespace via = nazg::via;
+
 using nazg::ContourPoint;
-using nazg::DefinitionKey;
 using nazg::InsetContour;
 using nazg::IsInnerCorner;
 using nazg::KeyContour;
@@ -48,7 +49,7 @@ namespace
     {
         std::printf("one rectangle\n");
 
-        DefinitionKey key;
+        via::DefinitionKey key;
         key.x     = 2.0f;
         key.y     = 1.0f;
         key.width = 1.5f;
@@ -60,9 +61,9 @@ namespace
     }
 
     // KLE's ISO Enter: 1.25u x 2u at x = 0.25, with a 1.5u x 1u second rectangle at its top left.
-    DefinitionKey IsoEnter()
+    via::DefinitionKey IsoEnter()
     {
-        DefinitionKey key;
+        via::DefinitionKey key;
         key.x            = 0.25f;
         key.width        = 1.25f;
         key.height       = 2.0f;
@@ -88,7 +89,7 @@ namespace
         std::printf("big-ass Enter\n");
 
         // 1.5u x 2u, with a 2.25u x 1u second rectangle reaching left along its bottom.
-        DefinitionKey key;
+        via::DefinitionKey key;
         key.x            = 0.75f;
         key.width        = 1.5f;
         key.height       = 2.0f;
@@ -108,7 +109,7 @@ namespace
         std::printf("a second rectangle inside the first\n");
 
         // A stepped Caps Lock: its step is drawn inside the key.
-        DefinitionKey key;
+        via::DefinitionKey key;
         key.width        = 1.75f;
         key.secondWidth  = 1.25f;
         key.secondHeight = 1.0f;

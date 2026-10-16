@@ -27,21 +27,19 @@
 #include <tuple>
 #include <vector>
 
+namespace qmk  = nazg::qmk;
+namespace via  = nazg::via;
+namespace vial = nazg::vial;
+
 using nazg::BuildKeyboard;
 using nazg::DecodeLayoutOptions;
-using nazg::DecodeViaKeymap;
-using nazg::DefinitionKey;
 using nazg::FormatKeycode;
 using nazg::Keyboard;
-using nazg::KeyboardDefinition;
 using nazg::Keycode;
 using nazg::Keymap;
 using nazg::LayoutOptionGroup;
-using nazg::ParseDefinition;
 using nazg::ParseLayoutGroups;
 using nazg::PlaceKeys;
-using nazg::QmkKeycodeVersion;
-using nazg::ViaKeymapByteCount;
 
 namespace
 {
@@ -59,13 +57,13 @@ namespace
         return false;
     }
 
-    constexpr QmkKeycodeVersion c_Version = QmkKeycodeVersion::V0_0_7;
+    constexpr qmk::KeycodeVersion c_Version = qmk::KeycodeVersion::V0_0_7;
 
     // A cell's keycode back as the raw value it was decoded from, -1 if it will not
     // encode. The codec round-trips every value exactly, so this recovers the bytes.
     int RawValue(const Keycode& keycode)
     {
-        const std::optional<uint16_t> value = nazg::EncodeQmkKeycode(keycode, c_Version);
+        const std::optional<uint16_t> value = qmk::EncodeKeycode(keycode, c_Version);
         return value ? *value : -1;
     }
 
@@ -75,7 +73,7 @@ namespace
     std::vector<uint8_t> MakeKeymapBytes(uint8_t layers, uint8_t rows, uint8_t columns)
     {
         std::vector<uint8_t> bytes;
-        bytes.reserve(ViaKeymapByteCount(layers, rows, columns));
+        bytes.reserve(via::KeymapByteCount(layers, rows, columns));
 
         for (uint8_t layer = 0; layer < layers; ++layer)
             for (uint8_t row = 0; row < rows; ++row)
@@ -93,7 +91,7 @@ namespace
     {
         std::printf("keymap shape\n");
 
-        Check(ViaKeymapByteCount(3, 8, 18) == 864, "a 3 x 8 x 18 keymap is 864 bytes on the wire");
+        Check(via::KeymapByteCount(3, 8, 18) == 864, "a 3 x 8 x 18 keymap is 864 bytes on the wire");
 
         const Keymap empty;
         Check(empty.IsEmpty(), "a default keymap holds nothing");
@@ -117,7 +115,7 @@ namespace
         std::printf("keymap decode\n");
 
         const std::vector<uint8_t> bytes  = MakeKeymapBytes(3, 8, 18);
-        const Keymap               keymap = DecodeViaKeymap(bytes, 3, 8, 18, c_Version);
+        const Keymap               keymap = via::DecodeKeymap(bytes, 3, 8, 18, c_Version);
 
         Check(RawValue(keymap.At(0, 0, 0)) == 0x0000, "the first cell is the first two bytes");
         Check(RawValue(keymap.At(0, 0, 1)) == 0x0001, "columns advance fastest");
@@ -127,14 +125,14 @@ namespace
 
         // Big-endian, like every keycode in the protocol, and decoded on the way in.
         const std::vector<uint8_t> real = { 0x00, 0x04, 0x41, 0x04, 0x7C, 0x42 };
-        const Keymap               row  = DecodeViaKeymap(real, 1, 1, 3, c_Version);
+        const Keymap               row  = via::DecodeKeymap(real, 1, 1, 3, c_Version);
         Check(FormatKeycode(row.At(0, 0, 0)) == "KC_A" && FormatKeycode(row.At(0, 0, 1)) == "LT(1,KC_A)" &&
               FormatKeycode(row.At(0, 0, 2)) == "HF_TOGG",
               "cells arrive as keycodes, not values");
 
-        Check(Throws([&] { (void)DecodeViaKeymap(bytes, 3, 8, 17, c_Version); }),
+        Check(Throws([&] { (void)via::DecodeKeymap(bytes, 3, 8, 17, c_Version); }),
               "a buffer that does not match the shape is rejected");
-        Check(Throws([&] { (void)DecodeViaKeymap({}, 1, 1, 1, c_Version); }),
+        Check(Throws([&] { (void)via::DecodeKeymap({}, 1, 1, 1, c_Version); }),
               "an empty buffer is rejected");
     }
 
@@ -223,20 +221,20 @@ namespace
         Keyboard keyboard;
         keyboard.layoutSelection = { 0, 1 };
 
-        DefinitionKey always;
+        via::DefinitionKey always;
         Check(keyboard.IsKeyVisible(always), "a key with no layout option is always shown");
 
-        DefinitionKey selected;
+        via::DefinitionKey selected;
         selected.layoutIndex  = 1;
         selected.layoutOption = 1;
         Check(keyboard.IsKeyVisible(selected), "a key matching the selection is shown");
 
-        DefinitionKey alternative;
+        via::DefinitionKey alternative;
         alternative.layoutIndex  = 1;
         alternative.layoutOption = 0;
         Check(!keyboard.IsKeyVisible(alternative), "its alternative is hidden");
 
-        DefinitionKey unknownGroup;
+        via::DefinitionKey unknownGroup;
         unknownGroup.layoutIndex  = 9;
         unknownGroup.layoutOption = 0;
         Check(keyboard.IsKeyVisible(unknownGroup), "a key in an undeclared group is shown, not dropped");
@@ -248,8 +246,8 @@ namespace
     {
         std::printf("build from the real definition\n");
 
-        const KeyboardDefinition definition = nazg::DecodeDefinition(ModelFDefinition());
-        const Keymap             keymap     = DecodeViaKeymap(
+        const via::KeyboardDefinition definition = vial::DecodeDefinition(ModelFDefinition());
+        const Keymap                  keymap     = via::DecodeKeymap(
             MakeKeymapBytes(3, definition.matrixRows, definition.matrixColumns), 3,
             definition.matrixRows, definition.matrixColumns, c_Version);
 
@@ -264,13 +262,13 @@ namespace
         // Every key the definition describes must address a cell that exists, or the
         // renderer would be asking for keycodes that are not there.
         bool allAddressable = true;
-        for (const DefinitionKey& key : keyboard.definition.keys)
+        for (const via::DefinitionKey& key : keyboard.definition.keys)
             if (!keyboard.keymap.Contains(0, key.row, key.column))
                 allAddressable = false;
 
         Check(allAddressable, "every key addresses a real matrix cell");
 
-        const DefinitionKey& first = keyboard.definition.keys.front();
+        const via::DefinitionKey& first = keyboard.definition.keys.front();
         Check(RawValue(keyboard.KeycodeFor(first, 0)) == ((first.row << 8) | first.column),
               "a key reads the keycode of its own cell");
         Check(RawValue(keyboard.KeycodeFor(first, 2)) == (0x2000 | (first.row << 8) | first.column),
@@ -280,9 +278,9 @@ namespace
               "a keymap whose matrix disagrees with the definition is rejected");
     }
 
-    const DefinitionKey* FindPlaced(const std::vector<DefinitionKey>& placed, int row, int column)
+    const via::DefinitionKey* FindPlaced(const std::vector<via::DefinitionKey>& placed, int row, int column)
     {
-        for (const DefinitionKey& key : placed)
+        for (const via::DefinitionKey& key : placed)
             if (!key.decal && key.row == row && key.column == column)
                 return &key;
         return nullptr;
@@ -290,18 +288,18 @@ namespace
 
     // What is drawn, moved so its top-left corner is the origin, in a fixed order: two
     // placements are the same drawing exactly when these match.
-    std::vector<std::tuple<bool, int, int, float, float, float, float>> Drawing(std::vector<DefinitionKey> placed)
+    std::vector<std::tuple<bool, int, int, float, float, float, float>> Drawing(std::vector<via::DefinitionKey> placed)
     {
         float minX = placed.front().x;
         float minY = placed.front().y;
-        for (const DefinitionKey& key : placed)
+        for (const via::DefinitionKey& key : placed)
         {
             minX = std::min(minX, key.x);
             minY = std::min(minY, key.y);
         }
 
         std::vector<std::tuple<bool, int, int, float, float, float, float>> drawing;
-        for (const DefinitionKey& key : placed)
+        for (const via::DefinitionKey& key : placed)
             drawing.emplace_back(key.decal, key.decal ? -1 : key.row, key.decal ? -1 : key.column,
                                  key.x - minX, key.y - minY, key.width, key.height);
 
@@ -313,24 +311,24 @@ namespace
     {
         std::printf("placing layout options\n");
 
-        const KeyboardDefinition source    = ParseDefinition(IsoMacroSource());
-        const KeyboardDefinition converted = ParseDefinition(IsoMacroConverted());
+        const via::KeyboardDefinition source    = via::ParseDefinition(IsoMacroSource());
+        const via::KeyboardDefinition converted = via::ParseDefinition(IsoMacroConverted());
 
-        const std::vector<DefinitionKey> byDefault = PlaceKeys(source, { 0 });
+        const std::vector<via::DefinitionKey> byDefault = PlaceKeys(source, { 0 });
         Check(byDefault.size() == 9, "choice 0: the 7 keys plus its 2");
-        const DefinitionKey* top = FindPlaced(byDefault, 2, 1);
+        const via::DefinitionKey* top = FindPlaced(byDefault, 2, 1);
         Check(top != nullptr && top->x == 1.5f && top->y == 0.0f, "choice 0 stays where it is drawn");
 
         // Choice 1's topmost-leftmost key is its decal. Lining up without it would take
         // key (2,2), one row lower, as the pivot and pull it up into the wrong row.
-        const std::vector<DefinitionKey> alternative = PlaceKeys(source, { 1 });
+        const std::vector<via::DefinitionKey> alternative = PlaceKeys(source, { 1 });
         Check(alternative.size() == 9, "choice 1: the 7 keys, its key and its decal");
-        const DefinitionKey* bottom = FindPlaced(alternative, 2, 2);
+        const via::DefinitionKey* bottom = FindPlaced(alternative, 2, 2);
         Check(bottom != nullptr && bottom->x == 1.5f && bottom->y == 1.0f,
               "choice 1 moves onto choice 0, its decal counting as the pivot");
 
-        const std::vector<DefinitionKey> lined = PlaceKeys(converted, { 1 });
-        const DefinitionKey*             unmoved = FindPlaced(lined, 2, 2);
+        const std::vector<via::DefinitionKey> lined = PlaceKeys(converted, { 1 });
+        const via::DefinitionKey*             unmoved = FindPlaced(lined, 2, 2);
         Check(unmoved != nullptr && unmoved->x == 0.0f && unmoved->y == 1.0f,
               "the converted form is already lined up, so nothing moves");
 
@@ -342,10 +340,10 @@ namespace
         Check(PlaceKeys(source, {}).size() == 11, "with no selection every key is kept, unmoved");
 
         // What the Layout section draws on hover: one choice's keys, on choice 0's place.
-        const std::vector<DefinitionKey> first  = nazg::OptionKeys(source, 0, 0);
-        const std::vector<DefinitionKey> second = nazg::OptionKeys(source, 0, 1);
+        const std::vector<via::DefinitionKey> first  = nazg::OptionKeys(source, 0, 0);
+        const std::vector<via::DefinitionKey> second = nazg::OptionKeys(source, 0, 1);
         Check(first.size() == 2, "choice 0: its two keys");
-        const DefinitionKey* moved = FindPlaced(second, 2, 2);
+        const via::DefinitionKey* moved = FindPlaced(second, 2, 2);
         Check(second.size() == 1 && moved != nullptr && moved->x == 1.5f && moved->y == 1.0f,
               "choice 1: its key, moved as PlaceKeys() moves it, its decal left out");
     }

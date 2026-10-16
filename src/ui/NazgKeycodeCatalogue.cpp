@@ -34,14 +34,14 @@ namespace nazg
             // A keycode the board can store, or nothing.
             void Add(std::vector<Keycode>& keycodes, const Keycode& keycode) const
             {
-                if (EncodeQmkKeycode(keycode, m_Version))
+                if (qmk::EncodeKeycode(keycode, m_Version))
                     keycodes.push_back(keycode);
             }
 
             // By QMK name; the NamedKey views the static table's name, so it never dangles.
             void AddNamed(std::vector<Keycode>& keycodes, std::string_view name) const
             {
-                if (const QmkKeycode* row = FindQmkKeycodeByName(name, m_Version))
+                if (const qmk::KeycodeEntry* row = qmk::FindKeycodeByName(name, m_Version))
                     Add(keycodes, NamedKey{ row->name });
             }
 
@@ -90,10 +90,10 @@ namespace nazg
                 return { m_Legends.Layout(), m_Legends.modifierNames, KeySide::Neither, m_Lighting, m_Custom };
             }
 
-            QmkKeycodeVersion Version() const { return m_Version; }
+            qmk::KeycodeVersion Version() const { return m_Version; }
 
         private:
-            QmkKeycodeVersion     m_Version;
+            qmk::KeycodeVersion   m_Version;
             const LegendSettings& m_Legends;
             std::vector<Words>    m_Custom;
             uint8_t               m_Lighting;
@@ -231,7 +231,7 @@ namespace nazg
             for (std::string_view name : { "KC_1", "KC_2", "KC_3", "KC_4", "KC_5", "KC_6", "KC_7", "KC_8", "KC_9", "KC_0",
                                            "KC_GRV", "KC_MINS", "KC_EQL", "KC_LBRC", "KC_RBRC", "KC_BSLS", "KC_SCLN",
                                            "KC_QUOT", "KC_COMM", "KC_DOT", "KC_SLSH" })
-                if (const QmkKeycode* row = FindQmkKeycodeByName(name, builder.Version()))
+                if (const qmk::KeycodeEntry* row = qmk::FindKeycodeByName(name, builder.Version()))
                     shifted.push_back(ModifiedKey{ Mod::LeftShift, row->name });
             tab.groups.push_back(builder.Group("Shifted", "Shift and the key, in one", shifted));
 
@@ -454,13 +454,13 @@ namespace nazg
         return tabs;
     }
 
-    Keycode ComposeWithKey(const Keycode& picked, const Keycode& current, QmkKeycodeVersion version)
+    Keycode ComposeWithKey(const Keycode& picked, const Keycode& current, qmk::KeycodeVersion version)
     {
         const auto* named = std::get_if<NamedKey>(&picked);
         if (named == nullptr)
             return picked;
 
-        const QmkKeycode* row = FindQmkKeycodeByName(named->name, version);
+        const qmk::KeycodeEntry* row = qmk::FindKeycodeByName(named->name, version);
         // From KC_A: KC_NO and KC_TRNS replace a key, they do not become its tap.
         if (row == nullptr || row->value > 0xFF || row->value < 0x04)
             return picked;
@@ -474,14 +474,14 @@ namespace nazg
             composed = ModifiedKey{ modified->mods, row->name };
 
         // Only what the board can store: an LT past layer 15, say, stays as picked.
-        return EncodeQmkKeycode(composed, version) ? composed : picked;
+        return qmk::EncodeKeycode(composed, version) ? composed : picked;
     }
 
-    std::string SearchTextOf(const Keycode& keycode, QmkKeycodeVersion version, const LegendContext& context)
+    std::string SearchTextOf(const Keycode& keycode, qmk::KeycodeVersion version, const LegendContext& context)
     {
         std::string text = FormatKeycode(keycode);
         if (const auto* named = std::get_if<NamedKey>(&keycode))
-            if (const QmkKeycode* row = FindQmkKeycodeByName(named->name, version); row != nullptr && row->label[0] != '\0')
+            if (const qmk::KeycodeEntry* row = qmk::FindKeycodeByName(named->name, version); row != nullptr && row->label[0] != '\0')
                 text += std::string(" ") + row->label;
 
         const KeycapLegend legend = LegendFor(keycode, context);

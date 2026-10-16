@@ -19,11 +19,11 @@
 #include <stdexcept>
 #include <vector>
 
+namespace qmk = nazg::qmk;
+namespace via = nazg::via;
+
 using nazg::ProtocolError;
 using nazg::Task;
-using nazg::ViaCommand;
-using nazg::ViaKeyboardValue;
-using nazg::ViaProtocol;
 
 namespace
 {
@@ -58,7 +58,7 @@ namespace
         std::printf("protocol version\n");
 
         FakeDeviceChannel channel;
-        ViaProtocol       via(channel);
+        via::Protocol     via(channel);
 
         channel.Reply({ 0x01, 0x00, 0x0C });
 
@@ -66,7 +66,7 @@ namespace
 
         Check(version == 0x000C, "the version is parsed big-endian");
         Check(channel.RequestCount() == 1, "one round trip");
-        Check(channel.RequestAt(0).size() == nazg::c_ViaReportSize, "the request is a full 32-byte report");
+        Check(channel.RequestAt(0).size() == via::c_ReportSize, "the request is a full 32-byte report");
         Check(channel.RequestAt(0)[0] == 0x01, "the command id leads the report");
         Check(channel.RequestAt(0)[31] == 0x00, "the unused tail is zero-padded");
     }
@@ -78,7 +78,7 @@ namespace
         std::printf("unhandled command\n");
 
         FakeDeviceChannel channel;
-        ViaProtocol       via(channel);
+        via::Protocol     via(channel);
 
         channel.ReplyUnhandled();
 
@@ -90,7 +90,7 @@ namespace
         std::printf("mismatched reply\n");
 
         FakeDeviceChannel channel;
-        ViaProtocol       via(channel);
+        via::Protocol     via(channel);
 
         // Answering a different command than the one asked means the request and reply
         // streams have drifted apart -- worse than a refusal, and worth its own message.
@@ -104,7 +104,7 @@ namespace
         std::printf("short reply\n");
 
         FakeDeviceChannel channel;
-        ViaProtocol       via(channel);
+        via::Protocol     via(channel);
 
         channel.ReplyRaw({ 0x01, 0x00 });
 
@@ -116,17 +116,17 @@ namespace
         std::printf("keyboard value\n");
 
         FakeDeviceChannel channel;
-        ViaProtocol       via(channel);
+        via::Protocol     via(channel);
 
         channel.Reply({ 0x02, 0x04, 0x00, 0x01, 0x02, 0x03 });
 
-        const uint32_t value = Run(via.GetKeyboardValue(ViaKeyboardValue::FirmwareVersion));
+        const uint32_t value = Run(via.GetKeyboardValue(via::KeyboardValue::FirmwareVersion));
 
         Check(value == 0x00010203u, "the 32-bit value is parsed big-endian from byte 2");
         Check(channel.RequestAt(0)[1] == 0x04, "the value id is the first argument");
 
         channel.Reply({ 0x03, 0x02, 0x00, 0x00, 0x01, 0x20 });   // the board echoes the request
-        Run(via.SetKeyboardValue(ViaKeyboardValue::LayoutOptions, 0x00000120u));
+        Run(via.SetKeyboardValue(via::KeyboardValue::LayoutOptions, 0x00000120u));
         const std::vector<uint8_t>& set = channel.RequestAt(1);
         Check(set[0] == 0x03 && set[1] == 0x02, "set: command 0x03, then the value id");
         Check(set[2] == 0x00 && set[3] == 0x00 && set[4] == 0x01 && set[5] == 0x20,
@@ -140,14 +140,14 @@ namespace
         std::printf("switch matrix state, paged\n");
 
         FakeDeviceChannel channel;
-        ViaProtocol       via(channel);
+        via::Protocol     via(channel);
 
         std::vector<uint8_t> reply = { 0x02, 0x03, 0x00 };
         reply.insert(reply.end(), { 0x08, 0x00, 0x01 });   // row 0: columns 19 and 0
         reply.insert(reply.end(), { 0x00, 0x01, 0x80 });   // row 1: columns 8 and 7
         channel.Reply(reply);
 
-        const nazg::SwitchMatrixState state = Run(via.GetSwitchMatrixState(nazg::SwitchMatrixFormat::Paged, 6, 20));
+        const via::SwitchMatrixState state = Run(via.GetSwitchMatrixState(via::SwitchMatrixFormat::Paged, 6, 20));
 
         Check(channel.RequestCount() == 1, "six rows of three bytes take one round trip");
         Check(channel.RequestAt(0)[1] == 0x03 && channel.RequestAt(0)[2] == 0x00,
@@ -160,7 +160,7 @@ namespace
 
         // 12 x 32: four bytes a row, seven rows to a reply -- two round trips.
         FakeDeviceChannel paged;
-        ViaProtocol       pagedVia(paged);
+        via::Protocol     pagedVia(paged);
 
         std::vector<uint8_t> first = { 0x02, 0x03, 0x00 };
         first.resize(3 + 28, 0x00);
@@ -170,7 +170,7 @@ namespace
         second[3 + 4 * 4 + 3] = 0x02;   // row 11 (the fifth of this page): column 1
         paged.Reply(second);
 
-        const nazg::SwitchMatrixState big = Run(pagedVia.GetSwitchMatrixState(nazg::SwitchMatrixFormat::Paged, 12, 32));
+        const via::SwitchMatrixState big = Run(pagedVia.GetSwitchMatrixState(via::SwitchMatrixFormat::Paged, 12, 32));
 
         Check(paged.RequestCount() == 2 && paged.RequestAt(1)[2] == 7, "the second page starts at row 7");
         Check(big.bytes.size() == 48 && big.IsPressed(11, 1), "the pages are joined in order");
@@ -182,23 +182,23 @@ namespace
         std::printf("switch matrix state, whole\n");
 
         FakeDeviceChannel channel;
-        ViaProtocol       via(channel);
+        via::Protocol     via(channel);
 
         std::vector<uint8_t> reply = { 0x02, 0x03 };
         reply.insert(reply.end(), 8 * 3, 0x00);
         reply[2 + 7 * 3 + 0] = 0x02;   // row 7: column 17, the Model F's last
         channel.Reply(reply);
 
-        const nazg::SwitchMatrixState state = Run(via.GetSwitchMatrixState(nazg::SwitchMatrixFormat::Whole, 8, 18));
+        const via::SwitchMatrixState state = Run(via.GetSwitchMatrixState(via::SwitchMatrixFormat::Whole, 8, 18));
 
         Check(channel.RequestAt(0)[1] == 0x03 && channel.RequestAt(0)[2] == 0x00, "no first row is sent");
         Check(state.IsPressed(7, 17), "the rows start at byte 2");
         Check(!state.IsPressed(7, 16), "and nothing else is pressed");
 
-        Check(nazg::WholeMatrixFits(8, 18), "the Model F's 8 x 18 fits the firmware's test");
-        Check(!nazg::WholeMatrixFits(8, 24), "8 x 24 does not: the firmware counts four bytes a row");
-        Check(nazg::SwitchMatrixFormatForVia(12) == nazg::SwitchMatrixFormat::Paged &&
-                  nazg::SwitchMatrixFormatForVia(11) == nazg::SwitchMatrixFormat::Whole,
+        Check(via::WholeMatrixFits(8, 18), "the Model F's 8 x 18 fits the firmware's test");
+        Check(!via::WholeMatrixFits(8, 24), "8 x 24 does not: the firmware counts four bytes a row");
+        Check(via::SwitchMatrixFormatFor(12) == via::SwitchMatrixFormat::Paged &&
+                  via::SwitchMatrixFormatFor(11) == via::SwitchMatrixFormat::Whole,
               "VIA pages from protocol 12");
     }
 
@@ -207,7 +207,7 @@ namespace
         std::printf("keycode get and set\n");
 
         FakeDeviceChannel channel;
-        ViaProtocol       via(channel);
+        via::Protocol     via(channel);
 
         channel.Reply({ 0x04, 1, 2, 3, 0x7C, 0x0A });
 
@@ -232,7 +232,7 @@ namespace
         std::printf("layer count\n");
 
         FakeDeviceChannel channel;
-        ViaProtocol       via(channel);
+        via::Protocol     via(channel);
 
         channel.Reply({ 0x11, 4 });
 
@@ -246,7 +246,7 @@ namespace
         std::printf("buffer chunking\n");
 
         FakeDeviceChannel channel;
-        ViaProtocol       via(channel);
+        via::Protocol     via(channel);
 
         // Three chunks for 60 bytes: 28 + 28 + 4. Each reply is filled with its own
         // marker byte so the reassembly order is observable.
@@ -281,7 +281,7 @@ namespace
         std::printf("buffer offset encoding\n");
 
         FakeDeviceChannel channel;
-        ViaProtocol       via(channel);
+        via::Protocol     via(channel);
 
         std::vector<uint8_t> reply(4, 0x00);
         reply[0] = 0x12;
@@ -299,7 +299,7 @@ namespace
         std::printf("macro queries\n");
 
         FakeDeviceChannel channel;
-        ViaProtocol       via(channel);
+        via::Protocol     via(channel);
 
         channel.Reply({ 0x0C, 16 });
         Check(Run(via.GetMacroCount()) == 16, "the macro count is byte 1");
@@ -315,17 +315,17 @@ namespace
         std::printf("capability probe\n");
 
         FakeDeviceChannel channel;
-        ViaProtocol       via(channel);
+        via::Protocol     via(channel);
 
         channel.ReplyUnhandled();
-        Check(!Run(via.Supports(ViaCommand::DynamicKeymapGetEncoder, { 0, 0, 0 })),
+        Check(!Run(via.Supports(via::Command::DynamicKeymapGetEncoder, { 0, 0, 0 })),
               "0xFF reports the command as absent");
 
         channel.Reply({ 0x14, 0, 0, 0, 0x00, 0x2A });
-        Check(Run(via.Supports(ViaCommand::DynamicKeymapGetEncoder, { 0, 0, 0 })),
+        Check(Run(via.Supports(via::Command::DynamicKeymapGetEncoder, { 0, 0, 0 })),
               "an echoed command id reports it as present");
 
-        Check(!Throws([&] { channel.ReplyUnhandled(); Run(via.Supports(ViaCommand::BootloaderJump)); }),
+        Check(!Throws([&] { channel.ReplyUnhandled(); Run(via.Supports(via::Command::BootloaderJump)); }),
               "probing never throws, so it can be used to explore a device");
     }
 
@@ -335,17 +335,17 @@ namespace
     {
         std::printf("write one keycode\n");
 
-        constexpr auto c_Version = nazg::QmkKeycodeVersion::V0_0_7;
+        constexpr auto c_Version = qmk::KeycodeVersion::V0_0_7;
 
         {
             FakeDeviceChannel channel;
-            ViaProtocol       via(channel);
+            via::Protocol     via(channel);
 
             channel.Reply({ 0x05 });                              // set: echoed
             channel.Reply({ 0x04, 2, 3, 4, 0x7C, 0x42 });         // get: HF_TOGG
 
             const nazg::Keycode stored =
-                Run(nazg::WriteKeycode(via, 2, 3, 4, nazg::NamedKey{ "HF_TOGG" }, c_Version));
+                Run(via::WriteKeycode(via, 2, 3, 4, nazg::NamedKey{ "HF_TOGG" }, c_Version));
 
             Check(stored == nazg::Keycode{ nazg::NamedKey{ "HF_TOGG" } }, "the board stored the key sent");
             Check(channel.RequestCount() == 2, "one set and one read-back");
@@ -362,13 +362,13 @@ namespace
             // Vial's keycode firewall, as a locked board does it: success on the set,
             // then 0x0000 in the cell.
             FakeDeviceChannel channel;
-            ViaProtocol       via(channel);
+            via::Protocol     via(channel);
 
             channel.Reply({ 0x05 });
             channel.Reply({ 0x04, 0, 0, 0, 0x00, 0x00 });
 
             const nazg::Keycode stored =
-                Run(nazg::WriteKeycode(via, 0, 0, 0, nazg::NamedKey{ "QK_BOOT" }, c_Version));
+                Run(via::WriteKeycode(via, 0, 0, 0, nazg::NamedKey{ "QK_BOOT" }, c_Version));
 
             Check(stored == nazg::Keycode{ nazg::NamedKey{ "KC_NO" } },
                   "a firewalled QK_BOOT reads back as KC_NO -- the caller sees what really happened");
@@ -376,12 +376,12 @@ namespace
 
         {
             FakeDeviceChannel channel;
-            ViaProtocol       via(channel);
+            via::Protocol     via(channel);
 
             bool refused = false;
             try
             {
-                (void)Run(nazg::WriteKeycode(via, 0, 0, 0, nazg::LayerTapKey{ 16, "KC_A" }, c_Version));
+                (void)Run(via::WriteKeycode(via, 0, 0, 0, nazg::LayerTapKey{ 16, "KC_A" }, c_Version));
             }
             catch (const std::invalid_argument&)
             {

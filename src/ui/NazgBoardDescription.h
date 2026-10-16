@@ -126,7 +126,7 @@ namespace nazg
         // Rule 3: where it is. The definition's key unless the section brings its own
         // geometry -- the Leyden Jar's controller matrix is a plain grid. A decal takes
         // space and is never drawn; its legends and marks are ignored.
-        DefinitionKey geometry;
+        via::DefinitionKey geometry;
 
         // Rule 1, in one of two forms (ui-design.md, "How the board's look is built"): what
         // the key IS -- keycap legends, placed by the renderer by the legend family, as Keymap
@@ -221,7 +221,7 @@ namespace nazg
         std::optional<uint8_t> layer;     // where `keycode` is; none when nothing is below
     };
 
-    [[nodiscard]] ResolvedKey ResolveKey(const Keyboard& keyboard, const DefinitionKey& key, uint8_t layer);
+    [[nodiscard]] ResolvedKey ResolveKey(const Keyboard& keyboard, const via::DefinitionKey& key, uint8_t layer);
 
     // The same for knob `knob` turned one way, through the encoder map -- which QMK walks down the
     // layers as the keymap. None when the map was not read.
@@ -283,7 +283,7 @@ namespace nazg
     [[nodiscard]] float SideLine(const std::vector<BoardKey>& keys);
 
     // The side of `line` a key sits on, by its centre; neither when it straddles the line.
-    [[nodiscard]] KeySide SideOf(const DefinitionKey& key, float line);
+    [[nodiscard]] KeySide SideOf(const via::DefinitionKey& key, float line);
 
     // A keycap's colour class from `base`, what the key does on layer 0, whichever layer is
     // shown -- a physical cap keeps its colour. Alpha: the character keys, the numpad's digits
@@ -291,11 +291,11 @@ namespace nazg
     // else, F-keys and commands included. A tap-hold takes its tap's class; Shift with a
     // character key is still a character. KC_NO and KC_TRNS say nothing, so the key's width
     // decides: a modifier past 1.25u, else an alpha.
-    [[nodiscard]] KeyFill KeycapClassOf(const Keycode& base, const DefinitionKey& key);
+    [[nodiscard]] KeyFill KeycapClassOf(const Keycode& base, const via::DefinitionKey& key);
 
     // A key's centre in key units, where it is drawn -- its rotation applied. An L-shaped
     // key's is its first rectangle's.
-    [[nodiscard]] std::pair<float, float> KeyCentre(const DefinitionKey& key);
+    [[nodiscard]] std::pair<float, float> KeyCentre(const via::DefinitionKey& key);
 
     // Where labels wanted at `wanted` along one edge go, each `extents` long: as wanted, but
     // pushed on just enough that none overlaps the one before it, `gap` apart. Labels keep

@@ -25,11 +25,9 @@
 #include <string>
 #include <vector>
 
-using nazg::ExtractTarFile;
-using nazg::ViaDefinitionBundle;
-using nazg::ParseDefinition;
+namespace via = nazg::via;
+
 using nazg::ProtocolError;
-using nazg::ViaDefinitionPath;
 
 namespace
 {
@@ -88,26 +86,26 @@ namespace
     {
         std::printf("definition path\n");
 
-        Check(ViaDefinitionPath(0x4D65, 0x1200, 12) == "v3/1298469376.json",
+        Check(via::DefinitionPath(0x4D65, 0x1200, 12) == "v3/1298469376.json",
               "vendorId * 65536 + productId, in decimal, under v3/");
-        Check(ViaDefinitionPath(0x4D65, 0x1200, 11) == "v3/1298469376.json", "protocol 11 is the first to use V3");
-        Check(ViaDefinitionPath(0x4D65, 0x1200, 10) == "v2/1298469376.json", "protocol 10 and below use V2");
-        Check(ViaDefinitionPath(0xFFFF, 0xFFFF, 12) == "v3/4294967295.json", "the largest id does not overflow");
+        Check(via::DefinitionPath(0x4D65, 0x1200, 11) == "v3/1298469376.json", "protocol 11 is the first to use V3");
+        Check(via::DefinitionPath(0x4D65, 0x1200, 10) == "v2/1298469376.json", "protocol 10 and below use V2");
+        Check(via::DefinitionPath(0xFFFF, 0xFFFF, 12) == "v3/4294967295.json", "the largest id does not overflow");
     }
 
     void TestBundle()
     {
         std::printf("the bundle\n");
 
-        const std::vector<uint8_t> bytes = ViaBundleFixture();
-        const ViaDefinitionBundle  bundle(bytes);
+        const std::vector<uint8_t>  bytes = ViaBundleFixture();
+        const via::DefinitionBundle bundle(bytes);
 
         const auto v3 = bundle.Find(0x4D65, 0x1200, 12);
         Check(v3.has_value() && *v3 == IsoMacroConverted(), "a V3 board gets its file byte for byte");
-        Check(v3.has_value() && ParseDefinition(*v3).name == "ISO Macro", "and it parses");
+        Check(v3.has_value() && via::ParseDefinition(*v3).name == "ISO Macro", "and it parses");
 
         const auto v2 = bundle.Find(0x4D65, 0x1200, 10);
-        Check(v2.has_value() && ParseDefinition(*v2).vendorId == 0x4D65, "a protocol 10 board gets the V2 file");
+        Check(v2.has_value() && via::ParseDefinition(*v2).vendorId == 0x4D65, "a protocol 10 board gets the V2 file");
 
         Check(!bundle.Find(0x1209, 0x4704, 12).has_value(), "a board VIA does not know gets nothing");
         Check(!bundle.Manifest().has_value(), "a bundle without a manifest has none to read");
@@ -115,8 +113,8 @@ namespace
 
         std::vector<uint8_t> damaged = bytes;
         damaged.resize(damaged.size() / 2);
-        Check(Throws([&] { ViaDefinitionBundle broken(damaged); }), "a truncated bundle is rejected");
-        Check(Throws([&] { ViaDefinitionBundle broken(std::vector<uint8_t>{}); }), "an empty bundle is rejected");
+        Check(Throws([&] { via::DefinitionBundle broken(damaged); }), "a truncated bundle is rejected");
+        Check(Throws([&] { via::DefinitionBundle broken(std::vector<uint8_t>{}); }), "an empty bundle is rejected");
     }
 
     void TestTarReader()
@@ -129,25 +127,25 @@ namespace
                                                    TarEntry("./v3/b.json", "{}"),
                                                    TarEntry("c.json", "[]", '0', "deeply/nested") });
 
-        const auto a = ExtractTarFile(tar, "v3/a.json");
+        const auto a = via::ExtractTarFile(tar, "v3/a.json");
         Check(a.has_value() && a->size() == 600, "a file is found and has its full size");
 
-        const auto b = ExtractTarFile(tar, "v3/b.json");
+        const auto b = via::ExtractTarFile(tar, "v3/b.json");
         Check(b.has_value() && *b == Bytes("{}"), "past a file padded to two blocks, and without its \"./\"");
 
-        Check(ExtractTarFile(tar, "deeply/nested/c.json") == Bytes("[]"), "a ustar prefix is part of the path");
-        Check(!ExtractTarFile(tar, "v3/").has_value(), "a directory is not a file");
-        Check(!ExtractTarFile(tar, "v3/missing.json").has_value(), "a missing file is nullopt, not an error");
+        Check(via::ExtractTarFile(tar, "deeply/nested/c.json") == Bytes("[]"), "a ustar prefix is part of the path");
+        Check(!via::ExtractTarFile(tar, "v3/").has_value(), "a directory is not a file");
+        Check(!via::ExtractTarFile(tar, "v3/missing.json").has_value(), "a missing file is nullopt, not an error");
 
         std::vector<uint8_t> corrupt = tar;
         corrupt[10] ^= 0x01;   // inside the first name: the checksum no longer adds up
-        Check(Throws([&] { (void)ExtractTarFile(corrupt, "v3/b.json"); }), "a damaged header is rejected");
+        Check(Throws([&] { (void)via::ExtractTarFile(corrupt, "v3/b.json"); }), "a damaged header is rejected");
 
         std::vector<uint8_t> cut = Archive({ TarEntry("v3/a.json", long600) });
         cut.resize(700);   // the header says 600 bytes, 188 are there
-        Check(Throws([&] { (void)ExtractTarFile(cut, "v3/a.json"); }), "a file running past the end is rejected");
+        Check(Throws([&] { (void)via::ExtractTarFile(cut, "v3/a.json"); }), "a file running past the end is rejected");
 
-        Check(Throws([&] { (void)ExtractTarFile(std::vector<uint8_t>(1024, 'x'), "v3/a.json"); }),
+        Check(Throws([&] { (void)via::ExtractTarFile(std::vector<uint8_t>(1024, 'x'), "v3/a.json"); }),
               "bytes that are not a ustar archive are rejected");
     }
 }

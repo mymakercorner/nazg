@@ -20,7 +20,7 @@
 
 #include "adapters/via/NazgKeyboardDefinition.h"
 
-namespace nazg
+namespace nazg::via
 {
     // Larger than any definition VIA has -- 273 KB at most, 2026-10-11 -- and small enough that a
     // file written to hurt the parser is refused before it is read.

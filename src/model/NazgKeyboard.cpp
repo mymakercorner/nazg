@@ -30,7 +30,7 @@ namespace nazg
             return bits;
         }
 
-        bool IsSelected(const DefinitionKey& key, const std::vector<uint8_t>& selection) noexcept
+        bool IsSelected(const via::DefinitionKey& key, const std::vector<uint8_t>& selection) noexcept
         {
             if (key.layoutIndex < 0)
                 return true;
@@ -53,7 +53,7 @@ namespace nazg
 
         // getPivotPoint() in VIA's reader: the key's corner, or its second rectangle's
         // when that one sits above it -- or level with it and to the left.
-        Point PivotPoint(const DefinitionKey& key) noexcept
+        Point PivotPoint(const via::DefinitionKey& key) noexcept
         {
             const bool second = key.secondY == 0.0f ? key.secondX < 0.0f : key.secondY < 0.0f;
             return second ? Point{ key.x + key.secondX, key.y + key.secondY } : Point{ key.x, key.y };
@@ -61,10 +61,10 @@ namespace nazg
 
         // findPivot() in VIA's reader: the topmost key, the leftmost of those, compared by
         // the keys' own corners. Null when the choice has no key.
-        const DefinitionKey* FindPivot(const KeyboardDefinition& definition, int group, int choice) noexcept
+        const via::DefinitionKey* FindPivot(const via::KeyboardDefinition& definition, int group, int choice) noexcept
         {
-            const DefinitionKey* pivot = nullptr;
-            for (const DefinitionKey& key : definition.keys)
+            const via::DefinitionKey* pivot = nullptr;
+            for (const via::DefinitionKey& key : definition.keys)
             {
                 if (key.layoutIndex != group || key.layoutOption != choice)
                     continue;
@@ -115,7 +115,7 @@ namespace nazg
         {
             LayoutOptionGroup group;
 
-            // ParseDefinition keeps a non-string label as its JSON text, so an array
+            // via::ParseDefinition keeps a non-string label as its JSON text, so an array
             // arrives here as "[\"Enter\",\"ISO Enter\",\"ANSI Enter\"]": the first
             // element names the group, the rest name its options. A plain string is a
             // toggle with no option names.
@@ -178,27 +178,27 @@ namespace nazg
         return raw;
     }
 
-    std::vector<DefinitionKey> OptionKeys(const KeyboardDefinition& definition, size_t group, uint8_t choice)
+    std::vector<via::DefinitionKey> OptionKeys(const via::KeyboardDefinition& definition, size_t group, uint8_t choice)
     {
         // Every group before it at choice 0, so PlaceKeys() moves this one only.
         std::vector<uint8_t> selection(group + 1, 0);
         selection[group] = choice;
 
-        std::vector<DefinitionKey> keys;
-        for (const DefinitionKey& key : PlaceKeys(definition, selection))
+        std::vector<via::DefinitionKey> keys;
+        for (const via::DefinitionKey& key : PlaceKeys(definition, selection))
             if (key.layoutIndex == static_cast<int>(group) && !key.decal)
                 keys.push_back(key);
         return keys;
     }
 
-    std::vector<DefinitionKey> PlaceKeys(const KeyboardDefinition& definition, const std::vector<uint8_t>& selection)
+    std::vector<via::DefinitionKey> PlaceKeys(const via::KeyboardDefinition& definition, const std::vector<uint8_t>& selection)
     {
         // One shift per group: from the selected choice's pivot to choice 0's.
         std::vector<Point> shifts(selection.size());
         for (size_t group = 0; group < selection.size(); ++group)
         {
-            const DefinitionKey* home     = FindPivot(definition, static_cast<int>(group), 0);
-            const DefinitionKey* selected = FindPivot(definition, static_cast<int>(group), selection[group]);
+            const via::DefinitionKey* home     = FindPivot(definition, static_cast<int>(group), 0);
+            const via::DefinitionKey* selected = FindPivot(definition, static_cast<int>(group), selection[group]);
             if (home == nullptr || selected == nullptr)
                 continue;
 
@@ -207,15 +207,15 @@ namespace nazg
             shifts[group]    = { to.x - from.x, to.y - from.y };
         }
 
-        std::vector<DefinitionKey> placed;
+        std::vector<via::DefinitionKey> placed;
         placed.reserve(definition.keys.size());
 
-        for (const DefinitionKey& key : definition.keys)
+        for (const via::DefinitionKey& key : definition.keys)
         {
             if (!IsSelected(key, selection))
                 continue;
 
-            DefinitionKey moved = key;
+            via::DefinitionKey moved = key;
             if (key.layoutIndex >= 0 && static_cast<size_t>(key.layoutIndex) < shifts.size())
             {
                 moved.x += shifts[static_cast<size_t>(key.layoutIndex)].x;
@@ -227,20 +227,20 @@ namespace nazg
         return placed;
     }
 
-    uint8_t KnobCount(const KeyboardDefinition& definition) noexcept
+    uint8_t KnobCount(const via::KeyboardDefinition& definition) noexcept
     {
         int count = 0;
-        for (const DefinitionKey& key : definition.keys)
+        for (const via::DefinitionKey& key : definition.keys)
             count = std::max(count, key.encoderIndex + 1);
         return static_cast<uint8_t>(std::min(count, 255));
     }
 
-    bool Keyboard::IsKeyVisible(const DefinitionKey& key) const noexcept
+    bool Keyboard::IsKeyVisible(const via::DefinitionKey& key) const noexcept
     {
         return IsSelected(key, layoutSelection);
     }
 
-    Keycode Keyboard::KeycodeFor(const DefinitionKey& key, uint8_t layer) const
+    Keycode Keyboard::KeycodeFor(const via::DefinitionKey& key, uint8_t layer) const
     {
         if (!key.IsSwitch() || !keymap.Contains(layer, key.row, key.column))
             return NamedKey{ "KC_NO" };
@@ -257,10 +257,10 @@ namespace nazg
         return clockwise ? turns.clockwise : turns.counterClockwise;
     }
 
-    Keyboard BuildKeyboard(KeyboardDefinition definition,
-                           Keymap             keymap,
-                           uint32_t           layoutOptions,
-                           QmkKeycodeVersion  keycodeVersion)
+    Keyboard BuildKeyboard(via::KeyboardDefinition definition,
+                           Keymap                  keymap,
+                           uint32_t                layoutOptions,
+                           qmk::KeycodeVersion     keycodeVersion)
     {
         if (definition.matrixRows == 0 || definition.matrixColumns == 0)
             throw std::invalid_argument("the definition declares an empty matrix");

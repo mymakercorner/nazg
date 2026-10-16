@@ -71,7 +71,7 @@ namespace nazg
         const LegendSettings&                    m_Legends;
 
         Stage       m_Stage     = Stage::Starting;
-        uint8_t     m_Countdown = c_VialUnlockSteps;
+        uint8_t     m_Countdown = vial::c_UnlockSteps;
         std::string m_Failure;
 
         Task<void> m_Request;

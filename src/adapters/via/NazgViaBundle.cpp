@@ -9,9 +9,9 @@
 #include <nlohmann/json.hpp>
 
 #include "adapters/NazgXz.h"
-#include "adapters/via/NazgViaProtocol.h"   // ProtocolError
+#include "adapters/NazgProtocolError.h"
 
-namespace nazg
+namespace nazg::via
 {
     namespace
     {
@@ -100,7 +100,7 @@ namespace nazg
         }
     }
 
-    std::string ViaDefinitionPath(uint16_t vendorId, uint16_t productId, uint16_t viaProtocol)
+    std::string DefinitionPath(uint16_t vendorId, uint16_t productId, uint16_t viaProtocol)
     {
         const uint32_t id = (static_cast<uint32_t>(vendorId) << 16) | productId;
         return std::string(viaProtocol >= 11 ? "v3/" : "v2/") + std::to_string(id) + ".json";
@@ -168,7 +168,7 @@ namespace nazg
         return found;
     }
 
-    ViaDefinitionBundle::ViaDefinitionBundle(const std::vector<uint8_t>& bundle)
+    DefinitionBundle::DefinitionBundle(const std::vector<uint8_t>& bundle)
         : m_Tar(DecompressXz(bundle, c_MaxBundleSize, "the bundle"))
     {
         ForEachTarFile(m_Tar, [this](const std::string& name, const uint8_t* data, size_t size)
@@ -192,10 +192,10 @@ namespace nazg
         m_Manifest->v3     = document.value("v3", 0);
     }
 
-    std::optional<std::vector<uint8_t>> ViaDefinitionBundle::Find(uint16_t vendorId, uint16_t productId,
-                                                                  uint16_t viaProtocol) const
+    std::optional<std::vector<uint8_t>> DefinitionBundle::Find(uint16_t vendorId, uint16_t productId,
+                                                               uint16_t viaProtocol) const
     {
-        const auto found = m_Files.find(ViaDefinitionPath(vendorId, productId, viaProtocol));
+        const auto found = m_Files.find(DefinitionPath(vendorId, productId, viaProtocol));
         if (found == m_Files.end())
             return std::nullopt;
 

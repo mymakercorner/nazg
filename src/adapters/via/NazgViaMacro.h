@@ -28,7 +28,7 @@
 
 #include "model/NazgKeyboard.h"
 
-namespace nazg
+namespace nazg::via
 {
     enum class MacroFormat : uint8_t
     {

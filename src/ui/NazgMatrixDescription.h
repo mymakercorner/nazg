@@ -47,12 +47,12 @@ namespace nazg
     // The live test's readings of the board's switch matrix.
     struct MatrixLive
     {
-        SwitchMatrixState pressed;   // the last reading
-        SwitchMatrixState seen;      // every position pressed in any reading since the test began
+        via::SwitchMatrixState pressed;   // the last reading
+        via::SwitchMatrixState seen;      // every position pressed in any reading since the test began
     };
 
     // Takes one more reading in.
-    void AddReading(MatrixLive& live, const SwitchMatrixState& reading);
+    void AddReading(MatrixLive& live, const via::SwitchMatrixState& reading);
 
     // What the board holds, for the panel to say.
     struct MatrixCounts

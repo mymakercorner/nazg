@@ -16,6 +16,8 @@
 #include <utility>
 #include <vector>
 
+namespace via = nazg::via;
+
 using nazg::BoardDescription;
 using nazg::BoardEdge;
 using nazg::BoardKey;
@@ -253,9 +255,9 @@ namespace
 namespace
 {
     // One byte a row: column 0 is bit 0.
-    nazg::SwitchMatrixState Reading(std::vector<uint8_t> rows)
+    via::SwitchMatrixState Reading(std::vector<uint8_t> rows)
     {
-        nazg::SwitchMatrixState state;
+        via::SwitchMatrixState state;
         state.rows    = c_Rows;
         state.columns = c_Columns;
         state.bytes   = std::move(rows);

@@ -72,6 +72,7 @@ set(NAZG_CORE_SOURCES
   src/transport/NazgDeviceChannel.h
   src/transport/NazgDeviceChannel.cpp
   src/adapters/NazgByteOrder.h
+  src/adapters/NazgProtocolError.h
   src/adapters/NazgXz.h
   src/adapters/NazgXz.cpp
   src/adapters/qmk/NazgQmkKeycodes.h

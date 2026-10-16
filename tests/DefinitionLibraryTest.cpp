@@ -24,6 +24,8 @@
 #include <string>
 #include <vector>
 
+namespace via = nazg::via;
+
 using nazg::DefinitionLibrary;
 using nazg::LibraryEntry;
 using nazg::LibraryError;
@@ -189,9 +191,9 @@ namespace
             (void)library.Import(IsoMacroSource(), "D:/iso_macro.json", "2026-09-25T10:00:00Z");
             library.Choose(IsoMacroBoard(), nazg::DefinitionRef::User(1));
 
-            Check(library.FindSameBoard(nazg::ParseDefinition(IsoMacroConverted())) == &library.Entries()[0],
+            Check(library.FindSameBoard(via::ParseDefinition(IsoMacroConverted())) == &library.Entries()[0],
                   "a file with the same VID:PID and name is for the same board");
-            Check(library.FindSameBoard(nazg::ParseDefinition(OtherBoard())) == nullptr, "another is not");
+            Check(library.FindSameBoard(via::ParseDefinition(OtherBoard())) == nullptr, "another is not");
 
             const LibraryEntry& second = library.Replace(1, IsoMacroConverted(), "D:/new/iso_macro.json");
             Check(second.id == 1 && second.revision == 2 && second.previousRevision == 1,

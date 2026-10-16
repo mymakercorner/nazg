@@ -7,9 +7,9 @@
 #include <stdexcept>
 
 #include "adapters/qmk/NazgQmkKeycodeCodec.h"
-#include "adapters/via/NazgViaProtocol.h"   // ProtocolError
+#include "adapters/NazgProtocolError.h"
 
-namespace nazg
+namespace nazg::vial
 {
     namespace
     {
@@ -17,31 +17,31 @@ namespace nazg
         constexpr uint16_t c_ViaEncoderProtocol = 10;
 
         // Both turns of one knob on one layer.
-        Task<KnobTurns> ReadTurns(VialProtocol& protocol, bool isVial, uint8_t layer, uint8_t knob,
-                                  QmkKeycodeVersion version)
+        Task<KnobTurns> ReadTurns(Protocol& protocol, bool isVial, uint8_t layer, uint8_t knob,
+                                  qmk::KeycodeVersion version)
         {
             KnobTurns turns;
             if (isVial)
             {
-                const VialProtocol::EncoderPair pair = co_await protocol.GetVialEncoder(layer, knob);
-                turns.counterClockwise               = DecodeQmkKeycode(pair.counterClockwise, version);
-                turns.clockwise                      = DecodeQmkKeycode(pair.clockwise, version);
+                const Protocol::EncoderPair pair = co_await protocol.GetVialEncoder(layer, knob);
+                turns.counterClockwise               = qmk::DecodeKeycode(pair.counterClockwise, version);
+                turns.clockwise                      = qmk::DecodeKeycode(pair.clockwise, version);
             }
             else
             {
-                turns.counterClockwise = DecodeQmkKeycode(co_await protocol.GetEncoder(layer, knob, false), version);
-                turns.clockwise        = DecodeQmkKeycode(co_await protocol.GetEncoder(layer, knob, true), version);
+                turns.counterClockwise = qmk::DecodeKeycode(co_await protocol.GetEncoder(layer, knob, false), version);
+                turns.clockwise        = qmk::DecodeKeycode(co_await protocol.GetEncoder(layer, knob, true), version);
             }
             co_return turns;
         }
     }
 
-    Task<std::vector<std::vector<KnobTurns>>> ReadEncoderMap(VialProtocol&     protocol,
-                                                             bool              isVial,
-                                                             uint16_t          viaProtocol,
-                                                             uint8_t           layers,
-                                                             uint8_t           knobs,
-                                                             QmkKeycodeVersion version)
+    Task<std::vector<std::vector<KnobTurns>>> ReadEncoderMap(Protocol&           protocol,
+                                                             bool                isVial,
+                                                             uint16_t            viaProtocol,
+                                                             uint8_t             layers,
+                                                             uint8_t             knobs,
+                                                             qmk::KeycodeVersion version)
     {
         std::vector<std::vector<KnobTurns>> map;
         if (knobs == 0 || layers == 0 || (!isVial && viaProtocol < c_ViaEncoderProtocol))
@@ -68,27 +68,27 @@ namespace nazg
     }
 
     // `keycode` by value: a coroutine keeps its parameters in its frame (NazgViaKeymap.cpp).
-    Task<Keycode> WriteKnobTurn(VialProtocol&     protocol,
-                                bool              isVial,
-                                uint8_t           layer,
-                                uint8_t           knob,
-                                bool              clockwise,
-                                Keycode           keycode,
-                                QmkKeycodeVersion version)
+    Task<Keycode> WriteKnobTurn(Protocol&           protocol,
+                                bool                isVial,
+                                uint8_t             layer,
+                                uint8_t             knob,
+                                bool                clockwise,
+                                Keycode             keycode,
+                                qmk::KeycodeVersion version)
     {
-        const std::optional<uint16_t> value = EncodeQmkKeycode(keycode, version);
+        const std::optional<uint16_t> value = qmk::EncodeKeycode(keycode, version);
         if (!value)
             throw std::invalid_argument(FormatKeycode(keycode) + " cannot be stored on QMK keycodes " +
-                                        QmkKeycodeVersionName(version));
+                                        qmk::KeycodeVersionName(version));
 
         if (isVial)
         {
             co_await protocol.SetVialEncoder(layer, knob, clockwise, *value);
-            const VialProtocol::EncoderPair pair = co_await protocol.GetVialEncoder(layer, knob);
-            co_return DecodeQmkKeycode(clockwise ? pair.clockwise : pair.counterClockwise, version);
+            const Protocol::EncoderPair pair = co_await protocol.GetVialEncoder(layer, knob);
+            co_return qmk::DecodeKeycode(clockwise ? pair.clockwise : pair.counterClockwise, version);
         }
 
         co_await protocol.SetEncoder(layer, knob, clockwise, *value);
-        co_return DecodeQmkKeycode(co_await protocol.GetEncoder(layer, knob, clockwise), version);
+        co_return qmk::DecodeKeycode(co_await protocol.GetEncoder(layer, knob, clockwise), version);
     }
 }

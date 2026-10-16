@@ -102,7 +102,7 @@ int main(int argc, char** argv)
     {
         std::ifstream              stream(file, std::ios::binary);
         const std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
-        const nazg::DefinitionCheck check = nazg::CheckDefinition(bytes);
+        const nazg::via::DefinitionCheck check = nazg::via::CheckDefinition(bytes);
         if (!check.Passed())
             ++failed;
 
@@ -119,7 +119,7 @@ int main(int argc, char** argv)
                 // The switches the keys are wired to, "row,column", sorted: two files with the same
                 // VID:PID and the same wiring describe one board.
                 std::vector<std::string> wiring;
-                for (const nazg::DefinitionKey& key : check.definition->keys)
+                for (const nazg::via::DefinitionKey& key : check.definition->keys)
                     if (key.IsSwitch())
                         wiring.push_back(std::to_string(key.row) + "," + std::to_string(key.column));
                 std::sort(wiring.begin(), wiring.end());

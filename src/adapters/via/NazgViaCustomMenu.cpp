@@ -8,7 +8,7 @@
 #include <optional>
 #include <set>
 
-namespace nazg
+namespace nazg::via
 {
     size_t ValueWidth(const CustomControl& control)
     {
@@ -24,7 +24,7 @@ namespace nazg
                 return std::max(control.off.size(), control.on.size());
             case Type::Label:
                 // The frame after the command, the channel, the value id and the extra bytes.
-                return c_ViaReportSize - std::min(c_ViaReportSize - 1, 3 + control.extra.size());
+                return c_ReportSize - std::min(c_ReportSize - 1, 3 + control.extra.size());
             default:
                 return 1;
         }
@@ -415,7 +415,7 @@ namespace nazg
     // ------------------------------------------------------------------------------------------
     // The wire: the value after the extra bytes, which the reply echoes.
 
-    Task<std::vector<uint8_t>> ReadCustomValue(ViaProtocol& via, const CustomControl& control)
+    Task<std::vector<uint8_t>> ReadCustomValue(Protocol& via, const CustomControl& control)
     {
         const size_t         width = ValueWidth(control);
         std::vector<uint8_t> reply = co_await via.GetCustomValue(control.channel, control.valueId, control.extra,
@@ -424,7 +424,7 @@ namespace nazg
         co_return reply;
     }
 
-    Task<void> WriteCustomValue(ViaProtocol& via, const CustomControl& control, const std::vector<uint8_t>& value)
+    Task<void> WriteCustomValue(Protocol& via, const CustomControl& control, const std::vector<uint8_t>& value)
     {
         std::vector<uint8_t> bytes = control.extra;
         bytes.insert(bytes.end(), value.begin(), value.end());

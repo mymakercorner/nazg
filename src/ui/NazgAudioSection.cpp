@@ -29,13 +29,13 @@ namespace nazg
 
         // Whether the key changes `setting` from the keyboard -- either, without one. The clicks'
         // pitch, the voice and music mode are the keyboard's alone, out of the wire's reach: not lit.
-        bool ChangesAudio(std::string_view name, std::optional<AudioSetting> setting)
+        bool ChangesAudio(std::string_view name, std::optional<via::AudioSetting> setting)
         {
             const bool on     = name == "AU_TOGG" || name == "AU_ON" || name == "AU_OFF";
             const bool clicky = name == "CK_TOGG" || name == "CK_ON" || name == "CK_OFF";
             if (!setting)
                 return on || clicky;
-            return *setting == AudioSetting::On ? on : clicky;
+            return *setting == via::AudioSetting::On ? on : clicky;
         }
 
         // A line of the table: its name in the first column, its controls in the second. The top is
@@ -87,7 +87,7 @@ namespace nazg
 
     bool AudioSection::AnyKeyChanges() const
     {
-        for (const DefinitionKey& key : m_Keyboard.definition.keys)
+        for (const via::DefinitionKey& key : m_Keyboard.definition.keys)
             for (int layer = 0; layer < m_Keyboard.keymap.Layers(); ++layer)
                 if (ChangesAudio(NameOf(m_Keyboard.KeycodeFor(key, static_cast<uint8_t>(layer))), std::nullopt))
                     return true;
@@ -200,7 +200,7 @@ namespace nazg
         ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthFixed);
         ImGui::TableSetupColumn("controls", ImGuiTableColumnFlags_WidthStretch);
 
-        const auto hover = [this](float top, AudioSetting setting)
+        const auto hover = [this](float top, via::AudioSetting setting)
         {
             if (IsOverLine(top))
                 m_HoveredNow = setting;
@@ -208,17 +208,17 @@ namespace nazg
 
         float top = BeginLine("Audio");
         if (ImGui::Checkbox("##on", &m_Values.on))
-            m_Pending = PendingWrite{ AudioSetting::On, m_Values.on };
+            m_Pending = PendingWrite{ via::AudioSetting::On, m_Values.on };
         Muted("the board's speaker: its songs, the clicks and music mode");
-        hover(top, AudioSetting::On);
+        hover(top, via::AudioSetting::On);
 
         // Greyed while audio is off, as Lighting greys a system's lines (Rico, 2026-10-11).
         ImGui::BeginDisabled(!m_Values.on);
         top = BeginLine("Clicky");
         if (ImGui::Checkbox("##clicky", &m_Values.clicky))
-            m_Pending = PendingWrite{ AudioSetting::Clicky, m_Values.clicky };
+            m_Pending = PendingWrite{ via::AudioSetting::Clicky, m_Values.clicky };
         Muted(m_Values.on ? "a click with each key press" : "heard with Audio on");
-        hover(top, AudioSetting::Clicky);
+        hover(top, via::AudioSetting::Clicky);
 
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(1);
@@ -254,8 +254,8 @@ namespace nazg
         {
             device = co_await m_Transport.Open(m_Path);
             HidDeviceChannel channel(m_Transport, device);
-            ViaProtocol      via(channel);
-            m_Values   = co_await ReadAudio(via);
+            via::Protocol    via(channel);
+            m_Values   = co_await via::ReadAudio(via);
             m_IsLoaded = true;
         }
         catch (const ProtocolError&)
@@ -279,13 +279,13 @@ namespace nazg
         {
             device = co_await m_Transport.Open(m_Path);
             HidDeviceChannel channel(m_Transport, device);
-            ViaProtocol      via(channel);
+            via::Protocol    via(channel);
 
             if (!write.setting)
             {
                 try
                 {
-                    co_await PlayIndication(via);
+                    co_await via::PlayIndication(via);
                     m_Message = "sent -- the keyboard plays its song";
                 }
                 catch (const ProtocolError&)
@@ -296,9 +296,9 @@ namespace nazg
             }
             else
             {
-                co_await WriteAudio(via, *write.setting, write.value);
-                const AudioValues read = co_await ReadAudio(via);
-                const bool kept = *write.setting == AudioSetting::On ? read.on : read.clicky;
+                co_await via::WriteAudio(via, *write.setting, write.value);
+                const via::AudioValues read = co_await via::ReadAudio(via);
+                const bool kept = *write.setting == via::AudioSetting::On ? read.on : read.clicky;
                 // A newer change waiting keeps what the user sees; it is read back after it.
                 if (!m_Pending)
                     m_Values = read;

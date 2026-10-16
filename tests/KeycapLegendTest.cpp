@@ -19,6 +19,8 @@
 #include <string>
 #include <vector>
 
+namespace qmk = nazg::qmk;
+
 using nazg::ArrowDirection;
 using nazg::Header;
 using nazg::HostLayout;
@@ -84,8 +86,8 @@ namespace
                 uniqueKeys &= keys.insert(legend.key).second;
 
                 // Every position must be a basic keycode, or LegendFor would never ask.
-                const nazg::QmkKeycode* keycode =
-                    nazg::FindQmkKeycodeByName(legend.key, nazg::c_LatestQmkKeycodeVersion);
+                const qmk::KeycodeEntry* keycode =
+                    qmk::FindKeycodeByName(legend.key, qmk::c_LatestKeycodeVersion);
                 basicKeys &= keycode != nullptr && keycode->value <= 0xFF;
             }
         }
@@ -469,7 +471,7 @@ namespace
         std::printf("coverage\n");
 
         std::set<std::string_view> missing;
-        for (const nazg::QmkKeycode& row : nazg::QmkKeycodeTable())
+        for (const qmk::KeycodeEntry& row : qmk::KeycodeTable())
         {
             const std::string_view group = row.group;
             if (group == "basic" || group == "modifiers" || group == "internal" || group == "midi" || group == "steno")

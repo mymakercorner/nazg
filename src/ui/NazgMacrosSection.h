@@ -44,7 +44,7 @@ namespace nazg
         // `hostLayoutChosen` then; until it is set, text asks which layout the computer uses.
         // `lock` is a Vial board's lock, unset on VIA. All outlive the section -- ui/NazgSection.h.
         MacrosSection(HidTransport& transport, std::string path, Keyboard& keyboard, LegendSettings& legends,
-                      bool& hostLayoutChosen, const std::optional<VialUnlockStatus>& lock, const bool& advancedTools);
+                      bool& hostLayoutChosen, const std::optional<vial::UnlockStatus>& lock, const bool& advancedTools);
 
         [[nodiscard]] std::string_view Name() const override { return "Macros"; }
         [[nodiscard]] Icon             ColumnIcon() const override { return Icon::PlayerPlay; }
@@ -91,20 +91,20 @@ namespace nazg
         void Picked(const Keycode& keycode);
 
 
-        HidTransport&                          m_Transport;
-        std::string                            m_Path;
-        Keyboard&                              m_Keyboard;
-        LegendSettings&                        m_Legends;
-        bool&                                  m_HostLayoutChosen;
-        const std::optional<VialUnlockStatus>& m_Lock;
-        const bool&                            m_AdvancedTools;
+        HidTransport&                            m_Transport;
+        std::string                              m_Path;
+        Keyboard&                                m_Keyboard;
+        LegendSettings&                          m_Legends;
+        bool&                                    m_HostLayoutChosen;
+        const std::optional<vial::UnlockStatus>& m_Lock;
+        const bool&                              m_AdvancedTools;
 
         // What the board holds, as read: its bytes, and each macro's actions.
-        MacroFormat               m_Format     = MacroFormat::Via;
-        uint16_t                  m_BufferSize = 0;
-        std::vector<uint8_t>      m_Stored;
-        std::vector<MacroActions> m_StoredActions;
-        std::string               m_StepsFor;   // the host layout m_Saved was read with
+        via::MacroFormat               m_Format     = via::MacroFormat::Via;
+        uint16_t                       m_BufferSize = 0;
+        std::vector<uint8_t>           m_Stored;
+        std::vector<via::MacroActions> m_StoredActions;
+        std::string                    m_StepsFor;   // the host layout m_Saved was read with
 
         std::vector<Macro> m_Saved;    // the stored macros as steps
         std::vector<Macro> m_Macros;   // as edited

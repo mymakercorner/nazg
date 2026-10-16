@@ -320,7 +320,7 @@ To add a version:
    ImGui's default font, which has no glyphs beyond ASCII. Not `/` for the swap arrow:
    `Swap \⇄Bspc` would become `Swap \/Bspc`. The five labels containing a backslash are
    written as raw literals, `R"(\)"`, so they read as the keycap does.
-6. Update `QmkKeycodeVersion`, `c_LatestQmkKeycodeVersion`, `QmkKeycodeVersionName`, and the
+6. Update `qmk::KeycodeVersion`, `qmk::c_LatestKeycodeVersion`, `qmk::KeycodeVersionName`, and the
    per-version counts in `tests/QmkKeycodesTest.cpp`, which is what catches a bad
    regeneration.
 7. **The Legacy rows never change**, but regeneration must carry them: 295 keycodes from

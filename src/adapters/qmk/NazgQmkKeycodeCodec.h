@@ -21,9 +21,9 @@
 #include "adapters/qmk/NazgQmkKeycodes.h"
 #include "model/NazgKeycode.h"
 
-namespace nazg
+namespace nazg::qmk
 {
-    [[nodiscard]] Keycode DecodeQmkKeycode(uint16_t value, QmkKeycodeVersion version);
+    [[nodiscard]] Keycode DecodeKeycode(uint16_t value, KeycodeVersion version);
 
-    [[nodiscard]] std::optional<uint16_t> EncodeQmkKeycode(const Keycode& keycode, QmkKeycodeVersion version);
+    [[nodiscard]] std::optional<uint16_t> EncodeKeycode(const Keycode& keycode, KeycodeVersion version);
 }

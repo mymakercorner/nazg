@@ -22,17 +22,17 @@
 #include "async/NazgTask.h"
 #include "model/NazgKeyboard.h"
 
-namespace nazg
+namespace nazg::via
 {
     // How many bytes the device sends for a keymap of this shape: two per cell.
-    [[nodiscard]] size_t ViaKeymapByteCount(uint8_t layers, uint8_t rows, uint8_t columns) noexcept;
+    [[nodiscard]] size_t KeymapByteCount(uint8_t layers, uint8_t rows, uint8_t columns) noexcept;
 
     // Throws std::invalid_argument if the buffer is the wrong size for the shape.
-    [[nodiscard]] Keymap DecodeViaKeymap(const std::vector<uint8_t>& bytes,
-                                         uint8_t                     layers,
-                                         uint8_t                     rows,
-                                         uint8_t                     columns,
-                                         QmkKeycodeVersion           version);
+    [[nodiscard]] Keymap DecodeKeymap(const std::vector<uint8_t>& bytes,
+                                      uint8_t                     layers,
+                                      uint8_t                     rows,
+                                      uint8_t                     columns,
+                                      qmk::KeycodeVersion         version);
 
     // Store one keycode, then read the cell back and return what the board ACTUALLY
     // holds. That is not always what was sent: a locked Vial board runs every write
@@ -41,11 +41,11 @@ namespace nazg
     // should compare it with what it asked for. See via-vial-commands.md, trap 8.
     //
     // Throws std::invalid_argument if the keycode cannot be stored on this keycode
-    // version (EncodeQmkKeycode returned nullopt), before anything is sent.
-    [[nodiscard]] Task<Keycode> WriteKeycode(ViaProtocol&      protocol,
-                                             uint8_t           layer,
-                                             uint8_t           row,
-                                             uint8_t           column,
-                                             Keycode           keycode,
-                                             QmkKeycodeVersion version);
+    // version (qmk::EncodeKeycode returned nullopt), before anything is sent.
+    [[nodiscard]] Task<Keycode> WriteKeycode(Protocol&           protocol,
+                                             uint8_t             layer,
+                                             uint8_t             row,
+                                             uint8_t             column,
+                                             Keycode             keycode,
+                                             qmk::KeycodeVersion version);
 }

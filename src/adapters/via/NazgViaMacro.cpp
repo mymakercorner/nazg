@@ -3,7 +3,7 @@
 
 #include "NazgViaMacro.h"
 
-namespace nazg
+namespace nazg::via
 {
     namespace
     {

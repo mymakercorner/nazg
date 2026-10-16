@@ -7,7 +7,7 @@
 // small drawing of its gesture and its key, an empty one showing faint what the firmware does
 // instead -- its tapping term, a line saying when the tap is sent, and Keymap's picker.
 //
-// Read with the board (ReadTapDances(), Keyboard::tapDances, which Keymap draws from) -- or, if that
+// Read with the board (vial::ReadTapDances(), Keyboard::tapDances, which Keymap draws from) -- or, if that
 // failed, when the section is first shown; written by Save, the changed slots only, each read back -- a locked board stores Boot as nothing. Revert drops the
 // changes.
 //
@@ -35,7 +35,7 @@ namespace nazg
         // The board at `path`, loaded into `keyboard`; `lock` is its lock state. All outlive the
         // section -- ui/NazgSection.h.
         TapDanceSection(HidTransport& transport, std::string path, Keyboard& keyboard, const LegendSettings& legends,
-                        const std::optional<VialUnlockStatus>& lock, const bool& advancedTools);
+                        const std::optional<vial::UnlockStatus>& lock, const bool& advancedTools);
 
         [[nodiscard]] std::string_view Name() const override { return "Tap Dance"; }
         [[nodiscard]] Icon             ColumnIcon() const override { return Icon::HandClick; }
@@ -71,12 +71,12 @@ namespace nazg
         void DrawPicker();
 
 
-        HidTransport&                          m_Transport;
-        std::string                            m_Path;
-        Keyboard&                              m_Keyboard;
-        const LegendSettings&                  m_Legends;
-        const std::optional<VialUnlockStatus>& m_Lock;
-        const bool&                            m_AdvancedTools;
+        HidTransport&                            m_Transport;
+        std::string                              m_Path;
+        Keyboard&                                m_Keyboard;
+        const LegendSettings&                    m_Legends;
+        const std::optional<vial::UnlockStatus>& m_Lock;
+        const bool&                              m_AdvancedTools;
 
         std::vector<TapDance> m_Dances;   // as edited; as the board holds them: m_Keyboard.tapDances
 

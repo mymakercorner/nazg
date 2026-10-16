@@ -25,7 +25,7 @@ namespace nazg
 {
     namespace
     {
-        using Type = CustomControl::Type;
+        using Type = via::CustomControl::Type;
 
         std::string_view NameOf(const Keycode& keycode)
         {
@@ -132,9 +132,9 @@ namespace nazg
           m_AdvancedTools(advancedTools), m_MenuIndex(menu)
     {
         m_Name = Menu().label.empty() ? "(unnamed menu)" : Menu().label;
-        for (const CustomMenu& each : m_Keyboard.definition.customMenus)
-            for (const CustomSubmenu& submenu : each.submenus)
-                for (const CustomControl& control : submenu.controls)
+        for (const via::CustomMenu& each : m_Keyboard.definition.customMenus)
+            for (const via::CustomSubmenu& submenu : each.submenus)
+                for (const via::CustomControl& control : submenu.controls)
                     if (control.type == Type::Range && control.isBound)
                         m_Ranges.push_back(&control);
     }
@@ -144,30 +144,30 @@ namespace nazg
         return IconOfMenu(Menu().label);
     }
 
-    const CustomMenu& CustomMenuSection::Menu() const
+    const via::CustomMenu& CustomMenuSection::Menu() const
     {
         return m_Keyboard.definition.customMenus[m_MenuIndex];
     }
 
     bool CustomMenuSection::Holds(const std::vector<std::string>& conditions) const
     {
-        return ConditionsHold(conditions, m_Values, m_Keyboard.report.firmwareVersion);
+        return via::ConditionsHold(conditions, m_Values, m_Keyboard.report.firmwareVersion);
     }
 
     std::vector<size_t> CustomMenuSection::ShownSubmenus() const
     {
-        std::vector<size_t> shown;
-        const CustomMenu&   menu = Menu();
+        std::vector<size_t>    shown;
+        const via::CustomMenu& menu = Menu();
         for (size_t index = 0; index < menu.submenus.size(); ++index)
             if (Holds(menu.submenus[index].conditions))
                 shown.push_back(index);
         return shown;
     }
 
-    std::vector<const CustomControl*> CustomMenuSection::ShownLines(const CustomSubmenu& submenu) const
+    std::vector<const via::CustomControl*> CustomMenuSection::ShownLines(const via::CustomSubmenu& submenu) const
     {
-        std::vector<const CustomControl*> lines;
-        for (const CustomControl& control : submenu.controls)
+        std::vector<const via::CustomControl*> lines;
+        for (const via::CustomControl& control : submenu.controls)
             if (Holds(control.conditions))
                 lines.push_back(&control);
         return lines;
@@ -186,11 +186,11 @@ namespace nazg
         m_Hovered = nullptr;
     }
 
-    const CustomControl* CustomMenuSection::Binding(const std::string& name) const
+    const via::CustomControl* CustomMenuSection::Binding(const std::string& name) const
     {
-        for (const CustomMenu& menu : m_Keyboard.definition.customMenus)
-            for (const CustomSubmenu& submenu : menu.submenus)
-                for (const CustomControl& control : submenu.controls)
+        for (const via::CustomMenu& menu : m_Keyboard.definition.customMenus)
+            for (const via::CustomSubmenu& submenu : menu.submenus)
+                for (const via::CustomControl& control : submenu.controls)
                     if (control.isBound && control.type != Type::Button && control.name == name)
                         return &control;
         return nullptr;
@@ -201,28 +201,28 @@ namespace nazg
         std::vector<std::string> names;
         const auto add = [&](const std::string& name)
         {
-            if (name != c_FirmwareVersionName && Binding(name) &&
+            if (name != via::c_FirmwareVersionName && Binding(name) &&
                 std::find(names.begin(), names.end(), name) == names.end())
                 names.push_back(name);
         };
         const auto addNamed = [&](const std::vector<std::string>& conditions)
         {
             for (const std::string& condition : conditions)
-                for (const std::string& name : NamesIn(condition))
+                for (const std::string& name : via::NamesIn(condition))
                     add(name);
         };
 
-        const CustomMenu& menu = Menu();
+        const via::CustomMenu& menu = Menu();
         addNamed(menu.conditions);
-        for (const CustomSubmenu& submenu : menu.submenus)
+        for (const via::CustomSubmenu& submenu : menu.submenus)
             addNamed(submenu.conditions);
         if (m_Submenu < menu.submenus.size())
-            for (const CustomControl& control : menu.submenus[m_Submenu].controls)
+            for (const via::CustomControl& control : menu.submenus[m_Submenu].controls)
             {
                 addNamed(control.conditions);
                 if (control.isBound && control.type != Type::Button)
                     add(control.name);
-                for (const RangeConstraint& constraint : control.constraints)
+                for (const via::RangeConstraint& constraint : control.constraints)
                     add(constraint.reference);
             }
         return names;
@@ -261,10 +261,10 @@ namespace nazg
     void CustomMenuSection::DescribeBoard(BoardDescription& board)
     {
         DescribeLegends(board, m_Keyboard, 0, m_Legends);
-        const CustomMenu& menu = Menu();
+        const via::CustomMenu& menu = Menu();
         if (m_Submenu >= menu.submenus.size() || m_Known.empty())
             return;
-        const CustomSubmenu& submenu = menu.submenus[m_Submenu];
+        const via::CustomSubmenu& submenu = menu.submenus[m_Submenu];
 
         const std::vector<Words> custom   = CustomKeycodeWordsOf(m_Keyboard);
         const uint8_t            lighting = LightingSystemsOf(m_Keyboard);
@@ -283,12 +283,12 @@ namespace nazg
         // The submenu's own key, by name: the board's keycode whose name its label holds -- the
         // definition's n-th is QK_KB_0 + n.
         std::vector<Keycode> own;
-        if (const std::optional<uint16_t> first = EncodeQmkKeycode(NamedKey{ "QK_KB_0" }, m_Keyboard.keycodeVersion))
+        if (const std::optional<uint16_t> first = qmk::EncodeKeycode(NamedKey{ "QK_KB_0" }, m_Keyboard.keycodeVersion))
             for (size_t index = 0; index < m_Keyboard.definition.customKeycodes.size(); ++index)
             {
                 const std::string& name = m_Keyboard.definition.customKeycodes[index].name;
                 if (!name.empty() && submenu.label.find(name) != std::string::npos && *first + index <= 0xFFFF)
-                    own.push_back(DecodeQmkKeycode(static_cast<uint16_t>(*first + index), m_Keyboard.keycodeVersion));
+                    own.push_back(qmk::DecodeKeycode(static_cast<uint16_t>(*first + index), m_Keyboard.keycodeVersion));
             }
         for (BoardKey& key : board.keys)
         {
@@ -308,7 +308,7 @@ namespace nazg
         // What its lines choose, and the lighting keys of QMK's channels -- a line under the
         // pointer, its own alone.
         const bool underglow = (lighting & LightingSystem::Underglow) != 0;
-        for (const CustomControl* control : ShownLines(submenu))
+        for (const via::CustomControl* control : ShownLines(submenu))
         {
             if (m_Hovered && control != m_Hovered)
                 continue;
@@ -369,7 +369,7 @@ namespace nazg
     void CustomMenuSection::DrawPanel()
     {
         m_HoveredNow = nullptr;
-        const CustomMenu& menu = Menu();
+        const via::CustomMenu& menu = Menu();
 
         // What is not read yet, read before the panel shows; what may have changed, read again
         // behind it.
@@ -411,8 +411,8 @@ namespace nazg
             return;
         }
 
-        const CustomSubmenu&                    submenu = menu.submenus[m_Submenu];
-        const std::vector<const CustomControl*> lines   = ShownLines(submenu);
+        const via::CustomSubmenu&                    submenu = menu.submenus[m_Submenu];
+        const std::vector<const via::CustomControl*> lines   = ShownLines(submenu);
         if (m_Selected && std::find(lines.begin(), lines.end(), m_Selected) == lines.end())
             m_Selected = nullptr;
 
@@ -432,7 +432,7 @@ namespace nazg
         {
             PendingWrite write;
             for (const std::string& name : m_Dirty)
-                if (const CustomControl* control = Binding(name))
+                if (const via::CustomControl* control = Binding(name))
                     write.values.emplace_back(control, m_Values[name]);
             write.button = m_Button;
             write.store  = m_StoreWanted;
@@ -443,7 +443,7 @@ namespace nazg
         }
     }
 
-    void CustomMenuSection::DrawHeader(const CustomSubmenu& submenu)
+    void CustomMenuSection::DrawHeader(const via::CustomSubmenu& submenu)
     {
         ImGui::AlignTextToFramePadding();
         PushHeaderFont();
@@ -461,7 +461,7 @@ namespace nazg
                                              "when let go.");
     }
 
-    void CustomMenuSection::DrawLines(const std::vector<const CustomControl*>& lines)
+    void CustomMenuSection::DrawLines(const std::vector<const via::CustomControl*>& lines)
     {
         if (lines.empty())
         {
@@ -477,7 +477,7 @@ namespace nazg
         const int    columns = two ? 4 : 2;
 
         float longest = 0.0f;
-        for (const CustomControl* line : lines)
+        for (const via::CustomControl* line : lines)
             longest = std::max(longest, ImGui::CalcTextSize(line->label.c_str()).x);
         const float labelWidth = std::min(longest, c_LabelWidth * font);
 
@@ -513,7 +513,7 @@ namespace nazg
         ImGui::EndTable();
     }
 
-    void CustomMenuSection::DrawLine(const CustomControl& control)
+    void CustomMenuSection::DrawLine(const via::CustomControl& control)
     {
         // The label, wrapped in its column -- a labelled button says it on itself.
         const int pairColumn = ImGui::TableGetColumnIndex();
@@ -540,7 +540,7 @@ namespace nazg
 
             case Type::Toggle:
             {
-                bool on = IsToggledOn(control, m_Values[control.name]);
+                bool on = via::IsToggledOn(control, m_Values[control.name]);
                 if (ImGui::Checkbox("##toggle", &on))
                 {
                     m_Values[control.name] = on ? control.on : control.off;
@@ -566,7 +566,7 @@ namespace nazg
                 ImGui::AlignTextToFramePadding();
                 ImGui::PushTextWrapPos(0.0f);
                 if (control.isBound)
-                    ImGui::TextUnformatted(TextOf(m_Values[control.name]).c_str());
+                    ImGui::TextUnformatted(via::TextOf(m_Values[control.name]).c_str());
                 else
                     ColouredText(PanelColour::Muted, "%s", control.text.c_str());
                 ImGui::PopTextWrapPos();
@@ -577,10 +577,10 @@ namespace nazg
             ImGui::SetItemTooltip("The board does not answer this value: its firmware may not have it.");
     }
 
-    void CustomMenuSection::DrawRange(const CustomControl& control)
+    void CustomMenuSection::DrawRange(const via::CustomControl& control)
     {
-        const auto [lowest, highest] = RangeBounds(control, m_Ranges, m_Values);
-        int value = RangeValueOf(control, m_Values[control.name]);
+        const auto [lowest, highest] = via::RangeBounds(control, m_Ranges, m_Values);
+        int value = via::RangeValueOf(control, m_Values[control.name]);
 
         std::string format = "%d";
         if (!control.unit.empty())
@@ -598,12 +598,12 @@ namespace nazg
         if (moved)
         {
             // The sliders tied to it, pushed along with it.
-            const std::map<std::string, int> changed = ResolveRange(m_Ranges, m_Values, control.name, value);
+            const std::map<std::string, int> changed = via::ResolveRange(m_Ranges, m_Values, control.name, value);
             std::vector<std::string>         names;
             for (const auto& [name, number] : changed)
-                if (const CustomControl* range = Binding(name))
+                if (const via::CustomControl* range = Binding(name))
                 {
-                    m_Values[name] = RangeBytes(*range, number);
+                    m_Values[name] = via::RangeBytes(*range, number);
                     names.push_back(name);
                     if (name != control.name)
                         m_Pushed[name] = number;
@@ -615,7 +615,7 @@ namespace nazg
             Change({}, true);
     }
 
-    void CustomMenuSection::DrawDropdown(const CustomControl& control)
+    void CustomMenuSection::DrawDropdown(const via::CustomControl& control)
     {
         const std::vector<uint8_t>& bytes = m_Values[control.name];
         const uint8_t               value = bytes.empty() ? 0 : bytes[0];
@@ -647,18 +647,18 @@ namespace nazg
         }
     }
 
-    Keycode CustomMenuSection::KeycodeOf(const CustomControl& control) const
+    Keycode CustomMenuSection::KeycodeOf(const via::CustomControl& control) const
     {
         const auto found = m_Values.find(control.name);
         if (found == m_Values.end() || found->second.size() < 2)
             return NamedKey{ "KC_NO" };
         const uint16_t raw = static_cast<uint16_t>((found->second[0] << 8) | found->second[1]);
-        return DecodeQmkKeycode(raw, m_Keyboard.keycodeVersion);
+        return qmk::DecodeKeycode(raw, m_Keyboard.keycodeVersion);
     }
 
-    void CustomMenuSection::SetKeycode(const CustomControl& control, const Keycode& keycode)
+    void CustomMenuSection::SetKeycode(const via::CustomControl& control, const Keycode& keycode)
     {
-        const std::optional<uint16_t> raw = EncodeQmkKeycode(keycode, m_Keyboard.keycodeVersion);
+        const std::optional<uint16_t> raw = qmk::EncodeKeycode(keycode, m_Keyboard.keycodeVersion);
         if (!raw)
         {
             m_Message   = FormatKeycode(keycode) + " has no number on this board's keycodes";
@@ -669,7 +669,7 @@ namespace nazg
         Change({ control.name }, true);
     }
 
-    void CustomMenuSection::DrawKey(const CustomControl& control)
+    void CustomMenuSection::DrawKey(const via::CustomControl& control)
     {
         const std::vector<Words> custom = CustomKeycodeWordsOf(m_Keyboard);
         const LegendContext      context{ m_Legends.Layout(), m_Legends.modifierNames, KeySide::Neither,
@@ -694,7 +694,7 @@ namespace nazg
                                                                    : KeycodeLabel(keycode, m_Keyboard.keycodeVersion).c_str());
     }
 
-    void CustomMenuSection::DrawColour(const CustomControl& control)
+    void CustomMenuSection::DrawColour(const via::CustomControl& control)
     {
         std::vector<uint8_t>& value = m_Values[control.name];
         value.resize(2, 0);
@@ -725,7 +725,7 @@ namespace nazg
             Change({}, true);
     }
 
-    void CustomMenuSection::DrawPicker(const CustomControl& control)
+    void CustomMenuSection::DrawPicker(const via::CustomControl& control)
     {
         ColouredText(PanelColour::Muted, "Keymap's picker sets %s -- or click a key of the board, for what it sends.",
                      control.label.c_str());
@@ -759,17 +759,17 @@ namespace nazg
         {
             device = co_await m_Transport.Open(m_Path);
             HidDeviceChannel channel(m_Transport, device);
-            ViaProtocol      via(channel);
+            via::Protocol    via(channel);
 
             for (const std::string& name : names)
             {
-                const CustomControl* control = Binding(name);
+                const via::CustomControl* control = Binding(name);
                 if (!control)
                     continue;
                 // A value the firmware refuses is said on its line; the others still show.
                 try
                 {
-                    std::vector<uint8_t> value = co_await ReadCustomValue(via, *control);
+                    std::vector<uint8_t> value = co_await via::ReadCustomValue(via, *control);
                     if (m_Dirty.count(name) == 0)   // a change waiting keeps what the user sees
                         m_Values[name] = std::move(value);
                     m_Unanswered.erase(name);
@@ -801,11 +801,11 @@ namespace nazg
         {
             device = co_await m_Transport.Open(m_Path);
             HidDeviceChannel channel(m_Transport, device);
-            ViaProtocol      via(channel);
+            via::Protocol    via(channel);
 
             for (const auto& [control, value] : write.values)
             {
-                co_await WriteCustomValue(via, *control, value);
+                co_await via::WriteCustomValue(via, *control, value);
                 m_Unsaved.insert(control->channel);
             }
 
@@ -819,7 +819,7 @@ namespace nazg
                 std::vector<std::string> kept;
                 for (const auto& [control, value] : write.values)
                 {
-                    std::vector<uint8_t> read = co_await ReadCustomValue(via, *control);
+                    std::vector<uint8_t> read = co_await via::ReadCustomValue(via, *control);
                     if (m_Dirty.count(control->name) != 0)
                         continue;   // a newer change waiting is read back after it
                     std::vector<uint8_t> written = value;   // a toggle's states may differ in length
@@ -841,7 +841,7 @@ namespace nazg
                 {
                     std::vector<std::string> moved;
                     for (const auto& [name, number] : m_Pushed)
-                        if (const CustomControl* range = Binding(name))
+                        if (const via::CustomControl* range = Binding(name))
                             moved.push_back("\"" + range->label + "\" to " + std::to_string(number));
                     m_Message = "stored -- moved with it, as the board's rule keeps them apart: " + JoinNames(moved);
                 }
@@ -853,7 +853,7 @@ namespace nazg
             // A button: sent and stored at once, as VIA sends it -- then what it changed, read again.
             if (write.button)
             {
-                co_await WriteCustomValue(via, *write.button, write.button->on);
+                co_await via::WriteCustomValue(via, *write.button, write.button->on);
                 co_await via.SaveCustomValues(write.button->channel);
                 m_Message = "sent: " + write.button->label;
                 m_IsStale = true;

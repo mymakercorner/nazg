@@ -5,7 +5,7 @@
 
 #include <limits>
 
-#include "adapters/via/NazgViaProtocol.h"   // ProtocolError
+#include "adapters/NazgProtocolError.h"
 
 // minlzma is C, and its header declares neither its dependencies nor C linkage, so
 // both are supplied here.

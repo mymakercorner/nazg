@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com>
 //
-// VialProtocol - the Vial extensions, which live behind a single 0xFE prefix byte.
+// vial::Protocol - the Vial extensions, which live behind a single 0xFE prefix byte.
 //
-// It derives from ViaProtocol because Vial firmware IS VIA firmware plus this command
+// It derives from via::Protocol because Vial firmware IS VIA firmware plus this command
 // space: keymap, layers, macros and buffers are byte-identical and inherited unchanged.
 // That is the "one backend with a Vial branch" decision, in code.
 //
@@ -36,9 +36,9 @@
 #include "adapters/via/NazgViaProtocol.h"
 #include "async/NazgTask.h"
 
-namespace nazg
+namespace nazg::vial
 {
-    enum class VialCommand : uint8_t
+    enum class Command : uint8_t
     {
         GetKeyboardId    = 0x00,
         GetSize          = 0x01,
@@ -56,7 +56,7 @@ namespace nazg
         DynamicEntryOp   = 0x0D,
     };
 
-    enum class VialDynamicEntry : uint8_t
+    enum class DynamicEntry : uint8_t
     {
         GetNumberOfEntries = 0x00,
         TapDanceGet        = 0x01,
@@ -69,7 +69,7 @@ namespace nazg
         AltRepeatKeySet    = 0x08,
     };
 
-    struct VialIdentity
+    struct Identity
     {
         uint32_t protocolVersion = 0;
         uint64_t keyboardUid     = 0;
@@ -79,7 +79,7 @@ namespace nazg
     // How many of each dynamic entry this firmware has room for. Zero means the feature
     // is compiled out. This is the capability query -- NOT the protocol version, which
     // stayed at 6 when alt repeat key was added in 2025.
-    struct VialEntryCounts
+    struct EntryCounts
     {
         uint8_t tapDance     = 0;
         uint8_t combo        = 0;
@@ -91,7 +91,7 @@ namespace nazg
 
     // One tap dance slot as the board stores it, `vial_tap_dance_entry_t`: four raw keycodes --
     // 0 (KC_NO) where an action is empty -- and the slot's own tapping term in milliseconds.
-    struct VialTapDanceEntry
+    struct TapDanceEntry
     {
         uint16_t onTap       = 0;
         uint16_t onHold      = 0;
@@ -99,25 +99,25 @@ namespace nazg
         uint16_t onTapHold   = 0;
         uint16_t tappingTerm = 0;
 
-        bool operator==(const VialTapDanceEntry&) const = default;
+        bool operator==(const TapDanceEntry&) const = default;
     };
 
     // One combo slot as the board stores it, `vial_combo_entry_t`: four input keycodes -- the first
     // 0 (COMBO_END) ending them, so an input after an empty one is never matched -- and the output,
     // 0 where empty. A slot whose first input is 0 is unused.
-    struct VialComboEntry
+    struct ComboEntry
     {
         std::array<uint16_t, 4> inputs{};
         uint16_t                output = 0;
 
-        bool operator==(const VialComboEntry&) const = default;
+        bool operator==(const ComboEntry&) const = default;
     };
 
     // One key override slot as the board stores it, `vial_key_override_entry_t`: the trigger and
     // the replacement, 0 where empty; the layers it acts on, one bit each; three modifier masks in
     // the USB HID order (model/NazgKeycode.h, Mod) -- held, not held, hidden from the computer --
     // and the options, Vial's enable flag in bit 7 (model/NazgKeyOverride.h, KeyOverrideOption).
-    struct VialKeyOverrideEntry
+    struct KeyOverrideEntry
     {
         uint16_t trigger         = 0;
         uint16_t replacement     = 0;
@@ -127,24 +127,24 @@ namespace nazg
         uint8_t  suppressedMods  = 0;
         uint8_t  options         = 0;
 
-        bool operator==(const VialKeyOverrideEntry&) const = default;
+        bool operator==(const KeyOverrideEntry&) const = default;
     };
 
     // One alt repeat key slot as the board stores it, `vial_alt_repeat_key_entry_t`: the last key
     // and the alt key, 0 where empty; the modifiers allowed besides the last key's own, in the USB
     // HID order (model/NazgKeycode.h, Mod); the options, the enable flag in bit 3
     // (model/NazgAltRepeatKey.h, AltRepeatOption).
-    struct VialAltRepeatKeyEntry
+    struct AltRepeatKeyEntry
     {
         uint16_t keycode     = 0;
         uint16_t altKeycode  = 0;
         uint8_t  allowedMods = 0;
         uint8_t  options     = 0;
 
-        bool operator==(const VialAltRepeatKeyEntry&) const = default;
+        bool operator==(const AltRepeatKeyEntry&) const = default;
     };
 
-    struct VialUnlockStatus
+    struct UnlockStatus
     {
         bool unlocked   = false;
         bool inProgress = false;
@@ -156,26 +156,26 @@ namespace nazg
     };
 
     // How far an unlock has got, from 0xFE 0x07.
-    struct VialUnlockProgress
+    struct UnlockProgress
     {
         bool    unlocked   = false;
         bool    inProgress = false;
-        uint8_t countdown  = 0;   // steps left, from c_VialUnlockSteps down to 0
+        uint8_t countdown  = 0;   // steps left, from vial::c_UnlockSteps down to 0
     };
 
     // Where an unlock's countdown starts (VIAL_UNLOCK_COUNTER_MAX in vial-qmk).
-    inline constexpr uint8_t c_VialUnlockSteps = 50;
+    inline constexpr uint8_t c_UnlockSteps = 50;
 
-    class VialProtocol : public ViaProtocol
+    class Protocol : public via::Protocol
     {
     public:
-        explicit VialProtocol(DeviceChannel& channel) : ViaProtocol(channel) {}
+        explicit Protocol(DeviceChannel& channel) : via::Protocol(channel) {}
 
         // 0xFE 0x00. Returns nothing when this is a plain VIA board: the firmware does
         // not know 0xFE and answers with VIA's 0xFF marker in byte 0. A Vial board puts
         // the low byte of its protocol version there instead, and those run 0 to 6, so
         // the two cannot be confused in practice.
-        [[nodiscard]] Task<std::optional<VialIdentity>> Detect();
+        [[nodiscard]] Task<std::optional<Identity>> Detect();
 
         // 0xFE 0x01, then 0xFE 0x02 page by page. The result is the definition exactly
         // as stored in flash: LZMA-compressed JSON, NOT yet decompressed. Decoding it
@@ -184,29 +184,29 @@ namespace nazg
         [[nodiscard]] Task<std::vector<uint8_t>> DownloadDefinition();
 
         // 0xFE 0x0D 0x00.
-        [[nodiscard]] Task<VialEntryCounts> GetEntryCounts();
+        [[nodiscard]] Task<EntryCounts> GetEntryCounts();
 
         // 0xFE 0x0D 0x01 / 0x02: one tap dance slot, read or written. The entry travels as the
         // firmware stores it, little-endian -- keycodes included, unlike the keymap's. A write
         // passes Vial's keycode firewall, so a locked board stores Boot as 0: read it back. A slot
         // past the board's count answers a non-zero status, thrown as a ProtocolError.
-        [[nodiscard]] Task<VialTapDanceEntry> GetTapDance(uint8_t index);
-        [[nodiscard]] Task<void>              SetTapDance(uint8_t index, const VialTapDanceEntry& entry);
+        [[nodiscard]] Task<TapDanceEntry> GetTapDance(uint8_t index);
+        [[nodiscard]] Task<void>          SetTapDance(uint8_t index, const TapDanceEntry& entry);
 
         // 0xFE 0x0D 0x03 / 0x04: one combo slot, read or written, as the tap dances. Only the output
         // passes Vial's keycode firewall; the inputs are stored as sent.
-        [[nodiscard]] Task<VialComboEntry> GetCombo(uint8_t index);
-        [[nodiscard]] Task<void>           SetCombo(uint8_t index, const VialComboEntry& entry);
+        [[nodiscard]] Task<ComboEntry> GetCombo(uint8_t index);
+        [[nodiscard]] Task<void>       SetCombo(uint8_t index, const ComboEntry& entry);
 
         // 0xFE 0x0D 0x05 / 0x06: one key override slot, read or written, as the tap dances. Only the
         // replacement passes Vial's keycode firewall.
-        [[nodiscard]] Task<VialKeyOverrideEntry> GetKeyOverride(uint8_t index);
-        [[nodiscard]] Task<void>                 SetKeyOverride(uint8_t index, const VialKeyOverrideEntry& entry);
+        [[nodiscard]] Task<KeyOverrideEntry> GetKeyOverride(uint8_t index);
+        [[nodiscard]] Task<void>             SetKeyOverride(uint8_t index, const KeyOverrideEntry& entry);
 
         // 0xFE 0x0D 0x07 / 0x08: one alt repeat key slot, read or written, as the tap dances. Both
         // keycodes pass Vial's keycode firewall.
-        [[nodiscard]] Task<VialAltRepeatKeyEntry> GetAltRepeatKey(uint8_t index);
-        [[nodiscard]] Task<void>                  SetAltRepeatKey(uint8_t index, const VialAltRepeatKeyEntry& entry);
+        [[nodiscard]] Task<AltRepeatKeyEntry> GetAltRepeatKey(uint8_t index);
+        [[nodiscard]] Task<void>              SetAltRepeatKey(uint8_t index, const AltRepeatKeyEntry& entry);
 
         // 0xFE 0x0A / 0x0B: one QMK setting's value, `width` bytes little-endian (1, 2 or 4 -- the
         // setting's own; the firmware writes only that many over the request). A write sends four
@@ -232,7 +232,7 @@ namespace nazg
         // 0xFE 0x05. Worth calling before any write: a locked board silently rewrites
         // QK_BOOT to 0 in everything it accepts, so a write can "succeed" and store
         // something else.
-        [[nodiscard]] Task<VialUnlockStatus> GetUnlockStatus();
+        [[nodiscard]] Task<UnlockStatus> GetUnlockStatus();
 
         // 0xFE 0x06. The board starts an unlock: it counts down while the unlock keys are held.
         // Until it succeeds or the board restarts, the board drops every command but the few
@@ -243,8 +243,8 @@ namespace nazg
         // 0xFE 0x07. A poll counts one step down when the unlock keys are held and more than 100 ms
         // have passed since the last step; any other poll -- a key released, or one too soon
         // -- starts the countdown over. So polls must come more than 100 ms apart, and an
-        // unlock takes c_VialUnlockSteps of them.
-        [[nodiscard]] Task<VialUnlockProgress> PollUnlock();
+        // unlock takes vial::c_UnlockSteps of them.
+        [[nodiscard]] Task<UnlockProgress> PollUnlock();
 
         // 0xFE 0x08. Locks the board again; a restart does too.
         [[nodiscard]] Task<void> Lock();
@@ -264,11 +264,11 @@ namespace nazg
         [[nodiscard]] Task<void> SetVialEncoder(uint8_t layer, uint8_t index, bool clockwise, uint16_t keycode);
 
     private:
-        // Like ViaProtocol::Send but checked differently, for the reason in the header
+        // Like via::Protocol::Send but checked differently, for the reason in the header
         // comment. Returns the raw 32 bytes for the caller to interpret. Pass
         // expectsData = false for commands that answer with nothing, so their empty
         // reply is not mistaken for an unsupported feature.
-        [[nodiscard]] Task<std::vector<uint8_t>> SendVial(VialCommand                    command,
+        [[nodiscard]] Task<std::vector<uint8_t>> SendVial(Command                        command,
                                                           std::initializer_list<uint8_t> arguments,
                                                           bool                           expectsData = true);
     };

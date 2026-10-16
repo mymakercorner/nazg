@@ -24,7 +24,7 @@ namespace nazg
         constexpr uint32_t c_VialMatrixTesterProtocol = 3;
 
         // "R4 C10", as the rulers say it.
-        std::string PositionOf(const DefinitionKey& key)
+        std::string PositionOf(const via::DefinitionKey& key)
         {
             return "R" + std::to_string(key.row) + " C" + std::to_string(key.column);
         }
@@ -139,7 +139,7 @@ namespace nazg
         MatrixFocus hovered;
         if (events.hoveredKey && board.keys[*events.hoveredKey].geometry.IsSwitch())
         {
-            const DefinitionKey& key = board.keys[*events.hoveredKey].geometry;
+            const via::DefinitionKey& key = board.keys[*events.hoveredKey].geometry;
             hovered.row              = key.row;
             hovered.column           = key.column;
         }
@@ -287,13 +287,13 @@ namespace nazg
             m_Device = co_await m_Transport.Open(m_Path);
 
             HidDeviceChannel channel(m_Transport, m_Device);
-            VialProtocol     vial(channel);
+            vial::Protocol   vial(channel);
 
             if (m_IsVial)
             {
                 // A locked Vial board answers with the request echoed back -- every key
                 // released -- so the lock is asked first rather than guessed from silence.
-                const std::optional<VialIdentity> identity = co_await vial.Detect();
+                const std::optional<vial::Identity> identity = co_await vial.Detect();
                 if (identity && identity->protocolVersion < c_VialMatrixTesterProtocol)
                 {
                     Fail("This firmware speaks Vial protocol " + std::to_string(identity->protocolVersion) +
@@ -301,7 +301,7 @@ namespace nazg
                     co_return;
                 }
 
-                const VialUnlockStatus status = co_await vial.GetUnlockStatus();
+                const vial::UnlockStatus status = co_await vial.GetUnlockStatus();
                 if (!status.unlocked)
                 {
                     Fail("The board is locked, and Vial sends the matrix only once unlocked. Click Locked in the "
@@ -309,14 +309,14 @@ namespace nazg
                     co_return;
                 }
 
-                m_Format = SwitchMatrixFormat::Whole;
+                m_Format = via::SwitchMatrixFormat::Whole;
             }
             else
             {
-                m_Format = SwitchMatrixFormatForVia(co_await vial.GetProtocolVersion());
+                m_Format = via::SwitchMatrixFormatFor(co_await vial.GetProtocolVersion());
             }
 
-            if (m_Format == SwitchMatrixFormat::Whole && !WholeMatrixFits(rows, columns))
+            if (m_Format == via::SwitchMatrixFormat::Whole && !via::WholeMatrixFits(rows, columns))
             {
                 Fail("This firmware sends the matrix only when all of it fits in one reply, and " +
                      std::to_string(rows) + " rows of " + std::to_string(columns) + " columns do not.");
@@ -337,9 +337,9 @@ namespace nazg
         try
         {
             HidDeviceChannel channel(m_Transport, m_Device);
-            ViaProtocol      via(channel);
+            via::Protocol    via(channel);
 
-            const SwitchMatrixState reading = co_await via.GetSwitchMatrixState(
+            const via::SwitchMatrixState reading = co_await via.GetSwitchMatrixState(
                 m_Format, m_Keyboard.definition.matrixRows, m_Keyboard.definition.matrixColumns);
             AddReading(m_Readings, reading);
         }

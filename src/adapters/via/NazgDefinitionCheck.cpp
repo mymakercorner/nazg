@@ -12,7 +12,7 @@
 #include "adapters/via/NazgViaCustomMenu.h"
 #include "model/NazgKeyboard.h"
 
-namespace nazg
+namespace nazg::via
 {
     namespace
     {

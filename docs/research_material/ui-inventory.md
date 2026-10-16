@@ -267,10 +267,10 @@ device table — is marked FIRST DRAFT in its header and is expected to go.
 
 | Capability | Where | Screen missing |
 |---|---|---|
-| Vial unlock status | `VialProtocol::GetUnlockStatus()` | lock state; the unlock flow itself is not implemented |
-| Vial entry counts — tap dance, combos, key overrides | `VialProtocol::GetEntryCounts()` | every feature editor |
-| Encoders | `VialProtocol::GetEncoder()` | encoder bindings |
-| Macro count and buffer size | `ViaProtocol::GetMacroCount()`, `GetMacroBufferSize()` | macros |
+| Vial unlock status | `vial::Protocol::GetUnlockStatus()` | lock state; the unlock flow itself is not implemented |
+| Vial entry counts — tap dance, combos, key overrides | `vial::Protocol::GetEntryCounts()` | every feature editor |
+| Encoders | `vial::Protocol::GetEncoder()` | encoder bindings |
+| Macro count and buffer size | `via::Protocol::GetMacroCount()`, `GetMacroBufferSize()` | macros |
 | Layout options, read from the board | `Keyboard::layoutSelection` | choosing them (`SetKeyboardValue` not wrapped yet) |
 | Keycodes of every kind — mod-tap, layer-tap, modified, tap dance, macro | `Keycode` variant, the QMK codec | composing them in the picker; they display correctly already |
 

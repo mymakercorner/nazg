@@ -117,11 +117,11 @@ namespace nazg
     }
 
     MacrosSection::MacrosSection(HidTransport& transport, std::string path, Keyboard& keyboard, LegendSettings& legends,
-                                 bool& hostLayoutChosen, const std::optional<VialUnlockStatus>& lock,
+                                 bool& hostLayoutChosen, const std::optional<vial::UnlockStatus>& lock,
                                  const bool& advancedTools)
         : m_Transport(transport), m_Path(std::move(path)), m_Keyboard(keyboard), m_Legends(legends),
           m_HostLayoutChosen(hostLayoutChosen), m_Lock(lock), m_AdvancedTools(advancedTools),
-          m_Format(MacroFormatFor(keyboard.report))
+          m_Format(via::MacroFormatFor(keyboard.report))
     {
     }
 
@@ -219,7 +219,7 @@ namespace nazg
     {
         if (!events.hoveredKey)
             return;
-        const DefinitionKey& key = board.keys[*events.hoveredKey].geometry;
+        const via::DefinitionKey& key = board.keys[*events.hoveredKey].geometry;
         for (int layer = 0; layer < m_Keyboard.keymap.Layers(); ++layer)
         {
             const Keycode keycode = m_Keyboard.KeycodeFor(key, static_cast<uint8_t>(layer));
@@ -244,11 +244,11 @@ namespace nazg
         {
             device = co_await m_Transport.Open(m_Path);
             HidDeviceChannel channel(m_Transport, device);
-            ViaProtocol      via(channel);
+            via::Protocol    via(channel);
 
             m_BufferSize = co_await via.GetMacroBufferSize();
             m_Stored     = co_await via.ReadMacros(m_Keyboard.report.macroCount, m_BufferSize);
-            m_StoredActions = DecodeMacros(m_Stored, m_Keyboard.report.macroCount, m_Format);
+            m_StoredActions = via::DecodeMacros(m_Stored, m_Keyboard.report.macroCount, m_Format);
             m_Saved.assign(m_StoredActions.size(), {});
             m_Macros.assign(m_StoredActions.size(), {});
             m_StepsFor.clear();
@@ -282,8 +282,8 @@ namespace nazg
         if (IsBusy() || !m_IsLoaded || IsLocked() || !HasUnsavedChanges())
             return;
 
-        const MacroContext        context = Context();
-        std::vector<MacroActions> all;
+        const MacroContext             context = Context();
+        std::vector<via::MacroActions> all;
         for (size_t macro = 0; macro < m_Macros.size(); ++macro)
         {
             MacroWriting writing = ActionsOf(m_Macros[macro], context);
@@ -297,7 +297,7 @@ namespace nazg
         }
 
         std::string                error;
-        const std::vector<uint8_t> bytes = EncodeMacros(all, m_Format, &error);
+        const std::vector<uint8_t> bytes = via::EncodeMacros(all, m_Format, &error);
         if (!error.empty() || bytes.size() > m_BufferSize)
         {
             m_Message   = !error.empty() ? error
@@ -318,7 +318,7 @@ namespace nazg
         {
             device = co_await m_Transport.Open(m_Path);
             HidDeviceChannel channel(m_Transport, device);
-            ViaProtocol      via(channel);
+            via::Protocol    via(channel);
 
             co_await via.WriteMacros(m_Stored, bytes, m_BufferSize);
             std::vector<uint8_t> stored = co_await via.ReadMacros(m_Keyboard.report.macroCount, m_BufferSize);
@@ -326,7 +326,7 @@ namespace nazg
             // What the board holds now, whatever was asked.
             const bool kept = stored == bytes;
             m_Stored        = std::move(stored);
-            m_StoredActions = DecodeMacros(m_Stored, m_Keyboard.report.macroCount, m_Format);
+            m_StoredActions = via::DecodeMacros(m_Stored, m_Keyboard.report.macroCount, m_Format);
             if (kept)
             {
                 m_Saved = m_Macros;   // so ReadSteps() refreshes every one
@@ -900,7 +900,7 @@ namespace nazg
             else if (step.kind == MacroStep::Kind::Wait)
             {
                 ImGui::TextDisabled("in milliseconds, up to %u; the keyboard does nothing else meanwhile",
-                                    LongestWait(m_Format));
+                                    via::LongestWait(m_Format));
             }
             else
             {
@@ -942,14 +942,14 @@ namespace nazg
             Select(*m_Caret - 1);
         }
         ImGui::SameLine();
-        ImGui::BeginDisabled(!HasWaits(m_Format));
+        ImGui::BeginDisabled(!via::HasWaits(m_Format));
         if (ImGui::SmallButton("Wait"))
         {
             Insert({ { MacroStep::Kind::Wait, {}, NamedKey{ "KC_NO" }, 100 } }, 1);
             Select(*m_Caret - 1);
         }
         ImGui::EndDisabled();
-        if (!HasWaits(m_Format))
+        if (!via::HasWaits(m_Format))
             ImGui::SetItemTooltip("This board's firmware has no waits");
         ImGui::SameLine();
         if (ImGui::SmallButton("Held key"))
@@ -975,13 +975,13 @@ namespace nazg
 
         // Where keys are 8-bit, only basic keys -- or one sent with modifiers, written as a chord.
         std::function<std::optional<std::string>(const Keycode&)> unavailable;
-        if (!HoldsAnyKeycode(m_Format))
+        if (!via::HoldsAnyKeycode(m_Format))
             unavailable = [version = m_Keyboard.keycodeVersion](const Keycode& keycode) -> std::optional<std::string>
             {
                 if (const auto* modified = std::get_if<ModifiedKey>(&keycode))
-                    if (const QmkKeycode* row = FindQmkKeycodeByName(modified->key, version); row && row->value <= 0xFF)
+                    if (const qmk::KeycodeEntry* row = qmk::FindKeycodeByName(modified->key, version); row && row->value <= 0xFF)
                         return std::nullopt;
-                const std::optional<uint16_t> value = EncodeQmkKeycode(keycode, version);
+                const std::optional<uint16_t> value = qmk::EncodeKeycode(keycode, version);
                 if (value && *value <= 0xFF)
                     return std::nullopt;
                 return std::string("This board's macros hold basic keys only");

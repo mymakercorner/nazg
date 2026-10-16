@@ -28,6 +28,8 @@
 #include <string>
 #include <vector>
 
+namespace qmk = nazg::qmk;
+
 using nazg::FaceBox;
 using nazg::KeycapLegend;
 using nazg::KeycapPrimitives;
@@ -203,7 +205,7 @@ namespace
         };
 
         int texts = 0;
-        for (const nazg::QmkKeycode& row : nazg::QmkKeycodeTable())
+        for (const qmk::KeycodeEntry& row : qmk::KeycodeTable())
             for (nazg::ModifierNames names : nazg::AllModifierNames())
             {
                 const KeycapLegend legend = nazg::LegendFor(nazg::NamedKey{ row.name }, { nazg::UsHostLayout(), names });
@@ -244,9 +246,9 @@ namespace
 
         Tally tally;
         int   commands = 0;
-        for (const nazg::QmkKeycode& row : nazg::QmkKeycodeTable())
+        for (const qmk::KeycodeEntry& row : qmk::KeycodeTable())
         {
-            if (!row.ExistsIn(nazg::c_LatestQmkKeycodeVersion))
+            if (!row.ExistsIn(qmk::c_LatestKeycodeVersion))
                 continue;
 
             for (nazg::ModifierNames names : nazg::AllModifierNames())
@@ -371,8 +373,8 @@ namespace
             for (uint8_t lighting : c_Lightings)
             {
                 const nazg::LegendContext context{ nazg::UsHostLayout(), names, nazg::KeySide::Neither, lighting };
-                for (const nazg::QmkKeycode& row : nazg::QmkKeycodeTable())
-                    if (row.ExistsIn(nazg::c_LatestQmkKeycodeVersion))
+                for (const qmk::KeycodeEntry& row : qmk::KeycodeTable())
+                    if (row.ExistsIn(qmk::c_LatestKeycodeVersion))
                         draw(nazg::LegendFor(nazg::NamedKey{ row.name }, context), row.name);
                 for (uint8_t layer = 0; layer < 32; ++layer)
                     for (uint8_t op = 0; op <= static_cast<uint8_t>(nazg::LayerOp::TapToggle); ++op)
@@ -398,9 +400,9 @@ namespace
         std::printf("command taps under a hold on 1u\n");
 
         Tally tally;
-        for (const nazg::QmkKeycode& row : nazg::QmkKeycodeTable())
+        for (const qmk::KeycodeEntry& row : qmk::KeycodeTable())
         {
-            if (!row.ExistsIn(nazg::c_LatestQmkKeycodeVersion) || row.value > 0xFF)
+            if (!row.ExistsIn(qmk::c_LatestKeycodeVersion) || row.value > 0xFF)
                 continue;
 
             for (nazg::ModifierNames names : nazg::AllModifierNames())

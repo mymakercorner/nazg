@@ -146,7 +146,7 @@ namespace nazg
     bool LightingSection::AnyKeyChanges(LightingKind kind) const
     {
         const bool underglow = (LightingSystemsOf(m_Keyboard) & LightingSystem::Underglow) != 0;
-        for (const DefinitionKey& key : m_Keyboard.definition.keys)
+        for (const via::DefinitionKey& key : m_Keyboard.definition.keys)
             for (int layer = 0; layer < m_Keyboard.keymap.Layers(); ++layer)
                 if (ChangesLighting(NameOf(m_Keyboard.KeycodeFor(key, static_cast<uint8_t>(layer))), kind, LightingLine::Any,
                                     underglow))
@@ -596,19 +596,19 @@ namespace nazg
         {
             device = co_await m_Transport.Open(m_Path);
             HidDeviceChannel channel(m_Transport, device);
-            ViaProtocol      via(channel);
+            via::Protocol    via(channel);
 
             for (System& system : m_Systems)
             {
                 if (system.target.wire == LightingWire::VialRgb && system.effects.empty())
                 {
-                    system.maxBrightness = (co_await ReadVialRgbInfo(via)).maxBrightness;
-                    system.effects       = co_await ReadVialRgbEffects(via);
+                    system.maxBrightness = (co_await via::ReadVialRgbInfo(via)).maxBrightness;
+                    system.effects       = co_await via::ReadVialRgbEffects(via);
                     if (!system.effects.empty() &&
                         std::find(system.effects.begin(), system.effects.end(), system.lastEffect) == system.effects.end())
                         system.lastEffect = system.effects.front();
                 }
-                LightingValues read = co_await ReadLighting(via, system.target, system.maxBrightness);
+                LightingValues read = co_await via::ReadLighting(via, system.target, system.maxBrightness);
                 if (!read.on.has_value())
                     read.on = system.knownOn;
                 if (read.effect != 0 && read.on.value_or(true))
@@ -637,14 +637,14 @@ namespace nazg
         {
             device = co_await m_Transport.Open(m_Path);
             HidDeviceChannel channel(m_Transport, device);
-            ViaProtocol      via(channel);
+            via::Protocol    via(channel);
 
             System& system = m_Systems[write.system];
-            co_await WriteLighting(via, system.target, write.line, write.values, system.maxBrightness);
+            co_await via::WriteLighting(via, system.target, write.line, write.values, system.maxBrightness);
             if (write.store)
             {
-                co_await SaveLighting(via, system.target);
-                LightingValues read = co_await ReadLighting(via, system.target, system.maxBrightness);
+                co_await via::SaveLighting(via, system.target);
+                LightingValues read = co_await via::ReadLighting(via, system.target, system.maxBrightness);
                 if (!read.on.has_value())
                     read.on = system.knownOn;
 

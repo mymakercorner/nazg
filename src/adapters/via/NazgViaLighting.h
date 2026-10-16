@@ -15,7 +15,7 @@
 #include "async/NazgTask.h"
 #include "model/NazgLighting.h"
 
-namespace nazg
+namespace nazg::via
 {
     // VialRGB's own facts, asked once: its protocol (1 so far) and the brightness its RGB Matrix
     // tops out at -- RGB_MATRIX_MAXIMUM_BRIGHTNESS, the scale of its brightness.
@@ -25,21 +25,21 @@ namespace nazg
         uint8_t  maxBrightness = 255;
     };
 
-    [[nodiscard]] Task<VialRgbInfo> ReadVialRgbInfo(ViaProtocol& via);
+    [[nodiscard]] Task<VialRgbInfo> ReadVialRgbInfo(Protocol& via);
 
     // The VialRGB effects the board was built with, as VialRGB ids, off (0) left out.
-    [[nodiscard]] Task<std::vector<uint16_t>> ReadVialRgbEffects(ViaProtocol& via);
+    [[nodiscard]] Task<std::vector<uint16_t>> ReadVialRgbEffects(Protocol& via);
 
     // `maxBrightness` is VialRGB's (VialRgbInfo); every other wire's brightness is 0-255 already.
-    [[nodiscard]] Task<LightingValues> ReadLighting(ViaProtocol& via, LightingTarget target, uint8_t maxBrightness = 255);
+    [[nodiscard]] Task<LightingValues> ReadLighting(Protocol& via, LightingTarget target, uint8_t maxBrightness = 255);
 
     // Writes what `line` shows of `values` -- On and Effect both write the effect, 0 for off. On
     // the Legacy wire an effect is written twice: vial-qmk sets the mode before turning the light
     // on, so the first only turns on a light that was off. VialRGB sets effect, speed and colour
     // together, whatever the line.
-    [[nodiscard]] Task<void> WriteLighting(ViaProtocol& via, LightingTarget target, LightingLine line,
+    [[nodiscard]] Task<void> WriteLighting(Protocol& via, LightingTarget target, LightingLine line,
                                            const LightingValues& values, uint8_t maxBrightness = 255);
 
     // Stores what was written: the system's channel, or every lighting value without one.
-    [[nodiscard]] Task<void> SaveLighting(ViaProtocol& via, LightingTarget target);
+    [[nodiscard]] Task<void> SaveLighting(Protocol& via, LightingTarget target);
 }

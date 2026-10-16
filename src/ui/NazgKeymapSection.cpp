@@ -76,11 +76,11 @@ namespace nazg
 
         // The board's order, for "next key": by rows of keys -- centres within a third of a unit
         // of each other's height are one row -- then left to right; a cell once, at its first key.
-        std::vector<const DefinitionKey*> ordered;
+        std::vector<const via::DefinitionKey*> ordered;
         for (const BoardKey& key : board.keys)
             if (!key.geometry.decal && m_Keyboard.keymap.Contains(m_Layer, key.geometry.row, key.geometry.column))
                 ordered.push_back(&key.geometry);
-        std::stable_sort(ordered.begin(), ordered.end(), [](const DefinitionKey* a, const DefinitionKey* b)
+        std::stable_sort(ordered.begin(), ordered.end(), [](const via::DefinitionKey* a, const via::DefinitionKey* b)
         {
             const auto [ax, ay] = KeyCentre(*a);
             const auto [bx, by] = KeyCentre(*b);
@@ -89,7 +89,7 @@ namespace nazg
             return ax < bx;
         });
         m_Order.clear();
-        for (const DefinitionKey* key : ordered)
+        for (const via::DefinitionKey* key : ordered)
         {
             const Cell cell{ static_cast<uint8_t>(key->row), static_cast<uint8_t>(key->column) };
             if (std::none_of(m_Order.begin(), m_Order.end(),
@@ -101,7 +101,7 @@ namespace nazg
 
         for (BoardKey& key : board.keys)
         {
-            const DefinitionKey& geometry = key.geometry;
+            const via::DefinitionKey& geometry = key.geometry;
 
             // A knob: flashed after a write, outlined while selected -- a Vial knob's direction key
             // when it is the action chosen.
@@ -141,7 +141,7 @@ namespace nazg
         if (!events.hoveredKey)
             return;
 
-        const DefinitionKey& key = board.keys[*events.hoveredKey].geometry;
+        const via::DefinitionKey& key = board.keys[*events.hoveredKey].geometry;
 
         // A knob: what it does each way, and a click selects it -- the direction clicked on Vial,
         // the press on a VIA knob that has one.
@@ -265,7 +265,7 @@ namespace nazg
 
     std::optional<KeymapSection::Cell> KeymapSection::PushCellOf(int knob) const
     {
-        for (const DefinitionKey& key : m_Keyboard.definition.keys)
+        for (const via::DefinitionKey& key : m_Keyboard.definition.keys)
             if (key.encoderIndex == knob && key.encoderPush && m_Keyboard.keymap.Contains(m_Layer, key.row, key.column))
                 return Cell{ key.row, key.column };
         return std::nullopt;
@@ -470,7 +470,7 @@ namespace nazg
     {
         // A tap-hold's or a modified key's tap, or a plain key itself: what the composer shapes.
         // Only a basic keycode -- QMK's bottom byte, from KC_A -- can be one.
-        std::optional<std::string_view> TapOf(const Keycode& keycode, QmkKeycodeVersion version)
+        std::optional<std::string_view> TapOf(const Keycode& keycode, qmk::KeycodeVersion version)
         {
             if (const auto* modTap = std::get_if<ModTapKey>(&keycode))
                 return modTap->key;
@@ -479,7 +479,7 @@ namespace nazg
             if (const auto* modified = std::get_if<ModifiedKey>(&keycode))
                 return modified->key;
             if (const auto* named = std::get_if<NamedKey>(&keycode))
-                if (const QmkKeycode* row = FindQmkKeycodeByName(named->name, version);
+                if (const qmk::KeycodeEntry* row = qmk::FindKeycodeByName(named->name, version);
                     row != nullptr && row->value >= 0x04 && row->value <= 0xFF)
                     return named->name;
             return std::nullopt;
@@ -488,7 +488,7 @@ namespace nazg
 
     void KeymapSection::DrawKeyLine(const Keycode& current)
     {
-        const QmkKeycodeVersion version = m_Keyboard.keycodeVersion;
+        const qmk::KeycodeVersion version = m_Keyboard.keycodeVersion;
 
         ImGui::AlignTextToFramePadding();
         ImGui::TextDisabled("Row %d, column %d", m_Selected->row, m_Selected->column);
@@ -529,10 +529,10 @@ namespace nazg
 
         if (entered)
         {
-            const std::optional<Keycode> typed = ParseQmkExpression(m_Expression, version);
+            const std::optional<Keycode> typed = qmk::ParseExpression(m_Expression, version);
             if (!typed)
                 m_ExpressionError = "not a keycode Nazg knows";
-            else if (!EncodeQmkKeycode(*typed, version))
+            else if (!qmk::EncodeKeycode(*typed, version))
                 m_ExpressionError = "this board cannot store it";
             else
                 Write(*typed, true);
@@ -552,7 +552,7 @@ namespace nazg
 
     void KeymapSection::DrawComposer(const Keycode& current)
     {
-        const QmkKeycodeVersion               version = m_Keyboard.keycodeVersion;
+        const qmk::KeycodeVersion             version = m_Keyboard.keycodeVersion;
         const std::optional<std::string_view> tap     = TapOf(current, version);
         if (!tap)
             return;
@@ -633,7 +633,7 @@ namespace nazg
     }
 
     // Keep the model in step with what the board says it stored.
-    Task<void> KeymapSection::WriteKey(uint8_t layer, Cell cell, Keycode keycode, QmkKeycodeVersion version)
+    Task<void> KeymapSection::WriteKey(uint8_t layer, Cell cell, Keycode keycode, qmk::KeycodeVersion version)
     {
         m_IsWriting = true;
         m_Message.clear();
@@ -646,14 +646,14 @@ namespace nazg
             device = co_await m_Transport.Open(m_Path);
 
             HidDeviceChannel channel(m_Transport, device);
-            ViaProtocol      via(channel);
+            via::Protocol    via(channel);
 
-            const Keycode stored = co_await nazg::WriteKeycode(via, layer, cell.row, cell.column, keycode, version);
+            const Keycode stored = co_await nazg::via::WriteKeycode(via, layer, cell.row, cell.column, keycode, version);
             m_Keyboard.keymap.Set(layer, cell.row, cell.column, stored);
 
             // Compared as the values on the wire: two Keycodes can differ as values yet be
             // the same key (a macro by name or by index), and the wire is what counts.
-            if (EncodeQmkKeycode(stored, version) == EncodeQmkKeycode(keycode, version))
+            if (qmk::EncodeKeycode(stored, version) == qmk::EncodeKeycode(keycode, version))
             {
                 m_Message = "stored " + FormatKeycode(stored);
 
@@ -685,7 +685,7 @@ namespace nazg
 
     // As WriteKey(), through the encoder map: the turn stored, read back, kept in the model.
     Task<void> KeymapSection::WriteTurn(uint8_t layer, uint8_t knob, bool clockwise, Keycode keycode,
-                                        QmkKeycodeVersion version, bool isVial)
+                                        qmk::KeycodeVersion version, bool isVial)
     {
         m_IsWriting = true;
         m_Message.clear();
@@ -698,14 +698,14 @@ namespace nazg
             device = co_await m_Transport.Open(m_Path);
 
             HidDeviceChannel channel(m_Transport, device);
-            VialProtocol     protocol(channel);
+            vial::Protocol   protocol(channel);
 
-            const Keycode stored = co_await WriteKnobTurn(protocol, isVial, layer, knob, clockwise, keycode, version);
+            const Keycode stored = co_await vial::WriteKnobTurn(protocol, isVial, layer, knob, clockwise, keycode, version);
             if (layer < m_Keyboard.encoderMap.size() && knob < m_Keyboard.encoderMap[layer].size())
                 (clockwise ? m_Keyboard.encoderMap[layer][knob].clockwise : m_Keyboard.encoderMap[layer][knob].counterClockwise) =
                     stored;
 
-            if (EncodeQmkKeycode(stored, version) == EncodeQmkKeycode(keycode, version))
+            if (qmk::EncodeKeycode(stored, version) == qmk::EncodeKeycode(keycode, version))
                 m_Message = "stored " + FormatKeycode(stored);
             else
             {

@@ -52,7 +52,7 @@ namespace nazg
             float  sine   = 0.0f;
             ImVec2 pivot;
 
-            Rotation(const DefinitionKey& key, ImVec2 pivotPoint) : pivot(pivotPoint)
+            Rotation(const via::DefinitionKey& key, ImVec2 pivotPoint) : pivot(pivotPoint)
             {
                 const float radians = key.rotation * 3.14159265358979f / 180.0f;
                 cosine = std::cos(radians);
@@ -97,7 +97,7 @@ namespace nazg
         };
 
         // Decals count for the board's extent, as in VIA, though they are never drawn.
-        void AddKey(Bounds& bounds, const DefinitionKey& key)
+        void AddKey(Bounds& bounds, const via::DefinitionKey& key)
         {
             const Rotation rotation(key, ImVec2(key.rotationX, key.rotationY));
 
@@ -149,7 +149,7 @@ namespace nazg
         }
 
         // The key's outline in screen pixels, unrotated, `inset` pixels in from its edge.
-        std::vector<ContourPoint> ContourOnScreen(const DefinitionKey& key, ImVec2 origin, float unit, float inset)
+        std::vector<ContourPoint> ContourOnScreen(const via::DefinitionKey& key, ImVec2 origin, float unit, float inset)
         {
             std::vector<ContourPoint> contour = KeyContour(key);
             for (ContourPoint& point : contour)
@@ -259,9 +259,9 @@ namespace nazg
         // layout and clipped to the face.
         void DrawLegends(ImDrawList* drawList, const BoardKey& key, ImVec2 p0, ImVec2 p1, float unit, bool dimmed)
         {
-            const ImGuiTextMeasurer measurer(g_LegendFonts, ImGui::GetFont());
-            const FaceBox           face{ p0.x, p0.y, p1.x, p1.y };
-            const DefinitionKey&    geometry = key.geometry;
+            const ImGuiTextMeasurer   measurer(g_LegendFonts, ImGui::GetFont());
+            const FaceBox             face{ p0.x, p0.y, p1.x, p1.y };
+            const via::DefinitionKey& geometry = key.geometry;
             const bool oneUnit = !geometry.HasSecondRectangle() && geometry.width <= 1.0f && geometry.height <= 1.0f;
 
             const KeycapPrimitives primitives =
@@ -445,10 +445,10 @@ namespace nazg
         bool DrawKey(ImDrawList* drawList, ImVec2 origin, float unit, const BoardKey& described, bool canHover,
                      KeyPass pass)
         {
-            const DefinitionKey& key      = described.geometry;
-            const float          gap      = unit * c_KeyGap;
-            const Rounding       rounding{ unit * c_KeyRounding, unit * c_InnerRounding };
-            const float          scale    = ImGui::GetStyle().FontScaleDpi;
+            const via::DefinitionKey& key      = described.geometry;
+            const float               gap      = unit * c_KeyGap;
+            const Rounding            rounding{ unit * c_KeyRounding, unit * c_InnerRounding };
+            const float               scale    = ImGui::GetStyle().FontScaleDpi;
 
             const Rotation rotation(key, ImVec2(origin.x + key.rotationX * unit, origin.y + key.rotationY * unit));
             const int      firstVertex = drawList->VtxBuffer.Size;
@@ -920,18 +920,18 @@ namespace nazg
         }
     }
 
-    void DrawDefinitionPreview(const KeyboardDefinition& definition, float width, float height)
+    void DrawDefinitionPreview(const via::KeyboardDefinition& definition, float width, float height)
     {
         // Choice 0 of every group a key names, whether or not the labels describe it.
         int groups = 0;
-        for (const DefinitionKey& key : definition.keys)
+        for (const via::DefinitionKey& key : definition.keys)
             groups = std::max(groups, key.layoutIndex + 1);
 
-        const std::vector<DefinitionKey> placed =
+        const std::vector<via::DefinitionKey> placed =
             PlaceKeys(definition, std::vector<uint8_t>(static_cast<size_t>(groups), 0));
 
         Bounds board;
-        for (const DefinitionKey& key : placed)
+        for (const via::DefinitionKey& key : placed)
             AddKey(board, key);
 
         if (board.IsEmpty() || width <= 0.0f || height <= 0.0f)
@@ -951,7 +951,7 @@ namespace nazg
         const float rounding = unit * c_KeyRounding;
         const ImU32 fill     = BoardColours::Fill(KeyFill::Alpha, 0.0f).face;
 
-        for (const DefinitionKey& key : placed)
+        for (const via::DefinitionKey& key : placed)
         {
             if (key.decal)
                 continue;

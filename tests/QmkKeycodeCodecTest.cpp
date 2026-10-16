@@ -20,27 +20,26 @@
 #include <optional>
 #include <string>
 
-using nazg::DecodeQmkKeycode;
-using nazg::EncodeQmkKeycode;
+namespace qmk = nazg::qmk;
+
 using nazg::FormatKeycode;
 using nazg::Keycode;
-using nazg::QmkKeycodeVersion;
 
 namespace Mod = nazg::Mod;
 
 namespace
 {
-    constexpr QmkKeycodeVersion c_Latest = nazg::c_LatestQmkKeycodeVersion;
+    constexpr qmk::KeycodeVersion c_Latest = qmk::c_LatestKeycodeVersion;
 
-    std::string Decoded(uint16_t value, QmkKeycodeVersion version = c_Latest)
+    std::string Decoded(uint16_t value, qmk::KeycodeVersion version = c_Latest)
     {
-        return FormatKeycode(DecodeQmkKeycode(value, version));
+        return FormatKeycode(qmk::DecodeKeycode(value, version));
     }
 
     // -1 for "cannot be stored", so a failed encode compares cleanly in a Check.
-    int Encoded(const Keycode& keycode, QmkKeycodeVersion version = c_Latest)
+    int Encoded(const Keycode& keycode, qmk::KeycodeVersion version = c_Latest)
     {
-        const std::optional<uint16_t> value = EncodeQmkKeycode(keycode, version);
+        const std::optional<uint16_t> value = qmk::EncodeKeycode(keycode, version);
         return value ? *value : -1;
     }
 
@@ -52,7 +51,7 @@ namespace
         Check(Decoded(0x0000) == "KC_NO" && Decoded(0x0001) == "KC_TRNS", "KC_NO and KC_TRNS");
         Check(Decoded(0x7C42) == "HF_TOGG", "the haptic toggle has a name");
         Check(Decoded(0x56F0) == "SH_TOGG", "a fixed swap-hands keycode inside the SH_T range");
-        Check(Decoded(0x7110, QmkKeycodeVersion::V0_0_1) == "MI_C" && Decoded(0x7110) == "MI_Cs1",
+        Check(Decoded(0x7110, qmk::KeycodeVersion::V0_0_1) == "MI_C" && Decoded(0x7110) == "MI_Cs1",
               "the same value decodes per version");
     }
 
@@ -103,9 +102,9 @@ namespace
         Check(Decoded(0x52C4) == "TT(4)", "TT");
         Check(Decoded(0x5022) == "LM(1,MOD_LSFT)", "LM");
 
-        Check(Decoded(0x52E1, QmkKeycodeVersion::V0_0_6) == "PDF(1)", "PDF from keycode spec 0.0.6");
-        Check(Decoded(0x52E1, QmkKeycodeVersion::V0_0_5) == "0x52E1", "and nothing before");
-        Check(Encoded(nazg::LayerKey{ nazg::LayerOp::PersistentDefault, 1 }, QmkKeycodeVersion::V0_0_5) == -1,
+        Check(Decoded(0x52E1, qmk::KeycodeVersion::V0_0_6) == "PDF(1)", "PDF from keycode spec 0.0.6");
+        Check(Decoded(0x52E1, qmk::KeycodeVersion::V0_0_5) == "0x52E1", "and nothing before");
+        Check(Encoded(nazg::LayerKey{ nazg::LayerOp::PersistentDefault, 1 }, qmk::KeycodeVersion::V0_0_5) == -1,
               "so a 0.0.5 board cannot store PDF");
 
         Check(Encoded(nazg::LayerKey{ nazg::LayerOp::Momentary, 31 }) == 0x523F, "MO reaches layer 31");
@@ -129,7 +128,7 @@ namespace
         Check(Decoded(0x0002) == "0x0002", "an unassigned value is kept raw");
         Check(Decoded(0x8123) == "0x8123", "unicode is not decoded yet");
         Check(Encoded(nazg::UnknownKey{ 0x8123 }) == 0x8123, "and writes back unchanged");
-        Check(Encoded(nazg::NamedKey{ "QK_LLCK" }, QmkKeycodeVersion::V0_0_5) == -1,
+        Check(Encoded(nazg::NamedKey{ "QK_LLCK" }, qmk::KeycodeVersion::V0_0_5) == -1,
               "a named keycode newer than the board cannot be stored");
     }
 
@@ -139,12 +138,12 @@ namespace
     {
         std::printf("across versions\n");
 
-        const Keycode midiC = DecodeQmkKeycode(0x7110, QmkKeycodeVersion::V0_0_1);
-        Check(Encoded(midiC, QmkKeycodeVersion::V0_0_9) == 0x7103,
+        const Keycode midiC = qmk::DecodeKeycode(0x7110, qmk::KeycodeVersion::V0_0_1);
+        Check(Encoded(midiC, qmk::KeycodeVersion::V0_0_9) == 0x7103,
               "MI_C read off a 0.0.1 board writes to a 0.0.9 board at its new value");
 
-        const Keycode outputAuto = DecodeQmkKeycode(0x7C20, QmkKeycodeVersion::V0_0_5);
-        Check(Encoded(outputAuto, QmkKeycodeVersion::V0_0_6) == 0x7780, "OU_AUTO follows its move in 0.0.6");
+        const Keycode outputAuto = qmk::DecodeKeycode(0x7C20, qmk::KeycodeVersion::V0_0_5);
+        Check(Encoded(outputAuto, qmk::KeycodeVersion::V0_0_6) == 0x7780, "OU_AUTO follows its move in 0.0.6");
     }
 
     // Before the renumbering: same shapes, other bases, and TO's two encodings.
@@ -152,8 +151,8 @@ namespace
     {
         std::printf("before the renumbering\n");
 
-        const QmkKeycodeVersion legacy = QmkKeycodeVersion::Legacy;
-        const QmkKeycodeVersion via10  = QmkKeycodeVersion::LegacyVia10;
+        const qmk::KeycodeVersion legacy = qmk::KeycodeVersion::Legacy;
+        const qmk::KeycodeVersion via10  = qmk::KeycodeVersion::LegacyVia10;
 
         Check(Decoded(0x0104, legacy) == "LCTL(KC_A)" && Decoded(0x4104, legacy) == "LT(1,KC_A)",
               "modifiers and LT kept their layout");
@@ -180,31 +179,31 @@ namespace
         Check(Encoded(nazg::NamedKey{ "HF_TOGG" }, legacy) == -1, "nor a pinned value for the haptic keys");
 
         // A keymap moving between the two numberings keeps its meaning.
-        Check(Encoded(DecodeQmkKeycode(0x5C00, legacy)) == 0x7C00, "RESET read before becomes QK_BOOT after");
-        Check(Encoded(DecodeQmkKeycode(0x5221, c_Latest), legacy) == 0x5101, "MO(1) written back to an old board");
-        Check(Encoded(DecodeQmkKeycode(0x5F10, legacy)) == 0x7C77, "FN_MO13 becomes TL_LOWR");
+        Check(Encoded(qmk::DecodeKeycode(0x5C00, legacy)) == 0x7C00, "RESET read before becomes QK_BOOT after");
+        Check(Encoded(qmk::DecodeKeycode(0x5221, c_Latest), legacy) == 0x5101, "MO(1) written back to an old board");
+        Check(Encoded(qmk::DecodeKeycode(0x5F10, legacy)) == 0x7C77, "FN_MO13 becomes TL_LOWR");
     }
 
     void TestRoundTrip()
     {
         std::printf("round trip, every value in every version\n");
 
-        const QmkKeycodeVersion versions[] = {
-            QmkKeycodeVersion::Legacy, QmkKeycodeVersion::LegacyVia10,
-            QmkKeycodeVersion::V0_0_1, QmkKeycodeVersion::V0_0_2, QmkKeycodeVersion::V0_0_3,
-            QmkKeycodeVersion::V0_0_4, QmkKeycodeVersion::V0_0_5, QmkKeycodeVersion::V0_0_6,
-            QmkKeycodeVersion::V0_0_7, QmkKeycodeVersion::V0_0_8, QmkKeycodeVersion::V0_0_9,
+        const qmk::KeycodeVersion versions[] = {
+            qmk::KeycodeVersion::Legacy, qmk::KeycodeVersion::LegacyVia10,
+            qmk::KeycodeVersion::V0_0_1, qmk::KeycodeVersion::V0_0_2, qmk::KeycodeVersion::V0_0_3,
+            qmk::KeycodeVersion::V0_0_4, qmk::KeycodeVersion::V0_0_5, qmk::KeycodeVersion::V0_0_6,
+            qmk::KeycodeVersion::V0_0_7, qmk::KeycodeVersion::V0_0_8, qmk::KeycodeVersion::V0_0_9,
         };
 
-        for (QmkKeycodeVersion version : versions)
+        for (qmk::KeycodeVersion version : versions)
         {
             int      failures = 0;
             uint32_t first    = 0;
 
             for (uint32_t value = 0; value <= 0xFFFF; ++value)
             {
-                const Keycode                 keycode = DecodeQmkKeycode(static_cast<uint16_t>(value), version);
-                const std::optional<uint16_t> back    = EncodeQmkKeycode(keycode, version);
+                const Keycode                 keycode = qmk::DecodeKeycode(static_cast<uint16_t>(value), version);
+                const std::optional<uint16_t> back    = qmk::EncodeKeycode(keycode, version);
 
                 if (!back || *back != value)
                 {
@@ -214,7 +213,7 @@ namespace
             }
 
             std::string description = std::string("all 65536 values survive decode and encode in ") +
-                                      nazg::QmkKeycodeVersionName(version);
+                                      qmk::KeycodeVersionName(version);
             if (failures != 0)
                 description += " (" + std::to_string(failures) + " failed, first " + std::to_string(first) + ")";
 

@@ -65,8 +65,8 @@ namespace nazg
 
         // Everything it needs across its co_awaits is passed by value, the version too,
         // rather than read back from the keyboard afterwards.
-        Task<void> WriteKey(uint8_t layer, Cell cell, Keycode keycode, QmkKeycodeVersion version);
-        Task<void> WriteTurn(uint8_t layer, uint8_t knob, bool clockwise, Keycode keycode, QmkKeycodeVersion version,
+        Task<void> WriteKey(uint8_t layer, Cell cell, Keycode keycode, qmk::KeycodeVersion version);
+        Task<void> WriteTurn(uint8_t layer, uint8_t knob, bool clockwise, Keycode keycode, qmk::KeycodeVersion version,
                              bool isVial);
 
         // A knob selected, and which of its actions the picker writes.

@@ -10,9 +10,9 @@
 
 #include "adapters/NazgXz.h"
 #include "adapters/via/NazgViaBundle.h"     // ForEachTarFile
-#include "adapters/via/NazgViaProtocol.h"   // ProtocolError
+#include "adapters/NazgProtocolError.h"
 
-namespace nazg
+namespace nazg::via
 {
     namespace
     {

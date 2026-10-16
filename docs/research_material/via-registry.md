@@ -367,7 +367,7 @@ All three layouts:
   on every board open and kept nothing; but reading the manifest's count at start already
   paid for one decode, and the result — **28 MB** for the source-form bundle, 25.3 MB of
   definitions plus tar padding — is no burden on a desktop or in a browser tab. So
-  `ViaDefinitionBundle` decodes once, indexes every file by path, and opening a board is a
+  `via::DefinitionBundle` decodes once, indexes every file by path, and opening a board is a
   lookup plus a parse. **No disk cache** — there is nothing worth caching, and so no
   invalidation to get wrong.
 - **Parse per board, never all at start** — half a second for nothing. A picker's handful of

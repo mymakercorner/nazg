@@ -59,7 +59,7 @@ namespace nazg
 
         // A key's outline in key units -- inset by `inset`, before it is turned: InsetContour()
         // needs the key's edges square -- then turned as the board turns it.
-        std::vector<ContourPoint> TurnedContour(const DefinitionKey& key, float inset)
+        std::vector<ContourPoint> TurnedContour(const via::DefinitionKey& key, float inset)
         {
             std::vector<ContourPoint> contour = inset != 0.0f ? InsetContour(KeyContour(key), inset) : KeyContour(key);
             if (key.rotation == 0.0f)
@@ -80,13 +80,13 @@ namespace nazg
 
         // The tooltip of an option: the group's keys in that option, every option of the group
         // at one scale so they compare, and its name. ImGui keeps a tooltip inside the window.
-        void DrawOptionTooltip(const KeyboardDefinition& definition, size_t group, const LayoutOptionGroup& options,
+        void DrawOptionTooltip(const via::KeyboardDefinition& definition, size_t group, const LayoutOptionGroup& options,
                                uint8_t choice)
         {
-            std::vector<DefinitionKey> shown;
+            std::vector<via::DefinitionKey> shown;
             float x0 = FLT_MAX, y0 = FLT_MAX, x1 = -FLT_MAX, y1 = -FLT_MAX;
             for (size_t each = 0; each < options.Count(); ++each)
-                for (const DefinitionKey& key : OptionKeys(definition, group, static_cast<uint8_t>(each)))
+                for (const via::DefinitionKey& key : OptionKeys(definition, group, static_cast<uint8_t>(each)))
                 {
                     for (const ContourPoint& point : TurnedContour(key, 0.0f))
                     {
@@ -110,7 +110,7 @@ namespace nazg
                 ImDrawList* const          list    = ImGui::GetWindowDrawList();
                 const BoardColours::Keycap colours = BoardColours::Fill(KeyFill::Alpha, 0.0f);
                 const float                gap     = std::max(1.0f, unit * 0.06f);
-                for (const DefinitionKey& key : shown)
+                for (const via::DefinitionKey& key : shown)
                 {
                     // A VIA knob, round: about the centre of its turned square.
                     if (key.encoderIndex >= 0 && key.encoderDirection < 0)
@@ -253,10 +253,10 @@ namespace nazg
             device = co_await m_Transport.Open(m_Path);
 
             HidDeviceChannel channel(m_Transport, device);
-            ViaProtocol      via(channel);
+            via::Protocol    via(channel);
 
-            co_await via.SetKeyboardValue(ViaKeyboardValue::LayoutOptions, value);
-            const uint32_t stored = co_await via.GetKeyboardValue(ViaKeyboardValue::LayoutOptions);
+            co_await via.SetKeyboardValue(via::KeyboardValue::LayoutOptions, value);
+            const uint32_t stored = co_await via.GetKeyboardValue(via::KeyboardValue::LayoutOptions);
 
             // The board draws what was stored, whatever was asked.
             m_Keyboard.layoutOptions   = stored;

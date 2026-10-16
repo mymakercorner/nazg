@@ -10,7 +10,7 @@
 
 #include "adapters/qmk/NazgQmkKeycodeCodec.h"
 
-namespace nazg
+namespace nazg::qmk
 {
     namespace
     {
@@ -23,7 +23,7 @@ namespace nazg
         }
 
         // A name of the version's table, in any case; the NamedKey views the table's own name.
-        std::optional<std::string_view> FindName(std::string_view word, QmkKeycodeVersion version)
+        std::optional<std::string_view> FindName(std::string_view word, KeycodeVersion version)
         {
             // The keymaps' spellings of the two keys that are not keys.
             const std::string upper = Upper(word);
@@ -32,7 +32,7 @@ namespace nazg
             if (upper == "XXXXXXX")
                 return FindName("KC_NO", version);
 
-            for (const QmkKeycode& row : QmkKeycodeTable())
+            for (const KeycodeEntry& row : KeycodeTable())
                 if (row.ExistsIn(version) && Upper(row.name) == upper)
                     return std::string_view(row.name);
             return std::nullopt;
@@ -89,7 +89,7 @@ namespace nazg
         class Parser
         {
         public:
-            Parser(std::string_view text, QmkKeycodeVersion version) : m_Version(version)
+            Parser(std::string_view text, KeycodeVersion version) : m_Version(version)
             {
                 for (char c : text)
                     if (!std::isspace(static_cast<unsigned char>(c)))
@@ -216,7 +216,7 @@ namespace nazg
                     return NamedKey{ *name };
                 if (upper.substr(0, 2) == "0X")
                     if (const std::optional<uint32_t> value = Number(word))
-                        return DecodeQmkKeycode(static_cast<uint16_t>(*value), m_Version);
+                        return DecodeKeycode(static_cast<uint16_t>(*value), m_Version);
                 return std::nullopt;
             }
 
@@ -300,13 +300,13 @@ namespace nazg
                 return std::nullopt;
             }
 
-            std::string       m_Text;
-            size_t            m_At = 0;
-            QmkKeycodeVersion m_Version;
+            std::string    m_Text;
+            size_t         m_At = 0;
+            KeycodeVersion m_Version;
         };
     }
 
-    std::optional<Keycode> ParseQmkExpression(std::string_view text, QmkKeycodeVersion version)
+    std::optional<Keycode> ParseExpression(std::string_view text, KeycodeVersion version)
     {
         return Parser(text, version).Whole();
     }

@@ -114,13 +114,13 @@ namespace nazg
 
     // How many knobs the definition draws: one past the highest encoder index, any layout
     // option's. 0 when it draws none.
-    [[nodiscard]] uint8_t KnobCount(const KeyboardDefinition& definition) noexcept;
+    [[nodiscard]] uint8_t KnobCount(const via::KeyboardDefinition& definition) noexcept;
 
     struct Keyboard
     {
-        KeyboardDefinition definition;
-        Keymap             keymap;
-        BoardReport        report;
+        via::KeyboardDefinition definition;
+        Keymap                  keymap;
+        BoardReport             report;
 
         // The raw value from id_layout_options, and the per-group selection decoded
         // from it. Both are kept: the raw one is what goes back to the device.
@@ -129,14 +129,14 @@ namespace nazg
 
         // The QMK keycode version the keymap was decoded with. Writing a key back must
         // encode with the same one, and a keycode picker lists what it offers.
-        QmkKeycodeVersion keycodeVersion = c_LatestQmkKeycodeVersion;
+        qmk::KeycodeVersion keycodeVersion = qmk::c_LatestKeycodeVersion;
 
-        // Vial's tap dances, one per slot, read after the load (ReadTapDances()) -- Keymap draws a
+        // Vial's tap dances, one per slot, read after the load (vial::ReadTapDances()) -- Keymap draws a
         // TD(n) key from its slot. Empty on VIA, or when they could not be read. The Tap Dance
         // section keeps them as the board stores them after each write.
         std::vector<TapDance> tapDances;
 
-        // The knobs' encoder map, [layer][knob], read after the load (ReadEncoderMap()). Empty when
+        // The knobs' encoder map, [layer][knob], read after the load (vial::ReadEncoderMap()). Empty when
         // the board has no knob, or keeps no encoder map -- its firmware's turns are then its own
         // code -- or when it could not be read.
         std::vector<std::vector<KnobTurns>> encoderMap;
@@ -150,11 +150,11 @@ namespace nazg
 
         // Is this key part of the currently selected layout? Keys with no layout
         // option are always shown; the alternatives to them are not.
-        [[nodiscard]] bool IsKeyVisible(const DefinitionKey& key) const noexcept;
+        [[nodiscard]] bool IsKeyVisible(const via::DefinitionKey& key) const noexcept;
 
         // KC_NO for a key whose cell is outside the keymap, and for one that is no switch -- a
         // decal, a knob without a push switch -- whose row and column mean nothing.
-        [[nodiscard]] Keycode KeycodeFor(const DefinitionKey& key, uint8_t layer) const;
+        [[nodiscard]] Keycode KeycodeFor(const via::DefinitionKey& key, uint8_t layer) const;
 
         // What knob `knob` sends turned one way on `layer`, from the encoder map; none when the
         // map was not read or does not reach that far.
@@ -193,19 +193,19 @@ namespace nazg
     // and y but not a rotated key's rotation origin; definitions are tuned to VIA.
     //
     // `selection` holds one choice per group; a key of a group beyond it is kept unmoved.
-    [[nodiscard]] std::vector<DefinitionKey> PlaceKeys(const KeyboardDefinition&   definition,
-                                                       const std::vector<uint8_t>& selection);
+    [[nodiscard]] std::vector<via::DefinitionKey> PlaceKeys(const via::KeyboardDefinition& definition,
+                                                            const std::vector<uint8_t>&    selection);
 
     // The keys of one choice of one group, where PlaceKeys() would draw them -- on choice 0's
     // place -- decals left out: what the Layout section draws for an option on hover.
-    [[nodiscard]] std::vector<DefinitionKey> OptionKeys(const KeyboardDefinition& definition, size_t group,
-                                                        uint8_t choice);
+    [[nodiscard]] std::vector<via::DefinitionKey> OptionKeys(const via::KeyboardDefinition& definition, size_t group,
+                                                             uint8_t choice);
 
     // Assemble the model. Pure: the caller has already done the talking and decoded the
     // keymap. Throws std::invalid_argument if the keymap's matrix is not the one the
     // definition declares.
-    [[nodiscard]] Keyboard BuildKeyboard(KeyboardDefinition definition,
-                                         Keymap             keymap,
-                                         uint32_t           layoutOptions,
-                                         QmkKeycodeVersion  keycodeVersion);
+    [[nodiscard]] Keyboard BuildKeyboard(via::KeyboardDefinition definition,
+                                         Keymap                  keymap,
+                                         uint32_t                layoutOptions,
+                                         qmk::KeycodeVersion     keycodeVersion);
 }

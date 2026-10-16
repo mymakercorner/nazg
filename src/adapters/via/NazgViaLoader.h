@@ -23,7 +23,7 @@
 #include "async/NazgTask.h"
 #include "model/NazgKeyboard.h"
 
-namespace nazg
+namespace nazg::via
 {
     // The keycode table for a VIA protocol version that cannot report its own:
     //   12  -> 0.0.8, the newest a protocol-12 build can have (13 landed before 0.0.9);
@@ -34,10 +34,10 @@ namespace nazg
     //   <=9 -> Legacy: before the renumbering, TO(n) = 0x5010 | n
     // The two Legacy choices follow VIA's own app, which switches TO's encoding at
     // protocol 10. Protocol 13 and later report their version, so the loader asks instead.
-    [[nodiscard]] QmkKeycodeVersion QmkKeycodeVersionForVia(uint16_t viaProtocol) noexcept;
+    [[nodiscard]] qmk::KeycodeVersion KeycodeVersionFor(uint16_t viaProtocol) noexcept;
 
     // Throws HidTransportError if the device goes away, ProtocolError if it answers
     // something unusable, and std::invalid_argument if the definition's matrix does not
     // fit the keymap.
-    [[nodiscard]] Task<Keyboard> LoadViaKeyboard(ViaProtocol& protocol, KeyboardDefinition definition);
+    [[nodiscard]] Task<Keyboard> LoadKeyboard(Protocol& protocol, KeyboardDefinition definition);
 }

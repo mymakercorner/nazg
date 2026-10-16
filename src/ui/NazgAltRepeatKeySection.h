@@ -37,7 +37,7 @@ namespace nazg
         // The board at `path`, loaded into `keyboard`; `lock` is its lock state. All outlive the
         // section -- ui/NazgSection.h.
         AltRepeatKeySection(HidTransport& transport, std::string path, Keyboard& keyboard, const LegendSettings& legends,
-                            const std::optional<VialUnlockStatus>& lock, const bool& advancedTools);
+                            const std::optional<vial::UnlockStatus>& lock, const bool& advancedTools);
 
         [[nodiscard]] std::string_view Name() const override { return "Alt Repeat Key"; }
         [[nodiscard]] Icon             ColumnIcon() const override { return Icon::Repeat; }
@@ -102,12 +102,12 @@ namespace nazg
         void DrawTools();
         void DrawPicker();
 
-        HidTransport&                          m_Transport;
-        std::string                            m_Path;
-        Keyboard&                              m_Keyboard;
-        const LegendSettings&                  m_Legends;
-        const std::optional<VialUnlockStatus>& m_Lock;
-        const bool&                            m_AdvancedTools;
+        HidTransport&                            m_Transport;
+        std::string                              m_Path;
+        Keyboard&                                m_Keyboard;
+        const LegendSettings&                    m_Legends;
+        const std::optional<vial::UnlockStatus>& m_Lock;
+        const bool&                              m_AdvancedTools;
 
         std::vector<AltRepeatKey> m_Entries;   // as edited
         std::vector<AltRepeatKey> m_Stored;    // as the board holds them, after each write

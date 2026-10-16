@@ -18,10 +18,9 @@
 #include <stdexcept>
 #include <vector>
 
-using nazg::AudioSetting;
-using nazg::AudioValues;
+namespace via = nazg::via;
+
 using nazg::Task;
-using nazg::ViaProtocol;
 
 namespace
 {
@@ -42,7 +41,7 @@ namespace
 
     bool Starts(const std::vector<uint8_t>& frame, std::vector<uint8_t> bytes)
     {
-        if (frame.size() != nazg::c_ViaReportSize)
+        if (frame.size() != via::c_ReportSize)
             return false;
         for (size_t at = 0; at < bytes.size(); ++at)
             if (frame[at] != bytes[at])
@@ -58,11 +57,11 @@ namespace
         std::printf("read\n");
 
         FakeDeviceChannel channel;
-        ViaProtocol       via(channel);
+        via::Protocol     via(channel);
 
         channel.Reply({ 0x08, 4, 1, 1 });
         channel.Reply({ 0x08, 4, 2, 0 });
-        const AudioValues read = Run(nazg::ReadAudio(via));
+        const via::AudioValues read = Run(via::ReadAudio(via));
         Check(Starts(channel.RequestAt(0), { 0x08, 4, 1 }) && Starts(channel.RequestAt(1), { 0x08, 4, 2 }),
               "get: [0x08][channel 4][1 audio, 2 clicky]");
         Check(read.on && !read.clicky, "the value from byte 3");
@@ -71,7 +70,7 @@ namespace
         bool refused = false;
         try
         {
-            Run(nazg::ReadAudio(via));
+            Run(via::ReadAudio(via));
         }
         catch (const nazg::ProtocolError&)
         {
@@ -85,18 +84,18 @@ namespace
         std::printf("write\n");
 
         FakeDeviceChannel channel;
-        ViaProtocol       via(channel);
+        via::Protocol     via(channel);
 
         channel.Reply({ 0x07 });
         channel.Reply({ 0x09 });
-        Run(nazg::WriteAudio(via, AudioSetting::Clicky, true));
+        Run(via::WriteAudio(via, via::AudioSetting::Clicky, true));
         Check(channel.Requests().size() == 2 && Starts(channel.RequestAt(0), { 0x07, 4, 2, 1 }),
               "set: [0x07][4][2 clicky][1]");
         Check(channel.Requests().size() == 2 && Starts(channel.RequestAt(1), { 0x09, 4 }), "then stored: [0x09][4]");
 
         channel.Reply({ 0x07 });
         channel.Reply({ 0x09 });
-        Run(nazg::WriteAudio(via, AudioSetting::On, false));
+        Run(via::WriteAudio(via, via::AudioSetting::On, false));
         Check(channel.Requests().size() == 4 && Starts(channel.RequestAt(2), { 0x07, 4, 1, 0 }), "audio off: [0x07][4][1][0]");
     }
 
@@ -105,11 +104,11 @@ namespace
         std::printf("play\n");
 
         FakeDeviceChannel channel;
-        ViaProtocol       via(channel);
+        via::Protocol     via(channel);
 
         channel.Reply({ 0x03 });
         channel.Reply({ 0x03 });
-        Run(nazg::PlayIndication(via));
+        Run(via::PlayIndication(via));
         Check(channel.Requests().size() == 2 && Starts(channel.RequestAt(0), { 0x03, 0x05 }) &&
                   Starts(channel.RequestAt(1), { 0x03, 0x05, 1 }),
               "device indication 0, which plays, then 1, which puts the lighting back -- the value in byte 2");

@@ -20,7 +20,7 @@
 #include "adapters/via/NazgViaProtocol.h"
 #include "async/NazgTask.h"
 
-namespace nazg
+namespace nazg::via
 {
     // The values a board's menus hold, as the board sends them, by the name their controls bind --
     // the name conditions and constraints refer to them by.
@@ -72,7 +72,7 @@ namespace nazg
                                                   const CustomValues& values);
 
     // A control's value read from the board, at its width, and one written -- held in RAM until
-    // ViaProtocol::SaveCustomValues() stores its channel. A button writes its `on`.
-    [[nodiscard]] Task<std::vector<uint8_t>> ReadCustomValue(ViaProtocol& via, const CustomControl& control);
-    [[nodiscard]] Task<void> WriteCustomValue(ViaProtocol& via, const CustomControl& control, const std::vector<uint8_t>& value);
+    // via::Protocol::SaveCustomValues() stores its channel. A button writes its `on`.
+    [[nodiscard]] Task<std::vector<uint8_t>> ReadCustomValue(Protocol& via, const CustomControl& control);
+    [[nodiscard]] Task<void> WriteCustomValue(Protocol& via, const CustomControl& control, const std::vector<uint8_t>& value);
 }

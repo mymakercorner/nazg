@@ -30,7 +30,7 @@
 #include <utility>
 #include <vector>
 
-namespace nazg
+namespace nazg::via
 {
     // One key, as the definition describes it. Positions and sizes are in KLE units,
     // where 1.0 is a standard key -- the renderer scales them, so they stay as authored.

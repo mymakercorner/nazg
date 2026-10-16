@@ -124,7 +124,7 @@ namespace
                 device = co_await transport.Open(state.devices[index].path);
 
                 nazg::HidDeviceChannel channel(transport, device);
-                nazg::VialProtocol     protocol(channel);
+                nazg::vial::Protocol   protocol(channel);
                 state.protocols[index] = (co_await protocol.Detect()) ? "Vial" : "VIA";
             }
             catch (const std::exception&)
@@ -641,7 +641,7 @@ namespace
                 std::vector<uint8_t> bytes = ReadWholeFile(path);
 
                 if (askOnSameBoard)
-                    if (const nazg::LibraryEntry* same = library.library->FindSameBoard(nazg::ParseDefinition(bytes)))
+                    if (const nazg::LibraryEntry* same = library.library->FindSameBoard(nazg::via::ParseDefinition(bytes)))
                     {
                         library.replacements.push_back({ path, std::move(bytes), same->id });
                         continue;
@@ -674,7 +674,7 @@ namespace
                 revision = entry->revision;
                 try
                 {
-                    before = nazg::ParseDefinition(library.library->Read(*entry)).layoutLabels;
+                    before = nazg::via::ParseDefinition(library.library->Read(*entry)).layoutLabels;
                 }
                 catch (const std::exception&)
                 {
@@ -693,7 +693,7 @@ namespace
             library.messages.push_back("replaced " + replaced.name + " with " + FileName(path) + " -- the version " +
                                        "before is kept, see \"Restore previous\"");
 
-            if (before && *before != nazg::ParseDefinition(bytes).layoutLabels)
+            if (before && *before != nazg::via::ParseDefinition(bytes).layoutLabels)
                 library.messages.push_back("its layout options changed: a board's saved layout may now select "
                                            "different keys -- check it");
             return true;
@@ -718,10 +718,10 @@ namespace
 
     struct ViaBundle
     {
-        std::string                                    path;
-        std::optional<nazg::ViaDefinitionBundle>       definitions;   // empty when missing or corrupt
-        std::string                                    communityPath;
-        std::optional<nazg::CommunityDefinitionBundle> community;     // likewise
+        std::string                                         path;
+        std::optional<nazg::via::DefinitionBundle>          definitions;   // empty when missing or corrupt
+        std::string                                         communityPath;
+        std::optional<nazg::via::CommunityDefinitionBundle> community;     // likewise
     };
 
     // A bundle file's bytes, beside the executable; nullopt when it is not there.
@@ -869,7 +869,7 @@ namespace
 
         // A Vial board's lock, as it was when the board loaded -- Nazg cannot unlock yet, so
         // only another app or a restart changes it meanwhile. Unset on a VIA board.
-        std::optional<nazg::VialUnlockStatus> lock;
+        std::optional<nazg::vial::UnlockStatus> lock;
         bool                                     isChoosing = false;   // the picker is showing
         std::vector<std::string>                 foreignImports;       // the picker's notes: files just imported for another keyboard
 
@@ -944,7 +944,7 @@ namespace
             device = co_await transport.Open(path);
 
             nazg::HidDeviceChannel channel(transport, device);
-            nazg::VialProtocol     vial(channel);
+            nazg::vial::Protocol   vial(channel);
             co_await vial.Lock();
             state.lock = co_await vial.GetUnlockStatus();
         }
@@ -992,21 +992,21 @@ namespace
             device = co_await transport.Open(path);
 
             nazg::HidDeviceChannel channel(transport, device);
-            nazg::VialProtocol     protocol(channel);
+            nazg::vial::Protocol   protocol(channel);
 
             // Vial first: its probe is harmless on a VIA board, which answers 0xFF.
             if (co_await protocol.Detect())
             {
                 // Asked first: a board in the middle of an unlock answers nothing but the
                 // unlock's own commands, and echoes the rest -- its keymap would read as garbage.
-                const nazg::VialUnlockStatus lock = co_await protocol.GetUnlockStatus();
+                const nazg::vial::UnlockStatus lock = co_await protocol.GetUnlockStatus();
                 if (lock.inProgress)
                     throw std::runtime_error("this board is waiting for an unlock that was started and never "
                                              "finished, and answers nothing else until then -- unplug it and "
                                              "plug it back in");
 
                 std::vector<uint8_t> json;
-                state.keyboard         = co_await nazg::LoadVialKeyboard(protocol, &json);
+                state.keyboard         = co_await nazg::vial::LoadKeyboard(protocol, &json);
                 state.lock             = lock;
                 state.exportable       = std::move(json);
                 state.definitionSource = "from the board (Vial)";
@@ -1028,8 +1028,8 @@ namespace
                     if (const auto& bytes = officialBytes)
                         official = nazg::DefinitionCandidate{
                             nazg::DefinitionRef::Official(
-                                nazg::ViaDefinitionPath(identity.vendorId, identity.productId, viaProtocol)),
-                            nazg::ParseDefinition(*bytes), {} };
+                                nazg::via::DefinitionPath(identity.vendorId, identity.productId, viaProtocol)),
+                            nazg::via::ParseDefinition(*bytes), {} };
                 }
 
                 // The community's: every definition for this VID:PID -- vendors' made-up ids
@@ -1037,12 +1037,12 @@ namespace
                 // refused it.
                 std::vector<nazg::DefinitionCandidate> bundled;
                 if (bundle.community)
-                    for (const nazg::CommunityDefinition* entry :
+                    for (const nazg::via::CommunityDefinition* entry :
                          bundle.community->Find(identity.vendorId, identity.productId))
                         try
                         {
                             nazg::DefinitionCandidate candidate{ nazg::DefinitionRef::Community(entry->path),
-                                                                 nazg::ParseDefinition(*bundle.community->Bytes(entry->path)),
+                                                                 nazg::via::ParseDefinition(*bundle.community->Bytes(entry->path)),
                                                                  entry->publisher };
                             candidate.status = entry->status;
                             bundled.push_back(std::move(candidate));
@@ -1073,7 +1073,7 @@ namespace
                 else
                 {
                     const nazg::DefinitionCandidate& use = candidates[*resolved];
-                    state.keyboard         = co_await nazg::LoadViaKeyboard(protocol, use.definition);
+                    state.keyboard         = co_await nazg::via::LoadKeyboard(protocol, use.definition);
                     state.definitionSource = DescribeInUse(use);
                     state.inUse            = use.ref;
                     state.exportable.clear();
@@ -1088,7 +1088,7 @@ namespace
             // which sections the board has.
             if (state.keyboard)
             {
-                state.keyboard->report = co_await nazg::ReadBoardReport(protocol);
+                state.keyboard->report = co_await nazg::vial::ReadBoardReport(protocol);
 
                 // A board's own menus may hang on its firmware version -- the column leaves out
                 // those it is too old for. A board that does not answer is version 0, QMK's default.
@@ -1097,7 +1097,7 @@ namespace
                     try
                     {
                         state.keyboard->report.firmwareVersion =
-                            co_await protocol.GetKeyboardValue(nazg::ViaKeyboardValue::FirmwareVersion);
+                            co_await protocol.GetKeyboardValue(nazg::via::KeyboardValue::FirmwareVersion);
                     }
                     catch (const nazg::ProtocolError&)
                     {
@@ -1111,7 +1111,7 @@ namespace
                     try
                     {
                         state.keyboard->tapDances =
-                            co_await nazg::ReadTapDances(protocol, count, state.keyboard->keycodeVersion);
+                            co_await nazg::vial::ReadTapDances(protocol, count, state.keyboard->keycodeVersion);
                     }
                     catch (const nazg::ProtocolError&)
                     {
@@ -1125,7 +1125,7 @@ namespace
                     try
                     {
                         const nazg::BoardReport& report = state.keyboard->report;
-                        state.keyboard->encoderMap      = co_await nazg::ReadEncoderMap(
+                        state.keyboard->encoderMap      = co_await nazg::vial::ReadEncoderMap(
                             protocol, report.isVial, report.viaProtocol, state.keyboard->keymap.Layers(), knobs,
                             state.keyboard->keycodeVersion);
                     }
@@ -1563,7 +1563,7 @@ int main(int, char**)
                     // the keymap lives in the board, the definition only draws it.
                     header.protocol  = boardState.isVia ? "VIA" : "Vial";
                     header.details   = "Definition: " + boardState.definitionSource + "\nQMK keycodes " +
-                                     nazg::QmkKeycodeVersionName(boardState.keyboard->keycodeVersion);
+                                     nazg::qmk::KeycodeVersionName(boardState.keyboard->keycodeVersion);
                     header.isVia     = boardState.isVia;
                     header.hasChoice = boardState.isVia && library.library &&
                                        library.library->FindChoice(boardState.identity) != nullptr;
@@ -1796,7 +1796,7 @@ int main(int, char**)
                 view.official.path  = viaBundle.path;
                 if (viaBundle.definitions && viaBundle.definitions->Manifest())
                 {
-                    const nazg::ViaBundleManifest& manifest = *viaBundle.definitions->Manifest();
+                    const nazg::via::BundleManifest& manifest = *viaBundle.definitions->Manifest();
                     view.official.count  = manifest.v2 + manifest.v3;
                     view.official.commit = manifest.commit;
                 }

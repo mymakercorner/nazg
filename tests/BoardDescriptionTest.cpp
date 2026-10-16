@@ -16,8 +16,9 @@
 #include <variant>
 #include <vector>
 
+namespace via = nazg::via;
+
 using nazg::BoardKey;
-using nazg::DefinitionKey;
 using nazg::DescribeKeyboard;
 using nazg::KeyCentre;
 using nazg::LegendSlot;
@@ -30,9 +31,9 @@ namespace
         return std::fabs(a - b) < 1e-4f;
     }
 
-    DefinitionKey Key(float x, float y, uint8_t row, uint8_t column)
+    via::DefinitionKey Key(float x, float y, uint8_t row, uint8_t column)
     {
-        DefinitionKey key;
+        via::DefinitionKey key;
         key.x      = x;
         key.y      = y;
         key.row    = row;
@@ -48,16 +49,16 @@ namespace
         nazg::Keyboard keyboard;
         keyboard.definition.keys.push_back(Key(0, 0, 0, 0));
 
-        DefinitionKey decal = Key(1, 0, 0, 0);
+        via::DefinitionKey decal = Key(1, 0, 0, 0);
         decal.decal         = true;
         keyboard.definition.keys.push_back(decal);
 
         // One layout option: choice 0 on the board, choice 1 drawn below it, as a source
         // definition has it.
-        DefinitionKey choice0 = Key(2, 0, 0, 1);
+        via::DefinitionKey choice0 = Key(2, 0, 0, 1);
         choice0.layoutIndex   = 0;
         choice0.layoutOption  = 0;
-        DefinitionKey choice1 = Key(2, 3, 0, 2);
+        via::DefinitionKey choice1 = Key(2, 3, 0, 2);
         choice1.layoutIndex   = 0;
         choice1.layoutOption  = 1;
         keyboard.definition.keys.push_back(choice0);
@@ -102,8 +103,8 @@ namespace
         using nazg::KeycapClassOf;
         using nazg::NamedKey;
 
-        const DefinitionKey unit = Key(0, 0, 0, 0);
-        DefinitionKey       wide = unit;
+        const via::DefinitionKey unit = Key(0, 0, 0, 0);
+        via::DefinitionKey       wide = unit;
         wide.width               = 2.25f;
 
         Check(KeycapClassOf(NamedKey{ "KC_A" }, unit) == KeyFill::Alpha, "a letter is an alpha");
@@ -134,7 +135,7 @@ namespace
 
         Check(KeycapClassOf(NamedKey{ "KC_NO" }, unit) == KeyFill::Alpha, "KC_NO on 1u: an alpha");
         Check(KeycapClassOf(NamedKey{ "KC_NO" }, wide) == KeyFill::Modifier, "KC_NO past 1.25u: a modifier");
-        DefinitionKey quarter = unit;
+        via::DefinitionKey quarter = unit;
         quarter.width         = 1.25f;
         Check(KeycapClassOf(NamedKey{ "KC_TRNS" }, quarter) == KeyFill::Alpha, "KC_TRNS on 1.25u: still an alpha");
     }
@@ -206,10 +207,10 @@ namespace
         nazg::Keyboard keyboard;
         keyboard.definition.matrixRows    = 1;
         keyboard.definition.matrixColumns = 3;
-        DefinitionKey left  = Key(0, 0, 0, 0);
-        DefinitionKey space = Key(1, 0, 0, 1);
+        via::DefinitionKey left  = Key(0, 0, 0, 0);
+        via::DefinitionKey space = Key(1, 0, 0, 1);
         space.width         = 6.25f;
-        DefinitionKey right = Key(7.25f, 0, 0, 2);
+        via::DefinitionKey right = Key(7.25f, 0, 0, 2);
         keyboard.definition.keys = { left, space, right };
         keyboard.keymap          = nazg::Keymap(1, 1, 3);
         keyboard.keymap.Set(0, 0, 0, nazg::NamedKey{ "KC_RCTL" });
@@ -278,7 +279,7 @@ namespace
         Check(is(resolve(4, 0), Fallthrough::Disabled, "KC_NO", std::nullopt), "transparent on the default layer");
 
         // A key outside the keymap is KC_NO on every layer: nothing below.
-        DefinitionKey outside = Key(6, 0, 0, 9);
+        via::DefinitionKey outside = Key(6, 0, 0, 9);
         Check(nazg::ResolveKey(keyboard, outside, 1).fallthrough == Fallthrough::Disabled, "a key outside the matrix");
 
         // DescribeLegends draws what the walk found, and says why.
@@ -307,15 +308,15 @@ namespace
         keyboard.definition.matrixRows    = 1;
         keyboard.definition.matrixColumns = 2;
 
-        DefinitionKey via   = Key(0, 0, 0, 1);   // knob 0, its push switch on 0,1
+        via::DefinitionKey via   = Key(0, 0, 0, 1);   // knob 0, its push switch on 0,1
         via.encoderIndex    = 0;
         via.encoderPush     = true;
-        DefinitionKey twist = Key(1, 0, 0, 0);   // knob 1, no push switch: its 0,0 means nothing
+        via::DefinitionKey twist = Key(1, 0, 0, 0);   // knob 1, no push switch: its 0,0 means nothing
         twist.encoderIndex  = 1;
-        DefinitionKey ccw   = Key(2, 0, 0, 0);   // a Vial pair for knob 1
+        via::DefinitionKey ccw   = Key(2, 0, 0, 0);   // a Vial pair for knob 1
         ccw.encoderIndex     = 1;
         ccw.encoderDirection = 0;
-        DefinitionKey cw     = ccw;
+        via::DefinitionKey cw     = ccw;
         cw.x                 = 3;
         cw.encoderDirection  = 1;
         keyboard.definition.keys = { via, twist, ccw, cw, Key(4, 0, 0, 0) };
@@ -468,13 +469,13 @@ namespace
     {
         std::printf("key centre\n");
 
-        DefinitionKey wide = Key(1, 2, 0, 0);
+        via::DefinitionKey wide = Key(1, 2, 0, 0);
         wide.width         = 2;
         const auto [x, y]  = KeyCentre(wide);
         Check(Near(x, 2.0f) && Near(y, 2.5f), "the middle of an unrotated key");
 
         // Turned a quarter clockwise about the origin: what was to its right is now below.
-        DefinitionKey turned = Key(0, 0, 0, 0);
+        via::DefinitionKey turned = Key(0, 0, 0, 0);
         turned.rotation      = 90;
         const auto [tx, ty]  = KeyCentre(turned);
         Check(Near(tx, -0.5f) && Near(ty, 0.5f), "a rotated key's centre turns with it, clockwise on screen");

@@ -9,7 +9,7 @@
 
 #include "adapters/NazgByteOrder.h"
 
-namespace nazg
+namespace nazg::vial
 {
     namespace
     {
@@ -19,14 +19,14 @@ namespace nazg
         constexpr uint32_t c_MaxDefinitionSize = 256 * 1024;
     }
 
-    Task<std::vector<uint8_t>> VialProtocol::SendVial(VialCommand                    command,
-                                                      std::initializer_list<uint8_t> arguments,
-                                                      bool                           expectsData)
+    Task<std::vector<uint8_t>> Protocol::SendVial(Command                        command,
+                                                  std::initializer_list<uint8_t> arguments,
+                                                  bool                           expectsData)
     {
         // [0] prefix, [1] sub-command, arguments from [2] -- which is where the
         // firmware reads them, since it keeps the prefix and sub-command in place.
-        std::vector<uint8_t> frame(c_ViaReportSize, 0x00);
-        frame[0] = static_cast<uint8_t>(ViaCommand::VialPrefix);
+        std::vector<uint8_t> frame(via::c_ReportSize, 0x00);
+        frame[0] = static_cast<uint8_t>(via::Command::VialPrefix);
         frame[1] = static_cast<uint8_t>(command);
 
         size_t index = 2;
@@ -37,7 +37,7 @@ namespace nazg
 
         std::vector<uint8_t> reply = co_await m_Channel.Request(std::move(frame));
 
-        if (reply.size() < c_ViaReportSize)
+        if (reply.size() < via::c_ReportSize)
             throw ProtocolError("short reply to Vial command " +
                                 std::to_string(static_cast<int>(command)) + ": " +
                                 std::to_string(reply.size()) + " bytes");
@@ -57,24 +57,24 @@ namespace nazg
         co_return reply;
     }
 
-    Task<std::optional<VialIdentity>> VialProtocol::Detect()
+    Task<std::optional<Identity>> Protocol::Detect()
     {
         // "Not a Vial board" is an answer, not a failure, so this asks for the reply
         // without the unsupported-feature check and inspects it here.
-        std::vector<uint8_t> reply = co_await SendVial(VialCommand::GetKeyboardId, {}, false);
+        std::vector<uint8_t> reply = co_await SendVial(Command::GetKeyboardId, {}, false);
 
         // A plain VIA board does not know 0xFE and answers with the unhandled marker.
-        if (reply[0] == static_cast<uint8_t>(ViaCommand::Unhandled))
+        if (reply[0] == static_cast<uint8_t>(via::Command::Unhandled))
             co_return std::nullopt;
 
         // Belt and braces for firmware that echoes an unknown command instead: a real
         // reply starts with the low byte of the protocol version, which runs 0 to 6 and
         // can never be 0xFE.
-        if (reply[0] == static_cast<uint8_t>(ViaCommand::VialPrefix) &&
-            reply[1] == static_cast<uint8_t>(VialCommand::GetKeyboardId))
+        if (reply[0] == static_cast<uint8_t>(via::Command::VialPrefix) &&
+            reply[1] == static_cast<uint8_t>(Command::GetKeyboardId))
             co_return std::nullopt;
 
-        VialIdentity identity;
+        Identity identity;
         identity.protocolVersion = ReadLittleEndian32(reply, 0);
         identity.keyboardUid     = ReadLittleEndian64(reply, 4);
         identity.supportsVialRgb = reply[12] != 0;
@@ -82,13 +82,13 @@ namespace nazg
         co_return identity;
     }
 
-    Task<uint32_t> VialProtocol::GetDefinitionSize()
+    Task<uint32_t> Protocol::GetDefinitionSize()
     {
-        std::vector<uint8_t> reply = co_await SendVial(VialCommand::GetSize, {});
+        std::vector<uint8_t> reply = co_await SendVial(Command::GetSize, {});
         co_return ReadLittleEndian32(reply, 0);
     }
 
-    Task<std::vector<uint8_t>> VialProtocol::DownloadDefinition()
+    Task<std::vector<uint8_t>> Protocol::DownloadDefinition()
     {
         const uint32_t size = co_await GetDefinitionSize();
 
@@ -103,12 +103,12 @@ namespace nazg
         // 200 ms -- the cost that LZMA compression exists to keep down.
         for (uint16_t page = 0; definition.size() < size; ++page)
         {
-            std::vector<uint8_t> reply = co_await SendVial(VialCommand::GetDefinition,
+            std::vector<uint8_t> reply = co_await SendVial(Command::GetDefinition,
                                                            { static_cast<uint8_t>(page & 0xFF),
                                                              static_cast<uint8_t>(page >> 8) });
 
             const size_t remaining = size - definition.size();
-            const size_t take      = std::min<size_t>(c_ViaReportSize, remaining);
+            const size_t take      = std::min<size_t>(via::c_ReportSize, remaining);
 
             definition.insert(definition.end(), reply.begin(), reply.begin() + take);
         }
@@ -116,33 +116,33 @@ namespace nazg
         co_return definition;
     }
 
-    Task<VialEntryCounts> VialProtocol::GetEntryCounts()
+    Task<EntryCounts> Protocol::GetEntryCounts()
     {
-        std::vector<uint8_t> reply = co_await SendVial(VialCommand::DynamicEntryOp,
-                                                       { static_cast<uint8_t>(VialDynamicEntry::GetNumberOfEntries) });
+        std::vector<uint8_t> reply = co_await SendVial(Command::DynamicEntryOp,
+                                                       { static_cast<uint8_t>(DynamicEntry::GetNumberOfEntries) });
 
-        VialEntryCounts counts;
+        EntryCounts counts;
         counts.tapDance     = reply[0];
         counts.combo        = reply[1];
         counts.keyOverride  = reply[2];
         counts.altRepeatKey = reply[3];
 
         // Optional features are bit flags in the LAST byte of the report, not the first.
-        const uint8_t features = reply[c_ViaReportSize - 1];
+        const uint8_t features = reply[via::c_ReportSize - 1];
         counts.capsWord  = (features & (1 << 0)) != 0;
         counts.layerLock = (features & (1 << 1)) != 0;
 
         co_return counts;
     }
 
-    Task<VialTapDanceEntry> VialProtocol::GetTapDance(uint8_t index)
+    Task<TapDanceEntry> Protocol::GetTapDance(uint8_t index)
     {
-        std::vector<uint8_t> reply = co_await SendVial(VialCommand::DynamicEntryOp,
-                                                       { static_cast<uint8_t>(VialDynamicEntry::TapDanceGet), index });
+        std::vector<uint8_t> reply = co_await SendVial(Command::DynamicEntryOp,
+                                                       { static_cast<uint8_t>(DynamicEntry::TapDanceGet), index });
         if (reply[0] != 0)
             throw ProtocolError("the board has no tap dance " + std::to_string(index));
 
-        VialTapDanceEntry entry;
+        TapDanceEntry entry;
         entry.onTap       = ReadLittleEndian16(reply, 1);
         entry.onHold      = ReadLittleEndian16(reply, 3);
         entry.onDoubleTap = ReadLittleEndian16(reply, 5);
@@ -151,54 +151,54 @@ namespace nazg
         co_return entry;
     }
 
-    Task<void> VialProtocol::SetTapDance(uint8_t index, const VialTapDanceEntry& entry)
+    Task<void> Protocol::SetTapDance(uint8_t index, const TapDanceEntry& entry)
     {
         const auto lo = [](uint16_t value) { return static_cast<uint8_t>(value & 0xFF); };
         const auto hi = [](uint16_t value) { return static_cast<uint8_t>(value >> 8); };
         std::vector<uint8_t> reply = co_await SendVial(
-            VialCommand::DynamicEntryOp,
-            { static_cast<uint8_t>(VialDynamicEntry::TapDanceSet), index, lo(entry.onTap), hi(entry.onTap),
+            Command::DynamicEntryOp,
+            { static_cast<uint8_t>(DynamicEntry::TapDanceSet), index, lo(entry.onTap), hi(entry.onTap),
               lo(entry.onHold), hi(entry.onHold), lo(entry.onDoubleTap), hi(entry.onDoubleTap), lo(entry.onTapHold),
               hi(entry.onTapHold), lo(entry.tappingTerm), hi(entry.tappingTerm) });
         if (reply[0] != 0)
             throw ProtocolError("the board has no tap dance " + std::to_string(index));
     }
 
-    Task<VialComboEntry> VialProtocol::GetCombo(uint8_t index)
+    Task<ComboEntry> Protocol::GetCombo(uint8_t index)
     {
-        std::vector<uint8_t> reply = co_await SendVial(VialCommand::DynamicEntryOp,
-                                                       { static_cast<uint8_t>(VialDynamicEntry::ComboGet), index });
+        std::vector<uint8_t> reply = co_await SendVial(Command::DynamicEntryOp,
+                                                       { static_cast<uint8_t>(DynamicEntry::ComboGet), index });
         if (reply[0] != 0)
             throw ProtocolError("the board has no combo " + std::to_string(index));
 
-        VialComboEntry entry;
+        ComboEntry entry;
         for (size_t input = 0; input < entry.inputs.size(); ++input)
             entry.inputs[input] = ReadLittleEndian16(reply, 1 + 2 * input);
         entry.output = ReadLittleEndian16(reply, 9);
         co_return entry;
     }
 
-    Task<void> VialProtocol::SetCombo(uint8_t index, const VialComboEntry& entry)
+    Task<void> Protocol::SetCombo(uint8_t index, const ComboEntry& entry)
     {
         const auto lo = [](uint16_t value) { return static_cast<uint8_t>(value & 0xFF); };
         const auto hi = [](uint16_t value) { return static_cast<uint8_t>(value >> 8); };
         const std::array<uint16_t, 4>& in = entry.inputs;
         std::vector<uint8_t> reply = co_await SendVial(
-            VialCommand::DynamicEntryOp,
-            { static_cast<uint8_t>(VialDynamicEntry::ComboSet), index, lo(in[0]), hi(in[0]), lo(in[1]), hi(in[1]),
+            Command::DynamicEntryOp,
+            { static_cast<uint8_t>(DynamicEntry::ComboSet), index, lo(in[0]), hi(in[0]), lo(in[1]), hi(in[1]),
               lo(in[2]), hi(in[2]), lo(in[3]), hi(in[3]), lo(entry.output), hi(entry.output) });
         if (reply[0] != 0)
             throw ProtocolError("the board has no combo " + std::to_string(index));
     }
 
-    Task<VialKeyOverrideEntry> VialProtocol::GetKeyOverride(uint8_t index)
+    Task<KeyOverrideEntry> Protocol::GetKeyOverride(uint8_t index)
     {
-        std::vector<uint8_t> reply = co_await SendVial(VialCommand::DynamicEntryOp,
-                                                       { static_cast<uint8_t>(VialDynamicEntry::KeyOverrideGet), index });
+        std::vector<uint8_t> reply = co_await SendVial(Command::DynamicEntryOp,
+                                                       { static_cast<uint8_t>(DynamicEntry::KeyOverrideGet), index });
         if (reply[0] != 0)
             throw ProtocolError("the board has no key override " + std::to_string(index));
 
-        VialKeyOverrideEntry entry;
+        KeyOverrideEntry entry;
         entry.trigger         = ReadLittleEndian16(reply, 1);
         entry.replacement     = ReadLittleEndian16(reply, 3);
         entry.layers          = ReadLittleEndian16(reply, 5);
@@ -209,27 +209,27 @@ namespace nazg
         co_return entry;
     }
 
-    Task<void> VialProtocol::SetKeyOverride(uint8_t index, const VialKeyOverrideEntry& entry)
+    Task<void> Protocol::SetKeyOverride(uint8_t index, const KeyOverrideEntry& entry)
     {
         const auto lo = [](uint16_t value) { return static_cast<uint8_t>(value & 0xFF); };
         const auto hi = [](uint16_t value) { return static_cast<uint8_t>(value >> 8); };
         std::vector<uint8_t> reply = co_await SendVial(
-            VialCommand::DynamicEntryOp,
-            { static_cast<uint8_t>(VialDynamicEntry::KeyOverrideSet), index, lo(entry.trigger), hi(entry.trigger),
+            Command::DynamicEntryOp,
+            { static_cast<uint8_t>(DynamicEntry::KeyOverrideSet), index, lo(entry.trigger), hi(entry.trigger),
               lo(entry.replacement), hi(entry.replacement), lo(entry.layers), hi(entry.layers), entry.triggerMods,
               entry.negativeModMask, entry.suppressedMods, entry.options });
         if (reply[0] != 0)
             throw ProtocolError("the board has no key override " + std::to_string(index));
     }
 
-    Task<VialAltRepeatKeyEntry> VialProtocol::GetAltRepeatKey(uint8_t index)
+    Task<AltRepeatKeyEntry> Protocol::GetAltRepeatKey(uint8_t index)
     {
-        std::vector<uint8_t> reply = co_await SendVial(VialCommand::DynamicEntryOp,
-                                                       { static_cast<uint8_t>(VialDynamicEntry::AltRepeatKeyGet), index });
+        std::vector<uint8_t> reply = co_await SendVial(Command::DynamicEntryOp,
+                                                       { static_cast<uint8_t>(DynamicEntry::AltRepeatKeyGet), index });
         if (reply[0] != 0)
             throw ProtocolError("the board has no alt repeat key " + std::to_string(index));
 
-        VialAltRepeatKeyEntry entry;
+        AltRepeatKeyEntry entry;
         entry.keycode     = ReadLittleEndian16(reply, 1);
         entry.altKeycode  = ReadLittleEndian16(reply, 3);
         entry.allowedMods = reply[5];
@@ -237,21 +237,21 @@ namespace nazg
         co_return entry;
     }
 
-    Task<void> VialProtocol::SetAltRepeatKey(uint8_t index, const VialAltRepeatKeyEntry& entry)
+    Task<void> Protocol::SetAltRepeatKey(uint8_t index, const AltRepeatKeyEntry& entry)
     {
         const auto lo = [](uint16_t value) { return static_cast<uint8_t>(value & 0xFF); };
         const auto hi = [](uint16_t value) { return static_cast<uint8_t>(value >> 8); };
         std::vector<uint8_t> reply = co_await SendVial(
-            VialCommand::DynamicEntryOp,
-            { static_cast<uint8_t>(VialDynamicEntry::AltRepeatKeySet), index, lo(entry.keycode), hi(entry.keycode),
+            Command::DynamicEntryOp,
+            { static_cast<uint8_t>(DynamicEntry::AltRepeatKeySet), index, lo(entry.keycode), hi(entry.keycode),
               lo(entry.altKeycode), hi(entry.altKeycode), entry.allowedMods, entry.options });
         if (reply[0] != 0)
             throw ProtocolError("the board has no alt repeat key " + std::to_string(index));
     }
 
-    Task<uint32_t> VialProtocol::GetQmkSetting(uint16_t id, size_t width)
+    Task<uint32_t> Protocol::GetQmkSetting(uint16_t id, size_t width)
     {
-        std::vector<uint8_t> reply = co_await SendVial(VialCommand::QmkSettingsGet,
+        std::vector<uint8_t> reply = co_await SendVial(Command::QmkSettingsGet,
                                                        { static_cast<uint8_t>(id & 0xFF), static_cast<uint8_t>(id >> 8) });
         if (reply[0] != 0)
             throw ProtocolError("the board has no QMK setting " + std::to_string(id));
@@ -262,33 +262,33 @@ namespace nazg
         co_return value;
     }
 
-    Task<void> VialProtocol::SetQmkSetting(uint16_t id, uint32_t value)
+    Task<void> Protocol::SetQmkSetting(uint16_t id, uint32_t value)
     {
         const auto byte = [value](int n) { return static_cast<uint8_t>((value >> (8 * n)) & 0xFF); };
-        std::vector<uint8_t> reply = co_await SendVial(VialCommand::QmkSettingsSet,
+        std::vector<uint8_t> reply = co_await SendVial(Command::QmkSettingsSet,
                                                        { static_cast<uint8_t>(id & 0xFF), static_cast<uint8_t>(id >> 8),
                                                          byte(0), byte(1), byte(2), byte(3) });
         if (reply[0] != 0)
             throw ProtocolError("the board refused QMK setting " + std::to_string(id));
     }
 
-    Task<std::vector<uint16_t>> VialProtocol::QueryQmkSettings(uint16_t after)
+    Task<std::vector<uint16_t>> Protocol::QueryQmkSettings(uint16_t after)
     {
-        std::vector<uint8_t> reply = co_await SendVial(VialCommand::QmkSettingsQuery,
+        std::vector<uint8_t> reply = co_await SendVial(Command::QmkSettingsQuery,
                                                        { static_cast<uint8_t>(after & 0xFF),
                                                          static_cast<uint8_t>(after >> 8) });
 
         std::vector<uint16_t> ids;
-        for (size_t offset = 0; offset + 1 < c_ViaReportSize; offset += 2)
+        for (size_t offset = 0; offset + 1 < via::c_ReportSize; offset += 2)
             if (const uint16_t id = ReadLittleEndian16(reply, offset); id != 0xFFFF)
                 ids.push_back(id);
 
         co_return ids;
     }
 
-    Task<std::vector<uint16_t>> VialProtocol::ListQmkSettings()
+    Task<std::vector<uint16_t>> Protocol::ListQmkSettings()
     {
-        constexpr size_t      c_PerReport = c_ViaReportSize / 2;
+        constexpr size_t      c_PerReport = via::c_ReportSize / 2;
         std::vector<uint16_t> all;
         uint16_t              after = 0;
         for (;;)
@@ -305,24 +305,24 @@ namespace nazg
         co_return all;
     }
 
-    Task<void> VialProtocol::ResetQmkSettings()
+    Task<void> Protocol::ResetQmkSettings()
     {
         // vial-qmk leaves the buffer untouched: the reply is the request, as from a firmware without
         // the command. Nothing tells them apart; the settings read back after say what happened.
-        co_await SendVial(VialCommand::QmkSettingsReset, {}, false);
+        co_await SendVial(Command::QmkSettingsReset, {}, false);
     }
 
-        Task<VialUnlockStatus> VialProtocol::GetUnlockStatus()
+        Task<UnlockStatus> Protocol::GetUnlockStatus()
     {
-        std::vector<uint8_t> reply = co_await SendVial(VialCommand::GetUnlockStatus, {});
+        std::vector<uint8_t> reply = co_await SendVial(Command::GetUnlockStatus, {});
 
-        VialUnlockStatus status;
+        UnlockStatus status;
         status.unlocked   = reply[0] != 0;
         status.inProgress = reply[1] != 0;
 
         // The firmware fills the buffer with 0xFF and then writes (row, column) pairs
         // over it, so the first 0xFF row ends the list. An insecure build writes none.
-        for (size_t offset = 2; offset + 1 < c_ViaReportSize; offset += 2)
+        for (size_t offset = 2; offset + 1 < via::c_ReportSize; offset += 2)
         {
             if (reply[offset] == 0xFF)
                 break;
@@ -333,16 +333,16 @@ namespace nazg
         co_return status;
     }
 
-    Task<void> VialProtocol::StartUnlock()
+    Task<void> Protocol::StartUnlock()
     {
-        co_await SendVial(VialCommand::UnlockStart, {}, false);
+        co_await SendVial(Command::UnlockStart, {}, false);
     }
 
-    Task<VialUnlockProgress> VialProtocol::PollUnlock()
+    Task<UnlockProgress> Protocol::PollUnlock()
     {
-        std::vector<uint8_t> reply = co_await SendVial(VialCommand::UnlockPoll, {});
+        std::vector<uint8_t> reply = co_await SendVial(Command::UnlockPoll, {});
 
-        VialUnlockProgress progress;
+        UnlockProgress progress;
         progress.unlocked   = reply[0] != 0;
         progress.inProgress = reply[1] != 0;
         progress.countdown  = reply[2];
@@ -350,14 +350,14 @@ namespace nazg
         co_return progress;
     }
 
-    Task<void> VialProtocol::Lock()
+    Task<void> Protocol::Lock()
     {
-        co_await SendVial(VialCommand::Lock, {}, false);
+        co_await SendVial(Command::Lock, {}, false);
     }
 
-    Task<VialProtocol::EncoderPair> VialProtocol::GetVialEncoder(uint8_t layer, uint8_t index)
+    Task<Protocol::EncoderPair> Protocol::GetVialEncoder(uint8_t layer, uint8_t index)
     {
-        std::vector<uint8_t> reply = co_await SendVial(VialCommand::GetEncoder, { layer, index });
+        std::vector<uint8_t> reply = co_await SendVial(Command::GetEncoder, { layer, index });
 
         EncoderPair pair;
         pair.counterClockwise = ReadBigEndian16(reply, 0);
@@ -366,9 +366,9 @@ namespace nazg
         co_return pair;
     }
 
-    Task<void> VialProtocol::SetVialEncoder(uint8_t layer, uint8_t index, bool clockwise, uint16_t keycode)
+    Task<void> Protocol::SetVialEncoder(uint8_t layer, uint8_t index, bool clockwise, uint16_t keycode)
     {
-        co_await SendVial(VialCommand::SetEncoder,
+        co_await SendVial(Command::SetEncoder,
                           { layer, index, static_cast<uint8_t>(clockwise ? 1 : 0), static_cast<uint8_t>(keycode >> 8),
                             static_cast<uint8_t>(keycode & 0xFF) },
                           false);

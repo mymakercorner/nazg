@@ -138,7 +138,7 @@ namespace nazg
         {
             // Names are the newest QMK spelling, so the latest table always has them --
             // except keycodes QMK has since removed, which fall back to the name itself.
-            const QmkKeycode* keycode = FindQmkKeycodeByName(key, c_LatestQmkKeycodeVersion);
+            const qmk::KeycodeEntry* keycode = qmk::FindKeycodeByName(key, qmk::c_LatestKeycodeVersion);
             return keycode != nullptr && keycode->label[0] != '\0' ? std::string_view(keycode->label) : key;
         }
 
@@ -479,7 +479,7 @@ namespace nazg
 
             // The other basic keycodes -- Help, Undo, Mute -- are keys a stock keyboard can have:
             // modifiers in words.
-            const QmkKeycode* keycode = FindQmkKeycodeByName(key, c_LatestQmkKeycodeVersion);
+            const qmk::KeycodeEntry* keycode = qmk::FindKeycodeByName(key, qmk::c_LatestKeycodeVersion);
             if (keycode != nullptr && std::string_view(keycode->group) == "basic")
                 return WordsLegend(PlacementClass::Modifier, { std::string(label), "" }, { Capitals(label), "" });
 

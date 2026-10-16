@@ -93,7 +93,7 @@ namespace nazg
         return changed;
     }
 
-    bool DrawSentWith(Keycode& key, const LegendSettings& legends, QmkKeycodeVersion version, const char* words)
+    bool DrawSentWith(Keycode& key, const LegendSettings& legends, qmk::KeycodeVersion version, const char* words)
     {
         // The basic key under the modifiers: only QMK's bottom byte, from KC_A, can be sent with any.
         const auto*      modified = std::get_if<ModifiedKey>(&key);
@@ -101,7 +101,7 @@ namespace nazg
         if (modified != nullptr)
             base = modified->key;
         else if (const auto* named = std::get_if<NamedKey>(&key))
-            if (const QmkKeycode* row = FindQmkKeycodeByName(named->name, version);
+            if (const qmk::KeycodeEntry* row = qmk::FindKeycodeByName(named->name, version);
                 row != nullptr && row->value >= 0x04 && row->value <= 0xFF)
                 base = named->name;
         if (base.empty())

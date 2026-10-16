@@ -34,7 +34,7 @@ namespace nazg
             return rest.size() == 2 && rest[0] == 'P' && rest[1] >= '0' && rest[1] <= '9';
         }
 
-        KeyFill ClassOfNamed(std::string_view name, const DefinitionKey& key)
+        KeyFill ClassOfNamed(std::string_view name, const via::DefinitionKey& key)
         {
             if (name == "KC_NO" || name == "KC_TRNS")
                 return key.width > 1.25f ? KeyFill::Modifier : KeyFill::Alpha;
@@ -124,7 +124,7 @@ namespace nazg
         }
     }
 
-    ResolvedKey ResolveKey(const Keyboard& keyboard, const DefinitionKey& key, uint8_t layer)
+    ResolvedKey ResolveKey(const Keyboard& keyboard, const via::DefinitionKey& key, uint8_t layer)
     {
         return Resolve(layer, [&](uint8_t at) { return keyboard.KeycodeFor(key, at); });
     }
@@ -146,7 +146,7 @@ namespace nazg
 
         for (BoardKey& key : board.keys)
         {
-            const DefinitionKey& geometry = key.geometry;
+            const via::DefinitionKey& geometry = key.geometry;
             if (geometry.decal)
                 continue;
 
@@ -210,9 +210,9 @@ namespace nazg
             { "qmk_backlight_rgblight_keycodes", Backlight | Underglow },
         };
 
-        const KeyboardDefinition& definition = keyboard.definition;
-        uint8_t                   systems    = 0;
-        const auto                add        = [&](std::string_view id)
+        const via::KeyboardDefinition& definition = keyboard.definition;
+        uint8_t                        systems    = 0;
+        const auto                     add        = [&](std::string_view id)
         {
             for (const auto& known : c_Ids)
                 if (known.id == id)
@@ -245,7 +245,7 @@ namespace nazg
         };
 
         std::vector<Words> words;
-        for (const KeyboardDefinition::CustomKeycode& custom : keyboard.definition.customKeycodes)
+        for (const via::KeyboardDefinition::CustomKeycode& custom : keyboard.definition.customKeycodes)
             words.push_back({ oneLine(custom.name), oneLine(custom.shortName) });
         return words;
     }
@@ -343,7 +343,7 @@ namespace nazg
             if (key.geometry.decal)
                 continue;
 
-            const DefinitionKey& geometry = key.geometry;
+            const via::DefinitionKey& geometry = key.geometry;
             if (widest == nullptr || geometry.width > widest->geometry.width)
                 widest = &key;
 
@@ -359,7 +359,7 @@ namespace nazg
         return (minX + maxX) / 2.0f;
     }
 
-    KeySide SideOf(const DefinitionKey& key, float line)
+    KeySide SideOf(const via::DefinitionKey& key, float line)
     {
         const float centre = KeyCentre(key).first;
         const float half   = key.width / 2.0f;
@@ -371,7 +371,7 @@ namespace nazg
     BoardDescription DescribeKeyboard(const Keyboard& keyboard)
     {
         BoardDescription board;
-        for (const DefinitionKey& key : PlaceKeys(keyboard.definition, keyboard.layoutSelection))
+        for (const via::DefinitionKey& key : PlaceKeys(keyboard.definition, keyboard.layoutSelection))
         {
             BoardKey described;
             described.geometry = key;
@@ -385,7 +385,7 @@ namespace nazg
         return board;
     }
 
-    KeyFill KeycapClassOf(const Keycode& base, const DefinitionKey& key)
+    KeyFill KeycapClassOf(const Keycode& base, const via::DefinitionKey& key)
     {
         constexpr uint8_t c_Shift = Mod::LeftShift | Mod::RightShift;
 
@@ -402,7 +402,7 @@ namespace nazg
         return KeyFill::Modifier;
     }
 
-    std::pair<float, float> KeyCentre(const DefinitionKey& key)
+    std::pair<float, float> KeyCentre(const via::DefinitionKey& key)
     {
         const float x = key.x + key.width / 2.0f;
         const float y = key.y + key.height / 2.0f;

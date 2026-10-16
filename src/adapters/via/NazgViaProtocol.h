@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com>
 //
-// ViaProtocol - the VIA command set, which Vial firmware answers unchanged.
+// via::Protocol - the VIA command set, which Vial firmware answers unchanged.
 //
 // This is the shared half of "one backend with a Vial branch": keymap, layers, macros,
 // buffers and keyboard values are byte-identical on both firmwares. The Vial branch
@@ -23,24 +23,15 @@
 #include <string>
 #include <vector>
 
+#include "adapters/NazgProtocolError.h"
 #include "async/NazgTask.h"
 #include "transport/NazgDeviceChannel.h"
 
-namespace nazg
+namespace nazg::via
 {
-    // Raised when the device answers something the protocol did not ask for, including
-    // the 0xFF "unhandled" marker. Deliberately a sibling of HidTransportError rather
-    // than a subclass: a caller that only cares "the operation failed" catches
-    // std::runtime_error, and one that cares why can tell a refusal from a dead cable.
-    class ProtocolError : public std::runtime_error
-    {
-    public:
-        explicit ProtocolError(const std::string& message) : std::runtime_error(message) {}
-    };
-
     // The full VIA command set as of protocol 13. Commands this class does not implement
     // yet are listed anyway, so the wire values live in exactly one place.
-    enum class ViaCommand : uint8_t
+    enum class Command : uint8_t
     {
         GetProtocolVersion       = 0x01,
         GetKeyboardValue         = 0x02,
@@ -67,7 +58,7 @@ namespace nazg
         Unhandled                = 0xFF,
     };
 
-    enum class ViaKeyboardValue : uint8_t
+    enum class KeyboardValue : uint8_t
     {
         Uptime            = 0x01,
         LayoutOptions     = 0x02,
@@ -77,7 +68,7 @@ namespace nazg
         KeycodesVersion   = 0x06,   // VIA >= protocol 13
     };
 
-    enum class ViaChannel : uint8_t
+    enum class Channel : uint8_t
     {
         Custom      = 0,
         QmkBacklight = 1,
@@ -88,10 +79,10 @@ namespace nazg
     };
 
     // Every exchange is exactly this long, in both directions.
-    inline constexpr size_t c_ViaReportSize = 32;
+    inline constexpr size_t c_ReportSize = 32;
 
     // A buffer command spends 4 bytes on command id, offset and length, leaving 28.
-    inline constexpr uint16_t c_ViaBufferChunk = 28;
+    inline constexpr uint16_t c_BufferChunk = 28;
 
     // How a firmware lays out id_switch_matrix_state's reply. Both give every row as
     // ceil(columns / 8) bytes, most significant first -- column 0 is the last byte's bit 0.
@@ -110,7 +101,7 @@ namespace nazg
     // The matrix state format a VIA board of this protocol answers in -- VIA's own rule
     // (via-app, use-matrix-test.ts). A Vial board is always Whole, whatever VIA protocol it
     // reports.
-    [[nodiscard]] SwitchMatrixFormat SwitchMatrixFormatForVia(uint16_t viaProtocol) noexcept;
+    [[nodiscard]] SwitchMatrixFormat SwitchMatrixFormatFor(uint16_t viaProtocol) noexcept;
 
     // The Whole format's condition, as the firmware writes it: (columns / 8 + 1) * rows <= 28.
     // Stricter than the bytes need -- 8 columns count as two bytes -- but it is the one that
@@ -128,21 +119,21 @@ namespace nazg
         [[nodiscard]] bool IsPressed(uint8_t row, uint8_t column) const noexcept;
     };
 
-    class ViaProtocol
+    class Protocol
     {
     public:
-        explicit ViaProtocol(DeviceChannel& channel) : m_Channel(channel) {}
+        explicit Protocol(DeviceChannel& channel) : m_Channel(channel) {}
 
         // 0x01. The one command every version answers, so it is the right first call.
         [[nodiscard]] Task<uint16_t> GetProtocolVersion();
 
         // 0x02 with a 32-bit value id. Throws ProtocolError if this firmware does not
         // know the value -- KeycodesVersion, for instance, needs protocol 13.
-        [[nodiscard]] Task<uint32_t> GetKeyboardValue(ViaKeyboardValue value);
+        [[nodiscard]] Task<uint32_t> GetKeyboardValue(KeyboardValue value);
 
         // 0x03: the value, big-endian from byte 2 as GetKeyboardValue() reads it. The board
         // echoes the request; read the value back to know what it kept.
-        [[nodiscard]] Task<void> SetKeyboardValue(ViaKeyboardValue value, uint32_t data);
+        [[nodiscard]] Task<void> SetKeyboardValue(KeyboardValue value, uint32_t data);
 
         // 0x11 / 0x04 / 0x05. Layers, and one key at a time.
         [[nodiscard]] Task<uint8_t>  GetLayerCount();
@@ -151,7 +142,7 @@ namespace nazg
 
         // 0x14 / 0x15, VIA protocol 10 on: what one knob sends turned one way on one layer -- the
         // encoder map, built with ENCODER_MAP_ENABLE; without it the firmware answers 0xFF. A
-        // call per direction. vial-qmk answers neither: VialProtocol::GetVialEncoder() is Vial's.
+        // call per direction. vial-qmk answers neither: vial::Protocol::GetVialEncoder() is Vial's.
         [[nodiscard]] Task<uint16_t> GetEncoder(uint8_t layer, uint8_t index, bool clockwise);
         [[nodiscard]] Task<void>     SetEncoder(uint8_t layer, uint8_t index, bool clockwise, uint16_t keycode);
 
@@ -198,13 +189,13 @@ namespace nazg
         // the answer was anything other than 0xFF, because that is the only way to tell:
         // protocol version numbers track features in NEITHER direction (VIA gained
         // custom channels with no bump; Vial gained alt repeat key with none).
-        [[nodiscard]] Task<bool> Supports(ViaCommand command, std::initializer_list<uint8_t> arguments = {});
+        [[nodiscard]] Task<bool> Supports(Command command, std::initializer_list<uint8_t> arguments = {});
 
     protected:
         // Builds the 32-byte frame, sends it, and verifies the reply echoes the command
         // id. Shared with the Vial branch, which needs the framing but checks its
         // replies differently -- Vial overwrites the buffer from byte 0.
-        [[nodiscard]] Task<std::vector<uint8_t>> Send(ViaCommand command, std::initializer_list<uint8_t> arguments);
+        [[nodiscard]] Task<std::vector<uint8_t>> Send(Command command, std::initializer_list<uint8_t> arguments);
 
         // The same, for a frame built whole -- one carrying data, as a buffer write does.
         // `hasArguments` names the sub-id in the error when the firmware refuses it.
@@ -216,6 +207,6 @@ namespace nazg
 
     private:
         // 0x0E and 0x12 differ only in the command id.
-        [[nodiscard]] Task<std::vector<uint8_t>> ReadChunked(ViaCommand command, uint16_t offset, uint16_t length);
+        [[nodiscard]] Task<std::vector<uint8_t>> ReadChunked(Command command, uint16_t offset, uint16_t length);
     };
 }

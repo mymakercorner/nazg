@@ -28,7 +28,7 @@ namespace nazg
     // The corners of the key's outline, in key units, unrotated: clockwise on screen (y grows
     // downward), from the leftmost corner of the top edge, one point per corner. A key of one
     // rectangle has four; an ISO Enter six.
-    [[nodiscard]] std::vector<ContourPoint> KeyContour(const DefinitionKey& key);
+    [[nodiscard]] std::vector<ContourPoint> KeyContour(const via::DefinitionKey& key);
 
     // The same outline moved `distance` inward on every side -- outward when negative. Only for
     // outlines whose edges are all horizontal or vertical, as KeyContour() makes them.

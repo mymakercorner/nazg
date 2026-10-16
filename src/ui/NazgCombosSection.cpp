@@ -49,7 +49,7 @@ namespace nazg
     }
 
     CombosSection::CombosSection(HidTransport& transport, std::string path, Keyboard& keyboard,
-                                 const LegendSettings& legends, const std::optional<VialUnlockStatus>& lock,
+                                 const LegendSettings& legends, const std::optional<vial::UnlockStatus>& lock,
                                  const bool& advancedTools)
         : m_Transport(transport), m_Path(std::move(path)), m_Keyboard(keyboard), m_Legends(legends), m_Lock(lock),
           m_AdvancedTools(advancedTools)
@@ -266,9 +266,9 @@ namespace nazg
         {
             device = co_await m_Transport.Open(m_Path);
             HidDeviceChannel channel(m_Transport, device);
-            VialProtocol     vial(channel);
+            vial::Protocol   vial(channel);
 
-            m_Stored = co_await ReadCombos(vial, m_Keyboard.report.comboCount, m_Keyboard.keycodeVersion);
+            m_Stored = co_await vial::ReadCombos(vial, m_Keyboard.report.comboCount, m_Keyboard.keycodeVersion);
 
             // The term, when the board's QMK Settings have it; else the build's, unreadable.
             m_Keyboard.comboTerm.reset();
@@ -305,7 +305,7 @@ namespace nazg
         for (size_t combo = 0; combo < m_Combos.size(); ++combo)
             if (IsChanged(combo))
             {
-                if (!EncodeCombo(m_Combos[combo], m_Keyboard.keycodeVersion))
+                if (!vial::EncodeCombo(m_Combos[combo], m_Keyboard.keycodeVersion))
                 {
                     m_Message   = SlotName(combo) + " holds a key this board cannot store";
                     m_IsWarning = true;
@@ -325,17 +325,17 @@ namespace nazg
         {
             device = co_await m_Transport.Open(m_Path);
             HidDeviceChannel channel(m_Transport, device);
-            VialProtocol     vial(channel);
+            vial::Protocol   vial(channel);
 
             // Each slot written, then read back: what the board holds now, whatever was asked.
             std::vector<std::string> notKept;
             for (size_t combo : combos)
             {
-                const VialComboEntry entry = *EncodeCombo(m_Combos[combo], m_Keyboard.keycodeVersion);
-                const uint8_t        index = static_cast<uint8_t>(combo);
+                const vial::ComboEntry entry = *vial::EncodeCombo(m_Combos[combo], m_Keyboard.keycodeVersion);
+                const uint8_t          index = static_cast<uint8_t>(combo);
                 co_await vial.SetCombo(index, entry);
-                const VialComboEntry stored = co_await vial.GetCombo(index);
-                m_Stored[combo]             = DecodeCombo(stored, m_Keyboard.keycodeVersion);
+                const vial::ComboEntry stored = co_await vial.GetCombo(index);
+                m_Stored[combo]             = vial::DecodeCombo(stored, m_Keyboard.keycodeVersion);
                 if (stored == entry)
                     m_Combos[combo] = m_Stored[combo];
                 else

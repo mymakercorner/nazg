@@ -108,14 +108,14 @@ namespace nazg
         return sent;
     }
 
-    std::vector<char> GuessHands(const std::vector<DefinitionKey>& keys)
+    std::vector<char> GuessHands(const std::vector<via::DefinitionKey>& keys)
     {
         std::vector<char> hands(keys.size(), '*');
         if (keys.empty())
             return hands;
 
         std::vector<float> centres;
-        for (const DefinitionKey& key : keys)
+        for (const via::DefinitionKey& key : keys)
             centres.push_back(key.x + key.width / 2.0f);
         std::vector<float> sorted = centres;
         std::sort(sorted.begin(), sorted.end());
@@ -156,11 +156,11 @@ namespace nazg
 
         for (size_t index = 0; index < keys.size(); ++index)
         {
-            const DefinitionKey& key = keys[index];
+            const via::DefinitionKey& key = keys[index];
             float sign = centres[index] - split;
             if (!symmetric && hasSpaceBar)
             {
-                const DefinitionKey& space = keys[wide[0]];
+                const via::DefinitionKey& space = keys[wide[0]];
                 const float x0 = space.x + space.width / 2.0f - 0.05f;
                 const float y0 = space.y + space.height / 2.0f - 1.0f;
                 sign = (centres[index] - x0) - (key.y + key.height / 2.0f - y0) / 3.0f;

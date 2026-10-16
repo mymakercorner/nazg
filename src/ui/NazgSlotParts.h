@@ -48,5 +48,5 @@ namespace nazg
     [[nodiscard]] SlotWrite DrawSaveRevert(bool canSave, bool canRevert);
 
     // A locked board's unlock keys, outlined in the warning's colour: the way to Boot.
-    void MarkUnlockKeys(BoardDescription& board, const std::optional<VialUnlockStatus>& lock);
+    void MarkUnlockKeys(BoardDescription& board, const std::optional<vial::UnlockStatus>& lock);
 }

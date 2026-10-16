@@ -30,9 +30,9 @@ namespace nazg
 {
     struct MacroContext
     {
-        MacroFormat       format;
-        QmkKeycodeVersion version;
-        const HostLayout& host;
+        via::MacroFormat    format;
+        qmk::KeycodeVersion version;
+        const HostLayout&   host;
     };
 
     // A step this board, or this host layout, cannot store.
@@ -44,16 +44,16 @@ namespace nazg
 
     struct MacroWriting
     {
-        MacroActions              actions;
+        via::MacroActions         actions;
         std::vector<MacroProblem> problems;   // none: the actions are the macro
     };
 
-    [[nodiscard]] Macro        StepsOf(const MacroActions& actions, const MacroContext& context);
+    [[nodiscard]] Macro        StepsOf(const via::MacroActions& actions, const MacroContext& context);
     [[nodiscard]] MacroWriting ActionsOf(const Macro& macro, const MacroContext& context);
 
     // The bytes the macro takes in the buffer, its 0 included -- what the actions that can be stored
     // cost.
-    [[nodiscard]] size_t BytesOf(const MacroActions& actions, MacroFormat format) noexcept;
+    [[nodiscard]] size_t BytesOf(const via::MacroActions& actions, via::MacroFormat format) noexcept;
 
     // The macro in VIA's script syntax, read-only, for those who know it (ui-design.md, "The macro's
     // line"): text as it is, '{' as "\{"; {KC_ENT} a key, {KC_LGUI,KC_R} one sent with modifiers,

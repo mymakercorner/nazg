@@ -316,6 +316,18 @@ factored together.
   are not prefixed — `Main.cpp` (global `main()`) and everything in `tests/`.
   **The prefix is on filenames only.** Type names stay unprefixed inside the namespace:
   the class in `NazgTask.h` is `nazg::Task`, not `nazg::NazgTask`, which would stutter.
+- **Each adapter folder is a namespace inside `nazg`**: `adapters/via` is `nazg::via`,
+  `adapters/vial` is `nazg::vial`, `adapters/qmk` is `nazg::qmk` (Keychron's will be
+  `nazg::keychron`). Names drop the protocol, as they drop "Nazg": `via::Protocol`,
+  `vial::Protocol`, `vial::LoadKeyboard`, `qmk::KeycodeVersion` — never `via::ViaProtocol`.
+  File names keep it (`NazgViaProtocol.h`). **A name belongs to the command family that
+  carries it on the wire**: VialRGB and Vial's macro formats ride VIA's commands, so they are
+  `via::`; what goes behind Vial's `0xFE` prefix is `vial::`. Vial and Keychron code use `via::`
+  freely; `via::` never names `vial::` or `keychron::`. **Outside its own namespace a name is
+  always written qualified** (`via::Protocol`, `nazg::via::Protocol` from global code), never
+  through `using`; a test writes `namespace via = nazg::via;` and then `via::X`.
+  What every protocol shares stays in `nazg`: `ProtocolError`, `adapters/NazgByteOrder.h`,
+  `adapters/NazgXz.h`.
 - **"Nazg" is a user-facing name only.** Source modules get boring, greppable names:
   `adapters/via`, `adapters/vial`, `transport/`, `descriptor/`. No lore-themed identifiers —
   naming adapters `narya`/`nenya`/`vilya` was considered and rejected as cryptic.

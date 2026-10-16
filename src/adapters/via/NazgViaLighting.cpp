@@ -5,7 +5,7 @@
 
 #include <optional>
 
-namespace nazg
+namespace nazg::via
 {
     namespace
     {
@@ -34,9 +34,9 @@ namespace nazg
                 return std::nullopt;
             switch (target.kind)
             {
-            case LightingKind::Backlight: return static_cast<uint8_t>(ViaChannel::QmkBacklight);
-            case LightingKind::Underglow: return static_cast<uint8_t>(ViaChannel::QmkRgbLight);
-            default:                      return static_cast<uint8_t>(ViaChannel::QmkRgbMatrix);
+            case LightingKind::Backlight: return static_cast<uint8_t>(Channel::QmkBacklight);
+            case LightingKind::Underglow: return static_cast<uint8_t>(Channel::QmkRgbLight);
+            default:                      return static_cast<uint8_t>(Channel::QmkRgbMatrix);
             }
         }
 
@@ -45,19 +45,19 @@ namespace nazg
             return from == 0 ? 0 : static_cast<uint8_t>((value * to + from / 2) / from);
         }
 
-        Task<uint8_t> GetByte(ViaProtocol& via, std::optional<uint8_t> channel, uint8_t id)
+        Task<uint8_t> GetByte(Protocol& via, std::optional<uint8_t> channel, uint8_t id)
         {
             co_return (co_await via.GetCustomValue(channel, id, {}, 1)).at(0);
         }
     }
 
-    Task<VialRgbInfo> ReadVialRgbInfo(ViaProtocol& via)
+    Task<VialRgbInfo> ReadVialRgbInfo(Protocol& via)
     {
         const std::vector<uint8_t> reply = co_await via.GetCustomValue(std::nullopt, c_VialRgbGetInfo, {}, 3);
         co_return VialRgbInfo{ static_cast<uint16_t>(reply.at(0) | reply.at(1) << 8), reply.at(2) };
     }
 
-    Task<std::vector<uint16_t>> ReadVialRgbEffects(ViaProtocol& via)
+    Task<std::vector<uint16_t>> ReadVialRgbEffects(Protocol& via)
     {
         // Up to 15 ids a reply, each little-endian, 0xFFFF after the last: asked again from the
         // last while a reply is full.
@@ -84,7 +84,7 @@ namespace nazg
         co_return effects;
     }
 
-    Task<LightingValues> ReadLighting(ViaProtocol& via, LightingTarget target, uint8_t maxBrightness)
+    Task<LightingValues> ReadLighting(Protocol& via, LightingTarget target, uint8_t maxBrightness)
     {
         LightingValues values;
         const auto     channel = ChannelOf(target);
@@ -121,7 +121,7 @@ namespace nazg
         co_return values;
     }
 
-    Task<void> WriteLighting(ViaProtocol& via, LightingTarget target, LightingLine line, const LightingValues& values,
+    Task<void> WriteLighting(Protocol& via, LightingTarget target, LightingLine line, const LightingValues& values,
                              uint8_t maxBrightness)
     {
         const auto channel = ChannelOf(target);
@@ -172,7 +172,7 @@ namespace nazg
         }
     }
 
-    Task<void> SaveLighting(ViaProtocol& via, LightingTarget target)
+    Task<void> SaveLighting(Protocol& via, LightingTarget target)
     {
         co_await via.SaveCustomValues(ChannelOf(target));
     }

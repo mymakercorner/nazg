@@ -24,7 +24,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace nazg
+namespace nazg::via
 {
     // One definition, as the bundle's index lists it.
     struct CommunityDefinition

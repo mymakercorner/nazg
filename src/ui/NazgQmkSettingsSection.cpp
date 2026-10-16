@@ -94,7 +94,7 @@ namespace nazg
         }
 
         // Every setting the firmware lists that Nazg knows, each at its own width.
-        Task<QmkSettings> ReadSettings(VialProtocol& vial)
+        Task<QmkSettings> ReadSettings(vial::Protocol& vial)
         {
             QmkSettings settings;
             for (uint16_t qsid : co_await vial.ListQmkSettings())
@@ -247,7 +247,7 @@ namespace nazg
 
     bool QmkSettingsSection::AnyKey(const std::function<bool(const Keycode&)>& test) const
     {
-        for (const DefinitionKey& key : m_Keyboard.definition.keys)
+        for (const via::DefinitionKey& key : m_Keyboard.definition.keys)
             for (int layer = 0; layer < m_Keyboard.keymap.Layers(); ++layer)
                 if (test(m_Keyboard.KeycodeFor(key, static_cast<uint8_t>(layer))))
                     return true;
@@ -309,8 +309,8 @@ namespace nazg
         // other, a key of either hand not lit.
         if (concern == Concern::Hands)
         {
-            std::vector<DefinitionKey> keys;
-            std::vector<size_t>        indices;
+            std::vector<via::DefinitionKey> keys;
+            std::vector<size_t>             indices;
             for (size_t index = 0; index < board.keys.size(); ++index)
                 if (!board.keys[index].geometry.decal)
                 {
@@ -861,7 +861,7 @@ namespace nazg
         {
             device = co_await m_Transport.Open(m_Path);
             HidDeviceChannel channel(m_Transport, device);
-            VialProtocol     vial(channel);
+            vial::Protocol   vial(channel);
 
             m_Settings = co_await ReadSettings(vial);
             if (Has(QmkSetting::ComboTerm))
@@ -885,7 +885,7 @@ namespace nazg
         {
             device = co_await m_Transport.Open(m_Path);
             HidDeviceChannel channel(m_Transport, device);
-            VialProtocol     vial(channel);
+            vial::Protocol   vial(channel);
 
             bool kept = true;
             for (const auto& [qsid, value] : writes)
@@ -922,7 +922,7 @@ namespace nazg
         {
             device = co_await m_Transport.Open(m_Path);
             HidDeviceChannel channel(m_Transport, device);
-            VialProtocol     vial(channel);
+            vial::Protocol   vial(channel);
 
             co_await vial.ResetQmkSettings();
             m_Settings = co_await ReadSettings(vial);

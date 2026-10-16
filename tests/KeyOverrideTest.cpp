@@ -13,10 +13,12 @@
 #include "model/NazgKeyOverride.h"
 #include "TestSupport.h"
 
-using nazg::DefinitionKey;
+namespace via = nazg::via;
+
 using nazg::KeyOverride;
 using nazg::Keycode;
 using nazg::NamedKey;
+
 namespace Option = nazg::KeyOverrideOption;
 
 namespace
@@ -94,9 +96,9 @@ namespace
         Check(!nazg::SameRule(first, off, 0x000F), "one off: nothing shadowed");
     }
 
-    DefinitionKey Key(float x, uint8_t column)
+    via::DefinitionKey Key(float x, uint8_t column)
     {
-        DefinitionKey key;
+        via::DefinitionKey key;
         key.x      = x;
         key.column = column;
         return key;

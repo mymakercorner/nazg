@@ -13,9 +13,11 @@
 #include "model/NazgQmkSettings.h"
 #include "TestSupport.h"
 
-using nazg::DefinitionKey;
+namespace via = nazg::via;
+
 using nazg::HoldDecision;
 using nazg::QmkSettings;
+
 namespace QmkSetting = nazg::QmkSetting;
 namespace MagicBit   = nazg::MagicBit;
 
@@ -70,9 +72,9 @@ namespace
         Check(nazg::MagicKeycode("KC_RGUI", 1u << MagicBit::NoGui) == "KC_NO", "GUI off");
     }
 
-    DefinitionKey Key(float x, float y, float width = 1.0f)
+    via::DefinitionKey Key(float x, float y, float width = 1.0f)
     {
-        DefinitionKey key;
+        via::DefinitionKey key;
         key.x     = x;
         key.y     = y;
         key.width = width;

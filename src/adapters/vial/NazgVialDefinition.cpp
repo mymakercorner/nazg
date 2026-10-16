@@ -5,7 +5,7 @@
 
 #include "adapters/NazgXz.h"
 
-namespace nazg
+namespace nazg::vial
 {
     namespace
     {
@@ -20,8 +20,8 @@ namespace nazg
         return DecompressXz(compressed, c_MaxDecompressedSize, "the definition");
     }
 
-    KeyboardDefinition DecodeDefinition(const std::vector<uint8_t>& compressed)
+    via::KeyboardDefinition DecodeDefinition(const std::vector<uint8_t>& compressed)
     {
-        return ParseDefinition(DecompressDefinition(compressed));
+        return via::ParseDefinition(DecompressDefinition(compressed));
     }
 }

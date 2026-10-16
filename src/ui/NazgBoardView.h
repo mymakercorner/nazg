@@ -36,7 +36,7 @@ namespace nazg
     // A definition drawn small -- blank keys, the first choice of every layout option -- so
     // candidates tell apart at a glance: ANSI from ISO, ortho from staggered. At most
     // `width` pixels wide and `height` high, keeping the board's proportions.
-    void DrawDefinitionPreview(const KeyboardDefinition& definition, float width, float height);
+    void DrawDefinitionPreview(const via::KeyboardDefinition& definition, float width, float height);
 
     // One tile of the keycode picker (ui-design.md, "The tiles"), drawn as the board draws a key --
     // its face in its class's colour, its band, its legends laid out by LayOutTile(), a transparent

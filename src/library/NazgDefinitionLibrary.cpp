@@ -11,7 +11,7 @@
 
 #include <nlohmann/json.hpp>
 
-#include "adapters/via/NazgViaProtocol.h"   // ProtocolError
+#include "adapters/NazgProtocolError.h"
 
 namespace nazg
 {
@@ -235,7 +235,7 @@ namespace nazg
     const LibraryEntry& DefinitionLibrary::Import(const std::vector<uint8_t>& definition, std::string origin,
                                                   std::string added)
     {
-        const KeyboardDefinition parsed = ParseDefinition(definition);
+        const via::KeyboardDefinition parsed = via::ParseDefinition(definition);
         if (parsed.vendorId == 0 && parsed.productId == 0)
             throw ProtocolError("the definition has no vendorId and productId to match a board by");
 
@@ -318,7 +318,7 @@ namespace nazg
         return const_cast<DefinitionLibrary*>(this)->FindMutable(id);
     }
 
-    const LibraryEntry* DefinitionLibrary::FindSameBoard(const KeyboardDefinition& definition) const noexcept
+    const LibraryEntry* DefinitionLibrary::FindSameBoard(const via::KeyboardDefinition& definition) const noexcept
     {
         for (const LibraryEntry& entry : m_Entries)
             if (entry.vendorId == definition.vendorId && entry.productId == definition.productId &&
@@ -351,7 +351,7 @@ namespace nazg
         if (current == nullptr)
             throw LibraryError("no user definition " + std::to_string(id));
 
-        const KeyboardDefinition parsed = ParseDefinition(definition);
+        const via::KeyboardDefinition parsed = via::ParseDefinition(definition);
         if (parsed.vendorId == 0 && parsed.productId == 0)
             throw ProtocolError("the definition has no vendorId and productId to match a board by");
 
@@ -423,7 +423,7 @@ namespace nazg
             throw LibraryError("user definition " + std::to_string(id) + " has no previous version");
 
         // Its name and ids may differ from the current revision's; the index copies them.
-        const KeyboardDefinition parsed = ParseDefinition(ReadFile(FileOf(id, current->previousRevision)));
+        const via::KeyboardDefinition parsed = via::ParseDefinition(ReadFile(FileOf(id, current->previousRevision)));
 
         LibraryEntry updated     = *current;
         updated.revision         = current->previousRevision;
@@ -446,7 +446,7 @@ namespace nazg
         std::vector<DefinitionCandidate> candidates;
         for (const LibraryEntry& entry : m_Entries)
             if (entry.vendorId == vendorId && entry.productId == productId)
-                candidates.push_back({ DefinitionRef::User(entry.id), ParseDefinition(Read(entry)), entry.origin });
+                candidates.push_back({ DefinitionRef::User(entry.id), via::ParseDefinition(Read(entry)), entry.origin });
         return candidates;
     }
 

@@ -27,13 +27,13 @@
 
 #include "NazgQmkKeycodes.h"
 
-namespace nazg
+namespace nazg::qmk
 {
     namespace
     {
-        using enum QmkKeycodeVersion;
+        using enum KeycodeVersion;
 
-        constexpr QmkKeycode c_Table[] = {
+        constexpr KeycodeEntry c_Table[] = {
             // internal
             { 0x0000, Legacy, Never,  "KC_NO",             "internal",            "N/A" },
             { 0x0001, Legacy, Never,  "KC_TRNS",           "internal",            "Transparent" },
@@ -1174,7 +1174,7 @@ namespace nazg
         };
     }
 
-    std::span<const QmkKeycode> QmkKeycodeTable() noexcept
+    std::span<const KeycodeEntry> KeycodeTable() noexcept
     {
         return c_Table;
     }
