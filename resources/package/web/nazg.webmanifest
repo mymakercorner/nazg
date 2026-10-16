@@ -1,0 +1,13 @@
+{
+  "name": "Nazg",
+  "short_name": "Nazg",
+  "description": "One keyboard configurator to rule them all",
+  "display": "standalone",
+  "background_color": "#0f0f11",
+  "theme_color": "#4296fa",
+  "icons": [
+    { "src": "icon/nazg-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon/nazg-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon/nazg.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

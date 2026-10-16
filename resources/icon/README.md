@@ -20,5 +20,34 @@ tool in the repository does it.
 **Up to 48 px the images are drawn for their size, not scaled**: the rune's stroke is an even
 number of whole pixels, centred, so it stays sharp. 64 px and up are the vector drawing scaled.
 
-Not yet used: the `.icns` and the Linux and web files wait for those builds; macOS 26's grey tile
-is avoided by the grid, unchecked without a Mac.
+## Where each platform takes it
+
+Windows uses it today. The rest is prepared for those builds and their packages, none built yet
+(build-and-release.md), and unchecked on a real system:
+
+- **macOS** -- a bundle, `Nazg.app/Contents/`: `Info.plist` from `resources/package/macos/`, its
+  `@NAZG_VERSION@` and `@CMAKE_OSX_DEPLOYMENT_TARGET@` filled by CMake's `configure_file`;
+  `MacOS/nazg`; `Resources/nazg.icns`. The identifier is `com.mymakercorner.nazg`. In a bundle
+  `SDL_GetBasePath()` answers `Contents/Resources/`, so the fonts, the definition bundles and
+  `icon/` go there, not beside the executable. macOS 26's grey tile should be avoided by the
+  grid of `nazg-macos.svg`.
+- **Linux** -- `resources/package/linux/nazg.desktop`, and the PNGs and the SVG laid out as the
+  freedesktop icon theme wants: `share/icons/hicolor/<n>x<n>/apps/nazg.png` for 16, 22, 24, 32,
+  48, 64, 128 and 256, `share/icons/hicolor/scalable/apps/nazg.svg`,
+  `share/applications/nazg.desktop`. SDL names the window after the executable -- Wayland's app
+  id and X11's class are both `nazg` -- which is how the desktop matches the window to the entry
+  and its icon; a reverse-DNS name (`com.mymakercorner.nazg.desktop`, `SDL_SetAppMetadata`) is
+  needed only for Flathub. The tar.gz for testers carries no desktop entry; AppImage, .deb and
+  .rpm do.
+- **The web** (Emscripten) -- `resources/package/web/nazg.webmanifest` beside the page, the icons
+  in `icon/` beside it, and in the page's `<head>`:
+
+  ```html
+  <link rel="icon" href="icon/nazg.svg" type="image/svg+xml">
+  <link rel="icon" href="icon/nazg-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="icon/nazg-180.png">
+  <link rel="manifest" href="nazg.webmanifest">
+  ```
+
+  The SVG first, for the browsers that take it; the 32 px PNG for those that do not (older Safari).
+  `SDL_SetWindowIcon` does nothing in a browser.
