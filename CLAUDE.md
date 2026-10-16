@@ -47,7 +47,8 @@ exists, where, and how far it has been proven.
 - **Hotplug** (ui-design.md, "Hotplug"): no Refresh. `Main.cpp` polls SDL's
   `SDL_hid_device_change_count()`; `App` lists again half a second after the last change, asks
   only new paths their protocol (`board/NazgDeviceList.*`), and closes the open board once its
-  path is gone and no reply from it is awaited, the list saying which one went.
+  path is gone and no reply from it is awaited, the list saying which one went. Nothing opens by
+  itself after start -- a board coming back is only listed (Rico, 2026-10-16).
 - **Icon.** The rune ᚾ in a blue ring on a keycap (ui-design.md, "The application icon"):
   `resources/icon/`, exported from its mockup -- the `.ico` in the exe (`src/Nazg.rc`), PNGs for
   the window elsewhere (`SDL_SetWindowIcon` in `Main.cpp`); macOS's `Info.plist`, Linux's desktop entry and the web
@@ -149,8 +150,6 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
 - **Under review**: Linux permissions -- the udev rule's width, and Nazg installing it itself
   through `pkexec` (build-and-release.md, "Linux"). Until then a Linux board refused for
   permission is listed as "no answer".
-- **Open, Rico to decide**: a board that comes back after being unplugged is only listed, not
-  reopened; a first board plugged in while the empty list shows is not opened either.
 - **Not to be done**: using a definition whose VID:PID differs from the board's (Rico, 2026-10-12) --
   the picker says an import is for another keyboard and why it must not be used (a tester's K10 HE
   reports `3434:0EA7`, which no published file carries; via-registry.md).

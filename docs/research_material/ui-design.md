@@ -2207,9 +2207,9 @@ menu's *Switch to* follows too.
   unplugged.", and "The changes not written to it are lost." when there were some; the line goes
   when that board is listed again or another board opens. The same path gone and back within
   one listing is not noticed: the board stays, and its next request says it failed.
-- **Open, Rico to decide**: a board that comes back -- replugged, or a reflash done -- is only
-  listed, not reopened; and a first board plugged in while the empty list shows is not opened
-  either, unlike the lone board at start.
+- **Nothing opens by itself** (Rico, 2026-10-16: kept as built): a board that comes back --
+  replugged, or a reflash done -- is only listed, not reopened; and a first board plugged in
+  while the empty list shows is not opened either -- the lone board is opened at start only.
 
 ## The matrix view
 
@@ -2413,8 +2413,6 @@ look is built** (Rico, 2026-10-03): they are judged on the real thing, not on a 
   choice: a Shift-only hold shows the character it types ("!" for Shift+1), letters staying
   "Shift+A".
 - **Plugin delivery** — see "Plugins".
-- **Hotplug** -- built 2026-10-16, see "Hotplug" under "Getting back to the keyboard list"; what a
-  board coming back does is still to be decided there.
 - **Dragging the window jitters on a 60 Hz display** (Rico, 2026-10-06, on Windows; smooth at
   144 Hz, and Visual Studio or the Claude app stay smooth on the same screen). Found by bisecting:
   - **Not Nazg's code.** A bare SDL3 window with an SDL_GPU swapchain, presenting every frame,
