@@ -46,7 +46,7 @@ namespace nazg
     void                     SetBoardStyle(const BoardStyle& style);
     [[nodiscard]] BoardStyle CurrentBoardStyle();
 
-    // Ids are what imgui.ini keeps -- stable, lower case; names are for people.
+    // Ids are what settings.json keeps -- stable, lower case; names are for people.
     [[nodiscard]] std::span<const ThemeId>      Themes();
     [[nodiscard]] std::string_view              IdOf(ThemeId theme);
     [[nodiscard]] std::string_view              NameOf(ThemeId theme);

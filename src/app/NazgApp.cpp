@@ -10,7 +10,6 @@
 #include <utility>
 
 #include "imgui.h"
-#include "imgui_internal.h"   // MarkIniSettingsDirty
 
 #include "adapters/qmk/NazgQmkKeycodes.h"
 #include "app/NazgFonts.h"
@@ -37,6 +36,30 @@ namespace nazg
         constexpr char c_ViaBundleName[]       = "via_definitions.tar.xz";
         constexpr char c_CommunityBundleName[] = "community_definitions.tar.xz";
 
+        // How long settings.json waits after the last change.
+        constexpr double c_SettingsDelay = 1.0;
+
+        // Where an earlier build's imgui.ini may be: the data folder, then where Nazg was started,
+        // which is where builds before the data folder kept it.
+        std::vector<std::filesystem::path> LegacyIniFiles(const std::optional<std::filesystem::path>& dataFolder)
+        {
+            std::vector<std::filesystem::path> files;
+            if (dataFolder)
+                files.push_back(*dataFolder / "imgui.ini");
+            files.emplace_back("imgui.ini");
+            return files;
+        }
+
+        // The look the settings ask for -- the defaults for ids this build does not know.
+        BoardStyle StyleOf(const AppSettings& settings)
+        {
+            BoardStyle style;
+            style.theme   = ThemeFromId(settings.theme).value_or(style.theme);
+            style.keycaps = KeycapStyleFromId(settings.keycapStyle).value_or(style.keycaps);
+            style.legends = LegendFamilyFromId(settings.legendFamily).value_or(style.legends);
+            return style;
+        }
+
         DeviceIdentity IdentityOf(const HidDeviceInfo& device)
         {
             return { device.vendorId, device.productId, device.manufacturer, device.product, device.releaseNumber,
@@ -58,11 +81,20 @@ namespace nazg
 
     App::App(PlatformServices platform)
         : m_Platform(std::move(platform)),
+          m_SettingsFile(m_Platform.dataFolder.value_or(std::filesystem::path()), LegacyIniFiles(m_Platform.dataFolder)),
           m_Library(OpenUserLibrary(m_Platform.dataFolder, m_Platform.dataFolderError))
     {
-        // The settings, before ImGui reads imgui.ini; the names start from the computer's OS.
-        m_Settings.legends.modifierNames = m_Platform.modifierNames;
-        RegisterSettings(m_Settings);
+        // The settings; the modifier names start from the computer's OS.
+        AppSettings defaults;
+        defaults.legends.modifierNames = m_Platform.modifierNames;
+        m_Settings = m_SettingsFile.Load(defaults);
+        if (!m_SettingsFile.Problem().empty())
+        {
+            m_SettingsProblem = m_SettingsFile.Problem();
+            m_Platform.logError(m_SettingsProblem);
+        }
+        m_SavedSettings = ToJson(m_Settings);
+        m_SeenSettings  = m_SavedSettings;
 
         LoadFonts(ImGui::GetIO(), m_Platform.executableFolder + "fonts/", m_Platform.logError);
         ImGui::StyleColorsDark();
@@ -100,12 +132,29 @@ namespace nazg
         // whose state had already died.
         m_Transport.Shutdown();
 
-        if (ImGui::GetCurrentContext() != nullptr)
+        KeepSettings(true);
+    }
+
+    void App::KeepSettings(bool now)
+    {
+        const nlohmann::ordered_json current = ToJson(m_Settings);
+        if (current != m_SeenSettings)
         {
-            ImGuiIO& io = ImGui::GetIO();
-            if (io.IniFilename != nullptr)
-                ImGui::SaveIniSettingsToDisk(io.IniFilename);
-            io.IniFilename = nullptr;
+            m_SeenSettings      = current;
+            m_SettingsChangedAt = ImGui::GetTime();
+        }
+        if (current == m_SavedSettings)
+            return;
+        if (!now && (!m_SettingsChangedAt || ImGui::GetTime() - *m_SettingsChangedAt < c_SettingsDelay))
+            return;
+
+        // Tried once per change: a file that cannot be written is said once, not every second.
+        m_SavedSettings = current;
+        m_SettingsChangedAt.reset();
+        if (!m_SettingsFile.Save(m_Settings) && m_SettingsFile.Problem() != m_SettingsProblem)
+        {
+            m_SettingsProblem = m_SettingsFile.Problem();
+            m_Platform.logError(m_SettingsProblem);
         }
     }
 
@@ -415,14 +464,16 @@ namespace nazg
         // Even while minimized: transport work would stall otherwise.
         m_Transport.Pump();
 
-        // Paths an earlier build remembered in imgui.ini, read before the window shows: imported
-        // once, then dropped from the settings. Kept if there is no library.
+        // Paths an earlier build remembered, read with the settings: imported once, then dropped
+        // from them. Kept if there is no library.
         if (!m_Settings.legacyViaDefinitions.empty() && m_Library.library)
         {
             ImportDefinitions(m_Library, m_Settings.legacyViaDefinitions, false, m_Platform.nowUtc());
             m_Settings.legacyViaDefinitions.clear();
-            ImGui::MarkIniSettingsDirty();
         }
+
+        // Whatever changed them last frame -- Settings, a splitter, the window, a section.
+        KeepSettings(false);
 
         // The matrix live test asks for every key of the board to be pressed, and they all type
         // into Nazg: with keyboard navigation on, an arrow then Space would click whatever has
@@ -436,8 +487,7 @@ namespace nazg
 
     std::optional<App::MinimumSize> App::Frame()
     {
-        // The look, as the settings say: read from imgui.ini by the first NewFrame(), changed in
-        // Settings.
+        // The look, as the settings say, changed in Settings.
         const BoardStyle look = StyleOf(m_Settings);
         if (m_AppliedTheme != look.theme)
         {
@@ -799,8 +849,6 @@ namespace nazg
             m_ShowSettings = false;
         if (m_Settings.legends.hostLayout != hostBefore)
             m_Settings.hostLayoutChosen = true;
-        if (action.appearanceChanged || action.legendsChanged || action.advancedToolsChanged || action.keymapChanged)
-            ImGui::MarkIniSettingsDirty();
         if (action.import && m_Library.library)
             m_Platform.showImportDialog();
 
@@ -921,13 +969,6 @@ namespace nazg
 
         DrawSections(m_Board.sections, m_Board.activeSection, *m_Board.keyboard,
                      m_Board.keyboard->report.isVial ? "Vial" : "VIA", m_Settings.workspace);
-
-        // A splitter or the column's edge dragged: kept for the next run.
-        if (m_Settings.workspace.changed)
-        {
-            m_Settings.workspace.changed = false;
-            ImGui::MarkIniSettingsDirty();
-        }
         return true;
     }
 

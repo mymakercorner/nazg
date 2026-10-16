@@ -88,7 +88,7 @@ namespace nazg
     };
 
     [[nodiscard]] std::span<const ModifierNames>  AllModifierNames();
-    [[nodiscard]] std::string_view                IdOf(ModifierNames names);   // for imgui.ini
+    [[nodiscard]] std::string_view                IdOf(ModifierNames names);   // for settings.json
     [[nodiscard]] std::string_view                NameOf(ModifierNames names);
     [[nodiscard]] std::optional<ModifierNames>    ModifierNamesFromId(std::string_view id);
 

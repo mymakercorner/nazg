@@ -23,11 +23,11 @@
 #include "adapters/via/NazgCommunityBundle.h"
 #include "adapters/via/NazgViaBundle.h"
 #include "adapters/vial/NazgVialProtocol.h"
-#include "app/NazgAppSettings.h"
 #include "async/NazgTask.h"
 #include "library/NazgDefinitionChoice.h"
 #include "library/NazgLibraryActions.h"
 #include "model/NazgKeyboard.h"
+#include "settings/NazgSettings.h"
 #include "transport/NazgHidTransport.h"
 #include "ui/NazgKeycapLegend.h"
 #include "ui/NazgMatrixView.h"
@@ -82,19 +82,19 @@ namespace nazg
             bool operator==(const MinimumSize&) const = default;
         };
 
-        // Within an ImGui context, before ImGui first reads imgui.ini -- which reads the settings
-        // -- and before its first frame: the fonts are loaded here.
+        // Within an ImGui context, before its first frame: the fonts are loaded here. Reads
+        // settings.json (settings/NazgSettings.h).
         explicit App(PlatformServices platform);
 
         // Shuts the transport down first, so no coroutine resumes on state already gone, then
-        // writes imgui.ini: ImGui must not write it after App, whose settings it reads, is gone.
+        // writes settings.json if anything changed since it last was.
         ~App();
 
         // Coroutines refer to it: it never moves.
         App(const App&)            = delete;
         App& operator=(const App&) = delete;
 
-        // What imgui.ini keeps; the shell keeps `window` in step with the real window.
+        // What settings.json keeps; the shell keeps `window` in step with the real window.
         [[nodiscard]] AppSettings& Settings() noexcept { return m_Settings; }
 
         // Before ImGui's frame, and while the window is minimized too: finished board work
@@ -197,6 +197,10 @@ namespace nazg
         [[nodiscard]] bool HasUnsaved() const;
         void               LeaveBoard(std::function<void()> leave);
 
+        // settings.json: written a second after the last change -- dragging the window or a splitter
+        // writes once, when it stops -- or at once when `now`.
+        void KeepSettings(bool now);
+
         // The library.
         void AfterLibraryChange(std::optional<uint32_t> replaced = std::nullopt);
         void RefreshCandidates();
@@ -217,6 +221,7 @@ namespace nazg
         // Declared in the order they must be made in; destroyed the other way round, the tasks
         // and the board -- which refer to the transport -- before it.
         PlatformServices m_Platform;
+        SettingsFile     m_SettingsFile;
         AppSettings      m_Settings;
         HidTransport     m_Transport;   // owns a worker thread; every hidapi call happens there
         UserLibrary      m_Library;
@@ -249,6 +254,12 @@ namespace nazg
         bool                   m_ShowAllHidDevices = false;   // the keyboard list shows only keyboards unless asked
         bool                   m_ShowSettings      = false;   // Settings in place of the main area
         bool                   m_OpenLoneBoard     = true;    // until the first list is in
-        std::optional<ThemeId> m_AppliedTheme;                // set when the theme changes, first once imgui.ini is read
+        std::optional<ThemeId> m_AppliedTheme;                // set when the theme changes
+
+        // The settings as settings.json has them, as last seen, and when they last changed.
+        nlohmann::ordered_json m_SavedSettings;
+        nlohmann::ordered_json m_SeenSettings;
+        std::optional<double>  m_SettingsChangedAt;
+        std::string            m_SettingsProblem;   // the last one logged, said once
     };
 }

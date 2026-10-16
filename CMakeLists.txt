@@ -193,8 +193,6 @@ set(NAZG_SOURCES
   src/Main.cpp
   src/app/NazgApp.h
   src/app/NazgApp.cpp
-  src/app/NazgAppSettings.h
-  src/app/NazgAppSettings.cpp
   src/app/NazgFonts.h
   src/app/NazgFonts.cpp
   src/ui/NazgSection.h

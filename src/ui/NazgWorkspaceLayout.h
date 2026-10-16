@@ -25,7 +25,6 @@ namespace nazg
         float boardHeight    = 0.0f;
         float columnWidth    = 180.0f;   // every custom menu label in VIA's registry, whole
         bool  isColumnFolded = false;
-        bool  changed        = false;  // dragged this frame: the caller saves it
 
         // Each frame, how much narrower the window could be before the board reaches its floor
         // or the panel its minimum width, and how much shorter before the board or the panel

@@ -85,7 +85,6 @@ namespace nazg
                     most = std::min(most, std::max(board.height, board.height * across / board.fullWidth));
 
                 layout.boardHeight = std::clamp(board.height + ImGui::GetIO().MouseDelta.y, 1.0f, std::max(1.0f, most)) / scale;
-                layout.changed     = true;
             }
         }
 
@@ -193,7 +192,6 @@ namespace nazg
             if (hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
             {
                 layout.isColumnFolded = !layout.isColumnFolded;
-                layout.changed        = true;
             }
             else if (active && ImGui::GetIO().MouseDelta.x != 0.0f)
             {
@@ -201,7 +199,6 @@ namespace nazg
                 layout.isColumnFolded = width < c_FoldBelow;
                 if (!layout.isColumnFolded)
                     layout.columnWidth = std::clamp(width, c_ColumnMin, c_ColumnMax);
-                layout.changed = true;
             }
         }
 
@@ -550,7 +547,6 @@ namespace nazg
         if (layout.boardHeight <= 0.0f && total > 0.0f)
         {
             layout.boardHeight = c_DefaultShare * total / scale;
-            layout.changed     = true;
         }
         const float boardMax = std::clamp(layout.boardHeight * scale, 0.0f,
                                           std::max(0.0f, total - (c_SplitterSize + c_PanelMin) * scale));

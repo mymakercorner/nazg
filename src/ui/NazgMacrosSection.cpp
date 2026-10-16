@@ -12,7 +12,6 @@
 #include <variant>
 
 #include "imgui.h"
-#include "imgui_internal.h"   // MarkIniSettingsDirty(): the host layout chosen here is a setting
 
 #include "adapters/qmk/NazgQmkKeycodeCodec.h"
 #include "adapters/qmk/NazgQmkKeycodes.h"
@@ -561,13 +560,11 @@ namespace nazg
         if (HostLayoutCombo("##hostquestion", m_Legends))
         {
             m_HostLayoutChosen = true;
-            ImGui::MarkIniSettingsDirty();
         }
         ImGui::SameLine();
         if (ImGui::SmallButton("Yes, this one"))
         {
             m_HostLayoutChosen = true;
-            ImGui::MarkIniSettingsDirty();
         }
         ImGui::SameLine();
         ImGui::TextDisabled("The same setting as Keymap's legends, in Settings too.");
@@ -903,7 +900,6 @@ namespace nazg
                 if (HostLayoutCombo("##typedfor", m_Legends))
                 {
                     m_HostLayoutChosen = true;
-                    ImGui::MarkIniSettingsDirty();
                 }
                 ImGui::SameLine();
                 ImGui::TextDisabled("right on computers with this layout");

@@ -13,12 +13,10 @@
 #include <SDL3/SDL_main.h>
 
 #include "imgui.h"
-#include "imgui_internal.h"   // MarkIniSettingsDirty
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_sdlgpu3.h"
 
 #include "app/NazgApp.h"
-#include "app/NazgAppSettings.h"
 #include "files/NazgFiles.h"
 
 #include <algorithm>
@@ -84,7 +82,7 @@ namespace
 
     // Keep the settings in step with the window: its place while it is neither maximized nor
     // minimized -- so a maximized window comes back to it when restored -- and whether it is
-    // maximized. Saved by ImGui with the rest, a few seconds after a change and on exit.
+    // maximized. App writes it with the rest, a second after a change and on exit.
     void TrackWindowPlace(SDL_Window* window, nazg::AppSettings::WindowPlace& saved)
     {
         const SDL_WindowFlags flags = SDL_GetWindowFlags(window);
@@ -99,11 +97,7 @@ namespace
             SDL_GetWindowSize(window, &place.width, &place.height);
         }
 
-        if (!(place == saved))
-        {
-            saved = place;
-            ImGui::MarkIniSettingsDirty();
-        }
+        saved = place;
     }
 
     // The modifier names of the OS Nazg runs on, for a first launch (ui-design.md, "Modifier
@@ -133,7 +127,7 @@ namespace
     }
 
     // Nazg's data folder, the per-user one SDL picks and creates: %APPDATA%\mymakercorner\Nazg
-    // on Windows. It holds the settings (imgui.ini) and the user definitions, so every build
+    // on Windows. It holds the settings (settings.json) and the user definitions, so every build
     // and every working directory shares them. Nullopt, with SDL's reason, when there is none.
     std::optional<std::filesystem::path> DataFolder(std::string& error)
     {
@@ -252,11 +246,9 @@ int main(int, char**)
     const auto logError = [](const std::string& text) { SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", text.c_str()); };
 
     // What App needs from the platform. The data folder holds the settings and the user
-    // definitions; the settings path outlives the ImGui context -- declared before it -- since
-    // ImGui only keeps a pointer to it.
+    // definitions.
     nazg::PlatformServices platform;
-    platform.dataFolder            = DataFolder(platform.dataFolderError);
-    const std::string settingsFile = nazg::SettingsFile(platform.dataFolder);
+    platform.dataFolder = DataFolder(platform.dataFolderError);
 
     const char* basePath      = SDL_GetBasePath();   // owned by SDL, ends with a separator
     platform.executableFolder = basePath != nullptr ? basePath : "";
@@ -294,15 +286,12 @@ int main(int, char**)
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-    io.IniFilename = settingsFile.c_str();
+    io.IniFilename = nullptr;   // nothing of ImGui's is kept; Nazg's settings are App's settings.json
 
     {
-        // Nazg itself, made before ImGui reads imgui.ini, which reads its settings, and gone before
-        // the ImGui context is: it writes imgui.ini on its way out.
+        // Nazg itself, with its settings read: the window shows where it was left.
         nazg::App app(std::move(platform));
 
-        // Now rather than at the first NewFrame(), so the window shows where it was left.
-        ImGui::LoadIniSettingsFromDisk(io.IniFilename);
         PlaceWindow(pWindow, app.Settings().window, mainScale);
         SDL_ShowWindow(pWindow);
 
