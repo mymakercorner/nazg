@@ -754,12 +754,10 @@ namespace nazg
     Task<void> CustomMenuSection::Read(std::vector<std::string> names)
     {
         m_ReadFailure.clear();
-        DeviceId device = c_InvalidDevice;
         try
         {
-            device = co_await m_Transport.Open(m_Path);
-            HidDeviceChannel channel(m_Transport, device);
-            via::Protocol    via(channel);
+            HidDeviceChannel channel = co_await HidDeviceChannel::Open(m_Transport, m_Path);
+            via::Protocol via(channel);
 
             for (const std::string& name : names)
             {
@@ -785,7 +783,6 @@ namespace nazg
         {
             m_ReadFailure = std::string("the values could not be read: ") + failure.what();
         }
-        m_Transport.Close(device);
     }
 
     Task<void> CustomMenuSection::Write(PendingWrite write)
@@ -796,12 +793,10 @@ namespace nazg
             m_IsWarning = false;
         }
         m_IsWriting     = true;
-        DeviceId device = c_InvalidDevice;
         try
         {
-            device = co_await m_Transport.Open(m_Path);
-            HidDeviceChannel channel(m_Transport, device);
-            via::Protocol    via(channel);
+            HidDeviceChannel channel = co_await HidDeviceChannel::Open(m_Transport, m_Path);
+            via::Protocol via(channel);
 
             for (const auto& [control, value] : write.values)
             {
@@ -868,7 +863,7 @@ namespace nazg
                                        : std::string("write failed: ") + failure.what();
             m_IsWarning = true;
         }
-        m_Transport.Close(device);
+
         m_IsWriting = false;
     }
 }

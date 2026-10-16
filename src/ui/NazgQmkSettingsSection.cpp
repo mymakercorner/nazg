@@ -859,12 +859,10 @@ namespace nazg
     Task<void> QmkSettingsSection::Load()
     {
         m_Message.clear();
-        DeviceId device = c_InvalidDevice;
         try
         {
-            device = co_await m_Transport.Open(m_Path);
-            HidDeviceChannel channel(m_Transport, device);
-            vial::Protocol   vial(channel);
+            HidDeviceChannel channel = co_await HidDeviceChannel::Open(m_Transport, m_Path);
+            vial::Protocol vial(channel);
 
             m_Settings = co_await ReadSettings(vial);
             if (Has(QmkSetting::ComboTerm))
@@ -876,19 +874,16 @@ namespace nazg
             m_Message   = std::string("the QMK settings could not be read: ") + failure.what();
             m_IsWarning = true;
         }
-        m_Transport.Close(device);
     }
 
     Task<void> QmkSettingsSection::Write(QmkSettings writes, std::string what)
     {
         m_Message.clear();
         m_IsWarning = false;
-        DeviceId device = c_InvalidDevice;
         try
         {
-            device = co_await m_Transport.Open(m_Path);
-            HidDeviceChannel channel(m_Transport, device);
-            vial::Protocol   vial(channel);
+            HidDeviceChannel channel = co_await HidDeviceChannel::Open(m_Transport, m_Path);
+            vial::Protocol vial(channel);
 
             bool kept = true;
             for (const auto& [qsid, value] : writes)
@@ -913,19 +908,16 @@ namespace nazg
             m_Message   = std::string("write failed: ") + failure.what();
             m_IsWarning = true;
         }
-        m_Transport.Close(device);
     }
 
     Task<void> QmkSettingsSection::ResetAll()
     {
         m_Message.clear();
         m_IsWarning = false;
-        DeviceId device = c_InvalidDevice;
         try
         {
-            device = co_await m_Transport.Open(m_Path);
-            HidDeviceChannel channel(m_Transport, device);
-            vial::Protocol   vial(channel);
+            HidDeviceChannel channel = co_await HidDeviceChannel::Open(m_Transport, m_Path);
+            vial::Protocol vial(channel);
 
             co_await vial.ResetQmkSettings();
             m_Settings = co_await ReadSettings(vial);
@@ -938,6 +930,5 @@ namespace nazg
             m_Message   = std::string("reset failed: ") + failure.what();
             m_IsWarning = true;
         }
-        m_Transport.Close(device);
     }
 }

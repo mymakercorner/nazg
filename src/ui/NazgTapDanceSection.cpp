@@ -220,12 +220,10 @@ namespace nazg
     Task<void> TapDanceSection::Load()
     {
         m_Message.clear();
-        DeviceId device = c_InvalidDevice;
         try
         {
-            device = co_await m_Transport.Open(m_Path);
-            HidDeviceChannel channel(m_Transport, device);
-            vial::Protocol   vial(channel);
+            HidDeviceChannel channel = co_await HidDeviceChannel::Open(m_Transport, m_Path);
+            vial::Protocol vial(channel);
 
             m_Keyboard.tapDances =
                 co_await vial::ReadTapDances(vial, m_Keyboard.report.tapDanceCount, m_Keyboard.keycodeVersion);
@@ -237,7 +235,6 @@ namespace nazg
             m_Message   = std::string("the tap dances could not be read: ") + failure.what();
             m_IsWarning = true;
         }
-        m_Transport.Close(device);
     }
 
     void TapDanceSection::SaveChanges()
@@ -264,12 +261,10 @@ namespace nazg
     {
         m_Message.clear();
         m_IsWarning = false;
-        DeviceId device = c_InvalidDevice;
         try
         {
-            device = co_await m_Transport.Open(m_Path);
-            HidDeviceChannel channel(m_Transport, device);
-            vial::Protocol   vial(channel);
+            HidDeviceChannel channel = co_await HidDeviceChannel::Open(m_Transport, m_Path);
+            vial::Protocol vial(channel);
 
             // Each slot written, then read back: what the board holds now, whatever was asked.
             std::vector<std::string> notKept;
@@ -301,7 +296,6 @@ namespace nazg
             m_Message   = std::string("write failed: ") + failure.what();
             m_IsWarning = true;
         }
-        m_Transport.Close(device);
     }
 
     void TapDanceSection::DiscardChanges()

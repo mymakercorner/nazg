@@ -36,12 +36,6 @@ namespace nazg
     {
     }
 
-    MatrixView::~MatrixView()
-    {
-        // Closing an id that never opened does nothing.
-        m_Transport.Close(m_Device);
-    }
-
     Strip MatrixView::DescribeStrip() const
     {
         Strip strip;
@@ -82,8 +76,7 @@ namespace nazg
         if (IsBusy())
             return;
 
-        m_Transport.Close(m_Device);
-        m_Device      = c_InvalidDevice;
+        m_Channel.reset();
         m_Live        = Live::Off;
         m_WantsWiring = false;
     }
@@ -268,8 +261,7 @@ namespace nazg
 
     void MatrixView::Fail(std::string message)
     {
-        m_Transport.Close(m_Device);
-        m_Device      = c_InvalidDevice;
+        m_Channel.reset();
         m_Live        = Live::Failed;
         m_LiveMessage = std::move(message);
     }
@@ -284,10 +276,8 @@ namespace nazg
 
         try
         {
-            m_Device = co_await m_Transport.Open(m_Path);
-
-            HidDeviceChannel channel(m_Transport, m_Device);
-            vial::Protocol   vial(channel);
+            m_Channel.emplace(co_await HidDeviceChannel::Open(m_Transport, m_Path));
+            vial::Protocol vial(*m_Channel);
 
             if (m_IsVial)
             {
@@ -336,8 +326,7 @@ namespace nazg
     {
         try
         {
-            HidDeviceChannel channel(m_Transport, m_Device);
-            via::Protocol    via(channel);
+            via::Protocol via(*m_Channel);
 
             const via::SwitchMatrixState reading = co_await via.GetSwitchMatrixState(
                 m_Format, m_Keyboard.definition.matrixRows, m_Keyboard.definition.matrixColumns);

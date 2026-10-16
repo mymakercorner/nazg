@@ -239,12 +239,10 @@ namespace nazg
     Task<void> MacrosSection::Load()
     {
         m_Message.clear();
-        DeviceId device = c_InvalidDevice;
         try
         {
-            device = co_await m_Transport.Open(m_Path);
-            HidDeviceChannel channel(m_Transport, device);
-            via::Protocol    via(channel);
+            HidDeviceChannel channel = co_await HidDeviceChannel::Open(m_Transport, m_Path);
+            via::Protocol via(channel);
 
             m_BufferSize = co_await via.GetMacroBufferSize();
             m_Stored     = co_await via.ReadMacros(m_Keyboard.report.macroCount, m_BufferSize);
@@ -260,7 +258,6 @@ namespace nazg
             m_Message   = std::string("the macros could not be read: ") + failure.what();
             m_IsWarning = true;
         }
-        m_Transport.Close(device);
     }
 
     void MacrosSection::ReadSteps()
@@ -313,12 +310,10 @@ namespace nazg
     {
         m_Message.clear();
         m_IsWarning = false;
-        DeviceId device = c_InvalidDevice;
         try
         {
-            device = co_await m_Transport.Open(m_Path);
-            HidDeviceChannel channel(m_Transport, device);
-            via::Protocol    via(channel);
+            HidDeviceChannel channel = co_await HidDeviceChannel::Open(m_Transport, m_Path);
+            via::Protocol via(channel);
 
             co_await via.WriteMacros(m_Stored, bytes, m_BufferSize);
             std::vector<uint8_t> stored = co_await via.ReadMacros(m_Keyboard.report.macroCount, m_BufferSize);
@@ -349,7 +344,6 @@ namespace nazg
             m_Message   = std::string("write failed: ") + failure.what();
             m_IsWarning = true;
         }
-        m_Transport.Close(device);
     }
 
     void MacrosSection::DiscardChanges()

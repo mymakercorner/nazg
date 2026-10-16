@@ -18,6 +18,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 #include "async/NazgTask.h"
@@ -36,22 +37,33 @@ namespace nazg
         virtual Task<std::vector<uint8_t>> Request(std::vector<uint8_t> payload) = 0;
     };
 
-    // The real channel: a device opened through HidTransport. The timeout is fixed per
-    // channel rather than per call, because no command in VIA or Vial needs its own.
+    // The real channel: a device opened through HidTransport, and closed when the channel goes
+    // -- on every path, a throw included:
+    //
+    //     HidDeviceChannel channel = co_await HidDeviceChannel::Open(transport, path);
+    //     vial::Protocol vial(channel);
+    //
+    // It moves, it does not copy; a protocol made on it must not outlive it. The timeout is
+    // fixed per channel rather than per call, because no command in VIA or Vial needs its own.
     class HidDeviceChannel : public DeviceChannel
     {
     public:
-        HidDeviceChannel(HidTransport& transport, DeviceId device,
-                         uint32_t timeoutMs = c_DefaultTimeoutMs)
-            : m_Transport(transport), m_Device(device), m_TimeoutMs(timeoutMs) {}
+        // Throws HidTransportError if the device cannot be opened.
+        [[nodiscard]] static Task<HidDeviceChannel> Open(HidTransport& transport, std::string path,
+                                                         uint32_t timeoutMs = c_DefaultTimeoutMs);
+
+        HidDeviceChannel(HidDeviceChannel&& other) noexcept;
+        HidDeviceChannel& operator=(HidDeviceChannel&& other) noexcept;   // closes this one's device first
+        ~HidDeviceChannel() override;
 
         Task<std::vector<uint8_t>> Request(std::vector<uint8_t> payload) override;
 
-        DeviceId Device() const noexcept { return m_Device; }
-
     private:
-        HidTransport& m_Transport;
-        DeviceId      m_Device;
+        HidDeviceChannel(HidTransport& transport, DeviceId device, uint32_t timeoutMs) noexcept
+            : m_Transport(&transport), m_Device(device), m_TimeoutMs(timeoutMs) {}
+
+        HidTransport* m_Transport;
+        DeviceId      m_Device;   // c_InvalidDevice once moved from
         uint32_t      m_TimeoutMs;
     };
 }

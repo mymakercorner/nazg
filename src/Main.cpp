@@ -118,13 +118,10 @@ namespace
             if (!nazg::IsViaInterface(state.devices[index]))
                 continue;
 
-            nazg::DeviceId device = nazg::c_InvalidDevice;
             try
             {
-                device = co_await transport.Open(state.devices[index].path);
-
-                nazg::HidDeviceChannel channel(transport, device);
-                nazg::vial::Protocol   protocol(channel);
+                nazg::HidDeviceChannel channel = co_await nazg::HidDeviceChannel::Open(transport, state.devices[index].path);
+                nazg::vial::Protocol protocol(channel);
                 state.protocols[index] = (co_await protocol.Detect()) ? "Vial" : "VIA";
             }
             catch (const std::exception&)
@@ -132,7 +129,6 @@ namespace
                 // Raw HID without VIA behind it, or a board that went: it does not answer.
                 state.protocols[index] = "no answer";
             }
-            transport.Close(device);
         }
 
         state.isProbing = false;
@@ -938,13 +934,10 @@ namespace
     // Lock a Vial board again, and read its lock back -- what the header shows.
     nazg::Task<void> LockBoard(nazg::HidTransport& transport, std::string path, BoardState& state)
     {
-        nazg::DeviceId device = nazg::c_InvalidDevice;
         try
         {
-            device = co_await transport.Open(path);
-
-            nazg::HidDeviceChannel channel(transport, device);
-            nazg::vial::Protocol   vial(channel);
+            nazg::HidDeviceChannel channel = co_await nazg::HidDeviceChannel::Open(transport, path);
+            nazg::vial::Protocol vial(channel);
             co_await vial.Lock();
             state.lock = co_await vial.GetUnlockStatus();
         }
@@ -952,8 +945,6 @@ namespace
         {
             state.error = std::string("the board could not be locked: ") + failure.what();
         }
-
-        transport.Close(device);
     }
 
     // Open, load everything, close. A Vial board describes itself. A VIA board is drawn by
@@ -985,14 +976,10 @@ namespace
         state.path     = path;
         state.identity = identity;
 
-        nazg::DeviceId device = nazg::c_InvalidDevice;
-
         try
         {
-            device = co_await transport.Open(path);
-
-            nazg::HidDeviceChannel channel(transport, device);
-            nazg::vial::Protocol   protocol(channel);
+            nazg::HidDeviceChannel channel = co_await nazg::HidDeviceChannel::Open(transport, path);
+            nazg::vial::Protocol protocol(channel);
 
             // Vial first: its probe is harmless on a VIA board, which answers 0xFF.
             if (co_await protocol.Detect())
@@ -1144,9 +1131,6 @@ namespace
             SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "loading the board failed: %s", failure.what());
         }
 
-        // Outside the catch: closing an id that never opened does nothing, so this is
-        // right on both paths.
-        transport.Close(device);
         state.isLoading = false;
     }
 }

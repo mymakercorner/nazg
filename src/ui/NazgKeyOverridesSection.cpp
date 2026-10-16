@@ -325,12 +325,10 @@ namespace nazg
     Task<void> KeyOverridesSection::Load()
     {
         m_Message.clear();
-        DeviceId device = c_InvalidDevice;
         try
         {
-            device = co_await m_Transport.Open(m_Path);
-            HidDeviceChannel channel(m_Transport, device);
-            vial::Protocol   vial(channel);
+            HidDeviceChannel channel = co_await HidDeviceChannel::Open(m_Transport, m_Path);
+            vial::Protocol vial(channel);
 
             m_Stored    = co_await vial::ReadKeyOverrides(vial, m_Keyboard.report.keyOverrideCount, m_Keyboard.keycodeVersion);
             m_Overrides = m_Stored;
@@ -342,7 +340,6 @@ namespace nazg
             m_Message   = std::string("the key overrides could not be read: ") + failure.what();
             m_IsWarning = true;
         }
-        m_Transport.Close(device);
     }
 
     void KeyOverridesSection::SaveChanges()
@@ -369,12 +366,10 @@ namespace nazg
     {
         m_Message.clear();
         m_IsWarning     = false;
-        DeviceId device = c_InvalidDevice;
         try
         {
-            device = co_await m_Transport.Open(m_Path);
-            HidDeviceChannel channel(m_Transport, device);
-            vial::Protocol   vial(channel);
+            HidDeviceChannel channel = co_await HidDeviceChannel::Open(m_Transport, m_Path);
+            vial::Protocol vial(channel);
 
             // Each slot written, then read back: what the board holds now, whatever was asked.
             std::vector<std::string> notKept;
@@ -405,7 +400,6 @@ namespace nazg
             m_Message   = std::string("write failed: ") + failure.what();
             m_IsWarning = true;
         }
-        m_Transport.Close(device);
     }
 
     void KeyOverridesSection::DiscardChanges()

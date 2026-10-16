@@ -79,13 +79,10 @@ namespace nazg
 
     Task<void> VialUnlock::Start()
     {
-        DeviceId device = c_InvalidDevice;
         try
         {
-            device = co_await m_Transport.Open(m_Path);
-
-            HidDeviceChannel channel(m_Transport, device);
-            vial::Protocol   vial(channel);
+            HidDeviceChannel channel = co_await HidDeviceChannel::Open(m_Transport, m_Path);
+            vial::Protocol vial(channel);
             co_await vial.StartUnlock();
 
             m_Stage = Stage::Holding;
@@ -95,20 +92,14 @@ namespace nazg
             m_Failure = std::string("the unlock could not start: ") + failure.what();
             m_Stage   = Stage::Failed;
         }
-
-        // Outside the catch: closing an id that never opened does nothing.
-        m_Transport.Close(device);
     }
 
     Task<void> VialUnlock::Poll()
     {
-        DeviceId device = c_InvalidDevice;
         try
         {
-            device = co_await m_Transport.Open(m_Path);
-
-            HidDeviceChannel           channel(m_Transport, device);
-            vial::Protocol             vial(channel);
+            HidDeviceChannel channel = co_await HidDeviceChannel::Open(m_Transport, m_Path);
+            vial::Protocol vial(channel);
             const vial::UnlockProgress progress = co_await vial.PollUnlock();
 
             m_Countdown = progress.countdown;
@@ -128,7 +119,5 @@ namespace nazg
             m_Failure = std::string("the unlock stopped: ") + failure.what();
             m_Stage   = Stage::Failed;
         }
-
-        m_Transport.Close(device);
     }
 }

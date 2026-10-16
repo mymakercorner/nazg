@@ -247,13 +247,10 @@ namespace nazg
         const uint32_t value  = EncodeLayoutOptions(wanted, m_Groups);
         const std::string what = m_Groups[group].name + ": " + OptionName(m_Groups[group], choice);
 
-        DeviceId device = c_InvalidDevice;
         try
         {
-            device = co_await m_Transport.Open(m_Path);
-
-            HidDeviceChannel channel(m_Transport, device);
-            via::Protocol    via(channel);
+            HidDeviceChannel channel = co_await HidDeviceChannel::Open(m_Transport, m_Path);
+            via::Protocol via(channel);
 
             co_await via.SetKeyboardValue(via::KeyboardValue::LayoutOptions, value);
             const uint32_t stored = co_await via.GetKeyboardValue(via::KeyboardValue::LayoutOptions);
@@ -278,8 +275,5 @@ namespace nazg
             m_Message   = std::string("write failed: ") + failure.what();
             m_IsWarning = true;
         }
-
-        // Outside the catch: closing an id that never opened does nothing.
-        m_Transport.Close(device);
     }
 }

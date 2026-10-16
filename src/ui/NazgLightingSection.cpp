@@ -591,12 +591,10 @@ namespace nazg
 
     Task<void> LightingSection::Load()
     {
-        DeviceId device = c_InvalidDevice;
         try
         {
-            device = co_await m_Transport.Open(m_Path);
-            HidDeviceChannel channel(m_Transport, device);
-            via::Protocol    via(channel);
+            HidDeviceChannel channel = co_await HidDeviceChannel::Open(m_Transport, m_Path);
+            via::Protocol via(channel);
 
             for (System& system : m_Systems)
             {
@@ -622,7 +620,6 @@ namespace nazg
             m_Message   = std::string("the lighting could not be read: ") + failure.what();
             m_IsWarning = true;
         }
-        m_Transport.Close(device);
     }
 
     Task<void> LightingSection::Write(PendingWrite write)
@@ -632,12 +629,10 @@ namespace nazg
             m_Message.clear();
             m_IsWarning = false;
         }
-        DeviceId device = c_InvalidDevice;
         try
         {
-            device = co_await m_Transport.Open(m_Path);
-            HidDeviceChannel channel(m_Transport, device);
-            via::Protocol    via(channel);
+            HidDeviceChannel channel = co_await HidDeviceChannel::Open(m_Transport, m_Path);
+            via::Protocol via(channel);
 
             System& system = m_Systems[write.system];
             co_await via::WriteLighting(via, system.target, write.line, write.values, system.maxBrightness);
@@ -694,6 +689,5 @@ namespace nazg
             m_Message   = std::string("write failed: ") + failure.what();
             m_IsWarning = true;
         }
-        m_Transport.Close(device);
     }
 }

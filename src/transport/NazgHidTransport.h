@@ -123,8 +123,8 @@ namespace nazg
                                                uint32_t             timeoutMs = c_DefaultTimeoutMs);
 
         // Close a device. Not awaitable on purpose: closing cannot meaningfully fail,
-        // and it has to work from a destructor -- which is where an RAII device guard
-        // in the protocol layer will call it, and destructors cannot co_await.
+        // and it has to work from a destructor -- HidDeviceChannel's, which closes the
+        // device it opened, and destructors cannot co_await.
         // Closing an id that is unknown or already closed does nothing.
         void Close(DeviceId device);
 

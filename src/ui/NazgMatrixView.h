@@ -33,6 +33,7 @@
 #include "adapters/via/NazgViaProtocol.h"
 #include "async/NazgTask.h"
 #include "model/NazgKeyboard.h"
+#include "transport/NazgDeviceChannel.h"
 #include "transport/NazgHidTransport.h"
 #include "ui/NazgMatrixDescription.h"
 #include "ui/NazgSection.h"
@@ -50,9 +51,6 @@ namespace nazg
                    bool                  isVial,
                    const Keyboard&       keyboard,
                    const LegendSettings& legends);
-
-        // Closes the board if the live test left it open. Never while IsBusy().
-        ~MatrixView() override;
 
         MatrixView(const MatrixView&)            = delete;
         MatrixView& operator=(const MatrixView&) = delete;
@@ -116,13 +114,13 @@ namespace nazg
         std::string                m_Outside;  // FindInDefinition()'s findings, as positions
         std::string                m_Stacked;
 
-        Live                    m_Live = Live::Off;
-        std::string             m_LiveMessage;
-        bool                    m_WantsWiring = false;   // chosen while a request was in flight
-        DeviceId                m_Device      = c_InvalidDevice;
-        via::SwitchMatrixFormat m_Format      = via::SwitchMatrixFormat::Paged;
-        MatrixLive              m_Readings;
-        Task<void>              m_Request;
-        double                  m_LastPoll = 0.0;   // ImGui::GetTime() of the last poll sent
+        Live                            m_Live = Live::Off;
+        std::string                     m_LiveMessage;
+        bool                            m_WantsWiring = false;   // chosen while a request was in flight
+        std::optional<HidDeviceChannel> m_Channel;               // the board, open while the live test runs
+        via::SwitchMatrixFormat         m_Format      = via::SwitchMatrixFormat::Paged;
+        MatrixLive                      m_Readings;
+        Task<void>                      m_Request;
+        double                          m_LastPoll = 0.0;   // ImGui::GetTime() of the last poll sent
     };
 }

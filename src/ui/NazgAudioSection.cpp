@@ -249,12 +249,10 @@ namespace nazg
 
     Task<void> AudioSection::Load()
     {
-        DeviceId device = c_InvalidDevice;
         try
         {
-            device = co_await m_Transport.Open(m_Path);
-            HidDeviceChannel channel(m_Transport, device);
-            via::Protocol    via(channel);
+            HidDeviceChannel channel = co_await HidDeviceChannel::Open(m_Transport, m_Path);
+            via::Protocol via(channel);
             m_Values   = co_await via::ReadAudio(via);
             m_IsLoaded = true;
         }
@@ -267,19 +265,16 @@ namespace nazg
             m_Message   = std::string("the audio could not be read: ") + failure.what();
             m_IsWarning = true;
         }
-        m_Transport.Close(device);
     }
 
     Task<void> AudioSection::Write(PendingWrite write)
     {
         m_Message.clear();
         m_IsWarning = false;
-        DeviceId device = c_InvalidDevice;
         try
         {
-            device = co_await m_Transport.Open(m_Path);
-            HidDeviceChannel channel(m_Transport, device);
-            via::Protocol    via(channel);
+            HidDeviceChannel channel = co_await HidDeviceChannel::Open(m_Transport, m_Path);
+            via::Protocol via(channel);
 
             if (!write.setting)
             {
@@ -316,6 +311,5 @@ namespace nazg
             m_Message   = std::string("write failed: ") + failure.what();
             m_IsWarning = true;
         }
-        m_Transport.Close(device);
     }
 }

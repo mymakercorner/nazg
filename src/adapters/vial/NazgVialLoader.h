@@ -12,11 +12,9 @@
 //
 //     nazg::Task<void> Connect(HidTransport& transport, std::string path, AppState& state)
 //     {
-//         DeviceId device = co_await transport.Open(path);
-//         HidDeviceChannel channel(transport, device);
+//         HidDeviceChannel channel = co_await HidDeviceChannel::Open(transport, path);
 //         vial::Protocol protocol(channel);
 //         state.keyboard = co_await vial::LoadKeyboard(protocol);
-//         transport.Close(device);
 //     }
 //
 // VIA will get a sibling loader taking the definition from a file or registry instead

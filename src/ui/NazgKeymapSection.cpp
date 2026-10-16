@@ -639,14 +639,10 @@ namespace nazg
         m_Message.clear();
         m_IsWarning = false;
 
-        DeviceId device = c_InvalidDevice;
-
         try
         {
-            device = co_await m_Transport.Open(m_Path);
-
-            HidDeviceChannel channel(m_Transport, device);
-            via::Protocol    via(channel);
+            HidDeviceChannel channel = co_await HidDeviceChannel::Open(m_Transport, m_Path);
+            via::Protocol via(channel);
 
             const Keycode stored = co_await nazg::via::WriteKeycode(via, layer, cell.row, cell.column, keycode, version);
             m_Keyboard.keymap.Set(layer, cell.row, cell.column, stored);
@@ -678,8 +674,6 @@ namespace nazg
             m_IsWarning = true;
         }
 
-        // Outside the catch: closing an id that never opened does nothing.
-        m_Transport.Close(device);
         m_IsWriting = false;
     }
 
@@ -691,14 +685,10 @@ namespace nazg
         m_Message.clear();
         m_IsWarning = false;
 
-        DeviceId device = c_InvalidDevice;
-
         try
         {
-            device = co_await m_Transport.Open(m_Path);
-
-            HidDeviceChannel channel(m_Transport, device);
-            vial::Protocol   protocol(channel);
+            HidDeviceChannel channel = co_await HidDeviceChannel::Open(m_Transport, m_Path);
+            vial::Protocol protocol(channel);
 
             const Keycode stored = co_await vial::WriteKnobTurn(protocol, isVial, layer, knob, clockwise, keycode, version);
             if (layer < m_Keyboard.encoderMap.size() && knob < m_Keyboard.encoderMap[layer].size())
@@ -723,7 +713,6 @@ namespace nazg
             m_IsWarning = true;
         }
 
-        m_Transport.Close(device);
         m_IsWriting = false;
     }
 }
