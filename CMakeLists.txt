@@ -118,6 +118,8 @@ set(NAZG_CORE_SOURCES
   src/library/NazgDefinitionChoice.cpp
   src/library/NazgDefinitionLibrary.h
   src/library/NazgDefinitionLibrary.cpp
+  src/library/NazgLibraryActions.h
+  src/library/NazgLibraryActions.cpp
   src/model/NazgKeyboard.h
   src/model/NazgKeyboard.cpp
   src/model/NazgKeycode.h
@@ -359,6 +361,7 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(via_bundle         tests/ViaBundleTest.cpp)
     nazg_add_test(definition_library tests/DefinitionLibraryTest.cpp)
     nazg_add_test(definition_choice  tests/DefinitionChoiceTest.cpp)
+    nazg_add_test(library_actions    tests/LibraryActionsTest.cpp)
     nazg_add_test(keycode_catalogue  tests/KeycodeCatalogueTest.cpp)
     nazg_add_test(qmk_expression     tests/QmkExpressionTest.cpp)
     nazg_add_test(section_plan       tests/SectionPlanTest.cpp)
