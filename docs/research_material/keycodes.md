@@ -372,7 +372,8 @@ What was decided:
 - **Default US**, and US is what the web build keeps as its default. VIA offers only US, which
   is why AZERTY users are poorly served there; vial-gui lets the user pick.
 - **Implemented 2026-09-23**: 69 layouts in `ui/NazgHostLayoutTable.cpp`, chosen in a combo on
-  the board and saved in `imgui.ini` (`[Nazg][Settings] HostLayout=<id>`). Legends are UTF-8
+  the board and saved with the settings (`settings.json`, `keyboard.hostLayout`; `imgui.ini`'s
+  `[Nazg][Settings] HostLayout=<id>` until 2026-10-16). Legends are UTF-8
   (`/utf-8` on MSVC), drawn with a system font for now — Segoe UI plus Segoe UI Symbol, Yu
   Gothic and Malgun Gothic on Windows — since ImGui's built-in font is ASCII only. Which font
   Nazg ships with is design work for later.

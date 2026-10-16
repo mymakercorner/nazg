@@ -777,8 +777,8 @@ bundle — community ones will sit between — and the files on disk say so: in 
 `format` and `nextId`, beside the files `<id>-r<revision>.json`, stored byte for byte — so it
 is backed up, moved or zipped whole. Import after parsing,
 removal, lookup by VID:PID, orphan clean-up, and an
-unreadable index left untouched. `Main.cpp` imports the paths older builds kept in `imgui.ini`
-once. `choices` came 2026-09-25 with no format change — an absent key means none — laid out as
+unreadable index left untouched. The paths older builds kept in `imgui.ini` are imported
+once, read with the settings' migration (`settings/NazgSettings.h`). `choices` came 2026-09-25 with no format change — an absent key means none — laid out as
 below. A choice naming a kind of definition this Nazg does not know makes the index
 unreadable, like any other damage, rather than being dropped. The layout below says
 `library.json` and `definitions/`; read those as `user_definitions/index.json` and
@@ -794,8 +794,10 @@ of `user_definitions/`, incoming entries renumbered from `nextId` with their cho
 rewritten, and still open — which of two choices for one device wins, whether byte-identical
 entries merge, whether backups travel (probably not), and `origin` paths that point at the
 other machine. `imgui.ini` moved here the same day: in the data folder, not the working
-directory, so every build and every way of starting Nazg shares one set of settings; an
-`imgui.ini` where Nazg starts is copied in the first time.
+directory, so every build and every way of starting Nazg shares one set of settings. Since
+2026-10-16 the settings are Nazg's own `settings.json` beside the library -- format 1, unknown
+keys kept, written whole then renamed -- and ImGui's ini is off; an earlier build's
+`imgui.ini`, in the data folder or where Nazg starts, is read once to migrate, and left alone.
 
 **One layout for both builds**; only where it lives and how it persists differ, and that
 stays in `Main.cpp` with the rest of the platform code. The library code gets a folder path
@@ -807,7 +809,7 @@ and does plain file I/O, knowing neither SDL nor Emscripten.
 | Updated bundle, later | "Update VIA definitions" | 0.4 MB |
 | User definitions | import, Replace | a few KB each |
 | `library.json` — entries and choices | the app | 1–3 KB typical, 30–50 KB for a designer with a hundred definitions |
-| `imgui.ini` | ImGui | tiny |
+| `settings.json` | the app | under 1 KB |
 
 **No cache on disk** — see "Decoding it".
 
@@ -822,7 +824,7 @@ library.json            the index: entries + choices
 definitions/7-r2.json   entry 7, current revision, stored byte for byte as imported
 definitions/7-r1.json   its one backup, after a Replace
 updates/                the downloaded bundle, later
-imgui.ini               moved here; ImGui defaults to the working directory
+settings.json           the settings; imgui.ini before 2026-10-16, left as it was
 ```
 
 - **Definitions are stored byte for byte**, in whichever form came in, validated by parsing

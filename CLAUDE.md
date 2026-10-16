@@ -38,12 +38,17 @@ exists, where, and how far it has been proven.
   tag and SHA-256 (`tools/update_community_bundle.py`, `adapters/via/NazgCommunityBundle.*`).
   Every bundled file passes `nazg-validate` (`src/cli/`), the checks of
   `adapters/via/NazgDefinitionCheck.*`. User definitions live in a library (`library/`) in the data folder
-  `SDL_GetPrefPath("mymakercorner", "Nazg")`, beside `imgui.ini`. Several candidates for a board:
+  `SDL_GetPrefPath("mymakercorner", "Nazg")`, beside `settings.json`. Several candidates for a board:
   Nazg asks once and remembers the choice per device (via-registry.md).
 - **Workspace.** One window: a menu bar header (board menu, protocol, Vial lock, Settings), then
   the keyboard list, the open board or Settings. Screens report clicks; `App` (`app/NazgApp.*`) acts. *Advanced tools*, off by default,
   shows designer and debugging tools only. The board
   screen is a section column, a strip, the board and a panel (`ui/NazgWorkspace.*`).
+- **Settings.** `settings.json` in the data folder (`settings/NazgSettings.*`): one JSON object,
+  `"format": 1`; keys this build does not know are kept when it writes, and a newer format is
+  read but never written over. Written whole then renamed, a second after the last change and on
+  exit -- `App` notices a change by comparing, so nothing has to mark one. ImGui's own ini is
+  off. An earlier build's `imgui.ini` is read once, to migrate, and left as it was.
 - **Board look** (ui-design.md, "How the board's look is built"): all five steps --
   key shapes, themes, Arimo legends for 69 host layouts, command keys with category headers and
   bands, colours from `ui/NazgPalette.*`, transparent and `KC_NO` keys faint with ▽ / ✕ on a

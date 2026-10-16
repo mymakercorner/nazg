@@ -140,7 +140,7 @@ Three layers, the first two pure and in `nazg_core`:
    category colour solver, itself pure and tested over every theme, keycap class and category.
 
 Settings -- theme, keycap style, legend family (a setting, Cylindrical by default), modifier
-names, host layout -- reach the view as one value, saved in `imgui.ini`. Built in five steps,
+names, host layout -- reach the view as one value, saved in `settings.json`. Built in five steps,
 each checked on a real board: keycap shape and themes; fonts (Arimo and its Noto fallbacks,
 committed under `resources/fonts/` with their licences); standard keys in both families; command
 keys; transparent, `KC_NO`, peek and the lighting policy.
@@ -672,7 +672,7 @@ Its cost: with the smallest text held at 9 px -- the header, below -- the Model 
 host layout cannot tell a Mac: only 11 of the 69 say Mac, and most Mac users pick US, UK or
 another layout shared with PCs. The computer Nazg runs on can -- a keyboard is configured on the
 computer it is used with. So a setting, *Modifier names: Windows / Mac / Linux*, beside the host
-layout in Settings and saved in `imgui.ini` with it, set **at first launch** from
+layout in Settings and saved in `settings.json` with it, set **at first launch** from
 `SDL_GetPlatform()` -- read in `Main.cpp`, where SDL stays, and passed down as a value -- and the
 user's choice after that. One place decides, so a Mac host layout does not override it.
 
@@ -1130,7 +1130,7 @@ and read back, as today.
   than the window). It replaces "as wide as the board", which read as one column but tied the
   panel to the board. At least 980 px, so a small board's tabs still fit on one line.
 - **A splitter between board and panel**, dragged to share the height and remembered in
-  `imgui.ini`. It stops where the board would fall below its legibility floor, 60 px a unit
+  `settings.json`. It stops where the board would fall below its legibility floor, 60 px a unit
   ("The floor is on the header") -- the board is never squeezed to give the picker room; the
   panel keeps at least the key line, the tabs and three rows of tiles, about 275 px. A window
   too small for both gives the panel its minimum first.
@@ -1243,7 +1243,7 @@ and VIA do, hover saying what it needs. A tab left with no group is not shown.
 - **What the board reports reaches the picker**: Vial's entry counts and feature bits
   (`vial::EntryCounts`, already read), the macro count (`GetMacroCount()`), the layer count, the
   keycode version, the lighting state.
-- **The splitter** in `NazgWorkspace`, in place of `c_BoardMaxShare`, its board height in `imgui.ini`.
+- **The splitter** in `NazgWorkspace`, in place of `c_BoardMaxShare`, its board height in `settings.json`.
 - **The Settings screen** gains the after-a-pick preference.
 - **Found by the mockup**: `KC_SPC` always prints blank (`PlacementClass::Blank`), so
   `LT(1,KC_SPC)` on a 1u key shows only "L1"; Space should be blank only on keys 3u and wider.
@@ -2412,7 +2412,7 @@ look is built** (Rico, 2026-10-03): they are judged on the real thing, not on a 
   on hover. **No width in between**: labels cut to a few letters would be the worst of both, so
   between 100 and 120 px the edge holds at 120. Dragging back past 100 px unfolds it; a
   **double-click on the edge** folds or unfolds it at once. One width for every board, kept in
-  `imgui.ini`. Manual only: the column never folds by itself when the window narrows.
+  `settings.json`. Manual only: the column never folds by itself when the window narrows.
 - **Nazg's sections, then the board's menus** (Rico, 2026-10-06, in the same mockup): the
   sections Nazg provides -- Keymap, Layout, Macros, Lighting as VIA or Vial build it in, Vial's
   features -- come first; a VIA V3 definition's custom menus (`{label, content}` entries of
