@@ -41,7 +41,7 @@ exists, where, and how far it has been proven.
   `SDL_GetPrefPath("mymakercorner", "Nazg")`, beside `imgui.ini`. Several candidates for a board:
   Nazg asks once and remembers the choice per device (via-registry.md).
 - **Workspace.** One window: a menu bar header (board menu, protocol, Vial lock, Settings), then
-  the keyboard list, the open board or Settings. Screens report clicks; `Main.cpp` acts. *Advanced tools*, off by default,
+  the keyboard list, the open board or Settings. Screens report clicks; `App` (`app/NazgApp.*`) acts. *Advanced tools*, off by default,
   shows designer and debugging tools only. The board
   screen is a section column, a strip, the board and a panel (`ui/NazgWorkspace.*`).
 - **Board look** (ui-design.md, "How the board's look is built"): all five steps --
@@ -172,8 +172,12 @@ the document rather than working around it.
 # Architecture
 
 ```
+Shell (Main.cpp)    SDL and the renderer: the window, the GPU, the ImGui backends, the frame loop
+    |
+App (app/)          Nazg itself, ImGui only: the screens, what a click does, the settings, the fonts
+    |
 UI (ui/)            sections: each opens the board itself and talks to the protocol it was
-                    planned for; Main.cpp makes them (ui/NazgSectionFactory.*) and acts on clicks
+                    planned for; App makes them (ui/NazgSectionFactory.*)
     |
 Model (model/)      Keyboard + BoardReport: what the board is and has -- the capability model.
                     PlanSections() (ui/NazgSectionPlan.*) turns it into the sections shown
@@ -225,8 +229,12 @@ backend: `ImGui_ImplSDLGPU_PrepareDrawData` **must** be called before the render
 Do **not** use `imgui_impl_sdlrenderer3` — ImGui's own header calls SDL_Renderer "largely
 obsolete" and steers toward SDL_GPU.
 
-The renderer and all SDL calls stay confined to `Main.cpp`, so switching backends is a
-one-file change. Keep it that way.
+**`Main.cpp` is the platform shell: every SDL and renderer call, and nothing else.** Nazg
+itself is `App` (`app/NazgApp.*`), which knows no SDL: the shell hands it what only the platform
+knows or does -- the executable's and data folders, the display scale, the OS's modifier names,
+the time, logging, the file dialogs -- in one plain struct, `PlatformServices`, and calls
+`BeforeFrame()` and `Frame()` around ImGui's frame. Switching backends is a one-file change.
+Keep it that way: nothing outside `Main.cpp` includes SDL, and `nazg_core` does not link it.
 
 **Build tooling: Visual Studio 2022 with the Visual Studio generator**, CMake 3.21+.
 Generate with `GenerateBuildForVS2022.bat`, which writes to `build_VS2022/`.
@@ -265,9 +273,9 @@ dependency tree looks CMake 4 clean, and VS CMake folder mode keeps full IDE deb
 `imgui_impl_opengl3` over WebGL or the `sdl3_wgpu` route.
 
 When that happens it goes in as a dedicated `#ifdef __EMSCRIPTEN__` path in `Main.cpp` plus a
-branch in `CMakeLists.txt` — **not** a renderer abstraction layer, and not a second codebase.
-This is only affordable while SDL and renderer calls stay confined to `Main.cpp`, which is the
-main reason that rule exists.
+branch in `CMakeLists.txt` — **not** a renderer abstraction layer, and not a second codebase:
+the same `App`, inside another shell. This is only affordable while SDL and renderer calls stay
+confined to `Main.cpp`, which is the main reason that rule exists.
 
 **Notes on the dependencies:** minlzma decodes Vial's LZMA-compressed keyboard definitions;
 it is dormant upstream (last commit January 2022) but small and self-contained. jsoncpp was
