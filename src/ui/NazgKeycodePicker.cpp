@@ -34,12 +34,6 @@ namespace nazg
         constexpr float c_SearchMax = 220.0f;
         constexpr char  c_SearchHint[] = "Search: name, QMK name or label";
 
-        bool IsNamed(const Keycode& keycode, std::string_view name)
-        {
-            const auto* named = std::get_if<NamedKey>(&keycode);
-            return named != nullptr && named->name == name;
-        }
-
         // The header every keycode of a group shares -- Media, Hold, MIDI -- which its title says,
         // so the tiles leave it out.
         bool SharesHeader(const std::vector<Keycode>& keycodes, const LegendContext& context)

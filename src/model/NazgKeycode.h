@@ -35,6 +35,43 @@ namespace nazg
         inline constexpr uint8_t RightShift = 0x20;
         inline constexpr uint8_t RightAlt   = 0x40;
         inline constexpr uint8_t RightGui   = 0x80;
+
+        // The modifiers set, by kind -- Ctrl, Shift, Alt, Gui -- on the left bits, whatever their
+        // side: Right Ctrl and Left Ctrl alike.
+        [[nodiscard]] constexpr uint8_t KindsOf(uint8_t mods) noexcept
+        {
+            return static_cast<uint8_t>((mods | (mods >> 4)) & 0x0F);
+        }
+
+        // How many kinds a KindsOf() result holds.
+        [[nodiscard]] constexpr int CountOf(uint8_t kinds) noexcept
+        {
+            int count = 0;
+            for (int bit = 0; bit < 4; ++bit)
+                count += (kinds >> bit) & 1;
+            return count;
+        }
+
+        // Which side a mask holds its modifiers on, as one choice for the whole set.
+        enum class Side
+        {
+            Either,   // both sides of each, or nothing set
+            Left,
+            Right,
+            Mixed,    // some on one side, some on the other
+        };
+
+        [[nodiscard]] constexpr Side SideOf(uint8_t mods) noexcept
+        {
+            const uint8_t left = mods & 0x0F, right = mods >> 4;
+            if (left == right)
+                return Side::Either;
+            if (right == 0)
+                return Side::Left;
+            if (left == 0)
+                return Side::Right;
+            return Side::Mixed;
+        }
     }
 
     // Every fixed keycode -- KC_A, HF_TOGG, UG_TOGG, QK_BOOT -- by its short name, which
@@ -160,4 +197,10 @@ namespace nazg
     // "LT(1,KC_A)", "MO(1)", "TD(3)", "MC_5", "0x8123". The notation users already
     // know from keymap.c and VIA's "Any" key -- for display, logs and test expectations.
     [[nodiscard]] std::string FormatKeycode(const Keycode& keycode);
+
+    // A fixed keycode of this name: IsNamed(keycode, "KC_TRNS").
+    [[nodiscard]] bool IsNamed(const Keycode& keycode, std::string_view name) noexcept;
+
+    // KC_NO or KC_TRNS -- the picker's "Nothing": no key of its own.
+    [[nodiscard]] bool IsNothing(const Keycode& keycode) noexcept;
 }

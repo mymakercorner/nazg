@@ -31,21 +31,6 @@ namespace nazg
         constexpr float    c_JoinWidth   = 22.0f;   // the + between inputs, the arrow to the output
         constexpr float    c_TermGap     = 24.0f;
         constexpr uint16_t c_LongestTerm = 10000;   // Vial's own limit
-
-        // Text centred in [left, left + width), cut to it.
-        void CentredText(ImDrawList* list, float left, float width, float y, ImU32 colour, const std::string& text)
-        {
-            const float w = ImGui::CalcTextSize(text.c_str()).x;
-            list->PushClipRect(ImVec2(left, y), ImVec2(left + width, y + ImGui::GetFontSize() * 2), true);
-            list->AddText(ImVec2(left + std::max(0.0f, (width - w) / 2), y), colour, text.c_str());
-            list->PopClipRect();
-        }
-
-        bool IsNothing(const Keycode& keycode)
-        {
-            const auto* named = std::get_if<NamedKey>(&keycode);
-            return named && (named->name == "KC_NO" || named->name == "KC_TRNS");
-        }
     }
 
     CombosSection::CombosSection(HidTransport& transport, std::string path, Keyboard& keyboard,

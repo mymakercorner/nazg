@@ -37,65 +37,6 @@ namespace nazg
         // The start and stop options, open or folded as last left -- for every slot and board, until
         // Nazg closes (Rico, 2026-10-10). Folded at first.
         bool s_OptionsOpen = false;
-
-        // Text centred in [left, left + width), cut to it.
-        void CentredText(ImDrawList* list, float left, float width, float y, ImU32 colour, const std::string& text)
-        {
-            const float w = ImGui::CalcTextSize(text.c_str()).x;
-            list->PushClipRect(ImVec2(left, y), ImVec2(left + width, y + ImGui::GetFontSize() * 2), true);
-            list->AddText(ImVec2(left + std::max(0.0f, (width - w) / 2), y), colour, text.c_str());
-            list->PopClipRect();
-        }
-
-        bool IsNothing(const Keycode& keycode)
-        {
-            const auto* named = std::get_if<NamedKey>(&keycode);
-            return named && (named->name == "KC_NO" || named->name == "KC_TRNS");
-        }
-
-        // "Ctrl", "Ctrl or Alt", "Ctrl, Alt or Win".
-        std::string JoinOr(const std::vector<std::string>& names)
-        {
-            std::string joined;
-            for (size_t index = 0; index < names.size(); ++index)
-                joined += (index == 0 ? "" : index + 1 == names.size() ? " or " : ", ") + names[index];
-            return joined;
-        }
-
-        // Which side a modifier mask holds its modifiers on, as one choice for the whole set.
-        enum class Side
-        {
-            Either,   // both sides of each, or nothing set
-            Left,
-            Right,
-            Mixed,    // some on one side, some on the other: shown and kept, not built
-        };
-
-        Side SideOf(uint8_t mask)
-        {
-            const uint8_t left = mask & 0x0F, right = mask >> 4;
-            if (left == right)
-                return Side::Either;
-            if (right == 0)
-                return Side::Left;
-            if (left == 0)
-                return Side::Right;
-            return Side::Mixed;
-        }
-
-        // The modifiers set, by kind -- Ctrl, Shift, Alt, Gui -- whatever their side.
-        uint8_t KindsOf(uint8_t mask)
-        {
-            return static_cast<uint8_t>((mask | (mask >> 4)) & 0x0F);
-        }
-
-        int CountOf(uint8_t kinds)
-        {
-            int count = 0;
-            for (int bit = 0; bit < 4; ++bit)
-                count += (kinds >> bit) & 1;
-            return count;
-        }
     }
 
     KeyOverridesSection::KeyOverridesSection(HidTransport& transport, std::string path, Keyboard& keyboard,
@@ -573,12 +514,12 @@ namespace nazg
         const std::string held  = MaskWords(keyOverride.held, any);
         const float       heldW = std::max(cardW, ImGui::CalcTextSize(held.c_str()).x + 28 * scale);
         std::string       side;
-        switch (SideOf(keyOverride.held))
+        switch (Mod::SideOf(keyOverride.held))
         {
-        case Side::Either: side = keyOverride.held != 0 ? "either side" : "none"; break;
-        case Side::Left: side = "left only"; break;
-        case Side::Right: side = "right only"; break;
-        case Side::Mixed: side = ""; break;
+        case Mod::Side::Either: side = keyOverride.held != 0 ? "either side" : "none"; break;
+        case Mod::Side::Left: side = "left only"; break;
+        case Mod::Side::Right: side = "right only"; break;
+        case Mod::Side::Mixed: side = ""; break;
         }
         card(Part::Held, "Held", heldW,
              [&](const ImVec2& b0, const ImVec2& b1, bool)
@@ -763,7 +704,7 @@ namespace nazg
                 if (fix("Every layer"))
                     keyOverride.layers = c_AllKeyOverrideLayers;
             }
-            if (const uint8_t both = KindsOf(keyOverride.held) & KindsOf(keyOverride.notHeld); both != 0)
+            if (const uint8_t both = Mod::KindsOf(keyOverride.held) & Mod::KindsOf(keyOverride.notHeld); both != 0)
                 warn(MaskWords(static_cast<uint8_t>(both | (both << 4))) + " must be held and must not be: it never acts.");
             if (keyOverride.replacement && !CanSend(*keyOverride.replacement))
                 warn(NameOf(*keyOverride.replacement) + " cannot be sent: a key override sends a plain key, with modifiers. "
@@ -795,7 +736,7 @@ namespace nazg
             if (shown != 0 && keyOverride.replacement && CanSend(*keyOverride.replacement))
             {
                 const std::string words = MaskWords(shown);
-                note(words + (CountOf(KindsOf(shown)) > 1 ? " are" : " is") + " not hidden: the computer gets " + words +
+                note(words + (Mod::CountOf(Mod::KindsOf(shown)) > 1 ? " are" : " is") + " not hidden: the computer gets " + words +
                      " with " + NameOf(*keyOverride.replacement) + ".");
                 if (fix("Hide " + words))
                     keyOverride.hidden |= keyOverride.held;
@@ -867,7 +808,7 @@ namespace nazg
         box(key + " is pressed, " + held + " held", KeyOverrideOption::TriggerDown, (acts & KeyOverrideOption::TriggerDown) != 0,
             !last(KeyOverrideOption::TriggerDown), nullptr);
         ImGui::SameLine();
-        box(held + (CountOf(KindsOf(keyOverride.held)) > 1 ? " are" : " is") + " pressed, " + key + " held",
+        box(held + (Mod::CountOf(Mod::KindsOf(keyOverride.held)) > 1 ? " are" : " is") + " pressed, " + key + " held",
             KeyOverrideOption::RequiredModDown, (acts & KeyOverrideOption::RequiredModDown) != 0,
             keyOverride.held != 0 && !last(KeyOverrideOption::RequiredModDown),
             "Within 500 ms of the key's press, what is sent waits until then, as a key repeat would");
@@ -906,8 +847,8 @@ namespace nazg
 
         if (m_Part == Part::Held || m_Part == Part::NotHeld || m_Part == Part::Hidden)
         {
-            const uint8_t mask = m_Part == Part::Held ? keyOverride.held : m_Part == Part::NotHeld ? keyOverride.notHeld : keyOverride.hidden;
-            const Side    side = SideOf(mask);
+            const uint8_t   mask = m_Part == Part::Held ? keyOverride.held : m_Part == Part::NotHeld ? keyOverride.notHeld : keyOverride.hidden;
+            const Mod::Side side = Mod::SideOf(mask);
 
             // The four modifiers: one added on the set's side, either when it has none.
             const std::array<const char*, 4> words = ModifierWords(m_Legends.modifierNames);
@@ -917,8 +858,8 @@ namespace nazg
                 const uint8_t both = static_cast<uint8_t>(0x11 << bit);
                 if (ToggleButton(words[bit], (mask & both) != 0))
                 {
-                    const uint8_t add = side == Side::Left    ? static_cast<uint8_t>(0x01 << bit)
-                                        : side == Side::Right ? static_cast<uint8_t>(0x10 << bit)
+                    const uint8_t add = side == Mod::Side::Left    ? static_cast<uint8_t>(0x01 << bit)
+                                        : side == Mod::Side::Right ? static_cast<uint8_t>(0x10 << bit)
                                                               : both;
                     SetMask(m_Part, static_cast<uint8_t>((mask & both) != 0 ? mask & ~both : mask | add));
                 }
@@ -928,19 +869,19 @@ namespace nazg
 
             // The side, for the whole set.
             ImGui::SameLine(0, gap);
-            const uint8_t kinds = KindsOf(mask);
-            if (ToggleButton("Either side", mask != 0 && side == Side::Either, mask != 0))
+            const uint8_t kinds = Mod::KindsOf(mask);
+            if (ToggleButton("Either side", mask != 0 && side == Mod::Side::Either, mask != 0))
                 SetMask(m_Part, static_cast<uint8_t>(kinds | (kinds << 4)));
             ImGui::SameLine();
-            if (ToggleButton("Left", side == Side::Left, mask != 0))
+            if (ToggleButton("Left", side == Mod::Side::Left, mask != 0))
                 SetMask(m_Part, kinds);
             ImGui::SameLine();
-            if (ToggleButton("Right", side == Side::Right, mask != 0))
+            if (ToggleButton("Right", side == Mod::Side::Right, mask != 0))
                 SetMask(m_Part, static_cast<uint8_t>(kinds << 4));
-            if (side == Side::Mixed)
+            if (side == Mod::Side::Mixed)
                 ImGui::SetItemTooltip("The sides are mixed, as the board holds them: a side chosen applies to them all");
 
-            if (m_Part == Part::Held && CountOf(kinds) > 1)
+            if (m_Part == Part::Held && Mod::CountOf(kinds) > 1)
             {
                 ImGui::SameLine(0, gap);
                 const bool anyOne = (keyOverride.options & KeyOverrideOption::OneMod) != 0;

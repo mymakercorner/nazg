@@ -128,4 +128,15 @@ namespace nazg
     {
         return std::visit(Formatter{}, keycode);
     }
+
+    bool IsNamed(const Keycode& keycode, std::string_view name) noexcept
+    {
+        const auto* named = std::get_if<NamedKey>(&keycode);
+        return named != nullptr && named->name == name;
+    }
+
+    bool IsNothing(const Keycode& keycode) noexcept
+    {
+        return IsNamed(keycode, "KC_NO") || IsNamed(keycode, "KC_TRNS");
+    }
 }

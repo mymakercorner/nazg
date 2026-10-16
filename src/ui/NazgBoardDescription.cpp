@@ -43,12 +43,6 @@ namespace nazg
             return IsCharacterKey(name) ? KeyFill::Alpha : KeyFill::Modifier;
         }
 
-        bool IsNamed(const Keycode& keycode, std::string_view name)
-        {
-            const auto* named = std::get_if<NamedKey>(&keycode);
-            return named != nullptr && named->name == name;
-        }
-
         // What a keycode is in one short line, for a knob's stacked legends: a character, an
         // arrow's direction, or a key's words -- their short form where there is one.
         KnobLine KnobLineOf(const KeycapLegend& legend)

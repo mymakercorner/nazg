@@ -10,17 +10,6 @@ namespace nazg
 {
     namespace
     {
-        bool IsNamed(const Keycode& keycode, std::string_view name)
-        {
-            const auto* named = std::get_if<NamedKey>(&keycode);
-            return named != nullptr && named->name == name;
-        }
-
-        // Right Ctrl and Left Ctrl alike: the modifiers by kind, on the left bits.
-        uint8_t Folded(uint8_t mods)
-        {
-            return static_cast<uint8_t>((mods | (mods >> 4)) & 0x0F);
-        }
     }
 
     bool AltRepeatKey::IsEmpty() const
@@ -98,7 +87,7 @@ namespace nazg
     Keycode WithLeftModifiers(const Keycode& keycode)
     {
         if (const auto* modified = std::get_if<ModifiedKey>(&keycode))
-            return ModifiedKey{ Folded(modified->mods), modified->key };
+            return ModifiedKey{ Mod::KindsOf(modified->mods), modified->key };
         return keycode;
     }
 
@@ -110,7 +99,7 @@ namespace nazg
         if (a.key != b.key)
             return false;
         const bool alike = first.Has(AltRepeatOption::IgnoreHandedness) || second.Has(AltRepeatOption::IgnoreHandedness);
-        return alike ? Folded(a.mods) == Folded(b.mods) : a.mods == b.mods;
+        return alike ? Mod::KindsOf(a.mods) == Mod::KindsOf(b.mods) : a.mods == b.mods;
     }
 
     bool QmkPairs(const Keycode& first, const Keycode& second)

@@ -19,6 +19,22 @@ namespace nazg
         return joined;
     }
 
+    std::string JoinOr(const std::vector<std::string>& names)
+    {
+        std::string joined;
+        for (size_t index = 0; index < names.size(); ++index)
+            joined += (index == 0 ? "" : index + 1 == names.size() ? " or " : ", ") + names[index];
+        return joined;
+    }
+
+    void CentredText(ImDrawList* list, float left, float width, float y, ImU32 colour, const std::string& text)
+    {
+        const float w = ImGui::CalcTextSize(text.c_str()).x;
+        list->PushClipRect(ImVec2(left, y), ImVec2(left + width, y + ImGui::GetFontSize() * 2), true);
+        list->AddText(ImVec2(left + std::max(0.0f, (width - w) / 2), y), colour, text.c_str());
+        list->PopClipRect();
+    }
+
     std::string TagText(const KeycapLegend& legend, const std::string& label)
     {
         std::string main = legend.placement == PlacementClass::Character

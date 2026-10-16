@@ -17,6 +17,7 @@
 #include "transport/NazgDeviceChannel.h"
 #include "ui/NazgBoardDescription.h"
 #include "ui/NazgBoardView.h"
+#include "ui/NazgLineParts.h"
 #include "ui/NazgSectionPlan.h"
 #include "ui/NazgSlotParts.h"
 #include "ui/NazgTheme.h"
@@ -31,12 +32,6 @@ namespace nazg
         {
             const NamedKey* named = std::get_if<NamedKey>(&keycode);
             return named ? named->name : std::string_view();
-        }
-
-        bool IsNothing(const Keycode& keycode)
-        {
-            const std::string_view name = NameOf(keycode);
-            return name == "KC_NO" || name == "KC_TRNS";
         }
 
         // QMK's lighting channels, as a custom menu may use them for its own lighting menu: the
@@ -71,45 +66,6 @@ namespace nazg
                 default:
                     return LightingLine::Any;
             }
-        }
-
-        ImU32 HueColour(float hue, float saturation = 1.0f)
-        {
-            float r = 0, g = 0, b = 0;
-            ImGui::ColorConvertHSVtoRGB(hue, saturation, 1.0f, r, g, b);
-            return ImGui::GetColorU32(ImVec4(r, g, b, 1.0f));
-        }
-
-        // A 0-255 slider over a colour band -- the hue circle, or white to `hue` -- as Lighting's.
-        // True while it moves; `letGo` when it was let go after a change.
-        bool ColourSlider(const char* id, int& value, bool hueTrack, uint8_t hue, bool& letGo)
-        {
-            const float  width  = ImGui::GetFontSize() * 12.0f;
-            const float  height = ImGui::GetFrameHeight();
-            const ImVec2 at     = ImGui::GetCursorScreenPos();
-            ImDrawList*  draw   = ImGui::GetWindowDrawList();
-            const float  inset  = std::floor(height * 0.3f);
-            const ImVec2 a(at.x + 2.0f, at.y + inset);
-            const ImVec2 b(at.x + width - 2.0f, at.y + height - inset);
-            if (hueTrack)
-                for (int part = 0; part < 6; ++part)
-                {
-                    const float x0 = a.x + (b.x - a.x) * part / 6.0f, x1 = a.x + (b.x - a.x) * (part + 1) / 6.0f;
-                    const ImU32 c0 = HueColour(part / 6.0f), c1 = HueColour((part + 1) / 6.0f);
-                    draw->AddRectFilledMultiColor(ImVec2(x0, a.y), ImVec2(x1, b.y), c0, c1, c1, c0);
-                }
-            else
-            {
-                const ImU32 white = HueColour(0.0f, 0.0f), full = HueColour(hue / 255.0f);
-                draw->AddRectFilledMultiColor(a, b, white, full, full, white);
-            }
-            for (ImGuiCol colour : { ImGuiCol_FrameBg, ImGuiCol_FrameBgHovered, ImGuiCol_FrameBgActive })
-                ImGui::PushStyleColor(colour, ImVec4(0, 0, 0, 0));
-            ImGui::SetNextItemWidth(width);
-            const bool moved = ImGui::SliderInt(id, &value, 0, 255, "", ImGuiSliderFlags_AlwaysClamp);
-            ImGui::PopStyleColor(3);
-            letGo = ImGui::IsItemDeactivatedAfterEdit();
-            return moved;
         }
 
         // The longest of `names` and a combo's arrow: a combo as wide as what it shows.
@@ -702,10 +658,10 @@ namespace nazg
         bool letGoHue = false, letGoSaturation = false;
 
         ImGui::BeginGroup();
-        const bool hueMoved = ColourSlider("##hue", hue, true, 0, letGoHue);
+        const bool hueMoved = ColourSlider("##hue", hue, ImGui::GetFontSize() * 12.0f, true, 0, letGoHue);
         ImGui::SameLine();
         ColouredText(PanelColour::Muted, "Hue");
-        const bool saturationMoved = ColourSlider("##saturation", saturation, false, static_cast<uint8_t>(hue), letGoSaturation);
+        const bool saturationMoved = ColourSlider("##saturation", saturation, ImGui::GetFontSize() * 12.0f, false, static_cast<uint8_t>(hue), letGoSaturation);
         ImGui::SameLine();
         ColouredText(PanelColour::Muted, "Saturation");
         ImGui::EndGroup();

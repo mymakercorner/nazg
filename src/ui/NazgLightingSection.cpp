@@ -18,6 +18,7 @@
 #include "transport/NazgDeviceChannel.h"
 #include "ui/NazgBoardDescription.h"
 #include "ui/NazgKeyLine.h"
+#include "ui/NazgLineParts.h"
 #include "ui/NazgSlotParts.h"
 #include "ui/NazgTheme.h"
 
@@ -37,27 +38,6 @@ namespace nazg
             return named ? named->name : std::string_view();
         }
 
-        // A line of the table: its name in the first column, its controls in the second. The top is
-        // kept to tell, once drawn, whether the pointer is over it.
-        float BeginLine(const char* name)
-        {
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            const float top = ImGui::GetCursorScreenPos().y;
-            ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted(name);
-            ImGui::TableSetColumnIndex(1);
-            return top;
-        }
-
-        bool IsOverLine(float top)
-        {
-            if (!ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem))
-                return false;
-            const float y = ImGui::GetMousePos().y;
-            return y >= top && y < ImGui::GetItemRectMax().y + ImGui::GetStyle().CellPadding.y;
-        }
-
         // A muted (?) whose tooltip says `words`.
         void HelpMark(const char* words)
         {
@@ -71,13 +51,6 @@ namespace nazg
                 ImGui::PopTextWrapPos();
                 ImGui::EndTooltip();
             }
-        }
-
-        ImU32 HueColour(float hue, float saturation = 1.0f)
-        {
-            float r = 0, g = 0, b = 0;
-            ImGui::ColorConvertHSVtoRGB(hue, saturation, 1.0f, r, g, b);
-            return ImGui::GetColorU32(ImVec4(r, g, b, 1.0f));
         }
 
         // A row of buttons, one lit: the one clicked, if any.
@@ -515,39 +488,19 @@ namespace nazg
 
     void LightingSection::Slider(const char* id, uint8_t& value, LightingLine line, Track track, uint8_t hue, bool percent)
     {
-        const float  width  = ImGui::GetFontSize() * 16.0f;
-        const float  height = ImGui::GetFrameHeight();
-        const ImVec2 at     = ImGui::GetCursorScreenPos();
+        const float width = ImGui::GetFontSize() * 16.0f;
 
-        // A colour track: a band under the slider's grab, the frame left clear over it.
-        if (track != Track::Plain)
+        int  number = value;
+        bool moved  = false;
+        bool letGo  = false;
+        if (track == Track::Plain)
         {
-            ImDrawList*  draw  = ImGui::GetWindowDrawList();
-            const float  inset = std::floor(height * 0.3f);
-            const ImVec2 a(at.x + 2.0f, at.y + inset);
-            const ImVec2 b(at.x + width - 2.0f, at.y + height - inset);
-            if (track == Track::Hue)
-                for (int part = 0; part < 6; ++part)
-                {
-                    const float  x0 = a.x + (b.x - a.x) * part / 6.0f, x1 = a.x + (b.x - a.x) * (part + 1) / 6.0f;
-                    const ImU32  c0 = HueColour(part / 6.0f), c1 = HueColour((part + 1) / 6.0f);
-                    draw->AddRectFilledMultiColor(ImVec2(x0, a.y), ImVec2(x1, b.y), c0, c1, c1, c0);
-                }
-            else
-            {
-                const ImU32 white = HueColour(0.0f, 0.0f), full = HueColour(hue / 255.0f);
-                draw->AddRectFilledMultiColor(a, b, white, full, full, white);
-            }
-            for (ImGuiCol colour : { ImGuiCol_FrameBg, ImGuiCol_FrameBgHovered, ImGuiCol_FrameBgActive })
-                ImGui::PushStyleColor(colour, ImVec4(0, 0, 0, 0));
+            ImGui::SetNextItemWidth(width);
+            moved = ImGui::SliderInt(id, &number, 0, 255, "", ImGuiSliderFlags_AlwaysClamp);
+            letGo = ImGui::IsItemDeactivatedAfterEdit();
         }
-
-        int number = value;
-        ImGui::SetNextItemWidth(width);
-        const bool moved = ImGui::SliderInt(id, &number, 0, 255, "", ImGuiSliderFlags_AlwaysClamp);
-        if (track != Track::Plain)
-            ImGui::PopStyleColor(3);
-        const bool letGo = ImGui::IsItemDeactivatedAfterEdit();
+        else
+            moved = ColourSlider(id, number, width, track == Track::Hue, hue, letGo);
 
         if (moved)
         {

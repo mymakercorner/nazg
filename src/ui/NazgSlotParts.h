@@ -16,6 +16,8 @@
 #include <string>
 #include <vector>
 
+#include "imgui.h"
+
 #include "adapters/vial/NazgVialProtocol.h"
 #include "ui/NazgBoardDescription.h"
 #include "ui/NazgKeycapLegend.h"
@@ -24,6 +26,12 @@ namespace nazg
 {
     // "M3", "M3 and M5", "M3, M5 and M7".
     [[nodiscard]] std::string JoinNames(const std::vector<std::string>& names);
+
+    // "Ctrl", "Ctrl or Alt", "Ctrl, Alt or Win".
+    [[nodiscard]] std::string JoinOr(const std::vector<std::string>& names);
+
+    // Text centred in [left, left + width), cut to it -- a card's words.
+    void CentredText(ImDrawList* list, float left, float width, float y, ImU32 colour, const std::string& text);
 
     // What a board tag says of a keycode: as its keycap reads, on one line -- "Esc", "Ctrl Z", "Caps
     // Word" -- or `label` when the keycap draws a symbol, an arrow.

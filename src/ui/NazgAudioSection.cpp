@@ -13,6 +13,7 @@
 
 #include "transport/NazgDeviceChannel.h"
 #include "ui/NazgBoardDescription.h"
+#include "ui/NazgLineParts.h"
 #include "ui/NazgSlotParts.h"
 #include "ui/NazgTheme.h"
 
@@ -36,27 +37,6 @@ namespace nazg
             if (!setting)
                 return on || clicky;
             return *setting == via::AudioSetting::On ? on : clicky;
-        }
-
-        // A line of the table: its name in the first column, its controls in the second. The top is
-        // kept to tell, once drawn, whether the pointer is over it.
-        float BeginLine(const char* name)
-        {
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            const float top = ImGui::GetCursorScreenPos().y;
-            ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted(name);
-            ImGui::TableSetColumnIndex(1);
-            return top;
-        }
-
-        bool IsOverLine(float top)
-        {
-            if (!ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem))
-                return false;
-            const float y = ImGui::GetMousePos().y;
-            return y >= top && y < ImGui::GetItemRectMax().y + ImGui::GetStyle().CellPadding.y;
         }
 
         void Muted(const char* words)

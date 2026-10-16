@@ -224,6 +224,8 @@ set(NAZG_SOURCES
   src/ui/NazgTapDanceSection.h
   src/ui/NazgTapDanceSection.cpp
   src/ui/NazgCombosSection.h
+  src/ui/NazgLineParts.h
+  src/ui/NazgLineParts.cpp
   src/ui/NazgSlotParts.h
   src/ui/NazgSlotParts.cpp
   src/ui/NazgCombosSection.cpp

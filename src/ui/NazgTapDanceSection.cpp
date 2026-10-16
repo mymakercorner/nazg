@@ -70,15 +70,6 @@ namespace nazg
                     list->AddRectFilled(ImVec2(x0 + bars[bar * 2] * scale, y - h), ImVec2(x0 + bars[bar * 2 + 1] * scale, y + h),
                                         held, 3 * scale);
         }
-
-        // Text centred in [left, left + width), cut to it -- the whole in the card's tooltip.
-        void CentredText(ImDrawList* list, float left, float width, float y, ImU32 colour, const std::string& text)
-        {
-            const float w = ImGui::CalcTextSize(text.c_str()).x;
-            list->PushClipRect(ImVec2(left, y), ImVec2(left + width, y + ImGui::GetFontSize() * 2), true);
-            list->AddText(ImVec2(left + std::max(0.0f, (width - w) / 2), y), colour, text.c_str());
-            list->PopClipRect();
-        }
     }
 
     TapDanceSection::TapDanceSection(HidTransport& transport, std::string path, Keyboard& keyboard,
