@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- The application icon (none exists yet). Five drawings, each a ring -- nazg means "ring" --
+     with a keyboard part: a legend on a keycap, keycaps forming the ring, a switch stem, a keycap
+     with a ring standing on it, a spherical keycap whose dish is the ring. Then three with runes:
+     Elder Futhark, public domain and the source Tolkien drew his own from -- NAZG spells
+     naudiz, ansuz, algiz, gebo (ᚾᚨᛉᚷ). No Tolkien script (Tengwar, Cirth) and no copy of the
+     Ring's inscription: one word of Black Speech is the low-risk path, the One Ring's look is not.
+     Each card shows the drawing large, at the sizes Windows uses (16 title bar, 24 taskbar,
+     32, 48 Explorer, 256 large icons), and 16 and 32 rasterised by the browser and magnified,
+     which is what an .ico built from the SVG would hold. Click a card to see it in the window,
+     taskbar and Explorer previews. Ring and keycap colours are switchable.
+     Rico, 2026-10-16: H, refined -- the rune inside the ring, round ends, regular weight, shaded;
+     the light keycap, on light and dark alike; silver dropped as illegible; gold or blue still
+     open, blue slightly ahead. Then the keycap's outside: its walls, and a shadow -- an outline
+     was tried and dropped, blurrier small (Rico). Then, Rico's: the light from the top left, as
+     the ring's gradient runs; perspective dropped; gradients dramatic; the ring Nazg blue; no
+     shadow under the keycap. Settled -- the defaults of "H, refined" are the icon. -->
+
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nazg app icon</title>
+<style>
+:root{--window:#f3f3f5;--text:#1d1e22;--muted:#6b6e78;--control:#ffffff;--border:#c8cad2;--accent:#3b82f6;--accent-text:#fff;--panel:#f8f8fa;--selected:rgba(59,130,246,.14);
+  --titlebar:#f3f3f3;--taskbar:#eef0f4;--explorer:#ffffff}
+:root[data-theme="dark"]{--window:#0f0f11;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--accent:#4296fa;--accent-text:#fff;--panel:#16171b;--selected:rgba(66,150,250,.20);
+  --titlebar:#202020;--taskbar:#1c1c1c;--explorer:#191919}
+*{box-sizing:border-box}
+body{margin:0;background:var(--window);color:var(--text);font-family:"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+.controls{position:sticky;top:0;z-index:2;display:flex;flex-wrap:wrap;gap:8px 22px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.group .name{color:var(--muted);margin-right:4px}
+button{font:inherit;padding:3px 10px;border-radius:4px;border:1px solid var(--border);background:var(--control);color:var(--text);cursor:pointer}
+button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+main{padding:16px;display:flex;flex-direction:column;gap:16px;max-width:1180px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
+.card{border:1px solid var(--border);border-radius:8px;background:var(--panel);padding:12px;cursor:pointer;display:flex;flex-direction:column;gap:10px}
+.card.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset;background:var(--selected)}
+.card .head b{font-size:14px}
+.card .head span{display:block;color:var(--muted);font-size:12px;line-height:1.4;margin-top:2px}
+.big{display:flex;gap:12px;align-items:flex-end}
+.big .icon{width:128px;height:128px}
+.sizes{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.sizes figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:3px}
+.sizes figcaption{font-size:10px;color:var(--muted)}
+.icon svg{display:block;width:100%;height:100%}
+.pix{display:flex;gap:10px;align-items:flex-end}
+.pix canvas{border:1px solid var(--border);image-rendering:pixelated;background:repeating-conic-gradient(var(--control) 0 25%,var(--window) 0 50%) 0 0/12px 12px}
+.verdict{font-size:12px;line-height:1.4}
+.verdict .plus{color:#16a34a}.verdict .minus{color:#dc2626}
+:root[data-theme="dark"] .verdict .plus{color:#4ade80}:root[data-theme="dark"] .verdict .minus{color:#f87171}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:6px 0 0}
+.previews{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
+.shot{border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.shot .cap{font-size:11px;color:var(--muted);padding:4px 8px;background:var(--panel);border-top:1px solid var(--border)}
+.titlebar{width:360px;height:32px;background:var(--titlebar);display:flex;align-items:center;gap:8px;padding:0 0 0 10px;font-size:12px}
+.titlebar .icon{width:16px;height:16px}
+.titlebar .grow{flex:1}
+.titlebar .wb{width:46px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px}
+.titlebar + .client{height:70px;background:var(--window);border-top:1px solid var(--border)}
+.taskbar{height:48px;background:var(--taskbar);display:flex;align-items:center;gap:4px;padding:0 12px}
+.taskbar .slot{width:40px;height:40px;border-radius:4px;display:flex;align-items:center;justify-content:center;position:relative}
+.taskbar .slot.active{background:rgba(127,127,127,.18)}
+.taskbar .slot.active::after{content:"";position:absolute;bottom:2px;left:15px;width:10px;height:3px;border-radius:2px;background:var(--accent)}
+.taskbar .icon{width:24px;height:24px}
+.other{width:24px;height:24px;border-radius:5px}
+.explorer{background:var(--explorer);display:flex;gap:8px;padding:12px}
+.explorer .file{width:96px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;padding:6px 0;border-radius:4px}
+.explorer .file.sel{background:var(--selected)}
+.explorer .icon{width:48px;height:48px}
+.explorer .file.large .icon{width:96px;height:96px}
+.explorer .file.large{width:120px}
+.refine .opts{display:flex;flex-wrap:wrap;gap:8px 22px}
+.refine .body{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap}
+.refine .body > .icon{width:256px;height:256px}
+.refine .rows{display:flex;flex-direction:column;gap:12px}
+.refine .row{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap}
+.refine .row > b{width:120px;font-weight:600;font-size:12px;align-self:center}
+.note{color:var(--muted);font-size:12px;line-height:1.5;max-width:900px}
+</style>
+</head>
+<body>
+<div class="controls">
+  <div class="group"><span class="name">Theme</span><button data-k="theme" data-v="light">Light</button><button data-k="theme" data-v="dark">Dark</button></div>
+  <div class="group"><span class="name">Ring</span><button data-k="ring" data-v="gold">Gold</button><button data-k="ring" data-v="blue">Nazg blue</button></div>
+  <div class="group"><span class="name">Keycap</span><button data-k="cap" data-v="dark">Dark</button><button data-k="cap" data-v="light">Light</button></div>
+</div>
+<main>
+  <h2>H, refined -- Rico's pick (2026-10-16)</h2>
+  <div class="card refine" id="refine"></div>
+  <h2>The drawings compared</h2>
+  <div class="cards" id="cards"></div>
+  <h2>In place -- the selected card (H refined: snapped to pixels)</h2>
+  <div class="previews">
+    <div class="shot"><div class="titlebar"><span class="icon" data-at="16"></span><span>Nazg</span><span class="grow"></span><span class="wb">&#x2013;</span><span class="wb">&#x25A1;</span><span class="wb">&#x2715;</span></div><div class="client"></div><div class="cap">Window title bar, 16 px (SDL_SetWindowIcon)</div></div>
+    <div class="shot"><div class="taskbar" id="taskbar"></div><div class="cap">Taskbar, 24 px, beside other apps</div></div>
+    <div class="shot"><div class="explorer"><div class="file sel"><span class="icon" data-at="48"></span><span>nazg.exe</span></div><div class="file large"><span class="icon" data-at="96"></span><span>nazg.exe</span></div></div><div class="cap">Explorer, medium and large icons (.ico via .rc)</div></div>
+  </div>
+  <p class="note">The previews use the vector drawing at each size; the magnified squares on each card are
+  what the browser's rasteriser makes of it at 16 and 32 px. An .ico can carry a hand-drawn 16 px
+  image instead -- worth doing for whichever drawing is chosen if its 16 px square blurs.</p>
+</main>
+<script>
+const state={theme:"dark",ring:"blue",cap:"light",pick:"refined",
+  h:{rune:"inside",ends:"round",weight:"regular",depth:"shaded",walls:"lit",edge:"none",gradients:"dramatic",small:"snapped"}};
+const RINGS={
+  gold:  {hi:"#fbe39a",mid:"#dcaa2c",lo:"#94650f"},
+  blue:  {hi:"#a7d0ff",mid:"#4296fa",lo:"#1b55b0"}};
+// wallHi / wallLo: the walls lit from the top left, as the ring's gradient is (top and left
+// walls bright, bottom and right in shade).
+const CAPS={
+  dark: {skirt:"#1f2229",top:"#363a46",topHi:"#444958",hole:"#121418",wallHi:"#3a3f4b",wallLo:"#14161b"},
+  light:{skirt:"#b9bdc8",top:"#e9ebf0",topHi:"#f8f9fb",hole:"#8d929f",wallHi:"#dfe2e8",wallLo:"#9a9fac"}};
+let uid=0;
+function defs(r,c,u){
+  return `<defs>
+  <linearGradient id="g${u}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${r.hi}"/><stop offset=".5" stop-color="${r.mid}"/><stop offset="1" stop-color="${r.lo}"/></linearGradient>
+  <linearGradient id="t${u}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c.topHi}"/><stop offset="1" stop-color="${c.top}"/></linearGradient>
+  </defs>`;
+}
+// Elder Futhark, public domain (Unicode's Runic block): NAZG is naudiz, ansuz, algiz, gebo --
+// ᚾᚨᛉᚷ. Straight strokes on a unit box centred on 0, drawn as lines so no font is needed.
+const RUNES={n:"M0 -.5V.5M-.28 -.16L.28 .16",a:"M-.22 -.5V.5M-.22 -.5L.3 -.2M-.22 -.14L.3 .16",
+  z:"M0 -.5V.5M0 0L-.34 -.4M0 0L.34 -.4",g:"M-.34 -.5L.34 .5M.34 -.5L-.34 .5"};
+function rune(ch,x,y,h,sw,col,cap,rot=0){
+  return `<path d="${RUNES[ch]}" transform="rotate(${rot} 128 128) translate(${x} ${y}) scale(${h})" fill="none" stroke="${col}" stroke-width="${sw/h}" stroke-linecap="${cap}" stroke-linejoin="miter"/>`;}
+// The word twice round the band, a dot between, top of each rune outward as on a ring.
+function engraving(r,radius,h,sw){
+  let s="";const slots=["n","a","z","g",".","n","a","z","g","."];
+  slots.forEach((ch,i)=>{const a=i*360/slots.length;
+    s+=ch==="."?`<circle cx="128" cy="${128-radius}" r="${sw*0.9}" fill="${r.lo}" transform="rotate(${a} 128 128)"/>`
+               :rune(ch,128,128-radius,h,sw,r.lo,"butt",a);});
+  return s;}
+// Every drawing on a 256 grid, transparent around it.
+const VARIANTS=[
+ {id:"legend",name:"A. Ring legend",
+  what:"A keycap seen slightly from the front, the ring as its legend.",
+  plus:"Reads at 16 px: a key with a circle on it.",minus:"The ring is small; the keycap carries the shape.",
+  svg:(r,c,u)=>`${defs(r,c,u)}
+   <rect x="14" y="14" width="228" height="228" rx="44" fill="${c.skirt}"/>
+   <rect x="38" y="26" width="180" height="178" rx="32" fill="url(#t${u})"/>
+   <circle cx="128" cy="115" r="50" fill="none" stroke="url(#g${u})" stroke-width="22"/>`},
+ {id:"dish",name:"B. The dish is the ring",
+  what:"A spherical (SA) keycap from above; the rim of its dish is the ring.",
+  plus:"The biggest ring of all at 16 px; ring and key are one shape.",minus:"Close to A; seen from above, the key's depth is lost.",
+  svg:(r,c,u)=>`${defs(r,c,u)}
+   <rect x="14" y="14" width="228" height="228" rx="56" fill="${c.skirt}"/>
+   <rect x="28" y="28" width="200" height="200" rx="48" fill="url(#t${u})"/>
+   <circle cx="128" cy="128" r="74" fill="${c.top}"/>
+   <circle cx="128" cy="128" r="74" fill="none" stroke="url(#g${u})" stroke-width="20"/>`},
+ {id:"keys",name:"C. A ring of keys",
+  what:"Eight keycaps forming the ring: many protocols, one client.",
+  plus:"Says \"one ring of keys\" with no lettering; distinctive large.",minus:"Small, it reads as a gear or a sun, not a ring of keys.",
+  svg:(r,c,u)=>{let s=defs(r,c,u);for(let i=0;i<8;i++){s+=`<g transform="rotate(${i*45} 128 128) translate(128 44)">
+     <rect x="-29" y="-29" width="58" height="58" rx="12" fill="${r.lo}"/>
+     <rect x="-21" y="-27" width="42" height="42" rx="9" fill="url(#g${u})"/></g>`;}return s;}},
+ {id:"stem",name:"D. Switch stem in a ring",
+  what:"An MX stem's cross, the part every keycap fits, inside the ring.",
+  plus:"Unmistakably keyboards to anyone who builds them.",minus:"At 16 px a plus in a circle -- close to \"add\" or a crosshair.",
+  svg:(r,c,u)=>`${defs(r,c,u)}
+   <rect x="14" y="14" width="228" height="228" rx="56" fill="${c.skirt}"/>
+   <circle cx="128" cy="128" r="84" fill="none" stroke="url(#g${u})" stroke-width="26"/>
+   <circle cx="128" cy="128" r="54" fill="url(#t${u})"/>
+   <rect x="90" y="116" width="76" height="24" rx="3" fill="${c.hole}"/>
+   <rect x="116" y="90" width="24" height="76" rx="3" fill="${c.hole}"/>`},
+ {id:"pedestal",name:"E. A ring on a keycap",
+  what:"A keycap in perspective with a ring standing on it, as on a display.",
+  plus:"The most evocative and the most \"product\" at 256 px.",minus:"Weakest small: at 16 px the ring and the key blur together.",
+  svg:(r,c,u)=>`${defs(r,c,u)}
+   <path d="M50 118 L206 118 L232 214 L24 214 Z" fill="${c.skirt}" stroke="${c.skirt}" stroke-width="24" stroke-linejoin="round"/>
+   <rect x="50" y="106" width="156" height="78" rx="20" fill="url(#t${u})"/>
+   <ellipse cx="128" cy="152" rx="34" ry="7" fill="#000" opacity=".28"/>
+   <ellipse cx="128" cy="92" rx="46" ry="56" fill="none" stroke="${r.lo}" stroke-width="22"/>
+   <ellipse cx="128" cy="92" rx="46" ry="56" fill="none" stroke="url(#g${u})" stroke-width="16"/>`},
+ {id:"engraved",name:"F. Engraved ring",
+  what:"A wide ring with ᚾᚨᛉᚷ (Elder Futhark: n, a, z, g) cut round the band, twice.",
+  plus:"An inscribed ring in real runes and our own word; the runes show from 96 px up.",minus:"Below 48 px the runes become texture; the plain band carries it.",
+  svg:(r,c,u)=>`${defs(r,c,u)}
+   <rect x="14" y="14" width="228" height="228" rx="56" fill="${c.skirt}"/>
+   <circle cx="128" cy="128" r="84" fill="none" stroke="url(#g${u})" stroke-width="42"/>
+   <circle cx="128" cy="128" r="105" fill="none" stroke="${r.lo}" stroke-width="2" opacity=".6"/>
+   <circle cx="128" cy="128" r="63" fill="none" stroke="${r.lo}" stroke-width="2" opacity=".6"/>
+   ${engraving(r,84,30,5.5)}`},
+ {id:"runekey",name:"G. Rune legend",
+  what:"A keycap whose legend is ᚾ, naudiz -- the n rune, Nazg's initial.",
+  plus:"Straight strokes stay sharp at 16 px; a monogram no other app has.",minus:"No ring: the name's meaning is gone.",
+  svg:(r,c,u)=>`${defs(r,c,u)}
+   <rect x="14" y="14" width="228" height="228" rx="44" fill="${c.skirt}"/>
+   <rect x="38" y="26" width="180" height="178" rx="32" fill="url(#t${u})"/>
+   ${rune("n",128,115,124,26,`url(#g${u})`,"round")}`},
+ {id:"runering",name:"H. Rune in the ring",
+  what:"B's dish ring with ᚾ inside: the ring and the initial together.",
+  plus:"Ring, keycap and initial in one shape.",minus:"At 16 px the rune inside is a single slanted line.",
+  svg:(r,c,u)=>`${defs(r,c,u)}
+   <rect x="14" y="14" width="228" height="228" rx="56" fill="${c.skirt}"/>
+   <rect x="28" y="28" width="200" height="200" rx="48" fill="url(#t${u})"/>
+   <circle cx="128" cy="128" r="74" fill="${c.top}"/>
+   <circle cx="128" cy="128" r="74" fill="none" stroke="url(#g${u})" stroke-width="20"/>
+   ${rune("n",128,128,90,18,`url(#g${u})`,"round")}`},
+];
+// H refined, drawn on the grid of its own size. With snap, below 64 px, the stave gets an even
+// pixel width centred on the middle and whole-pixel ends -- a sharp column instead of a blur --
+// and the ring at least 1.6 px; what an .ico holding a drawing per size would carry.
+// The keycap's outside: walls flat or lit (perspective, a deeper front wall, tried and dropped by
+// Rico); a shadow under it or none -- it shows on light backgrounds only. All light comes
+// from the top left: walls, face, the concave dish (dark where its rim hides the light), the
+// shadows falling down and right. Gradients soft, strong or dramatic: every gradient's light
+// end pushed towards white and its dark end towards black.
+function mix(a,b,t){const p=s=>[1,3,5].map(i=>parseInt(s.slice(i,i+2),16)),x=p(a),y=p(b);
+  return "#"+x.map((v,i)=>Math.round(v+(y[i]-v)*t).toString(16).padStart(2,"0")).join("");}
+function drawH(size,snap,ring=state.ring){
+  const o=state.h,r=RINGS[ring],c=CAPS[state.cap],u=++uid,k=size/256,m=size/2;
+  const tune=snap&&size<64,px=v=>tune?Math.round(v):v;
+  const [up,down]={soft:[0,0],strong:[.45,.3],dramatic:[.8,.55]}[o.gradients];
+  const hi=x=>mix(x,"#ffffff",up),lo=x=>mix(x,"#000000",down);
+  const bold=o.weight==="bold",through=o.rune==="through",square=o.ends==="square";
+  const shaded=o.depth==="shaded"&&size>=64;
+  const lit=o.walls==="lit",shadow=o.edge==="shadow";
+  const tile=px(14*k),inner=tile;
+  const fx=Math.max(px(28*k),inner+1);
+  const fy0=fx,fy1=size-fx,cx=m,cy=m;
+  const R=74*k,ringW=Math.max((bold?26:20)*k,tune?1.6:0);
+  let w=(bold?24:18)*k;if(tune)w=Math.max(2,Math.round(w/2)*2);
+  const half=through?R:54*k,y0=px(cy-half),y1=px(cy+half);
+  const bx=30*k,by=17*k,so=tune?1:8*k,sb=tune?.7:7*k;
+  const rune=(col,parts)=>
+    (parts.includes("s")?`<rect x="${cx-w/2}" y="${y0}" width="${w}" height="${y1-y0}" rx="${square||through?0:w/2}" fill="${col}"/>`:"")+
+    (parts.includes("b")?`<line x1="${cx-bx}" y1="${cy-by}" x2="${cx+bx}" y2="${cy+by}" stroke="${col}" stroke-width="${w}" stroke-linecap="${square?"butt":"round"}"/>`:"");
+  const metal=`url(#g${u})`,body=`width="${size-2*tile}" height="${size-2*tile}" rx="${56*k}"`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}"><defs>
+   <linearGradient id="g${u}" gradientUnits="userSpaceOnUse" x1="${cx-R-ringW}" y1="${cy-R-ringW}" x2="${cx+R+ringW}" y2="${cy+R+ringW}"><stop offset="0" stop-color="${hi(r.hi)}"/><stop offset=".5" stop-color="${r.mid}"/><stop offset="1" stop-color="${lo(r.lo)}"/></linearGradient>
+   <linearGradient id="t${u}" gradientUnits="userSpaceOnUse" x1="${fx}" y1="${fy0}" x2="${size-fx}" y2="${fy1}"><stop offset="0" stop-color="${hi(c.topHi)}"/><stop offset="1" stop-color="${mix(c.top,"#000000",down*.4)}"/></linearGradient>
+   <linearGradient id="d${u}" gradientUnits="userSpaceOnUse" x1="${cx-.7*R}" y1="${cy-.7*R}" x2="${cx+.7*R}" y2="${cy+.7*R}"><stop offset="0" stop-color="${lo(c.skirt)}"/><stop offset=".55" stop-color="${c.top}"/><stop offset="1" stop-color="${hi(c.topHi)}"/></linearGradient>
+   <linearGradient id="w${u}" gradientUnits="userSpaceOnUse" x1="${tile}" y1="${tile}" x2="${size-tile}" y2="${size-tile}"><stop offset="0" stop-color="${hi(c.wallHi)}"/><stop offset="1" stop-color="${lo(c.wallLo)}"/></linearGradient>
+   <filter id="f${u}" x="-30%" y="-30%" width="160%" height="170%"><feGaussianBlur stdDeviation="${sb}"/></filter>
+   </defs>
+   ${shadow?`<rect x="${tile+so*.6}" y="${tile+so}" ${body} fill="#000" opacity=".55" filter="url(#f${u})"/>`:""}
+   <rect x="${inner}" y="${inner}" width="${size-2*inner}" height="${size-2*inner}" rx="${56*k}" fill="${lit?`url(#w${u})`:c.skirt}"/>
+   <rect x="${fx}" y="${fy0}" width="${size-2*fx}" height="${fy1-fy0}" rx="${48*k}" fill="url(#t${u})"/>
+   <circle cx="${cx}" cy="${cy}" r="${R}" fill="${shaded?`url(#d${u})`:c.top}"/>
+   ${shaded?`<g transform="translate(${5*k} ${5*k})" opacity=".35">${rune("#000","sb")}</g>`:""}
+   ${through?rune(metal,"s"):""}
+   <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${metal}" stroke-width="${ringW}"/>
+   ${shaded?`<circle cx="${cx}" cy="${cy}" r="${R-ringW/2}" fill="none" stroke="${lo(r.lo)}" stroke-width="${2*k}" opacity=".6"/>
+     <circle cx="${cx}" cy="${cy}" r="${R+ringW/2}" fill="none" stroke="${hi(r.hi)}" stroke-width="${1.5*k}" opacity=".5"/>`:""}
+   ${rune(metal,through?"b":"sb")}</svg>`;
+}
+const HOPTS=[
+  ["The rune and the ring",[["rune","Rune",[["inside","Inside the ring"],["through","Through the ring"]]],
+    ["ends","Ends",[["round","Round"],["square","Carved"]]],
+    ["weight","Weight",[["regular","Regular"],["bold","Bold"]]],
+    ["depth","Depth",[["flat","Flat"],["shaded","Shaded (64 px up)"]]]]],
+  ["The keycap's outside",[["walls","Walls",[["flat","Flat"],["lit","Lit from the top left"]]],
+    ["edge","Shadow",[["none","None"],["shadow","Under the keycap"]]],
+    ["gradients","Gradients",[["soft","Soft"],["strong","Strong"],["dramatic","Dramatic"]]],
+    ["small","Small sizes",[["snapped","Snapped to pixels"],["scaled","Scaled"]]]]]];
+function svgOf(v){const u=++uid;return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">${v.svg(RINGS[state.ring],CAPS[state.cap],u)}</svg>`;}
+function iconAt(size){return state.pick==="refined"?drawH(size,state.h.small==="snapped"):svgOf(VARIANTS.find(x=>x.id===state.pick));}
+function raster(svg,size,zoom){
+  const c=document.createElement("canvas");c.width=size*zoom;c.height=size*zoom;c.style.width=size*zoom+"px";c.style.height=size*zoom+"px";
+  const img=new Image();img.onload=()=>{const s=document.createElement("canvas");s.width=s.height=size;s.getContext("2d").drawImage(img,0,0,size,size);
+    const x=c.getContext("2d");x.imageSmoothingEnabled=false;x.drawImage(s,0,0,size*zoom,size*zoom);};
+  img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg);return c;}
+function zoomed(svg,s,z){const f=document.createElement("figure");f.style.cssText="margin:0;display:flex;flex-direction:column;align-items:center;gap:3px";
+  f.appendChild(raster(svg,s,z));f.insertAdjacentHTML("beforeend",`<figcaption>${s} px, &times;${z}</figcaption>`);return f;}
+// Gold and blue side by side while Rico weighs them; the bar's Ring picks the previews' one.
+function renderRefine(){
+  const d=document.getElementById("refine");d.classList.toggle("on",state.pick==="refined");d.onclick=()=>{state.pick="refined";render();};
+  d.innerHTML=HOPTS.map(([title,opts])=>`<div class="opts"><span class="name" style="width:150px;font-weight:600">${title}</span>${opts.map(([k,n,vs])=>
+      `<div class="group"><span class="name">${n}</span>${vs.map(([v,t])=>
+      `<button data-hk="${k}" data-hv="${v}" class="${state.h[k]===v?"on":""}">${t}</button>`).join("")}</div>`).join("")}</div>`).join("")+
+    `<div class="rows"></div>`;
+  d.querySelectorAll("[data-hk]").forEach(b=>b.onclick=()=>{state.h[b.dataset.hk]=b.dataset.hv;});
+  const rows=d.querySelector(".rows"),snap=state.h.small==="snapped";
+  for(const [ring,label] of [["blue","Nazg blue"],["gold","Gold"]]){
+    const row=document.createElement("div");row.className="row sizes";
+    row.innerHTML=`<b>${label}</b><span class="icon" style="width:160px;height:160px">${drawH(256,false,ring)}</span>`+
+      [48,32,24,16].map(s=>`<figure><span class="icon" style="width:${s}px;height:${s}px">${drawH(s,snap,ring)}</span><figcaption>${s}</figcaption></figure>`).join("");
+    for(const [s,z] of [[16,6],[24,4],[32,3]])row.appendChild(zoomed(drawH(s,snap,ring),s,z));
+    rows.appendChild(row);}
+}
+function render(){
+  document.documentElement.dataset.theme=state.theme;
+  document.querySelectorAll(".controls button").forEach(b=>b.classList.toggle("on",state[b.dataset.k]===b.dataset.v));
+  const cards=document.getElementById("cards");cards.innerHTML="";
+  for(const v of VARIANTS){
+    const d=document.createElement("div");d.className="card"+(state.pick===v.id?" on":"");d.onclick=()=>{state.pick=v.id;render();};
+    d.innerHTML=`<div class="head"><b>${v.name}</b><span>${v.what}</span></div>
+      <div class="big"><span class="icon">${svgOf(v)}</span>
+        <div class="sizes">${[48,32,24,16].map(s=>`<figure><span class="icon" style="width:${s}px;height:${s}px">${svgOf(v)}</span><figcaption>${s}</figcaption></figure>`).join("")}</div></div>
+      <div class="pix"></div>
+      <div class="verdict"><span class="plus">+</span> ${v.plus}<br><span class="minus">&minus;</span> ${v.minus}</div>`;
+    const p=d.querySelector(".pix");
+    for(const [s,z] of [[16,6],[32,3]])p.appendChild(zoomed(svgOf(v),s,z));
+    cards.appendChild(d);
+  }
+  renderRefine();
+  document.querySelectorAll(".previews [data-at]").forEach(e=>e.innerHTML=iconAt(+e.dataset.at));
+  const tb=document.getElementById("taskbar");
+  const others=["#0078d4","#e8a33d","#6b4fbb","#2b9348"];
+  tb.innerHTML=others.slice(0,2).map(col=>`<span class="slot"><span class="other" style="background:${col}"></span></span>`).join("")+
+    `<span class="slot active"><span class="icon">${iconAt(24)}</span></span>`+
+    others.slice(2).map(col=>`<span class="slot"><span class="other" style="background:${col}"></span></span>`).join("");
+}
+document.querySelectorAll(".controls button").forEach(b=>b.onclick=()=>{state[b.dataset.k]=b.dataset.v;render();});
+render();
+</script>
+</body>
+</html>

@@ -2340,6 +2340,31 @@ The same drawer could later show logs from other sources: XAP's log broadcasts, 
 logging — which is a serial port, not HID, so it needs a serial transport, the one a ZMK
 Studio backend needs anyway. Flashing, QMK Toolbox's other job, is not part of this.
 
+## The application icon
+
+Settled by Rico, 2026-10-16, in [app-icon.html](ui-design/app-icon.html) -- eight drawings
+compared, then the chosen one refined; the defaults of its "H, refined" card are the icon.
+
+**A ring holding a rune, on a keycap.** A spherical keycap seen from above, the rim of its dish
+the ring -- *nazg* means "ring" -- and inside it **ᚾ**, *naudiz*, the Elder Futhark *n*: Nazg's
+initial. Elder Futhark is public domain, in Unicode's Runic block, and the source Tolkien drew his
+own runes from; Tolkien's scripts (Tengwar, Cirth) and anything like the Ring's inscription are
+left alone -- the name, one word of Black Speech, is as far as Nazg goes.
+
+- **Shapes**: two strokes and a circle, no lettering -- why it reads at 16 px. The rune stands
+  inside the ring with round ends, regular weight.
+- **Colour**: the ring and the rune **Nazg blue** (the accent, `#4296fa` in the middle of its
+  gradient), on a **light keycap** -- one icon for light and dark desktops.
+- **Light from the top left**, everywhere: the ring's gradient, the walls, the face, the concave
+  dish (dark where its rim hides the light), the rune's shadow in the dish. Gradients
+  **dramatic** -- their light ends pushed towards white, their dark ends towards black.
+- **Small sizes drawn for their grid**: below 64 px the rune's stave is an even number of whole
+  pixels, centred, so it is a sharp column -- the .ico holds a drawing per size (16, 24, 32, 48)
+  rather than the 256 px one scaled. The dish's shading starts at 64 px.
+- **Tried and dropped**: gold (weighed against blue), silver (illegible), an outline round the
+  keycap (blurrier small), walls in perspective, a shadow under the keycap (seen only on light
+  desktops), the rune through the ring, carved ends, bold.
+
 ## Open points
 
 **The points about the board's look -- which sections fold the board away, folding the section
