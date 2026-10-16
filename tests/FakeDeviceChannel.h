@@ -26,28 +26,49 @@ public:
     void Reply(std::vector<uint8_t> reply)
     {
         reply.resize(via::c_ReportSize, 0x00);
-        m_Replies.push_back(std::move(reply));
+        m_Replies.push_back({ std::move(reply), false });
     }
+
+    // Queue the firmware's echo of whatever is asked -- a VIA set command's answer, the request
+    // back as sent, which passes the protocol's reply check as the real one does.
+    void ReplyEcho() { m_Replies.push_back({ {}, true }); }
 
     // Queue the firmware's "I do not know that command" answer: 0xFF in byte 0.
     void ReplyUnhandled() { Reply({ 0xFF }); }
 
     // Queue a reply exactly as given, with no padding -- for testing what happens when
     // a device returns something shorter than a full report.
-    void ReplyRaw(std::vector<uint8_t> reply) { m_Replies.push_back(std::move(reply)); }
+    void ReplyRaw(std::vector<uint8_t> reply) { m_Replies.push_back({ std::move(reply), false }); }
 
-    nazg::Task<std::vector<uint8_t>> Request(std::vector<uint8_t> payload) override
+    // As HidTransport's worker does, a scripted report failing the protocol's reply check is
+    // dropped and the next one read; running out of them while dropping is the timeout.
+    nazg::Task<std::vector<uint8_t>> Request(std::vector<uint8_t> payload, nazg::ReplyCheck isReply = {}) override
     {
         m_Requests.push_back(payload);
 
         if (m_Replies.empty())
             throw nazg::HidTransportError("FakeDeviceChannel: no reply scripted for this request");
 
-        std::vector<uint8_t> reply = std::move(m_Replies.front());
-        m_Replies.pop_front();
+        while (!m_Replies.empty())
+        {
+            Scripted scripted = std::move(m_Replies.front());
+            m_Replies.pop_front();
 
-        co_return reply;
+            std::vector<uint8_t> reply = scripted.echo ? payload : std::move(scripted.bytes);
+            if (scripted.echo)
+                reply.resize(via::c_ReportSize, 0x00);
+
+            if (!isReply || isReply(reply))
+                co_return reply;
+
+            ++m_Dropped;
+        }
+
+        throw nazg::HidTransportError("FakeDeviceChannel: no scripted report was the reply -- the device did not answer");
     }
+
+    // Reports read past because they were not the reply, over every request so far.
+    size_t DroppedCount() const noexcept { return m_Dropped; }
 
     const std::vector<std::vector<uint8_t>>& Requests() const noexcept { return m_Requests; }
 
@@ -56,6 +77,13 @@ public:
     const std::vector<uint8_t>& RequestAt(size_t index) const { return m_Requests.at(index); }
 
 private:
-    std::deque<std::vector<uint8_t>>  m_Replies;
+    struct Scripted
+    {
+        std::vector<uint8_t> bytes;
+        bool                 echo = false;   // the request itself, not `bytes`
+    };
+
+    std::deque<Scripted>              m_Replies;
     std::vector<std::vector<uint8_t>> m_Requests;
+    size_t                            m_Dropped = 0;
 };

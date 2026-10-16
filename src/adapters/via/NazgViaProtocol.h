@@ -195,11 +195,28 @@ namespace nazg::via
         // Builds the 32-byte frame, sends it, and verifies the reply echoes the command
         // id. Shared with the Vial branch, which needs the framing but checks its
         // replies differently -- Vial overwrites the buffer from byte 0.
+        //
+        // A report that does not echo the request is not the reply: the channel reads past
+        // it (a Keychron board's layer report, sent on every layer change) and times out if
+        // the reply never comes. What the firmware echoes is in ReplyTo().
         [[nodiscard]] Task<std::vector<uint8_t>> Send(Command command, std::initializer_list<uint8_t> arguments);
 
         // The same, for a frame built whole -- one carrying data, as a buffer write does.
-        // `hasArguments` names the sub-id in the error when the firmware refuses it.
-        [[nodiscard]] Task<std::vector<uint8_t>> SendFrame(std::vector<uint8_t> frame, bool hasArguments);
+        // `hasArguments` names the sub-id in the error when the firmware refuses it;
+        // `echoed` is how many leading bytes the firmware leaves as sent, the command id
+        // included -- EchoedBytes() for every command but the custom values, whose address
+        // is one byte longer with a channel.
+        [[nodiscard]] Task<std::vector<uint8_t>> SendFrame(std::vector<uint8_t> frame, bool hasArguments,
+                                                           size_t echoed);
+
+        // How many leading bytes of a request for this command its reply keeps: the command id,
+        // then the address the firmware reads and writes past -- via-vial-commands.md, "VIA --
+        // command set". 1 for the custom values, which depend on the channel.
+        [[nodiscard]] static size_t EchoedBytes(Command command) noexcept;
+
+        // The channel's check that a report is the reply to `frame`: its first `echoed` bytes as
+        // sent, or 0xFF in byte 0 -- a refusal, whatever follows it.
+        [[nodiscard]] static ReplyCheck ReplyTo(const std::vector<uint8_t>& frame, size_t echoed);
 
         static std::vector<uint8_t> MakeFrame(uint8_t command, std::initializer_list<uint8_t> arguments);
 

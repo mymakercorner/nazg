@@ -215,7 +215,7 @@ namespace
 
         FakeDeviceChannel channel;
         for (int i = 0; i < 3; ++i)
-            channel.Reply({ 0x0F });
+            channel.ReplyEcho();
         via::Protocol via(channel);
         Run(via.WriteMacros(stored, wanted, 1000));
 
@@ -236,7 +236,7 @@ namespace
 
         FakeDeviceChannel big;
         for (int i = 0; i < 5; ++i)
-            big.Reply({ 0x0F });
+            big.ReplyEcho();
         via::Protocol via3(big);
         Run(via3.WriteMacros({}, std::vector<uint8_t>(40, 'q'), 1000));
         Check(big.RequestCount() == 4 && big.RequestAt(1)[3] == 28 && big.RequestAt(2)[3] == 12,

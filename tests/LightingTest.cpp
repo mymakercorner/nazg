@@ -190,26 +190,26 @@ namespace
 
         LightingValues values = read;
         values.brightness     = 128;
-        channel.Reply({ 0x07 });
+        channel.ReplyEcho();
         Run(via::WriteLighting(via, target, LightingLine::Brightness, values));
         Check(Starts(channel.Requests().back(), { 0x07, 2, 1, 128 }), "set brightness: [0x07][2][1][value]");
 
         values.on = false;
-        channel.Reply({ 0x07 });
+        channel.ReplyEcho();
         Run(via::WriteLighting(via, target, LightingLine::On, values));
         Check(Starts(channel.Requests().back(), { 0x07, 2, 2, 0 }), "off: effect 0");
 
         values.on     = true;
         values.effect = 9;
-        channel.Reply({ 0x07 });
+        channel.ReplyEcho();
         Run(via::WriteLighting(via, target, LightingLine::Effect, values));
         Check(Starts(channel.Requests().back(), { 0x07, 2, 2, 9 }), "an effect, once");
 
-        channel.Reply({ 0x07 });
+        channel.ReplyEcho();
         Run(via::WriteLighting(via, target, LightingLine::Colour, values));
         Check(Starts(channel.Requests().back(), { 0x07, 2, 4, 170, 255 }), "colour: hue then saturation");
 
-        channel.Reply({ 0x09 });
+        channel.ReplyEcho();
         Run(via::SaveLighting(via, target));
         Check(Starts(channel.Requests().back(), { 0x09, 2 }), "save: [0x09][channel]");
 
@@ -247,25 +247,25 @@ namespace
         LightingValues values = read;
         values.on             = true;
         values.effect         = 6;
-        channel.Reply({ 0x07 });
-        channel.Reply({ 0x07 });
+        channel.ReplyEcho();
+        channel.ReplyEcho();
         Run(via::WriteLighting(via, underglow, LightingLine::Effect, values));
         Check(channel.RequestCount() == 6 && Starts(channel.RequestAt(4), { 0x07, 0x81, 6 }) &&
                   Starts(channel.RequestAt(5), { 0x07, 0x81, 6 }),
               "an effect twice: the first only turns on a light that was off");
 
         values.on = false;
-        channel.Reply({ 0x07 });
+        channel.ReplyEcho();
         Run(via::WriteLighting(via, underglow, LightingLine::On, values));
         Check(channel.RequestCount() == 7 && Starts(channel.Requests().back(), { 0x07, 0x81, 0 }), "off: effect 0, once");
 
         const LightingTarget backlight{ LightingKind::Backlight, LightingWire::Legacy };
         values.brightness = 170;
-        channel.Reply({ 0x07 });
+        channel.ReplyEcho();
         Run(via::WriteLighting(via, backlight, LightingLine::Brightness, values));
         Check(Starts(channel.Requests().back(), { 0x07, 0x09, 170 }), "the backlight's brightness: id 0x09");
 
-        channel.Reply({ 0x09 });
+        channel.ReplyEcho();
         Run(via::SaveLighting(via, backlight));
         Check(Starts(channel.Requests().back(), { 0x09 }), "save: [0x09], no channel");
     }
@@ -301,7 +301,7 @@ namespace
 
         LightingValues values = read;
         values.on             = false;
-        channel.Reply({ 0x07 });
+        channel.ReplyEcho();
         Run(via::WriteLighting(via, target, LightingLine::On, values, 200));
         Check(Starts(channel.Requests().back(), { 0x07, 0x41, 0, 0, 128, 10, 255, 100 }),
               "off: effect 0, the rest kept, brightness back on its scale");

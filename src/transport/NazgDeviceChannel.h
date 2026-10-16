@@ -33,8 +33,11 @@ namespace nazg
 
         // Write one report, wait for one back. Throws HidTransportError if the device
         // is gone or does not answer. What counts as a valid reply is the protocol
-        // layer's business, not the channel's -- this moves bytes and nothing else.
-        virtual Task<std::vector<uint8_t>> Request(std::vector<uint8_t> payload) = 0;
+        // layer's business, not the channel's -- this moves bytes and nothing else. The
+        // protocol says it through isReply: reports failing it are read past and dropped,
+        // as HidTransport::Request() does; without it the first report is the reply.
+        // Every override repeats the default, so a call through either type means the same.
+        virtual Task<std::vector<uint8_t>> Request(std::vector<uint8_t> payload, ReplyCheck isReply = {}) = 0;
     };
 
     // The real channel: a device opened through HidTransport, and closed when the channel goes
@@ -56,7 +59,7 @@ namespace nazg
         HidDeviceChannel& operator=(HidDeviceChannel&& other) noexcept;   // closes this one's device first
         ~HidDeviceChannel() override;
 
-        Task<std::vector<uint8_t>> Request(std::vector<uint8_t> payload) override;
+        Task<std::vector<uint8_t>> Request(std::vector<uint8_t> payload, ReplyCheck isReply = {}) override;
 
     private:
         HidDeviceChannel(HidTransport& transport, DeviceId device, uint32_t timeoutMs) noexcept

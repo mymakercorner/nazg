@@ -13,6 +13,9 @@
 //   - the stale-report drain in ExecuteOpen(), which needs a device with something
 //     already queued. It was found and fixed against real hardware: a leftover reply
 //     from a previous session shifted every later reply by one command
+//   - the reply check: a report failing it dropped and the reading carried on to the
+//     deadline. The protocol's checks are tested over FakeDeviceChannel, which drops
+//     the same way (UnsolicitedReportTest.cpp)
 // Both paths exist in ExecuteRequest(); verifying them needs either hardware or a
 // substitutable device layer, which the transport deliberately does not have.
 //

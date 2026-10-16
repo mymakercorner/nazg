@@ -82,7 +82,8 @@ The layer report is the dangerous one. It goes out whenever a key changes the la
 arrive between a request and its reply, and it will be read as the reply. Discarding what is
 waiting before each request (via-vial-commands.md, "Stale reports") does not cover it. A client
 must check that byte 0 of a reply matches the request and **keep reading past a report that
-does not match**, rather than fail. The Launcher depends on these reports to follow the layer.
+does not match**, rather than fail -- Nazg does since 2026-10-16 ("Implications", point 2). The
+Launcher depends on these reports to follow the layer.
 
 ### Commands a client must never send
 
@@ -473,12 +474,15 @@ rest, `0x02` bottom), `[3]` the state (0 off, 1 power-up, 2 rest, 3 bottom, 4 st
    and `0xA9 0x10` for the profile geometry. Each section appears only when its bit says the
    feature is there, so a stock VIA board looks exactly as it does now.
 
-2. **Read past unsolicited reports.** `NazgViaProtocol` throws when byte 0 of a reply does not
-   match the request. On a `2025q3` Keychron board, a layer key held while Nazg is reading (the
-   matrix live test, a load) would make that throw. The fix is the same for VIA and Keychron
-   commands: keep reading until the timeout and drop a report that does not match, perhaps
-   using the layer report on the way. Not met yet: the K10 HE runs older code, and the Q6's
-   build is unknown.
+2. **Read past unsolicited reports -- done (2026-10-16).** A request carries a reply check
+   from the protocol (`ReplyCheck`, `transport/NazgHidTransport.h`); the transport keeps reading
+   until a report passes it or the timeout runs out, and drops the rest. VIA's check is the
+   request's first bytes echoed -- the command id, then the address the firmware keeps (value
+   id, layer/row/column, offset and size, channel and value id, the paged matrix's first row)
+   -- or `0xFF` in byte 0; Vial's `0xFE` commands get none, their reply overwriting byte 0. A
+   Keychron command will supply its own. Using the layer report on the way waits for a feature
+   that wants it, and a reader that keeps the device open. Not met on a board yet: the K10 HE
+   runs older code, and the Q6's build is unknown.
 
 3. **"Written at once" means a save after each change.** Nazg writes settings as they are
    changed. Here a write lands in RAM, so each one needs `AMC_SAVE_PROFILE` (or `RGB_SAVE`,

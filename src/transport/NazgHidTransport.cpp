@@ -4,6 +4,7 @@
 #include "NazgHidTransport.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cstdio>
 #include <utility>
 
@@ -166,13 +167,15 @@ namespace nazg
 
     HidTransport::RequestAwaitable HidTransport::Request(DeviceId             device,
                                                          std::vector<uint8_t> payload,
-                                                         uint32_t             timeoutMs)
+                                                         uint32_t             timeoutMs,
+                                                         ReplyCheck           isReply)
     {
         auto operation       = std::make_shared<Operation>();
         operation->kind      = OperationKind::Request;
         operation->device    = device;
         operation->payload   = std::move(payload);
         operation->timeoutMs = timeoutMs;
+        operation->isReply   = std::move(isReply);
 
         return RequestAwaitable(*this, std::move(operation));
     }
@@ -347,11 +350,20 @@ namespace nazg
             return;
         }
 
+        // A deadline rather than a count of empty reads: a report dropped by the check below
+        // takes time too, and a board streaming them must not stretch the wait forever.
+        using Clock = std::chrono::steady_clock;
+        const Clock::time_point deadline = Clock::now() + std::chrono::milliseconds(operation.timeoutMs);
+
         unsigned char buffer[c_MaxReportSize];
-        uint32_t      remaining = operation.timeoutMs;
+        int           dropped = 0;
 
         for (;;)
         {
+            const Clock::time_point now       = Clock::now();
+            const uint32_t          remaining = now < deadline
+                ? static_cast<uint32_t>(std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now).count())
+                : 0;
             const uint32_t slice     = std::min(remaining, c_ReadSliceMs);
             const int      bytesRead = hid_read_timeout(device, buffer, sizeof(buffer),
                                                         static_cast<int>(slice));
@@ -365,17 +377,22 @@ namespace nazg
             if (bytesRead > 0)
             {
                 operation.reply.assign(buffer, buffer + bytesRead);
-                return;
+                if (!operation.isReply || operation.isReply(operation.reply))
+                    return;
+
+                // Not the reply -- a report nobody asked for, arrived while waiting. Dropped.
+                operation.reply.clear();
+                ++dropped;
             }
 
-            remaining -= slice;
-
             // A zero timeout polls once and gives up, which falls out of the order
-            // here: slice is 0, so remaining is still 0 on this first pass.
-            if (remaining == 0)
+            // here: the deadline has passed by the time this first pass gets here.
+            if (Clock::now() >= deadline)
             {
                 operation.error = "device did not answer within " +
                                   std::to_string(operation.timeoutMs) + " ms";
+                if (dropped > 0)
+                    operation.error += " (" + std::to_string(dropped) + " report(s) that were not the reply dropped)";
                 return;
             }
 

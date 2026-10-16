@@ -86,15 +86,15 @@ namespace
         FakeDeviceChannel channel;
         via::Protocol     via(channel);
 
-        channel.Reply({ 0x07 });
-        channel.Reply({ 0x09 });
+        channel.ReplyEcho();
+        channel.ReplyEcho();
         Run(via::WriteAudio(via, via::AudioSetting::Clicky, true));
         Check(channel.Requests().size() == 2 && Starts(channel.RequestAt(0), { 0x07, 4, 2, 1 }),
               "set: [0x07][4][2 clicky][1]");
         Check(channel.Requests().size() == 2 && Starts(channel.RequestAt(1), { 0x09, 4 }), "then stored: [0x09][4]");
 
-        channel.Reply({ 0x07 });
-        channel.Reply({ 0x09 });
+        channel.ReplyEcho();
+        channel.ReplyEcho();
         Run(via::WriteAudio(via, via::AudioSetting::On, false));
         Check(channel.Requests().size() == 4 && Starts(channel.RequestAt(2), { 0x07, 4, 1, 0 }), "audio off: [0x07][4][1][0]");
     }
@@ -106,8 +106,8 @@ namespace
         FakeDeviceChannel channel;
         via::Protocol     via(channel);
 
-        channel.Reply({ 0x03 });
-        channel.Reply({ 0x03 });
+        channel.ReplyEcho();
+        channel.ReplyEcho();
         Run(via::PlayIndication(via));
         Check(channel.Requests().size() == 2 && Starts(channel.RequestAt(0), { 0x03, 0x05 }) &&
                   Starts(channel.RequestAt(1), { 0x03, 0x05, 1 }),

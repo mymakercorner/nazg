@@ -85,18 +85,29 @@ namespace
         Check(Throws([&] { Run(via.GetProtocolVersion()); }), "0xFF becomes a ProtocolError");
     }
 
-    void TestMismatchedReplyThrows()
+    // A report for a different command is not the reply: the channel reads past it, and with
+    // nothing after it the request times out. UnsolicitedReportTest.cpp has the rest.
+    void TestMismatchedReplyIsReadPast()
     {
         std::printf("mismatched reply\n");
 
         FakeDeviceChannel channel;
         via::Protocol     via(channel);
 
-        // Answering a different command than the one asked means the request and reply
-        // streams have drifted apart -- worse than a refusal, and worth its own message.
         channel.Reply({ 0x04, 0x00, 0x0C });
 
-        Check(Throws([&] { Run(via.GetProtocolVersion()); }), "a reply for another command is rejected");
+        bool timedOut = false;
+        try
+        {
+            Run(via.GetProtocolVersion());
+        }
+        catch (const nazg::HidTransportError&)
+        {
+            timedOut = true;
+        }
+
+        Check(timedOut, "a reply for another command is read past, and the request times out");
+        Check(channel.DroppedCount() == 1, "the report was dropped, not taken for the reply");
     }
 
     void TestShortReplyThrows()
@@ -218,7 +229,7 @@ namespace
         const std::vector<uint8_t>& request = channel.RequestAt(0);
         Check(request[1] == 1 && request[2] == 2 && request[3] == 3, "layer, row and column are sent in order");
 
-        channel.Reply({ 0x05 });
+        channel.ReplyEcho();
         Run(via.SetKeycode(4, 5, 6, 0x1234));
 
         const std::vector<uint8_t>& write = channel.RequestAt(1);
@@ -249,11 +260,12 @@ namespace
         via::Protocol     via(channel);
 
         // Three chunks for 60 bytes: 28 + 28 + 4. Each reply is filled with its own
-        // marker byte so the reassembly order is observable.
+        // marker byte so the reassembly order is observable. The firmware echoes each
+        // chunk's offset and size.
         for (uint8_t marker = 1; marker <= 3; ++marker)
         {
-            std::vector<uint8_t> reply(4, 0x00);
-            reply[0] = 0x12;
+            std::vector<uint8_t> reply = { 0x12, 0x00, static_cast<uint8_t>((marker - 1) * 28),
+                                           static_cast<uint8_t>(marker < 3 ? 28 : 4) };
             reply.insert(reply.end(), 28, marker);
             channel.Reply(reply);
         }
@@ -283,8 +295,7 @@ namespace
         FakeDeviceChannel channel;
         via::Protocol     via(channel);
 
-        std::vector<uint8_t> reply(4, 0x00);
-        reply[0] = 0x12;
+        std::vector<uint8_t> reply = { 0x12, 0x01, 0x40, 4 };   // offset and size echoed
         reply.insert(reply.end(), 28, 0xAB);
         channel.Reply(reply);
 
@@ -341,7 +352,7 @@ namespace
             FakeDeviceChannel channel;
             via::Protocol     via(channel);
 
-            channel.Reply({ 0x05 });                              // set: echoed
+            channel.ReplyEcho();                              // set: echoed
             channel.Reply({ 0x04, 2, 3, 4, 0x7C, 0x42 });         // get: HF_TOGG
 
             const nazg::Keycode stored =
@@ -364,7 +375,7 @@ namespace
             FakeDeviceChannel channel;
             via::Protocol     via(channel);
 
-            channel.Reply({ 0x05 });
+            channel.ReplyEcho();
             channel.Reply({ 0x04, 0, 0, 0, 0x00, 0x00 });
 
             const nazg::Keycode stored =
@@ -400,7 +411,7 @@ int main()
 
     TestProtocolVersion();
     TestUnhandledCommandThrows();
-    TestMismatchedReplyThrows();
+    TestMismatchedReplyIsReadPast();
     TestShortReplyThrows();
     TestKeyboardValue();
     TestSwitchMatrixPaged();

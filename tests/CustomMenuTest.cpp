@@ -289,16 +289,16 @@ namespace
         channel.Reply({ 0x08, 0, 26, '1', '.', '6', 0 });
         Check(via::TextOf(Run(via::ReadCustomValue(via, firmware))) == "1.6", "a bound label's text");
 
-        channel.Reply({ 0x07 });
+        channel.ReplyEcho();
         Run(via::WriteCustomValue(via, output, { 0x00, 0x04 }));
         Check(Starts(channel.Requests().back(), { 0x07, 11, 3, 0, 0, 0x00, 0x04 }),
               "set [0x07][channel][value id][extra][value]");
 
-        channel.Reply({ 0x07 });
+        channel.ReplyEcho();
         Run(via::WriteCustomValue(via, button, button.on));
         Check(Starts(channel.Requests().back(), { 0x07, 0, 4, 0 }), "a button sends its value");
 
-        channel.Reply({ 0x09 });
+        channel.ReplyEcho();
         Run(via.SaveCustomValues(11));
         Check(Starts(channel.Requests().back(), { 0x09, 11 }), "save [0x09][channel]");
 

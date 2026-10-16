@@ -35,6 +35,9 @@ namespace nazg::vial
 
         const std::vector<uint8_t> sent = frame;
 
+        // No reply check: Vial overwrites the buffer from byte 0, so a reply's first bytes are
+        // data -- a definition page can start with anything -- and nothing in it tells a report
+        // nobody asked for from the reply. Vial firmware sends none, so the first report is it.
         std::vector<uint8_t> reply = co_await m_Channel.Request(std::move(frame));
 
         if (reply.size() < via::c_ReportSize)

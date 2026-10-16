@@ -55,18 +55,57 @@ namespace nazg::via
         return frame;
     }
 
-    Task<std::vector<uint8_t>> Protocol::Send(Command command, std::initializer_list<uint8_t> arguments)
+    size_t Protocol::EchoedBytes(Command command) noexcept
     {
-        co_return co_await SendFrame(MakeFrame(static_cast<uint8_t>(command), arguments), arguments.size() > 0);
+        switch (command)
+        {
+        case Command::GetKeyboardValue:
+        case Command::SetKeyboardValue:
+            return 2;   // the value id; Keychron's own matrix reply keeps it too (send_analog_matrix())
+        case Command::DynamicKeymapGetKeycode:
+        case Command::DynamicKeymapSetKeycode:
+        case Command::DynamicKeymapGetEncoder:
+        case Command::DynamicKeymapSetEncoder:
+            return 4;   // layer, row and column, or layer, index and direction
+        case Command::MacroGetBuffer:
+        case Command::MacroSetBuffer:
+        case Command::DynamicKeymapGetBuffer:
+        case Command::DynamicKeymapSetBuffer:
+            return 4;   // offset and size
+        default:
+            return 1;
+        }
     }
 
-    Task<std::vector<uint8_t>> Protocol::SendFrame(std::vector<uint8_t> frame, bool hasArguments)
+    ReplyCheck Protocol::ReplyTo(const std::vector<uint8_t>& frame, size_t echoed)
+    {
+        std::vector<uint8_t> sent(frame.begin(), frame.begin() + std::min(echoed, frame.size()));
+
+        return [sent = std::move(sent)](const std::vector<uint8_t>& report) {
+            // Too short to judge, and no firmware's report is: let the caller say so. A refusal
+            // is the reply whatever follows its 0xFF -- QMK leaves the rest as sent, but nothing
+            // promises a vendor's code does, and no report nobody asked for starts with it.
+            if (report.size() < c_ReportSize || report[0] == static_cast<uint8_t>(Command::Unhandled))
+                return true;
+
+            return std::equal(sent.begin(), sent.end(), report.begin());
+        };
+    }
+
+    Task<std::vector<uint8_t>> Protocol::Send(Command command, std::initializer_list<uint8_t> arguments)
+    {
+        co_return co_await SendFrame(MakeFrame(static_cast<uint8_t>(command), arguments), arguments.size() > 0,
+                                     EchoedBytes(command));
+    }
+
+    Task<std::vector<uint8_t>> Protocol::SendFrame(std::vector<uint8_t> frame, bool hasArguments, size_t echoed)
     {
         const uint8_t commandId = frame[0];
         const Command command   = static_cast<Command>(commandId);
         const uint8_t subId     = frame[1];
 
-        std::vector<uint8_t> reply = co_await m_Channel.Request(std::move(frame));
+        ReplyCheck           isReply = ReplyTo(frame, echoed);
+        std::vector<uint8_t> reply   = co_await m_Channel.Request(std::move(frame), std::move(isReply));
 
         if (reply.size() < c_ReportSize)
             throw ProtocolError("short reply to command " + Hex(commandId) + ": " +
@@ -85,15 +124,15 @@ namespace nazg::via
             throw ProtocolError(what + " is not supported by this firmware");
         }
 
-        if (reply[0] != commandId)
-            throw ProtocolError("reply " + Hex(reply[0]) + " does not match command " + Hex(commandId));
-
+        // A reply for another command never gets here: the channel read past it.
         co_return reply;
     }
 
     Task<bool> Protocol::Supports(Command command, std::initializer_list<uint8_t> arguments)
     {
-        std::vector<uint8_t> reply = co_await m_Channel.Request(MakeFrame(static_cast<uint8_t>(command), arguments));
+        std::vector<uint8_t> frame   = MakeFrame(static_cast<uint8_t>(command), arguments);
+        ReplyCheck           isReply = ReplyTo(frame, EchoedBytes(command));
+        std::vector<uint8_t> reply   = co_await m_Channel.Request(std::move(frame), std::move(isReply));
 
         co_return reply.size() >= c_ReportSize &&
                   reply[0] == static_cast<uint8_t>(command);
@@ -142,7 +181,11 @@ namespace nazg::via
         const uint8_t rowsPerReply = static_cast<uint8_t>(std::max<size_t>(1, c_BufferChunk / rowBytes));
         for (uint8_t first = 0; first < rows; first = static_cast<uint8_t>(first + rowsPerReply))
         {
-            std::vector<uint8_t> reply = co_await Send(Command::GetKeyboardValue, { id, first });
+            // The first row is echoed too, Keychron's own reply included (send_analog_matrix()):
+            // a late second answer for another page is not taken for this one.
+            std::vector<uint8_t> reply = co_await SendFrame(MakeFrame(static_cast<uint8_t>(Command::GetKeyboardValue),
+                                                                      { id, first }),
+                                                            true, 3);
 
             const size_t count  = std::min<size_t>(rowsPerReply, rows - first);
             const size_t length = std::min(count * rowBytes, reply.size() - 3);
@@ -219,7 +262,7 @@ namespace nazg::via
                                                      static_cast<uint8_t>(position & 0xFF),
                                                      static_cast<uint8_t>(size) });
             std::copy(bytes.begin() + done, bytes.begin() + done + size, frame.begin() + 4);
-            co_await SendFrame(std::move(frame), true);
+            co_await SendFrame(std::move(frame), true, EchoedBytes(Command::MacroSetBuffer));
             done += size;
         }
     }
@@ -246,15 +289,17 @@ namespace nazg::via
     Task<std::vector<uint8_t>> Protocol::GetCustomValue(std::optional<uint8_t> channel, uint8_t valueId,
                                                         std::vector<uint8_t> arguments, size_t length)
     {
+        // The firmware writes the value after the address -- channel and value id, or the value id
+        // alone in the format before V3 -- and keeps the address.
+        const size_t               first = channel ? 3 : 2;
         const std::vector<uint8_t> reply = co_await SendFrame(CustomFrame(Command::CustomGetValue, channel, valueId, arguments),
-                                                              true);
-        const size_t first = channel ? 3 : 2;
+                                                              true, first);
         co_return std::vector<uint8_t>(reply.begin() + first, reply.begin() + std::min(reply.size(), first + length));
     }
 
     Task<void> Protocol::SetCustomValue(std::optional<uint8_t> channel, uint8_t valueId, const std::vector<uint8_t>& value)
     {
-        co_await SendFrame(CustomFrame(Command::CustomSetValue, channel, valueId, value), true);
+        co_await SendFrame(CustomFrame(Command::CustomSetValue, channel, valueId, value), true, channel ? 3 : 2);
     }
 
     Task<void> Protocol::SaveCustomValues(std::optional<uint8_t> channel)
@@ -263,7 +308,7 @@ namespace nazg::via
         frame[0] = static_cast<uint8_t>(Command::CustomSave);
         if (channel)
             frame[1] = *channel;
-        co_await SendFrame(std::move(frame), channel.has_value());
+        co_await SendFrame(std::move(frame), channel.has_value(), channel ? 2 : 1);
     }
 
     Task<std::vector<uint8_t>> Protocol::ReadMacros(uint8_t count, uint16_t bufferSize)

@@ -24,12 +24,18 @@
 // while the protocols are single-outstanding (VIA) and one board is configured at a
 // time; revisit it if that stops being true.
 //
+// Reports nobody asked for are read past, not delivered. A request first discards whatever
+// is waiting -- a report nobody asked for, or a firmware's second answer to the last
+// request -- then keeps reading until a report passes the caller's ReplyCheck, dropping the
+// rest: a Keychron 2025q3 board sends [0xA3, default layer, highest layer] on every layer
+// change, which can arrive between a request and its reply. The protocol supplies the check,
+// so the pipe stays protocol-neutral; it is the hook a continuous reader would reuse, and
+// XAP's token comparison fits the same place.
+//
 // Left out deliberately:
-//   - Unsolicited reports (XAP broadcasts). Delivering them means continuously
-//     polling every open device, which is a different worker loop, and XAP is a
-//     later decision. Nothing in the API below has to change to add them. Until then
-//     a request first discards whatever is waiting -- a report nobody asked for, or a
-//     firmware's second answer to the last request -- so neither is taken for its reply.
+//   - Delivering unsolicited reports (Keychron's layer report, XAP broadcasts). It means
+//     continuously reading every open device, which is a different worker loop and a
+//     device kept open, so it waits for a feature that consumes them.
 //   - Report padding. The transport writes exactly the bytes it is handed, prefixed
 //     with the report ID byte hidapi expects. QMK's 32-byte RAW_EPSIZE frame is the
 //     protocol layer's business, not the pipe's.
@@ -44,6 +50,7 @@
 #include <coroutine>
 #include <cstdint>
 #include <deque>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <stdexcept>
@@ -89,6 +96,12 @@ namespace nazg
     // within a poll interval or two; a second is generous enough to mean "gone".
     inline constexpr uint32_t c_DefaultTimeoutMs = 1000;
 
+    // Is this report the reply to my request? Supplied by the protocol layer, which knows
+    // what its replies look like -- VIA's echo its command id -- and empty for "the first
+    // report is the reply". It runs on the worker thread, so it looks at the bytes and at
+    // what it captured by value, nothing else, and does not throw.
+    using ReplyCheck = std::function<bool(const std::vector<uint8_t>& report)>;
+
     class HidTransport
     {
     public:
@@ -114,13 +127,16 @@ namespace nazg
 
         // Write one report and wait for one back. The payload is sent as given; the
         // reply is whatever the device returned, with no framing added or removed.
+        // With an isReply check, reports that fail it are dropped and the reading goes on
+        // until one passes or the timeout runs out; without one, the first report is it.
         // Throws HidTransportError on a dead device, a timeout, or an unknown id.
         //
         // A failed request does NOT invalidate the device: the id stays usable, and
         // closing it stays the caller's job either way.
         [[nodiscard]] RequestAwaitable Request(DeviceId             device,
                                                std::vector<uint8_t> payload,
-                                               uint32_t             timeoutMs = c_DefaultTimeoutMs);
+                                               uint32_t             timeoutMs = c_DefaultTimeoutMs,
+                                               ReplyCheck           isReply   = {});
 
         // Close a device. Not awaitable on purpose: closing cannot meaningfully fail,
         // and it has to work from a destructor -- HidDeviceChannel's, which closes the
@@ -162,6 +178,7 @@ namespace nazg
             DeviceId             device    = c_InvalidDevice;      // Request, Close
             std::vector<uint8_t> payload;                          // Request
             uint32_t             timeoutMs = c_DefaultTimeoutMs;   // Request
+            ReplyCheck           isReply;                          // Request, may be empty
 
             std::vector<HidDeviceInfo> devices;                       // Enumerate
             DeviceId                   opened = c_InvalidDevice;      // Open

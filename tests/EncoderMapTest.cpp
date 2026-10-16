@@ -133,7 +133,7 @@ namespace
         {
             FakeDeviceChannel channel;
             vial::Protocol    protocol(channel);
-            channel.Reply({ 0x15 });
+            channel.ReplyEcho();
             channel.Reply({ 0x14, 2, 1, 1, 0x00, c_VolumeUp });
             const nazg::Keycode stored = Run(vial::WriteKnobTurn(protocol, false, 2, 1, true,
                                                                  qmk::DecodeKeycode(c_VolumeUp, c_Version), c_Version));

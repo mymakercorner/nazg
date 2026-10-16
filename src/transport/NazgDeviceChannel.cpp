@@ -38,8 +38,8 @@ namespace nazg
             m_Transport->Close(m_Device);
     }
 
-    Task<std::vector<uint8_t>> HidDeviceChannel::Request(std::vector<uint8_t> payload)
+    Task<std::vector<uint8_t>> HidDeviceChannel::Request(std::vector<uint8_t> payload, ReplyCheck isReply)
     {
-        co_return co_await m_Transport->Request(m_Device, std::move(payload), m_TimeoutMs);
+        co_return co_await m_Transport->Request(m_Device, std::move(payload), m_TimeoutMs, std::move(isReply));
     }
 }
