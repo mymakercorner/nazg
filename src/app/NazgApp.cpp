@@ -14,6 +14,7 @@
 #include "adapters/qmk/NazgQmkKeycodes.h"
 #include "app/NazgFonts.h"
 #include "board/NazgBoardLoad.h"
+#include "board/NazgDeviceList.h"
 #include "files/NazgFiles.h"
 #include "transport/NazgDeviceChannel.h"
 #include "ui/NazgDefinitionPicker.h"
@@ -38,6 +39,10 @@ namespace nazg
 
         // How long settings.json waits after the last change.
         constexpr double c_SettingsDelay = 1.0;
+
+        // How long the device list waits after a device came or went: one board brings several
+        // notifications, and its HID interfaces appear one by one.
+        constexpr double c_DevicesSettleDelay = 0.5;
 
         // Where an earlier build's imgui.ini may be: the data folder, then where Nazg was started,
         // which is where builds before the data folder kept it.
@@ -165,39 +170,53 @@ namespace nazg
     // co_await, the frame loop keeps rendering, and HidTransport::Pump() resumes it on the main
     // thread once the worker has the result.
     //
-    // The list shows as soon as it is enumerated; each keyboard is then asked which protocol it
-    // speaks, one Vial probe each -- harmless on a VIA board, which answers 0xFF. Nothing opens a
-    // board until they have all answered: a second handle on the same device gets a copy of every
-    // reply meant for the first -- HID delivers input reports to each open handle -- and the
-    // transport discards such leftovers only when it opens a device.
+    // The list shows as soon as it is enumerated; each keyboard not listed before is then asked
+    // which protocol it speaks, one Vial probe each -- harmless on a VIA board, which answers
+    // 0xFF (board/NazgDeviceList.h). A second handle on a device gets a copy of every reply meant
+    // for the first -- HID delivers input reports to each open handle -- so nothing opens a board
+    // while it is asked, and the open board, listed before, never is. Read again whenever a
+    // device comes or goes: the open board's path gone, it is closed.
     Task<void> App::RefreshDeviceList()
     {
-        m_DeviceList.isLoading = true;
-        m_DeviceList.error.clear();
+        m_DeviceList.isLoading = m_DeviceList.devices.empty() && m_DeviceList.protocols.empty();
 
+        std::vector<HidDeviceInfo> devices;
+        std::string                error;
         try
         {
-            m_DeviceList.devices = co_await m_Transport.Enumerate();
+            devices = co_await m_Transport.Enumerate();
         }
         catch (const HidTransportError& failure)
         {
-            m_DeviceList.devices.clear();
-            m_DeviceList.error = failure.what();
+            error = failure.what();
             m_Platform.logError(std::string("enumeration failed: ") + failure.what());
         }
 
-        m_DeviceList.protocols.assign(m_DeviceList.devices.size(), std::string());
+        m_DeviceList.protocols = KeptProtocols(m_DeviceList.devices, m_DeviceList.protocols, devices);
+        m_DeviceList.devices   = std::move(devices);
+        m_DeviceList.error     = std::move(error);
         m_DeviceList.isLoading = false;
         m_DeviceList.isProbing = true;
 
+        const bool hasBoard = m_Board.isLoading || m_Board.keyboard.has_value() || m_Board.isChoosing;
+        if (hasBoard && !IsListed(m_DeviceList.devices, m_Board.path))
+            m_BoardUnplugged = true;
+        if (IsListed(m_DeviceList.devices, m_DeviceList.unpluggedPath))
+        {
+            m_DeviceList.unplugged.clear();
+            m_DeviceList.unpluggedPath.clear();
+        }
+
         for (size_t index = 0; index < m_DeviceList.devices.size(); ++index)
         {
-            if (!IsViaInterface(m_DeviceList.devices[index]))
+            const std::string path = m_DeviceList.devices[index].path;
+            if (!IsViaInterface(m_DeviceList.devices[index]) || !m_DeviceList.protocols[index].empty() ||
+                path == m_Board.path)
                 continue;
 
             try
             {
-                HidDeviceChannel channel = co_await HidDeviceChannel::Open(m_Transport, m_DeviceList.devices[index].path);
+                HidDeviceChannel channel = co_await HidDeviceChannel::Open(m_Transport, path);
                 vial::Protocol protocol(channel);
                 m_DeviceList.protocols[index] = (co_await protocol.Detect()) ? "Vial" : "VIA";
             }
@@ -319,6 +338,8 @@ namespace nazg
             return;
         }
 
+        m_DeviceList.unplugged.clear();
+        m_DeviceList.unpluggedPath.clear();
         m_LoadTask = LoadBoard(path, identity, std::move(candidates), std::move(chosen));
     }
 
@@ -330,6 +351,43 @@ namespace nazg
     bool App::IsBoardBusy() const
     {
         return IsLoadRunning() || (m_LockTask.IsValid() && !m_LockTask.IsDone()) || m_Board.IsWorking();
+    }
+
+    // Narrower than IsBoardBusy(): a request in flight, which the board's going ends with an error
+    // soon enough. An unlock waiting to poll again, or a live test between two readings, awaits
+    // nothing.
+    bool App::IsAwaitingBoard() const
+    {
+        return IsLoadRunning() || (m_LockTask.IsValid() && !m_LockTask.IsDone()) ||
+               (m_Board.unlock && m_Board.unlock->IsRequesting()) ||
+               std::any_of(m_Board.sections.begin(), m_Board.sections.end(),
+                           [](const auto& section) { return section->IsBusy(); });
+    }
+
+    // The board is gone, so the list comes back saying which one went -- whatever was being asked,
+    // Save or Discard included: nothing can be written to it any more.
+    void App::CloseUnpluggedBoard()
+    {
+        if (!m_BoardUnplugged || IsAwaitingBoard())
+            return;
+        m_BoardUnplugged = false;
+
+        std::string name = m_Board.keyboard ? m_Board.keyboard->Name() : m_Board.identity.product;
+        if (name.empty())
+            name = "The keyboard";
+        m_DeviceList.unplugged     = name + " was unplugged." +
+                                     (HasUnsaved() ? " The changes not written to it are lost." : "");
+        m_DeviceList.unpluggedPath = m_Board.path;
+
+        m_PendingLeave          = nullptr;
+        m_SavingBeforeLeave     = false;
+        m_DiscardingBeforeLeave = false;
+        m_Board                 = BoardState{};
+    }
+
+    void App::OnDevicesChanged()
+    {
+        m_DeviceList.changedAt = ImGui::GetTime();
     }
 
     bool App::HasUnsaved() const
@@ -475,6 +533,16 @@ namespace nazg
         // Whatever changed them last frame -- Settings, a splitter, the window, a section.
         KeepSettings(false);
 
+        // Devices came or went: listed again once they have stopped for a moment -- or, a listing
+        // still running, after it, since it may have missed the latest.
+        if (m_DeviceList.changedAt && ImGui::GetTime() - *m_DeviceList.changedAt >= c_DevicesSettleDelay &&
+            (!m_RefreshTask.IsValid() || m_RefreshTask.IsDone()))
+        {
+            m_DeviceList.changedAt.reset();
+            StartRefresh();
+        }
+        CloseUnpluggedBoard();
+
         // The matrix live test asks for every key of the board to be pressed, and they all type
         // into Nazg: with keyboard navigation on, an arrow then Space would click whatever has
         // focus, and Alt would open the menu bar. Off while the test runs.
@@ -594,12 +662,13 @@ namespace nazg
             for (size_t index = 0; index < m_DeviceList.devices.size(); ++index)
             {
                 const HidDeviceInfo& device = m_DeviceList.devices[index];
-                if (!IsViaInterface(device) || device.path == m_Board.path)
+                // Offered once it has said which protocol it speaks: never opened while it is asked.
+                const bool isAsked = index < m_DeviceList.protocols.size() && !m_DeviceList.protocols[index].empty();
+                if (!IsViaInterface(device) || device.path == m_Board.path || !isAsked)
                     continue;
                 others.push_back(index);
                 header.others.push_back({ device.product.empty() ? "(unnamed)" : device.product,
-                                          index < m_DeviceList.protocols.size() ? m_DeviceList.protocols[index]
-                                                                                : std::string() });
+                                          m_DeviceList.protocols[index] });
             }
 
             header.isBusy = isBusy;
@@ -659,13 +728,12 @@ namespace nazg
         if (action.exportDefinition)
             ExportBoardDefinition();
 
-        // Closes the board, and lists what is plugged in now.
+        // Closes the board; the list is kept current as devices come and go.
         if (action.allKeyboards && !isBusy)
             LeaveBoard([this]
             {
                 m_Board        = BoardState{};
                 m_ShowSettings = false;
-                StartRefresh();
             });
 
         // Quitting, once the board may be left.
@@ -980,13 +1048,12 @@ namespace nazg
             ColouredText(PanelColour::Error, "%s", m_DeviceList.error.c_str());
         if (!m_Board.error.empty())
             ColouredText(PanelColour::Error, "%s", m_Board.error.c_str());
+        if (!m_DeviceList.unplugged.empty())
+            ColouredText(PanelColour::Muted, "%s", m_DeviceList.unplugged.c_str());
 
-        const KeyboardListAction action =
-            DrawKeyboardList(m_DeviceList.devices, m_DeviceList.protocols, m_ShowAllHidDevices, m_DeviceList.isLoading,
-                             m_RefreshTask.IsDone(), !isBusy && m_RefreshTask.IsDone());
-
-        if (action.refresh)
-            StartRefresh();
+        const KeyboardListAction action = DrawKeyboardList(m_DeviceList.devices, m_DeviceList.protocols,
+                                                           m_ShowAllHidDevices, m_DeviceList.isLoading,
+                                                           !isBusy && m_RefreshTask.IsDone());
 
         if (action.open && !isBusy)
         {

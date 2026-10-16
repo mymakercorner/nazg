@@ -109,6 +109,10 @@ namespace nazg
         void OnImportChosen(std::vector<std::string> paths);
         void OnExportChosen(std::optional<std::string> path);
 
+        // A HID device came or went, as the shell heard it: the list is read again once they stop
+        // changing (ui-design.md, "Hotplug").
+        void OnDevicesChanged();
+
         // The window asked to close: unsaved changes are asked about first.
         void               RequestQuit() noexcept { m_QuitRequested = true; }
         [[nodiscard]] bool IsQuitConfirmed() const noexcept { return m_QuitConfirmed; }
@@ -120,8 +124,16 @@ namespace nazg
             std::vector<HidDeviceInfo> devices;
             std::vector<std::string>   protocols;   // parallel to devices, see DrawKeyboardList()
             std::string                error;
-            bool                       isLoading = false;   // enumerating
-            bool                       isProbing = false;   // asking each keyboard its protocol
+            bool                       isLoading = false;   // enumerating for the first time
+            bool                       isProbing = false;   // asking new keyboards their protocol
+
+            // When a device last came or went, until the list is read again.
+            std::optional<double> changedAt;
+
+            // The open board, unplugged and closed: said on the list until it is back or another
+            // board opens.
+            std::string unplugged;
+            std::string unpluggedPath;
         };
 
         // The VIA definitions bundled with Nazg, beside the executable, each read and inflated
@@ -193,6 +205,10 @@ namespace nazg
         [[nodiscard]] bool IsLoadRunning() const;
         [[nodiscard]] bool IsBoardBusy() const;
 
+        // The open board unplugged: closed once no reply from it is awaited.
+        [[nodiscard]] bool IsAwaitingBoard() const;
+        void               CloseUnpluggedBoard();
+
         // Leaving the board -- for another, the list, another definition, or quitting.
         [[nodiscard]] bool HasUnsaved() const;
         void               LeaveBoard(std::function<void()> leave);
@@ -254,6 +270,7 @@ namespace nazg
         bool                   m_ShowAllHidDevices = false;   // the keyboard list shows only keyboards unless asked
         bool                   m_ShowSettings      = false;   // Settings in place of the main area
         bool                   m_OpenLoneBoard     = true;    // until the first list is in
+        bool                   m_BoardUnplugged    = false;   // the open board's path is no longer listed
         std::optional<ThemeId> m_AppliedTheme;                // set when the theme changes
 
         // The settings as settings.json has them, as last seen, and when they last changed.

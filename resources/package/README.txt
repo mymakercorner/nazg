@@ -16,8 +16,8 @@ Unzip the folder anywhere and run nazg.exe. Nothing is installed.
 Windows 10 or 11, 64-bit. The build is not signed yet, so Windows may say "Windows protected
 your PC": click "More info", then "Run anyway".
 
-Plug your keyboard in before starting Nazg, or press Refresh in the keyboard list after
-plugging it in: Nazg does not notice a keyboard being plugged or unplugged yet.
+Nazg notices a keyboard being plugged in or unplugged: the keyboard list follows, and an open
+keyboard that is unplugged closes.
 
 
 What it knows about your keyboard

@@ -115,7 +115,6 @@ namespace nazg
                                         const std::vector<std::string>&   protocols,
                                         bool&                             showAllHidDevices,
                                         bool                              isListing,
-                                        bool                              canRefresh,
                                         bool                              canOpen)
     {
         KeyboardListAction action;
@@ -126,10 +125,9 @@ namespace nazg
         const float indent    = std::floor((available - width) / 2.0f);
         if (indent > 0.0f)
             ImGui::Indent(indent);
-        const float right = ImGui::GetCursorPosX() + width;
-        const auto  keyboards = std::count_if(devices.begin(), devices.end(), IsViaInterface);
+        const auto keyboards = std::count_if(devices.begin(), devices.end(), IsViaInterface);
 
-        // The heading, with the count once the list is known, and Refresh at the list's right edge.
+        // The heading, with the count once the list is known.
         ImGui::AlignTextToFramePadding();
         PushHeaderFont();
         if (isListing)
@@ -137,12 +135,6 @@ namespace nazg
         else
             ImGui::Text("Keyboards: %d", static_cast<int>(keyboards));
         ImGui::PopFont();
-
-        const char* refresh = "Refresh";
-        ImGui::SameLine(right - ImGui::CalcTextSize(refresh).x - 2 * ImGui::GetStyle().FramePadding.x);
-        ImGui::BeginDisabled(!canRefresh);
-        action.refresh = ImGui::Button(refresh);
-        ImGui::EndDisabled();
 
         if (isListing)
         {

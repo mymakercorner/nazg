@@ -4,7 +4,6 @@
 <text x="946" y="22" font-family="Arimo, Arial, Helvetica, sans-serif" font-size="12" fill="#5F5E5A" text-anchor="end" font-weight="400">Settings</text>
 <line x1="0" y1="34" x2="960" y2="34" stroke="#E2E0D8" stroke-width="1"/>
 <text x="160" y="64" font-family="Arimo, Arial, Helvetica, sans-serif" font-size="14" fill="#2C2C2A" text-anchor="start" font-weight="700">Keyboards: 3</text>
-<rect x="728" y="48" width="72" height="24" rx="6" fill="#FFFFFF" stroke="#C9C7BF" stroke-width="1"/><text x="764.0" y="64" font-family="Arimo, Arial, Helvetica, sans-serif" font-size="12" fill="#2C2C2A" text-anchor="middle" font-weight="400">Refresh</text>
 <rect x="160" y="82" width="640" height="112" rx="8" fill="#FFFFFF" stroke="#C9C7BF" stroke-width="1"/>
 <line x1="160" y1="110" x2="800" y2="110" stroke="#C9C7BF" stroke-width="1"/>
 <text x="172" y="100" font-family="Arimo, Arial, Helvetica, sans-serif" font-size="12" fill="#888780" text-anchor="start" font-weight="700">Product</text>

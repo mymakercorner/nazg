@@ -428,6 +428,11 @@ int main(int, char**)
 
         SDL_AddEventWatch(DrawDuringLiveResize, &drawFrame);
 
+        // A HID device came or went: SDL counts what the OS notices -- not which device, and it
+        // opens none. The first call starts SDL's own copy of hidapi, apart from Nazg's
+        // (ui-design.md, "Hotplug").
+        Uint32 deviceChanges = SDL_hid_device_change_count();
+
         bool done = false;
         while (!done)
         {
@@ -444,6 +449,12 @@ int main(int, char**)
             }
             TrackWindowPlace(pWindow, app.Settings().window);
 
+            if (const Uint32 changes = SDL_hid_device_change_count(); changes != deviceChanges)
+            {
+                deviceChanges = changes;
+                app.OnDevicesChanged();
+            }
+
             drawFrame(false);
             done = app.IsQuitConfirmed();
         }
@@ -459,6 +470,7 @@ int main(int, char**)
     SDL_ReleaseWindowFromGPUDevice(pGpuDevice, pWindow);
     SDL_DestroyGPUDevice(pGpuDevice);
     SDL_DestroyWindow(pWindow);
+    SDL_hid_exit();   // started by the change count
     SDL_Quit();
 
     return 0;

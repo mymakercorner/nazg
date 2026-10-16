@@ -50,6 +50,9 @@ namespace nazg
         [[nodiscard]] bool               IsUnlocked() const noexcept { return m_Stage == Stage::Unlocked; }
         [[nodiscard]] const std::string& Failure() const noexcept { return m_Failure; }
 
+        // A request in flight -- between two polls there is none.
+        [[nodiscard]] bool IsRequesting() const noexcept { return m_Request.IsValid() && !m_Request.IsDone(); }
+
     private:
         enum class Stage
         {
@@ -61,8 +64,6 @@ namespace nazg
 
         Task<void> Start();
         Task<void> Poll();
-
-        [[nodiscard]] bool IsRequesting() const noexcept { return m_Request.IsValid() && !m_Request.IsDone(); }
 
         HidTransport&                            m_Transport;
         std::string                              m_Path;

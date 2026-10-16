@@ -2166,13 +2166,50 @@ open board is unplugged, saying which one went.
 checkbox already behaves so. Turned on, keyboards stay on top with *Open*, and every other
 HID interface is listed under them, dimmed, with VID:PID, usage page and interface number,
 and cannot be opened. The technical columns exist only in that view. (The ids in the picture
-are illustrative.) **Refresh** stays on the list.
+are illustrative.) **No Refresh** (removed 2026-10-16): the list follows the devices as they
+come and go -- see "Hotplug" below.
 
 **Each list is framed** (Rico, 2026-10-09: with no visible limit the list was confusing): a
 rounded, outlined frame with a header row, its count in its heading -- "Keyboards: 2", "Other HID
 interfaces: 37" -- and at most 900 px wide, the column centred in the window. Each frame is as
 tall as its rows; the other interfaces' up to 24 of them and never past the window's bottom,
-then it scrolls inside, its header row staying, so Refresh and the checkbox never scroll away.
+then it scrolls inside, its header row staying, so the checkbox never scrolls away.
+
+### Hotplug
+
+Built 2026-10-16, when Refresh was removed; **tried against a real plug and unplug by Rico the
+same day, and it works**.
+Nazg notices a board plugged in or unplugged, on the list and with a board open alike -- the board
+menu's *Switch to* follows too.
+
+- **hidapi has no hotplug API**, pinned or released (checked 2026-09-26): 0.15.0 has none, nor
+  does upstream `master` (2026-08-14). It is being built on branches (`connection-callback`, the
+  `hotplug-*` ones) as `hid_hotplug_register_callback()` for **0.16.0**, unreleased, its callbacks
+  on hidapi's own thread.
+- **SDL3's change counter instead**, since Nazg links SDL anyway: `SDL_hid_device_change_count()`
+  (since 3.2.0) grows when a device may have come or gone -- not which one, and SDL opens none.
+  It is fed by the OS: `RegisterDeviceNotification` on a message-only window on Windows (any
+  device interface, so several ticks per board; SDL reads its messages itself when the counter
+  is read), IOKit notifications on macOS, udev or inotify on `/dev` on Linux; with none of them it
+  ticks every 3 s instead. The first call starts SDL's own copy of hidapi, compiled in under
+  other names, so it does not clash with Nazg's; `SDL_hid_exit()` ends it before `SDL_Quit()`. An
+  SDL call, so `Main.cpp` polls it every frame and tells `App` (`OnDevicesChanged()`).
+- **Listed again half a second after the last change**: one board brings several notifications
+  and its HID interfaces appear one by one. A change heard while a listing runs gets another
+  listing after it.
+- **Only paths not seen before are asked their protocol** (`board/NazgDeviceList.*`): every
+  other device keeps its answer, "no answer" included -- asked again once unplugged and back.
+  So the open board is never probed under a write, and a board not asked yet is not offered by
+  *Switch to* until it has answered.
+- **The open board's path gone**: the board is closed once no reply from it is awaited -- a
+  request in flight fails soon enough -- whatever was being asked, Save or Discard included,
+  since nothing can be written to it any more. The list comes back saying "*name* was
+  unplugged.", and "The changes not written to it are lost." when there were some; the line goes
+  when that board is listed again or another board opens. The same path gone and back within
+  one listing is not noticed: the board stays, and its next request says it failed.
+- **Open, Rico to decide**: a board that comes back -- replugged, or a reflash done -- is only
+  listed, not reopened; and a first board plugged in while the empty list shows is not opened
+  either, unlike the lone board at start.
 
 ## The matrix view
 
@@ -2318,8 +2355,8 @@ the `DB_TOGG` key). Vial is QMK underneath and sends the same. (QMK:
   devices" reveals.
 - **Surviving a reflash**: the console is for firmware work, so the board goes and comes
   back often. The log is kept, marked where the board left and returned, and the console is
-  reattached to the same board by itself — which needs hotplug events or, while the drawer is
-  open, re-listing devices about once a second (see "Open points").
+  reattached to the same board by itself — which the hotplug built 2026-10-16 provides
+  (see "Hotplug").
 - **Text that can be selected and copied** — what QMK Toolbox lacks. ImGui has no selectable
   text for free: lines are selected with its multi-select (click, shift-click, Ctrl+A),
   **Copy** takes the selection, **Save…** writes the log to a file. Also **Pause**, **Clear**,
@@ -2376,27 +2413,8 @@ look is built** (Rico, 2026-10-03): they are judged on the real thing, not on a 
   choice: a Shift-only hold shows the character it types ("!" for Shift+1), letters staying
   "Shift+A".
 - **Plugin delivery** — see "Plugins".
-- **Hotplug** -- checked 2026-09-26:
-  - **hidapi has none, pinned or released.** 0.15.0 has no hotplug API, nor does upstream
-    `master` (2026-08-14). It is being built on branches (`connection-callback`, the
-    `hotplug-*` ones, active into September 2026) as `hid_hotplug_register_callback()` for
-    **0.16.0**, unreleased. Its callbacks arrive on hidapi's own thread.
-  - **SDL3 has a change counter, and Nazg already links SDL.** `SDL_hid_device_change_count()`
-    (since 3.2.0) returns a number that grows when a device may have come or gone -- not which
-    one. It is fed by the OS: `RegisterDeviceNotification` on a message-only window on Windows
-    (any device interface, so several ticks per board), IOKit notifications on macOS, udev or
-    inotify on `/dev` on Linux; with none of them it ticks every 3 s instead. Polling it every
-    frame costs nothing -- on Windows its messages arrive through `SDL_PollEvent()`. The first call
-    runs `SDL_hid_init()` on SDL's own copy of hidapi, compiled in under other names, so it
-    does not clash with Nazg's. An SDL call, so it stays in `Main.cpp`.
-  - **So: poll the counter, re-enumerate on change** -- after a short pause, since one board
-    brings several notifications and its HID interfaces appear one by one. Only paths not
-    seen before are probed for their protocol, so the open board is never probed under a
-    write. A board whose path has gone is closed, and the list says which one went. Not yet
-    tried against a real plug and unplug.
-  - **Deferred** (Rico, 2026-09-26): too soon. It becomes necessary the day the Refresh
-    button is removed, so it is built then. Until then an unplugged board is noticed by a
-    failed request and the list needs Refresh.
+- **Hotplug** -- built 2026-10-16, see "Hotplug" under "Getting back to the keyboard list"; what a
+  board coming back does is still to be decided there.
 - **Dragging the window jitters on a 60 Hz display** (Rico, 2026-10-06, on Windows; smooth at
   144 Hz, and Visual Studio or the Claude app stay smooth on the same screen). Found by bisecting:
   - **Not Nazg's code.** A bare SDL3 window with an SDL_GPU swapchain, presenting every frame,

@@ -4,6 +4,8 @@
 // KeyboardList - the screen shown when no board is open: the keyboards found, each with its
 // protocol and Open (ui-design.md, screen 1 and "Getting back to the keyboard list").
 //
+// No Refresh: App reads the list again whenever a device comes or goes.
+//
 // "Show all HID devices" lists every other HID interface under the keyboards, dimmed and not
 // openable, with the technical columns that exist only in that view. Its state is the
 // caller's, off at every start.
@@ -29,16 +31,14 @@ namespace nazg
     struct KeyboardListAction
     {
         std::optional<size_t> open;   // index into the devices
-        bool                  refresh = false;
     };
 
     // `protocols` runs parallel to `devices`: "Vial", "VIA", "no answer", or empty while the
-    // board has not been asked yet. `isListing` while enumerating; `canRefresh` once the
-    // boards have all been asked; `canOpen` is false while something still works on a board.
+    // board has not been asked yet. `isListing` until the first list is in; `canOpen` is false
+    // while something still works on a board, or a board is being asked.
     [[nodiscard]] KeyboardListAction DrawKeyboardList(const std::vector<HidDeviceInfo>& devices,
                                                       const std::vector<std::string>&   protocols,
                                                       bool&                             showAllHidDevices,
                                                       bool                              isListing,
-                                                      bool                              canRefresh,
                                                       bool                              canOpen);
 }

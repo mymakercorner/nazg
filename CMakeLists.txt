@@ -114,6 +114,8 @@ set(NAZG_CORE_SOURCES
   src/adapters/vial/NazgEncoderMap.cpp
   src/board/NazgBoardLoad.h
   src/board/NazgBoardLoad.cpp
+  src/board/NazgDeviceList.h
+  src/board/NazgDeviceList.cpp
   src/settings/NazgSettings.h
   src/settings/NazgSettings.cpp
   src/library/NazgDefinitionChoice.h
@@ -370,6 +372,7 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(matrix_description tests/MatrixDescriptionTest.cpp)
     nazg_add_test(via_loader         tests/ViaLoaderTest.cpp)
     nazg_add_test(board_load         tests/BoardLoadTest.cpp)
+    nazg_add_test(device_list        tests/DeviceListTest.cpp)
     nazg_add_test(via_bundle         tests/ViaBundleTest.cpp)
     nazg_add_test(definition_library tests/DefinitionLibraryTest.cpp)
     nazg_add_test(definition_choice  tests/DefinitionChoiceTest.cpp)

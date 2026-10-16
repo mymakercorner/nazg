@@ -154,9 +154,10 @@ already allow the boards, nothing of this appears.
 3. **Installing it** with **`pkexec`**, the desktop's way to run one command as root: the
    password dialog is the desktop's (GNOME, KDE...), and **Nazg never sees the password**.
    One `pkexec /bin/sh -c '...'`, so one prompt: the rule written with its text inside the
-   command (no temporary file to swap), then the reload and the trigger. Then Nazg refreshes
-   the list itself. Still refused: "unplug the keyboard and plug it back in, then Refresh"
-   (hotplug is not noticed yet). Dialog dismissed (exit code 126): nothing changes. No
+   command (no temporary file to swap), then the reload and the trigger. Then Nazg asks the
+   refused boards again itself. Still refused: "unplug the keyboard and plug it back in" --
+   a board that did not answer is asked again once it is back (ui-design.md, "Hotplug").
+   Dialog dismissed (exit code 126): nothing changes. No
    `pkexec`, or no polkit agent running (a bare window manager, a Flatpak): *Show the
    commands*. pkexec waits on the user, so it runs off the frame loop like a board request.
    The code is POSIX (`posix_spawn`, `access`), Linux only, no SDL -- `Main.cpp` keeps its
