@@ -1261,9 +1261,11 @@ int main(int, char**)
     // Leaving the board -- for another, the list, another definition, or quitting -- while a section
     // holds changes not written yet: the user is asked, Save, Discard or Cancel, and the leaving
     // waits in `pendingLeave` (ui-design.md, "The Macros section"). Saving first runs it once every
-    // write is done and nothing is left unsaved.
+    // write is done and nothing is left unsaved; discarding, once no section is working -- leaving
+    // drops the sections, and a running Task must never be destroyed.
     std::function<void()> pendingLeave;
-    bool                  savingBeforeLeave = false;
+    bool                  savingBeforeLeave     = false;
+    bool                  discardingBeforeLeave = false;
     bool                  quitRequested     = false;   // the window's close, heard by the event loop
     bool                  quitConfirmed     = false;   // and allowed
 
@@ -1279,8 +1281,9 @@ int main(int, char**)
             leave();
             return;
         }
-        pendingLeave      = std::move(leave);
-        savingBeforeLeave = false;
+        pendingLeave          = std::move(leave);
+        savingBeforeLeave     = false;
+        discardingBeforeLeave = false;
     };
 
     Library            library = OpenLibrary(dataFolder, dataFolderError);
@@ -1667,11 +1670,14 @@ int main(int, char**)
             if (pendingLeave)
             {
                 // Saving first: once the writes are done, leave -- unless one failed and left
-                // something unsaved, which is then asked about again.
-                if (savingBeforeLeave && !isBoardBusy())
+                // something unsaved, which is then asked about again. Discarding: once nothing
+                // works on the board -- the matrix view's live test may have a reading in flight.
+                if ((savingBeforeLeave || discardingBeforeLeave) && !isBoardBusy())
                 {
-                    savingBeforeLeave = false;
-                    if (!hasUnsaved())
+                    const bool discarding = discardingBeforeLeave;
+                    savingBeforeLeave     = false;
+                    discardingBeforeLeave = false;
+                    if (discarding || !hasUnsaved())
                     {
                         std::function<void()> leave = std::move(pendingLeave);
                         pendingLeave                = nullptr;
@@ -1689,7 +1695,7 @@ int main(int, char**)
                         what += (what.empty() ? "" : "; ") + std::string(section->Name()) + ": " + section->UnsavedSummary();
                 ImGui::TextWrapped("Changes not written to the board yet -- %s. Write them before leaving?", what.c_str());
 
-                ImGui::BeginDisabled(savingBeforeLeave);
+                ImGui::BeginDisabled(savingBeforeLeave || discardingBeforeLeave);
                 if (ImGui::Button("Save"))
                 {
                     savingBeforeLeave = true;
@@ -1713,9 +1719,7 @@ int main(int, char**)
                 {
                     for (const auto& section : boardState.sections)
                         section->DiscardChanges();
-                    std::function<void()> leave = std::move(pendingLeave);
-                    pendingLeave                = nullptr;
-                    leave();
+                    discardingBeforeLeave = true;   // left above, once the board is idle
                 }
                 else if (cancel)
                 {
