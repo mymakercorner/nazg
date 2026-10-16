@@ -189,6 +189,8 @@ target_compile_options(nazg_core PUBLIC $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
 set(NAZG_SOURCES
   src/Main.cpp
   src/ui/NazgSection.h
+  src/ui/NazgSectionFactory.h
+  src/ui/NazgSectionFactory.cpp
   src/ui/NazgWorkspace.h
   src/ui/NazgWorkspace.cpp
   src/ui/NazgBoardView.h

@@ -27,22 +27,11 @@
 #include "library/NazgLibraryActions.h"
 #include "transport/NazgDeviceChannel.h"
 #include "transport/NazgHidTransport.h"
-#include "ui/NazgAltRepeatKeySection.h"
-#include "ui/NazgAudioSection.h"
-#include "ui/NazgLightingSection.h"
-#include "ui/NazgQmkSettingsSection.h"
 #include "ui/NazgBoardView.h"
-#include "ui/NazgCombosSection.h"
-#include "ui/NazgCustomMenuSection.h"
-#include "ui/NazgKeyOverridesSection.h"
 #include "ui/NazgDefinitionPicker.h"
 #include "ui/NazgKeyboardList.h"
-#include "ui/NazgKeymapSection.h"
-#include "ui/NazgLayoutSection.h"
-#include "ui/NazgMacrosSection.h"
 #include "ui/NazgMatrixView.h"
-#include "ui/NazgPlaceholderSection.h"
-#include "ui/NazgTapDanceSection.h"
+#include "ui/NazgSectionFactory.h"
 #include "ui/NazgSectionPlan.h"
 #include "ui/NazgSettingsScreen.h"
 #include "ui/NazgVialUnlock.h"
@@ -1577,54 +1566,20 @@ int main(int, char**)
                 else if (boardState.keyboard && !boardState.isLoading)
                 {
                     // The sections of a board just loaded: every one it should have, from what the
-                    // load read (ui/NazgSectionPlan.h) -- those built so far, the rest placeholders.
+                    // load read (ui/NazgSectionPlan.h), each made by ui/NazgSectionFactory.h.
                     if (boardState.sections.empty())
+                    {
+                        const nazg::SectionContext context{ transport,
+                                                            boardState.path,
+                                                            *boardState.keyboard,
+                                                            settings.legends,
+                                                            boardState.lock,
+                                                            settings.advancedTools,
+                                                            settings.moveToNextKey,
+                                                            settings.hostLayoutChosen };
                         for (nazg::PlannedSection& planned : nazg::PlanSections(*boardState.keyboard))
-                        {
-                            if (planned.kind == nazg::SectionKind::Keymap)
-                                boardState.sections.push_back(std::make_unique<nazg::KeymapSection>(
-                                    transport, boardState.path, *boardState.keyboard, settings.legends,
-                                    settings.moveToNextKey, settings.advancedTools));
-                            else if (planned.kind == nazg::SectionKind::Macros)
-                                boardState.sections.push_back(std::make_unique<nazg::MacrosSection>(
-                                    transport, boardState.path, *boardState.keyboard, settings.legends,
-                                    settings.hostLayoutChosen, boardState.lock, settings.advancedTools));
-                            else if (planned.kind == nazg::SectionKind::TapDance)
-                                boardState.sections.push_back(std::make_unique<nazg::TapDanceSection>(
-                                    transport, boardState.path, *boardState.keyboard, settings.legends, boardState.lock,
-                                    settings.advancedTools));
-                            else if (planned.kind == nazg::SectionKind::Combos)
-                                boardState.sections.push_back(std::make_unique<nazg::CombosSection>(
-                                    transport, boardState.path, *boardState.keyboard, settings.legends, boardState.lock,
-                                    settings.advancedTools));
-                            else if (planned.kind == nazg::SectionKind::KeyOverrides)
-                                boardState.sections.push_back(std::make_unique<nazg::KeyOverridesSection>(
-                                    transport, boardState.path, *boardState.keyboard, settings.legends, boardState.lock,
-                                    settings.advancedTools));
-                            else if (planned.kind == nazg::SectionKind::AltRepeatKey)
-                                boardState.sections.push_back(std::make_unique<nazg::AltRepeatKeySection>(
-                                    transport, boardState.path, *boardState.keyboard, settings.legends, boardState.lock,
-                                    settings.advancedTools));
-                            else if (planned.kind == nazg::SectionKind::QmkSettings)
-                                boardState.sections.push_back(std::make_unique<nazg::QmkSettingsSection>(
-                                    transport, boardState.path, *boardState.keyboard, settings.legends));
-                            else if (planned.kind == nazg::SectionKind::Lighting)
-                                boardState.sections.push_back(std::make_unique<nazg::LightingSection>(
-                                    transport, boardState.path, *boardState.keyboard, settings.legends));
-                            else if (planned.kind == nazg::SectionKind::Audio)
-                                boardState.sections.push_back(std::make_unique<nazg::AudioSection>(
-                                    transport, boardState.path, *boardState.keyboard, settings.legends));
-                            else if (planned.kind == nazg::SectionKind::CustomMenu)
-                                boardState.sections.push_back(std::make_unique<nazg::CustomMenuSection>(
-                                    transport, boardState.path, *boardState.keyboard, settings.legends,
-                                    settings.advancedTools, planned.customMenu));
-                            else if (planned.kind == nazg::SectionKind::Layout)
-                                boardState.sections.push_back(std::make_unique<nazg::LayoutSection>(
-                                    transport, boardState.path, *boardState.keyboard, settings.legends));
-                            else
-                                boardState.sections.push_back(
-                                    std::make_unique<nazg::PlaceholderSection>(std::move(planned)));
-                        }
+                            boardState.sections.push_back(nazg::MakeSection(std::move(planned), context));
+                    }
 
                     if (!boardState.exportMessage.empty())
                         nazg::ColouredText(nazg::PanelColour::Muted, "%s", boardState.exportMessage.c_str());
