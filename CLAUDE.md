@@ -17,6 +17,9 @@ exists, where, and how far it has been proven.
 - **Pipeline.** `Task<T>` coroutines, a hidapi transport (`transport/`), the VIA command set
   (`adapters/via`) with the Vial branch deriving from it (`adapters/vial`). Protocol code talks to
   a `DeviceChannel`, so it tests with scripted bytes; the tests are plain CTest executables in `tests/`.
+  Opening a board -- protocol, definition, keymap, report -- is `board/NazgBoardLoad.*`, tested
+  against a scripted board; the user's definition files (import, replace, export) are
+  `library/NazgLibraryActions.*`; paths and file reads are `files/NazgFiles.*`.
 - **Definitions.** One parser for both protocols (`adapters/via/NazgKeyboardDefinition.*`) --
   Vial's embedded document IS a VIA definition, inflated from XZ (`adapters/NazgXz.*`). Both
   forms: KLE source and VIA's converted `layouts.keys`. Layout options placed by `PlaceKeys()`
@@ -169,18 +172,29 @@ the document rather than working around it.
 # Architecture
 
 ```
-UI layer            renders from the capability model; knows nothing about protocols
+UI (ui/)            sections: each opens the board itself and talks to the protocol it was
+                    planned for; Main.cpp makes them (ui/NazgSectionFactory.*) and acts on clicks
     |
-Capability model    "this board has: <typed fields, widgets, groups>"
+Model (model/)      Keyboard + BoardReport: what the board is and has -- the capability model.
+                    PlanSections() (ui/NazgSectionPlan.*) turns it into the sections shown
     |
-Protocol layer      VIA  |  Vial  |  (XAP later)
+Board load          board/NazgBoardLoad.*: protocol detected, definition sourced, model filled
     |
-Transport           async request/response + unsolicited messages
+Protocol layer      nazg::via | nazg::vial (VIA's branch) | nazg::qmk keycodes | (Keychron, XAP later)
+    |
+Transport           transport/: the DeviceChannel seam -- HidDeviceChannel::Open(), or a
+                    scripted channel in tests -- over HidTransport's worker thread
 ```
 
-The capability model is the pivot — VIA V3 `menus`, Vial embedded definitions, custom
-descriptors and later XAP all feed in through the same path. Descriptor vocabulary is a
-superset of VIA V3 menus with ZMK-style typed parameters.
+**The capability model is the `Keyboard` and its `BoardReport`**: what a board has decides
+which sections it gets, and VIA V3 `menus` and Vial's embedded definition feed in through the
+same definition parser. **The UI is not protocol-free, and that is accepted** (Rico,
+2026-10-16): a section is a feature module that calls the adapters directly -- Combos speaks
+Vial's dynamic entries, Lighting VIA's custom values. A layer between sections and adapters
+would be structure without a second producer behind it; it gets designed when one exists
+(build order, step 5), its descriptor vocabulary a superset of VIA V3 menus with ZMK-style
+typed parameters. What keeps sections thin is shared code below them: the board opened
+by `HidDeviceChannel::Open()`, closed on every path, and the protocol's own functions.
 
 Put the transport seam *below* the protocol layer, not above it.
 
