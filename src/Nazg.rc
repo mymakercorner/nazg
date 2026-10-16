@@ -1,0 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com>
+//
+// Windows resources. The application icon (resources/icon/README.md) is the exe's first icon:
+// Explorer and the taskbar show it, and SDL registers the window class with it.
+
+1 ICON "../resources/icon/nazg.ico"

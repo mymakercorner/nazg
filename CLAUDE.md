@@ -44,6 +44,9 @@ exists, where, and how far it has been proven.
   the keyboard list, the open board or Settings. Screens report clicks; `App` (`app/NazgApp.*`) acts. *Advanced tools*, off by default,
   shows designer and debugging tools only. The board
   screen is a section column, a strip, the board and a panel (`ui/NazgWorkspace.*`).
+- **Icon.** The rune ᚾ in a blue ring on a keycap (ui-design.md, "The application icon"):
+  `resources/icon/`, exported from its mockup -- the `.ico` in the exe (`src/Nazg.rc`), PNGs for
+  the window elsewhere (`SDL_SetWindowIcon` in `Main.cpp`), `.icns`, Linux and web files waiting.
 - **Settings.** `settings.json` in the data folder (`settings/NazgSettings.*`): one JSON object,
   `"format": 1`; keys this build does not know are kept when it writes, and a newer format is
   read but never written over. Written whole then renamed, a second after the last change and on

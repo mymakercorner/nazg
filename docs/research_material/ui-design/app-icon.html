@@ -87,6 +87,7 @@ h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute
   <div class="group"><span class="name">Theme</span><button data-k="theme" data-v="light">Light</button><button data-k="theme" data-v="dark">Dark</button></div>
   <div class="group"><span class="name">Ring</span><button data-k="ring" data-v="gold">Gold</button><button data-k="ring" data-v="blue">Nazg blue</button></div>
   <div class="group"><span class="name">Keycap</span><button data-k="cap" data-v="dark">Dark</button><button data-k="cap" data-v="light">Light</button></div>
+  <div class="group"><button onclick="downloadIcon()">Export the icon files (.zip)</button></div>
 </div>
 <main>
   <h2>H, refined -- Rico's pick (2026-10-16)</h2>
@@ -209,27 +210,29 @@ const VARIANTS=[
 // from the top left: walls, face, the concave dish (dark where its rim hides the light), the
 // shadows falling down and right. Gradients soft, strong or dramatic: every gradient's light
 // end pushed towards white and its dark end towards black.
+// mac: the keycap on Apple's grid -- 824 of 1024 with a 185.4 corner -- everything inside scaled
+// with it, so macOS 26 finds its own shape and does not set the icon on a grey tile.
 function mix(a,b,t){const p=s=>[1,3,5].map(i=>parseInt(s.slice(i,i+2),16)),x=p(a),y=p(b);
   return "#"+x.map((v,i)=>Math.round(v+(y[i]-v)*t).toString(16).padStart(2,"0")).join("");}
-function drawH(size,snap,ring=state.ring){
-  const o=state.h,r=RINGS[ring],c=CAPS[state.cap],u=++uid,k=size/256,m=size/2;
+function drawH(size,snap,ring=state.ring,mac=false){
+  const o=state.h,r=RINGS[ring],c=CAPS[state.cap],u=++uid,k=size/256,m=size/2,g=k*(mac?206/228:1);
   const tune=snap&&size<64,px=v=>tune?Math.round(v):v;
   const [up,down]={soft:[0,0],strong:[.45,.3],dramatic:[.8,.55]}[o.gradients];
   const hi=x=>mix(x,"#ffffff",up),lo=x=>mix(x,"#000000",down);
   const bold=o.weight==="bold",through=o.rune==="through",square=o.ends==="square";
   const shaded=o.depth==="shaded"&&size>=64;
   const lit=o.walls==="lit",shadow=o.edge==="shadow";
-  const tile=px(14*k),inner=tile;
-  const fx=Math.max(px(28*k),inner+1);
+  const tile=px(m-114*g),inner=tile,tileRx=mac?46.35*k:56*k;
+  const fx=Math.max(px(m-100*g),inner+1);
   const fy0=fx,fy1=size-fx,cx=m,cy=m;
-  const R=74*k,ringW=Math.max((bold?26:20)*k,tune?1.6:0);
-  let w=(bold?24:18)*k;if(tune)w=Math.max(2,Math.round(w/2)*2);
-  const half=through?R:54*k,y0=px(cy-half),y1=px(cy+half);
-  const bx=30*k,by=17*k,so=tune?1:8*k,sb=tune?.7:7*k;
+  const R=74*g,ringW=Math.max((bold?26:20)*g,tune?1.6:0);
+  let w=(bold?24:18)*g;if(tune)w=Math.max(2,Math.round(w/2)*2);
+  const half=through?R:54*g,y0=px(cy-half),y1=px(cy+half);
+  const bx=30*g,by=17*g,so=tune?1:8*g,sb=tune?.7:7*g;
   const rune=(col,parts)=>
     (parts.includes("s")?`<rect x="${cx-w/2}" y="${y0}" width="${w}" height="${y1-y0}" rx="${square||through?0:w/2}" fill="${col}"/>`:"")+
     (parts.includes("b")?`<line x1="${cx-bx}" y1="${cy-by}" x2="${cx+bx}" y2="${cy+by}" stroke="${col}" stroke-width="${w}" stroke-linecap="${square?"butt":"round"}"/>`:"");
-  const metal=`url(#g${u})`,body=`width="${size-2*tile}" height="${size-2*tile}" rx="${56*k}"`;
+  const metal=`url(#g${u})`,body=`width="${size-2*tile}" height="${size-2*tile}" rx="${tileRx}"`;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}"><defs>
    <linearGradient id="g${u}" gradientUnits="userSpaceOnUse" x1="${cx-R-ringW}" y1="${cy-R-ringW}" x2="${cx+R+ringW}" y2="${cy+R+ringW}"><stop offset="0" stop-color="${hi(r.hi)}"/><stop offset=".5" stop-color="${r.mid}"/><stop offset="1" stop-color="${lo(r.lo)}"/></linearGradient>
    <linearGradient id="t${u}" gradientUnits="userSpaceOnUse" x1="${fx}" y1="${fy0}" x2="${size-fx}" y2="${fy1}"><stop offset="0" stop-color="${hi(c.topHi)}"/><stop offset="1" stop-color="${mix(c.top,"#000000",down*.4)}"/></linearGradient>
@@ -238,14 +241,14 @@ function drawH(size,snap,ring=state.ring){
    <filter id="f${u}" x="-30%" y="-30%" width="160%" height="170%"><feGaussianBlur stdDeviation="${sb}"/></filter>
    </defs>
    ${shadow?`<rect x="${tile+so*.6}" y="${tile+so}" ${body} fill="#000" opacity=".55" filter="url(#f${u})"/>`:""}
-   <rect x="${inner}" y="${inner}" width="${size-2*inner}" height="${size-2*inner}" rx="${56*k}" fill="${lit?`url(#w${u})`:c.skirt}"/>
-   <rect x="${fx}" y="${fy0}" width="${size-2*fx}" height="${fy1-fy0}" rx="${48*k}" fill="url(#t${u})"/>
+   <rect x="${inner}" y="${inner}" width="${size-2*inner}" height="${size-2*inner}" rx="${tileRx}" fill="${lit?`url(#w${u})`:c.skirt}"/>
+   <rect x="${fx}" y="${fy0}" width="${size-2*fx}" height="${fy1-fy0}" rx="${tileRx*48/56}" fill="url(#t${u})"/>
    <circle cx="${cx}" cy="${cy}" r="${R}" fill="${shaded?`url(#d${u})`:c.top}"/>
-   ${shaded?`<g transform="translate(${5*k} ${5*k})" opacity=".35">${rune("#000","sb")}</g>`:""}
+   ${shaded?`<g transform="translate(${5*g} ${5*g})" opacity=".35">${rune("#000","sb")}</g>`:""}
    ${through?rune(metal,"s"):""}
    <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${metal}" stroke-width="${ringW}"/>
-   ${shaded?`<circle cx="${cx}" cy="${cy}" r="${R-ringW/2}" fill="none" stroke="${lo(r.lo)}" stroke-width="${2*k}" opacity=".6"/>
-     <circle cx="${cx}" cy="${cy}" r="${R+ringW/2}" fill="none" stroke="${hi(r.hi)}" stroke-width="${1.5*k}" opacity=".5"/>`:""}
+   ${shaded?`<circle cx="${cx}" cy="${cy}" r="${R-ringW/2}" fill="none" stroke="${lo(r.lo)}" stroke-width="${2*g}" opacity=".6"/>
+     <circle cx="${cx}" cy="${cy}" r="${R+ringW/2}" fill="none" stroke="${hi(r.hi)}" stroke-width="${1.5*g}" opacity=".5"/>`:""}
    ${rune(metal,through?"b":"sb")}</svg>`;
 }
 const HOPTS=[
@@ -282,6 +285,54 @@ function renderRefine(){
     for(const [s,z] of [[16,6],[24,4],[32,3]])row.appendChild(zoomed(drawH(s,snap,ring),s,z));
     rows.appendChild(row);}
 }
+// Export: every file the platforms need, drawn from H refined as the switches stand, in one zip
+// (resources/icon/README.md says which platform takes what). Snapped up to 48 px, as the .ico's
+// small images are; macOS on Apple's grid. Sizes: ui-design.md, "The application icon".
+const ICO_SIZES=[16,20,24,32,40,48,64,256];
+const PNG_SIZES=[16,22,24,32,48,64,128,180,192,256,512];
+// .icns entry types, PNG inside: [type, pixel size].
+const ICNS_TYPES=[["icp4",16],["ic11",32],["icp5",32],["ic12",64],["ic07",128],["ic13",256],["ic08",256],["ic14",512],["ic09",512],["ic10",1024]];
+function pngOf(svg,size){return new Promise((ok,fail)=>{const img=new Image();
+  img.onload=()=>{const cv=document.createElement("canvas");cv.width=cv.height=size;cv.getContext("2d").drawImage(img,0,0,size,size);
+    cv.toBlob(b=>b.arrayBuffer().then(a=>ok(new Uint8Array(a))),"image/png");};
+  img.onerror=fail;img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg);});}
+function bytes(n,parts){const b=new Uint8Array(n),v=new DataView(b.buffer);parts(v,b);return b;}
+function concat(list){const out=new Uint8Array(list.reduce((s,a)=>s+a.length,0));let o=0;for(const a of list){out.set(a,o);o+=a.length;}return out;}
+function ico(images){ // [[size, png]]: ICONDIR, one ICONDIRENTRY each, then the PNGs
+  let offset=6+16*images.length;
+  const head=bytes(6,v=>{v.setUint16(2,1,true);v.setUint16(4,images.length,true);});
+  const dir=images.map(([s,p])=>{const e=bytes(16,v=>{v.setUint8(0,s>=256?0:s);v.setUint8(1,s>=256?0:s);
+    v.setUint16(4,1,true);v.setUint16(6,32,true);v.setUint32(8,p.length,true);v.setUint32(12,offset,true);});offset+=p.length;return e;});
+  return concat([head,...dir,...images.map(([,p])=>p)]);}
+function icns(entries){ // [[type, png]], big-endian lengths including each 8-byte header
+  const parts=entries.map(([t,p])=>concat([bytes(8,(v,b)=>{for(let i=0;i<4;i++)b[i]=t.charCodeAt(i);v.setUint32(4,p.length+8);}),p]));
+  const total=8+parts.reduce((s,a)=>s+a.length,0);
+  return concat([bytes(8,(v,b)=>{"icns".split("").forEach((ch,i)=>b[i]=ch.charCodeAt(0));v.setUint32(4,total);}),...parts]);}
+const CRC=Array.from({length:256},(_,n)=>{let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;return c>>>0;});
+function crc32(a){let c=0xFFFFFFFF;for(const x of a)c=CRC[(c^x)&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+function zip(files){ // [[path, bytes]], stored, no compression
+  const enc=new TextEncoder(),locals=[],centrals=[];let offset=0;
+  for(const [path,data] of files){const name=enc.encode(path),crc=crc32(data);
+    const fields=(v,o)=>{v.setUint16(o,20,true);v.setUint16(o+2,0,true);v.setUint16(o+4,0,true);v.setUint16(o+6,0,true);v.setUint16(o+8,0x21,true);
+      v.setUint32(o+10,crc,true);v.setUint32(o+14,data.length,true);v.setUint32(o+18,data.length,true);v.setUint16(o+22,name.length,true);};
+    const local=bytes(30,v=>{v.setUint32(0,0x04034b50,true);fields(v,4);});
+    const central=bytes(46,v=>{v.setUint32(0,0x02014b50,true);v.setUint16(4,20,true);fields(v,6);v.setUint32(42,offset,true);});
+    locals.push(local,name,data);centrals.push(central,name);offset+=30+name.length+data.length;}
+  const cd=concat(centrals);
+  const end=bytes(22,v=>{v.setUint32(0,0x06054b50,true);v.setUint16(8,files.length,true);v.setUint16(10,files.length,true);
+    v.setUint32(12,cd.length,true);v.setUint32(16,offset,true);});
+  return concat([...locals,cd,end]);}
+async function exportIcon(){
+  const files=[["nazg.svg",new TextEncoder().encode(drawH(256,false))],["nazg-macos.svg",new TextEncoder().encode(drawH(1024,false,state.ring,true))]];
+  for(const s of PNG_SIZES)files.push([`png/nazg-${s}.png`,await pngOf(drawH(s,true),s)]);
+  const icoImages=[];for(const s of ICO_SIZES)icoImages.push([s,await pngOf(drawH(s,true),s)]);
+  files.push(["nazg.ico",ico(icoImages)]);
+  const icnsEntries=[];for(const [t,s] of ICNS_TYPES)icnsEntries.push([t,await pngOf(drawH(s,true,state.ring,true),s)]);
+  files.push(["nazg.icns",icns(icnsEntries)]);
+  return zip(files);}
+async function downloadIcon(){
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([await exportIcon()],{type:"application/zip"}));
+  a.download="nazg-icon.zip";a.click();}
 function render(){
   document.documentElement.dataset.theme=state.theme;
   document.querySelectorAll(".controls button").forEach(b=>b.classList.toggle("on",state[b.dataset.k]===b.dataset.v));

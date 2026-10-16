@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><defs>
+   <linearGradient id="g78" gradientUnits="userSpaceOnUse" x1="172.28070175438597" y1="172.28070175438597" x2="851.719298245614" y2="851.719298245614"><stop offset="0" stop-color="#edf6ff"/><stop offset=".5" stop-color="#4296fa"/><stop offset="1" stop-color="#0c264f"/></linearGradient>
+   <linearGradient id="t78" gradientUnits="userSpaceOnUse" x1="150.59649122807014" y1="150.59649122807014" x2="873.4035087719299" y2="873.4035087719299"><stop offset="0" stop-color="#fefefe"/><stop offset="1" stop-color="#b6b7bb"/></linearGradient>
+   <linearGradient id="d78" gradientUnits="userSpaceOnUse" x1="324.7929824561404" y1="324.7929824561404" x2="699.2070175438596" y2="699.2070175438596"><stop offset="0" stop-color="#53555a"/><stop offset=".55" stop-color="#e9ebf0"/><stop offset="1" stop-color="#fefefe"/></linearGradient>
+   <linearGradient id="w78" gradientUnits="userSpaceOnUse" x1="100" y1="100" x2="924" y2="924"><stop offset="0" stop-color="#f9f9fa"/><stop offset="1" stop-color="#45484d"/></linearGradient>
+   <filter id="f78" x="-30%" y="-30%" width="160%" height="170%"><feGaussianBlur stdDeviation="25.29824561403509"/></filter>
+   </defs>
+   
+   <rect x="100" y="100" width="824" height="824" rx="185.4" fill="url(#w78)"/>
+   <rect x="150.59649122807014" y="150.59649122807014" width="722.8070175438597" height="722.8070175438597" rx="158.91428571428574" fill="url(#t78)"/>
+   <circle cx="512" cy="512" r="267.43859649122805" fill="url(#d78)"/>
+   <g transform="translate(18.070175438596493 18.070175438596493)" opacity=".35"><rect x="479.4736842105263" y="316.8421052631579" width="65.05263157894737" height="390.31578947368416" rx="32.526315789473685" fill="#000"/><line x1="403.57894736842104" y1="450.56140350877195" x2="620.421052631579" y2="573.438596491228" stroke="#000" stroke-width="65.05263157894737" stroke-linecap="round"/></g>
+   
+   <circle cx="512" cy="512" r="267.43859649122805" fill="none" stroke="url(#g78)" stroke-width="72.28070175438597"/>
+   <circle cx="512" cy="512" r="231.29824561403507" fill="none" stroke="#0c264f" stroke-width="7.228070175438597" opacity=".6"/>
+     <circle cx="512" cy="512" r="303.57894736842104" fill="none" stroke="#edf6ff" stroke-width="5.421052631578948" opacity=".5"/>
+   <rect x="479.4736842105263" y="316.8421052631579" width="65.05263157894737" height="390.31578947368416" rx="32.526315789473685" fill="url(#g78)"/><line x1="403.57894736842104" y1="450.56140350877195" x2="620.421052631579" y2="573.438596491228" stroke="url(#g78)" stroke-width="65.05263157894737" stroke-linecap="round"/></svg>

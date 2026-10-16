@@ -189,6 +189,31 @@ namespace
         return true;   // ignored for event watches
     }
 
+    // The window's icon where the platform takes it from the app (resources/icon/README.md): 32 px
+    // for 100% display scale, 64 and 256 for SDL to pick from above it. Not on Windows, where
+    // SDL's window class already carries the exe's icon (src/Nazg.rc), drawn for every size.
+    [[maybe_unused]] void SetWindowIcon(SDL_Window* window, const std::string& executableFolder)
+    {
+        SDL_Surface* const icon = SDL_LoadPNG((executableFolder + "icon/nazg-32.png").c_str());
+        if (icon == nullptr)
+        {
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "No window icon: %s", SDL_GetError());
+            return;
+        }
+
+        for (const char* size : { "64", "256" })
+        {
+            SDL_Surface* const larger = SDL_LoadPNG((executableFolder + "icon/nazg-" + size + ".png").c_str());
+            if (larger == nullptr)
+                continue;
+            SDL_AddSurfaceAlternateImage(icon, larger);
+            SDL_DestroySurface(larger);   // icon keeps a reference of its own
+        }
+
+        SDL_SetWindowIcon(window, icon);
+        SDL_DestroySurface(icon);
+    }
+
 }
 
 int main(int, char**)
@@ -252,6 +277,9 @@ int main(int, char**)
 
     const char* basePath      = SDL_GetBasePath();   // owned by SDL, ends with a separator
     platform.executableFolder = basePath != nullptr ? basePath : "";
+#if !defined(_WIN32)
+    SetWindowIcon(pWindow, platform.executableFolder);
+#endif
     platform.displayScale     = mainScale;
     platform.modifierNames    = PlatformModifierNames();
     platform.nowUtc           = NowUtc;

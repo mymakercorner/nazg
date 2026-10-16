@@ -412,5 +412,21 @@ if(WIN32)
     set_target_properties(nazg PROPERTIES WIN32_EXECUTABLE ON)
 endif()
 
+# The application icon (resources/icon/README.md). On Windows it is in the exe, which the
+# window takes it from too; elsewhere Main.cpp gives the window the PNGs copied into icon/
+# beside the executable.
+if(WIN32)
+    target_sources(nazg PRIVATE src/Nazg.rc)
+else()
+    set(NAZG_WINDOW_ICONS
+        ${CMAKE_CURRENT_SOURCE_DIR}/resources/icon/png/nazg-32.png
+        ${CMAKE_CURRENT_SOURCE_DIR}/resources/icon/png/nazg-64.png
+        ${CMAKE_CURRENT_SOURCE_DIR}/resources/icon/png/nazg-256.png)
+    add_custom_command(TARGET nazg POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:nazg>/icon
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${NAZG_WINDOW_ICONS} $<TARGET_FILE_DIR:nazg>/icon
+        VERBATIM)
+endif()
+
 # For universal macOS release builds, configure with:
 #   -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13
