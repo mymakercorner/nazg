@@ -20,6 +20,7 @@
 #include "adapters/via/NazgKeyboardDefinition.h"
 #include "adapters/via/NazgViaBundle.h"
 #include "adapters/vial/NazgVialProtocol.h"
+#include "app/NazgFonts.h"
 #include "async/NazgTask.h"
 #include "board/NazgBoardLoad.h"
 #include "files/NazgFiles.h"
@@ -365,103 +366,6 @@ namespace
             saved = place;
             ImGui::MarkIniSettingsDirty();
         }
-    }
-
-    // ImGui's size for the interface's font -- its line height: Arimo at 16 is a 14.3 px font
-    // (interface-styling.md, "ImGui sizes a font by its line height").
-    constexpr float c_FontSize = 16.0f;
-
-    // The interface's font (interface-styling.md, "Settled"): Arimo, the legends' font, from
-    // fonts/ beside the executable -- the same on every OS -- with the system's font merged
-    // behind it for what Arimo lacks in device names: other scripts, symbols. ImGui 1.92
-    // rasterises glyphs on demand, so no glyph ranges are listed. Without Arimo, the system font
-    // alone; without that, ImGui's built-in ASCII font. Returns the bold face, for headers, or
-    // null.
-    ImFont* LoadInterfaceFont(ImGuiIO& io)
-    {
-        const char*       basePath = SDL_GetBasePath();   // owned by SDL, ends with a separator
-        const std::string bundled  = std::string(basePath != nullptr ? basePath : "") + "fonts/";
-        const std::string regular  = bundled + "Arimo-Regular.ttf";
-        const std::string bold     = bundled + "Arimo-Bold.ttf";
-
-#if defined(_WIN32)
-        const char*       windir = std::getenv("WINDIR");
-        const std::string fonts  = std::string(windir != nullptr ? windir : "C:\\Windows") + "\\Fonts\\";
-
-        const std::vector<std::string> primary  = { fonts + "segoeui.ttf", fonts + "arial.ttf" };
-        const std::vector<std::string> fallback = { fonts + "seguisym.ttf" };
-#elif defined(__APPLE__)
-        const std::vector<std::string> primary  = { "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
-                                                    "/System/Library/Fonts/Helvetica.ttc" };
-        const std::vector<std::string> fallback = {};
-#else
-        const std::vector<std::string> primary  = { "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-                                                    "/usr/share/fonts/TTF/DejaVuSans.ttf",
-                                                    "/usr/share/fonts/noto/NotoSans-Regular.ttf" };
-        const std::vector<std::string> fallback = {};
-#endif
-
-        bool haveBase = std::filesystem::exists(nazg::PathFromUtf8(regular)) &&
-                        io.Fonts->AddFontFromFileTTF(regular.c_str(), c_FontSize) != nullptr;
-        if (!haveBase)
-            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "interface font missing: %s", regular.c_str());
-
-        // The system's font: behind Arimo, or in its place.
-        ImFontConfig merge;
-        merge.MergeMode = haveBase;
-        for (const std::string& path : primary)
-        {
-            if (std::filesystem::exists(path) && io.Fonts->AddFontFromFileTTF(path.c_str(), c_FontSize, &merge) != nullptr)
-            {
-                haveBase        = true;
-                merge.MergeMode = true;
-                break;
-            }
-        }
-
-        if (!haveBase)
-        {
-            SDL_Log("no interface font found; it falls back to ImGui's ASCII font");
-            return nullptr;
-        }
-
-        for (const std::string& path : fallback)
-            if (std::filesystem::exists(path))
-                io.Fonts->AddFontFromFileTTF(path.c_str(), c_FontSize, &merge);
-
-        return std::filesystem::exists(nazg::PathFromUtf8(bold)) ? io.Fonts->AddFontFromFileTTF(bold.c_str(), c_FontSize)
-                                                            : nullptr;
-    }
-
-    // The legends' fonts, from fonts/ beside the executable, where the build copies
-    // resources/fonts/ (see its README.md). A missing Arimo leaves that weight null, and the
-    // board uses the interface's font instead.
-    nazg::LegendFonts LoadLegendFonts(ImGuiIO& io)
-    {
-        const char* base = SDL_GetBasePath();   // owned by SDL, ends with a separator
-
-        std::vector<std::string> missing;
-        const nazg::LegendFonts  fonts =
-            nazg::LoadLegendFonts(*io.Fonts, std::string(base != nullptr ? base : "") + "fonts/", missing);
-        for (const std::string& path : missing)
-            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "legend font missing: %s", path.c_str());
-        return fonts;
-    }
-
-    // Tabler's icons (ui/NazgIcons.h), from fonts/ beside the executable as the legends' are. A
-    // font of their own rather than merged into the interface's, so the icons are drawn at their
-    // size whatever the text's. Missing, sections show monograms.
-    ImFont* LoadIconFont(ImGuiIO& io)
-    {
-        const char*       base = SDL_GetBasePath();   // owned by SDL, ends with a separator
-        const std::string path = std::string(base != nullptr ? base : "") + "fonts/tabler-icons.ttf";
-
-        ImFont* const font = std::filesystem::exists(nazg::PathFromUtf8(path))
-                                 ? io.Fonts->AddFontFromFileTTF(path.c_str(), c_FontSize)
-                                 : nullptr;
-        if (font == nullptr)
-            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "icon font missing: %s", path.c_str());
-        return font;
     }
 
     // The modifier names of the OS Nazg runs on, for a first launch (ui-design.md, "Modifier
@@ -875,10 +779,10 @@ int main(int, char**)
     PlaceWindow(pWindow, settings.window, mainScale);
     SDL_ShowWindow(pWindow);
 
-    // The interface's font first: the first font added is ImGui's default.
-    nazg::SetHeaderFont(LoadInterfaceFont(io));
-    nazg::SetLegendFonts(LoadLegendFonts(io));
-    nazg::SetIconFont(LoadIconFont(io));
+    // From fonts/ beside the executable (app/NazgFonts.h).
+    const char* basePath = SDL_GetBasePath();   // owned by SDL, ends with a separator
+    nazg::LoadFonts(io, std::string(basePath != nullptr ? basePath : "") + "fonts/",
+                    [](const std::string& text) { SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", text.c_str()); });
 
     ImGui::StyleColorsDark();
     nazg::ApplyWindowSizes(mainScale);
