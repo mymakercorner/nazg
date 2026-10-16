@@ -28,6 +28,17 @@
 
 namespace nazg
 {
+    // A 16-bit value's two bytes, to write it out in either order.
+    [[nodiscard]] constexpr uint8_t LowByte(uint16_t value) noexcept
+    {
+        return static_cast<uint8_t>(value & 0xFF);
+    }
+
+    [[nodiscard]] constexpr uint8_t HighByte(uint16_t value) noexcept
+    {
+        return static_cast<uint8_t>(value >> 8);
+    }
+
     [[nodiscard]] inline uint16_t ReadBigEndian16(const std::vector<uint8_t>& bytes, size_t offset)
     {
         assert(offset + 2 <= bytes.size() && "ReadBigEndian16 past the end of the report");

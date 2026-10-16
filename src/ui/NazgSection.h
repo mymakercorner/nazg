@@ -10,8 +10,8 @@
 //   1. its strip entries, or none;
 //   2. what the board shows, and what a click on it does (ui/NazgBoardDescription.h);
 //   3. its panel;
-//   4. its match rule -- which boards it appears for. Not in this interface yet: Keymap
-//      appears on every board, so the rule arrives with the first section that does not.
+//   4. which boards it appears for -- decided before it is made, from what the board reports,
+//      by PlanSections() (ui/NazgSectionPlan.h), not by the section.
 //
 // Compiled in for now. How third-party sections will be delivered is open (ui-design.md,
 // "Plugins"); two very different sections test the contract before that is chosen.

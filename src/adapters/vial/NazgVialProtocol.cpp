@@ -153,13 +153,14 @@ namespace nazg::vial
 
     Task<void> Protocol::SetTapDance(uint8_t index, const TapDanceEntry& entry)
     {
-        const auto lo = [](uint16_t value) { return static_cast<uint8_t>(value & 0xFF); };
-        const auto hi = [](uint16_t value) { return static_cast<uint8_t>(value >> 8); };
         std::vector<uint8_t> reply = co_await SendVial(
             Command::DynamicEntryOp,
-            { static_cast<uint8_t>(DynamicEntry::TapDanceSet), index, lo(entry.onTap), hi(entry.onTap),
-              lo(entry.onHold), hi(entry.onHold), lo(entry.onDoubleTap), hi(entry.onDoubleTap), lo(entry.onTapHold),
-              hi(entry.onTapHold), lo(entry.tappingTerm), hi(entry.tappingTerm) });
+            { static_cast<uint8_t>(DynamicEntry::TapDanceSet), index,
+              LowByte(entry.onTap), HighByte(entry.onTap),
+              LowByte(entry.onHold), HighByte(entry.onHold),
+              LowByte(entry.onDoubleTap), HighByte(entry.onDoubleTap),
+              LowByte(entry.onTapHold), HighByte(entry.onTapHold),
+              LowByte(entry.tappingTerm), HighByte(entry.tappingTerm) });
         if (reply[0] != 0)
             throw ProtocolError("the board has no tap dance " + std::to_string(index));
     }
@@ -180,13 +181,13 @@ namespace nazg::vial
 
     Task<void> Protocol::SetCombo(uint8_t index, const ComboEntry& entry)
     {
-        const auto lo = [](uint16_t value) { return static_cast<uint8_t>(value & 0xFF); };
-        const auto hi = [](uint16_t value) { return static_cast<uint8_t>(value >> 8); };
         const std::array<uint16_t, 4>& in = entry.inputs;
         std::vector<uint8_t> reply = co_await SendVial(
             Command::DynamicEntryOp,
-            { static_cast<uint8_t>(DynamicEntry::ComboSet), index, lo(in[0]), hi(in[0]), lo(in[1]), hi(in[1]),
-              lo(in[2]), hi(in[2]), lo(in[3]), hi(in[3]), lo(entry.output), hi(entry.output) });
+            { static_cast<uint8_t>(DynamicEntry::ComboSet), index,
+              LowByte(in[0]), HighByte(in[0]), LowByte(in[1]), HighByte(in[1]),
+              LowByte(in[2]), HighByte(in[2]), LowByte(in[3]), HighByte(in[3]),
+              LowByte(entry.output), HighByte(entry.output) });
         if (reply[0] != 0)
             throw ProtocolError("the board has no combo " + std::to_string(index));
     }
@@ -211,13 +212,13 @@ namespace nazg::vial
 
     Task<void> Protocol::SetKeyOverride(uint8_t index, const KeyOverrideEntry& entry)
     {
-        const auto lo = [](uint16_t value) { return static_cast<uint8_t>(value & 0xFF); };
-        const auto hi = [](uint16_t value) { return static_cast<uint8_t>(value >> 8); };
         std::vector<uint8_t> reply = co_await SendVial(
             Command::DynamicEntryOp,
-            { static_cast<uint8_t>(DynamicEntry::KeyOverrideSet), index, lo(entry.trigger), hi(entry.trigger),
-              lo(entry.replacement), hi(entry.replacement), lo(entry.layers), hi(entry.layers), entry.triggerMods,
-              entry.negativeModMask, entry.suppressedMods, entry.options });
+            { static_cast<uint8_t>(DynamicEntry::KeyOverrideSet), index,
+              LowByte(entry.trigger), HighByte(entry.trigger),
+              LowByte(entry.replacement), HighByte(entry.replacement),
+              LowByte(entry.layers), HighByte(entry.layers),
+              entry.triggerMods, entry.negativeModMask, entry.suppressedMods, entry.options });
         if (reply[0] != 0)
             throw ProtocolError("the board has no key override " + std::to_string(index));
     }
@@ -239,12 +240,12 @@ namespace nazg::vial
 
     Task<void> Protocol::SetAltRepeatKey(uint8_t index, const AltRepeatKeyEntry& entry)
     {
-        const auto lo = [](uint16_t value) { return static_cast<uint8_t>(value & 0xFF); };
-        const auto hi = [](uint16_t value) { return static_cast<uint8_t>(value >> 8); };
         std::vector<uint8_t> reply = co_await SendVial(
             Command::DynamicEntryOp,
-            { static_cast<uint8_t>(DynamicEntry::AltRepeatKeySet), index, lo(entry.keycode), hi(entry.keycode),
-              lo(entry.altKeycode), hi(entry.altKeycode), entry.allowedMods, entry.options });
+            { static_cast<uint8_t>(DynamicEntry::AltRepeatKeySet), index,
+              LowByte(entry.keycode), HighByte(entry.keycode),
+              LowByte(entry.altKeycode), HighByte(entry.altKeycode),
+              entry.allowedMods, entry.options });
         if (reply[0] != 0)
             throw ProtocolError("the board has no alt repeat key " + std::to_string(index));
     }
@@ -312,7 +313,7 @@ namespace nazg::vial
         co_await SendVial(Command::QmkSettingsReset, {}, false);
     }
 
-        Task<UnlockStatus> Protocol::GetUnlockStatus()
+    Task<UnlockStatus> Protocol::GetUnlockStatus()
     {
         std::vector<uint8_t> reply = co_await SendVial(Command::GetUnlockStatus, {});
 

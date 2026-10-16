@@ -1385,11 +1385,11 @@ int main(int, char**)
                 ImGui::BeginChild("replace", ImVec2(0.0f, 0.0f),
                                   ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY);
 
-                const nazg::PendingReplacement pending = library.replacements.front();
-                const nazg::LibraryEntry* entry   = library.library->Find(pending.entryId);
+                const nazg::PendingReplacement& asked = library.replacements.front();
+                const nazg::LibraryEntry*       entry = library.library->Find(asked.entryId);
 
                 ImGui::TextWrapped("%s is for a board you already have a user definition for:",
-                                   nazg::FileName(pending.path).c_str());
+                                   nazg::FileName(asked.path).c_str());
                 if (entry != nullptr)
                     ImGui::BulletText("%04X:%04X  %s, imported from %s", entry->vendorId, entry->productId,
                                       entry->name.c_str(), entry->origin.c_str());
@@ -1408,21 +1408,22 @@ int main(int, char**)
 
                 if (replace || keepBoth || cancel)
                 {
+                    const nazg::PendingReplacement pending = std::move(library.replacements.front());
                     library.replacements.erase(library.replacements.begin());
                     library.messages.clear();
-                }
 
-                if (replace)
-                {
-                    if (nazg::ReplaceDefinition(library, pending.entryId, pending.bytes, pending.path))
-                        afterLibraryChange(pending.entryId);
-                }
-                else if (keepBoth)
-                {
-                    if (const nazg::LibraryEntry* added = nazg::ImportKeepingBoth(library, pending, NowUtc()))
+                    if (replace)
                     {
-                        noteForeignImport(pending.path, *added);
-                        afterLibraryChange();
+                        if (nazg::ReplaceDefinition(library, pending.entryId, pending.bytes, pending.path))
+                            afterLibraryChange(pending.entryId);
+                    }
+                    else if (keepBoth)
+                    {
+                        if (const nazg::LibraryEntry* added = nazg::ImportKeepingBoth(library, pending, NowUtc()))
+                        {
+                            noteForeignImport(pending.path, *added);
+                            afterLibraryChange();
+                        }
                     }
                 }
             }

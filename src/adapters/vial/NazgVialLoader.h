@@ -17,8 +17,8 @@
 //         state.keyboard = co_await vial::LoadKeyboard(protocol);
 //     }
 //
-// VIA will get a sibling loader taking the definition from a file or registry instead
-// of from the device; everything below the sourcing is already shared.
+// VIA's sibling, adapters/via/NazgViaLoader.h, takes the definition from a bundle or the
+// library instead of from the device; everything below the sourcing is shared.
 
 #pragma once
 

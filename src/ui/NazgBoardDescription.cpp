@@ -14,8 +14,9 @@ namespace nazg
 {
     namespace
     {
-        // The keys that print a character, whatever the host layout makes of it.
-        bool IsCharacterKey(std::string_view name)
+        // The keys filled as alphas: those that print a character, whatever the host layout makes of
+        // it -- space and the keypad's digits among them.
+        bool HasAlphaFill(std::string_view name)
         {
             static constexpr std::string_view c_Characters[] = {
                 "KC_MINS", "KC_EQL",  "KC_LBRC", "KC_RBRC", "KC_BSLS", "KC_NUHS", "KC_SCLN", "KC_QUOT",
@@ -40,7 +41,7 @@ namespace nazg
                 return key.width > 1.25f ? KeyFill::Modifier : KeyFill::Alpha;
             if (name == "KC_ESC" || name == "KC_ENT" || name == "KC_PENT")
                 return KeyFill::Accent;
-            return IsCharacterKey(name) ? KeyFill::Alpha : KeyFill::Modifier;
+            return HasAlphaFill(name) ? KeyFill::Alpha : KeyFill::Modifier;
         }
 
         // What a keycode is in one short line, for a knob's stacked legends: a character, an
