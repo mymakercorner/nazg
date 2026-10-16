@@ -17,8 +17,6 @@
 #include <cctype>
 #include <cstdio>
 #include <filesystem>
-#include <fstream>
-#include <iterator>
 #include <string>
 #include <system_error>
 #include <vector>
@@ -26,21 +24,15 @@
 #include <nlohmann/json.hpp>
 
 #include "adapters/via/NazgDefinitionCheck.h"
+#include "files/NazgFiles.h"
 
 namespace
 {
     namespace fs = std::filesystem;
 
-    // In C++20 path::u8string() is a std::u8string; output is plain UTF-8 bytes.
-    std::string Utf8(const fs::path& path)
-    {
-        const std::u8string text = path.u8string();
-        return std::string(text.begin(), text.end());
-    }
-
     bool IsJson(const fs::path& path)
     {
-        std::string extension = Utf8(path.extension());
+        std::string extension = nazg::Utf8FromPath(path.extension());
         std::transform(extension.begin(), extension.end(), extension.begin(),
                        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
         return extension == ".json";
@@ -100,15 +92,15 @@ int main(int argc, char** argv)
     size_t         failed = 0;
     for (const fs::path& file : files)
     {
-        std::ifstream              stream(file, std::ios::binary);
-        const std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
+        // Unreadable, it is empty -- and fails as a definition that does not parse.
+        const std::vector<uint8_t> bytes = nazg::ReadWholeFile(file).value_or(std::vector<uint8_t>());
         const nazg::via::DefinitionCheck check = nazg::via::CheckDefinition(bytes);
         if (!check.Passed())
             ++failed;
 
         if (json)
         {
-            nlohmann::json entry = { { "file", Utf8(file) }, { "passed", check.Passed() }, { "problems", check.problems } };
+            nlohmann::json entry = { { "file", nazg::Utf8FromPath(file) }, { "passed", check.Passed() }, { "problems", check.problems } };
             if (check.definition)
             {
                 entry["name"]      = check.definition->name;
@@ -130,9 +122,9 @@ int main(int argc, char** argv)
         }
         else if (!check.Passed())
             for (const std::string& problem : check.problems)
-                std::printf("FAIL %s: %s\n", Utf8(file).c_str(), problem.c_str());
+                std::printf("FAIL %s: %s\n", nazg::Utf8FromPath(file).c_str(), problem.c_str());
         else if (all)
-            std::printf("ok   %s: %s, %s:%s\n", Utf8(file).c_str(), check.definition->name.c_str(),
+            std::printf("ok   %s: %s, %s:%s\n", nazg::Utf8FromPath(file).c_str(), check.definition->name.c_str(),
                         Hex(check.definition->vendorId).c_str(), Hex(check.definition->productId).c_str());
     }
 

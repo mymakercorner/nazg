@@ -71,6 +71,8 @@ set(NAZG_CORE_SOURCES
   src/transport/NazgHidTransport.cpp
   src/transport/NazgDeviceChannel.h
   src/transport/NazgDeviceChannel.cpp
+  src/files/NazgFiles.h
+  src/files/NazgFiles.cpp
   src/adapters/NazgByteOrder.h
   src/adapters/NazgProtocolError.h
   src/adapters/NazgXz.h

@@ -22,6 +22,7 @@
 #include "adapters/vial/NazgVialProtocol.h"
 #include "async/NazgTask.h"
 #include "board/NazgBoardLoad.h"
+#include "files/NazgFiles.h"
 #include "library/NazgDefinitionLibrary.h"
 #include "transport/NazgDeviceChannel.h"
 #include "transport/NazgHidTransport.h"
@@ -56,7 +57,6 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
-#include <iterator>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -378,18 +378,6 @@ namespace
         }
     }
 
-    // A UTF-8 path, as SDL hands them over, as a filesystem path on every platform.
-    std::filesystem::path PathFromUtf8(const std::string& path)
-    {
-        return std::filesystem::path(reinterpret_cast<const char8_t*>(path.c_str()));
-    }
-
-    std::string Utf8FromPath(const std::filesystem::path& path)
-    {
-        const std::u8string text = path.u8string();
-        return std::string(text.begin(), text.end());
-    }
-
     // ImGui's size for the interface's font -- its line height: Arimo at 16 is a 14.3 px font
     // (interface-styling.md, "ImGui sizes a font by its line height").
     constexpr float c_FontSize = 16.0f;
@@ -424,7 +412,7 @@ namespace
         const std::vector<std::string> fallback = {};
 #endif
 
-        bool haveBase = std::filesystem::exists(PathFromUtf8(regular)) &&
+        bool haveBase = std::filesystem::exists(nazg::PathFromUtf8(regular)) &&
                         io.Fonts->AddFontFromFileTTF(regular.c_str(), c_FontSize) != nullptr;
         if (!haveBase)
             SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "interface font missing: %s", regular.c_str());
@@ -452,7 +440,7 @@ namespace
             if (std::filesystem::exists(path))
                 io.Fonts->AddFontFromFileTTF(path.c_str(), c_FontSize, &merge);
 
-        return std::filesystem::exists(PathFromUtf8(bold)) ? io.Fonts->AddFontFromFileTTF(bold.c_str(), c_FontSize)
+        return std::filesystem::exists(nazg::PathFromUtf8(bold)) ? io.Fonts->AddFontFromFileTTF(bold.c_str(), c_FontSize)
                                                             : nullptr;
     }
 
@@ -479,7 +467,7 @@ namespace
         const char*       base = SDL_GetBasePath();   // owned by SDL, ends with a separator
         const std::string path = std::string(base != nullptr ? base : "") + "fonts/tabler-icons.ttf";
 
-        ImFont* const font = std::filesystem::exists(PathFromUtf8(path))
+        ImFont* const font = std::filesystem::exists(nazg::PathFromUtf8(path))
                                  ? io.Fonts->AddFontFromFileTTF(path.c_str(), c_FontSize)
                                  : nullptr;
         if (font == nullptr)
@@ -497,14 +485,6 @@ namespace
         if (platform == "macOS")
             return nazg::ModifierNames::Mac;
         return nazg::ModifierNames::Linux;
-    }
-
-    std::vector<uint8_t> ReadWholeFile(const std::string& path)
-    {
-        std::ifstream stream(PathFromUtf8(path), std::ios::binary);
-        if (!stream)
-            throw std::runtime_error("cannot open the file");
-        return std::vector<uint8_t>(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>());
     }
 
     // Now, as the library records it: ISO 8601, UTC.
@@ -533,7 +513,7 @@ namespace
             return std::nullopt;
         }
 
-        const std::filesystem::path folder = PathFromUtf8(prefPath);
+        const std::filesystem::path folder = nazg::PathFromUtf8(prefPath);
         SDL_free(prefPath);
         return folder;
     }
@@ -553,7 +533,7 @@ namespace
         if (!std::filesystem::exists(settings, ignored) && std::filesystem::exists("imgui.ini", ignored))
             std::filesystem::copy_file("imgui.ini", settings, ignored);
 
-        return Utf8FromPath(settings);
+        return nazg::Utf8FromPath(settings);
     }
 
     // User definitions -- the ones the user imported, as opposed to the official ones in
@@ -599,7 +579,7 @@ namespace
 
     std::string FileName(const std::string& path)
     {
-        return Utf8FromPath(PathFromUtf8(path).filename());
+        return nazg::Utf8FromPath(nazg::PathFromUtf8(path).filename());
     }
 
     // What the picker says of a file just imported for another keyboard than the one it asks
@@ -632,7 +612,10 @@ namespace
         {
             try
             {
-                std::vector<uint8_t> bytes = ReadWholeFile(path);
+                std::optional<std::vector<uint8_t>> read = nazg::ReadWholeFile(nazg::PathFromUtf8(path));
+                if (!read)
+                    throw std::runtime_error("cannot open the file");
+                std::vector<uint8_t> bytes = std::move(*read);
 
                 if (askOnSameBoard)
                     if (const nazg::LibraryEntry* same = library.library->FindSameBoard(nazg::via::ParseDefinition(bytes)))
@@ -718,15 +701,6 @@ namespace
         std::optional<nazg::via::CommunityDefinitionBundle> community;     // likewise
     };
 
-    // A bundle file's bytes, beside the executable; nullopt when it is not there.
-    std::optional<std::vector<uint8_t>> ReadBesideExecutable(const std::string& path)
-    {
-        std::ifstream stream(std::filesystem::path(reinterpret_cast<const char8_t*>(path.c_str())), std::ios::binary);
-        if (!stream)
-            return std::nullopt;
-        return std::vector<uint8_t>((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
-    }
-
     ViaBundle ReadViaBundle()
     {
         ViaBundle bundle;
@@ -736,7 +710,7 @@ namespace
         bundle.communityPath = std::string(base != nullptr ? base : "") + c_CommunityBundleName;
 
         // A bundle that does not inflate is as good as none.
-        if (const auto bytes = ReadBesideExecutable(bundle.path))
+        if (const auto bytes = nazg::ReadWholeFile(nazg::PathFromUtf8(bundle.path)))
             try
             {
                 bundle.definitions.emplace(*bytes);
@@ -746,7 +720,7 @@ namespace
                 SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s: %s", bundle.path.c_str(), failure.what());
             }
 
-        if (const auto bytes = ReadBesideExecutable(bundle.communityPath))
+        if (const auto bytes = nazg::ReadWholeFile(nazg::PathFromUtf8(bundle.communityPath)))
             try
             {
                 bundle.community.emplace(*bytes);
@@ -819,7 +793,7 @@ namespace
     // anywhere, into Nazg or VIA. The outcome, for the window that asked.
     std::string WriteExport(const std::vector<uint8_t>& bytes, const std::string& name, const std::string& path)
     {
-        std::ofstream stream(PathFromUtf8(path), std::ios::binary | std::ios::trunc);
+        std::ofstream stream(nazg::PathFromUtf8(path), std::ios::binary | std::ios::trunc);
         stream.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
         stream.close();
         if (!stream)
@@ -1652,7 +1626,7 @@ int main(int, char**)
                 nazg::SettingsView view;
                 view.library         = library.library ? &*library.library : nullptr;
                 view.libraryError    = library.error;
-                view.libraryFolder   = library.library ? Utf8FromPath(library.library->Folder()) : std::string();
+                view.libraryFolder   = library.library ? nazg::Utf8FromPath(library.library->Folder()) : std::string();
                 view.libraryMessages = &library.messages;
                 view.backLabel       = hasBoard ? "Back to the board" : "Back to the keyboards";
 
@@ -1713,18 +1687,12 @@ int main(int, char**)
                     {
                         if (action.reimport)
                         {
-                            const std::string    origin = library.library->Find(*action.reimport)->origin;
-                            std::vector<uint8_t> bytes;
-                            try
-                            {
-                                bytes = ReadWholeFile(origin);
-                            }
-                            catch (const std::exception&)
-                            {
+                            const std::string origin = library.library->Find(*action.reimport)->origin;
+                            const std::optional<std::vector<uint8_t>> bytes = nazg::ReadWholeFile(nazg::PathFromUtf8(origin));
+                            if (!bytes)
                                 throw std::runtime_error("cannot read " + origin + " -- if it moved, import it from "
                                                          "where it is now and answer Replace");
-                            }
-                            if (ReplaceDefinition(library, *action.reimport, bytes, origin))
+                            if (ReplaceDefinition(library, *action.reimport, *bytes, origin))
                                 afterLibraryChange(*action.reimport);
                         }
                         else if (action.restore)

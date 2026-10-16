@@ -6,12 +6,12 @@
 #include <algorithm>
 #include <cstdio>
 #include <fstream>
-#include <iterator>
 #include <system_error>
 
 #include <nlohmann/json.hpp>
 
 #include "adapters/NazgProtocolError.h"
+#include "files/NazgFiles.h"
 
 namespace nazg
 {
@@ -26,13 +26,6 @@ namespace nazg
         constexpr char c_Definitions[] = "user_definitions";
         constexpr char c_Index[]       = "index.json";
         constexpr char c_IndexUpdate[] = "index.json.tmp";
-
-        // In C++20 path::u8string() is a std::u8string; messages are plain std::string.
-        std::string Utf8(const std::filesystem::path& path)
-        {
-            const std::u8string text = path.u8string();
-            return std::string(text.begin(), text.end());
-        }
 
         std::string HexId(uint16_t id)
         {
@@ -53,10 +46,10 @@ namespace nazg
 
         std::vector<uint8_t> ReadFile(const std::filesystem::path& path)
         {
-            std::ifstream stream(path, std::ios::binary);
-            if (!stream)
-                throw LibraryError("cannot read " + Utf8(path));
-            return std::vector<uint8_t>(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>());
+            std::optional<std::vector<uint8_t>> bytes = ReadWholeFile(path);
+            if (!bytes)
+                throw LibraryError("cannot read " + Utf8FromPath(path));
+            return std::move(*bytes);
         }
 
         void WriteFile(const std::filesystem::path& path, const void* data, size_t size)
@@ -65,7 +58,7 @@ namespace nazg
             stream.write(static_cast<const char*>(data), static_cast<std::streamsize>(size));
             stream.close();
             if (!stream)
-                throw LibraryError("cannot write " + Utf8(path));
+                throw LibraryError("cannot write " + Utf8FromPath(path));
         }
     }
 
@@ -74,7 +67,7 @@ namespace nazg
         std::error_code failure;
         std::filesystem::create_directories(m_Folder / c_Definitions, failure);
         if (failure)
-            throw LibraryError("cannot create " + Utf8(m_Folder / c_Definitions) + ": " + failure.message());
+            throw LibraryError("cannot create " + Utf8FromPath(m_Folder / c_Definitions) + ": " + failure.message());
 
         if (std::filesystem::exists(m_Folder / c_Definitions / c_Index))
             LoadIndex();

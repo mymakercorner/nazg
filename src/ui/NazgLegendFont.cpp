@@ -7,11 +7,11 @@
 #include <cfloat>
 #include <cstdint>
 #include <filesystem>
-#include <fstream>
-#include <iterator>
 
 #include "imgui.h"
 #include "imgui_internal.h"   // ImTextCharFromUtf8
+
+#include "files/NazgFiles.h"
 
 namespace nazg
 {
@@ -20,18 +20,11 @@ namespace nazg
         // A reference size only: ImGui 1.92 bakes glyphs at whatever size text is drawn.
         constexpr float c_ReferenceSize = 16.0f;
 
-        std::filesystem::path PathFromUtf8(const std::string& path)
-        {
-            return std::filesystem::path(reinterpret_cast<const char8_t*>(path.c_str()));
-        }
-
         // A font's line height in em, as ImGui's stb_truetype sizes it: the 'hhea' ascent minus
         // its descent, over the 'head' units per em. 0 when the file cannot be read.
         float LineHeightPerEm(const std::string& path)
         {
-            std::ifstream stream(PathFromUtf8(path), std::ios::binary);
-            const std::vector<unsigned char> data((std::istreambuf_iterator<char>(stream)),
-                                                  std::istreambuf_iterator<char>());
+            const std::vector<uint8_t> data = ReadWholeFile(PathFromUtf8(path)).value_or(std::vector<uint8_t>());
 
             const auto u16 = [&](size_t at) { return at + 2 <= data.size() ? (data[at] << 8) | data[at + 1] : 0; };
             const auto u32 = [&](size_t at)
