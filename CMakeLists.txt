@@ -114,6 +114,8 @@ set(NAZG_CORE_SOURCES
   src/adapters/vial/NazgEncoderMap.cpp
   src/board/NazgBoardLoad.h
   src/board/NazgBoardLoad.cpp
+  src/settings/NazgSettings.h
+  src/settings/NazgSettings.cpp
   src/library/NazgDefinitionChoice.h
   src/library/NazgDefinitionChoice.cpp
   src/library/NazgDefinitionLibrary.h
@@ -161,6 +163,7 @@ set(NAZG_CORE_SOURCES
   src/ui/NazgKeycodeCatalogue.cpp
   src/ui/NazgIcons.h
   src/ui/NazgIcons.cpp
+  src/ui/NazgWorkspaceLayout.h
   src/ui/NazgSectionPlan.h
   src/ui/NazgSectionPlan.cpp
   src/adapters/qmk/NazgQmkExpression.h
@@ -372,6 +375,7 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(definition_library tests/DefinitionLibraryTest.cpp)
     nazg_add_test(definition_choice  tests/DefinitionChoiceTest.cpp)
     nazg_add_test(library_actions    tests/LibraryActionsTest.cpp)
+    nazg_add_test(settings           tests/SettingsTest.cpp)
     nazg_add_test(keycode_catalogue  tests/KeycodeCatalogueTest.cpp)
     nazg_add_test(qmk_expression     tests/QmkExpressionTest.cpp)
     nazg_add_test(section_plan       tests/SectionPlanTest.cpp)

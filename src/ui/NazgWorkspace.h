@@ -22,6 +22,7 @@
 
 #include "model/NazgKeyboard.h"
 #include "ui/NazgSection.h"
+#include "ui/NazgWorkspaceLayout.h"
 
 struct ImFont;
 
@@ -72,32 +73,6 @@ namespace nazg
 
     // Into the current window's menu bar -- the window needs ImGuiWindowFlags_MenuBar.
     [[nodiscard]] HeaderAction DrawHeader(const HeaderView& view);
-
-    // How the height under the strip is shared between the board and the panel: a splitter
-    // between them, dragged, and remembered in imgui.ini (ui-design.md, "The keycode picker",
-    // "Its size"). The board's height is what it may take at most, in pixels before DPI scaling:
-    // the splitter changes the board's size, the window only the room around it -- the board is
-    // centred -- until the board fills its width, and then the board too, down to its
-    // legibility floor. The caller keeps the window from shrinking past `spareWidth` and
-    // `spareHeight` (Rico, 2026-10-05). 0 until first drawn, then 60% of the height.
-    //
-    // And the section column's width (ui-design.md, the open point "Folding the section column"):
-    // the list's, dragged by its edge between 120 and 200 px, and whether it is folded to icons
-    // only -- dragged below 100 px, or by a double-click on the edge. One for every board.
-    struct WorkspaceLayout
-    {
-        float boardHeight    = 0.0f;
-        float columnWidth    = 180.0f;   // every custom menu label in VIA's registry, whole
-        bool  isColumnFolded = false;
-        bool  changed        = false;  // dragged this frame: the caller saves it
-
-        // Each frame, how much narrower the window could be before the board reaches its floor
-        // or the panel its minimum width, and how much shorter before the board or the panel
-        // shrinks -- in ImGui's coordinates, the window's. Never negative: Nazg never grows the
-        // window.
-        float spareWidth  = 0.0f;
-        float spareHeight = 0.0f;
-    };
 
     // `sections` are the open board's -- the column lists them, and is hidden when there is
     // only one -- and `active` the one shown, which the column changes. `keyboard` gives the
