@@ -188,6 +188,8 @@ target_compile_options(nazg_core PUBLIC $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
 
 set(NAZG_SOURCES
   src/Main.cpp
+  src/app/NazgAppSettings.h
+  src/app/NazgAppSettings.cpp
   src/app/NazgFonts.h
   src/app/NazgFonts.cpp
   src/ui/NazgSection.h
