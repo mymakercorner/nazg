@@ -436,11 +436,14 @@ namespace nazg
             ColouredText(PanelColour::Warning, "Every QMK setting back to this firmware's defaults -- Magic and N-key rollover "
                                                "too. Nazg cannot know the defaults before: they are read back after.");
             ImGui::SameLine();
+            // A write started since "Reset all..." was clicked must end first: its Task still runs.
+            ImGui::BeginDisabled(IsBusy());
             if (ImGui::Button("Reset all"))
             {
                 m_ConfirmReset = false;
                 m_Request      = ResetAll();
             }
+            ImGui::EndDisabled();
             ImGui::SameLine();
             if (ImGui::Button("Cancel"))
                 m_ConfirmReset = false;
