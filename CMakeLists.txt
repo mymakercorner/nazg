@@ -177,7 +177,7 @@ target_include_directories(nazg_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 # spelled out here rather than arriving with the target.
 target_include_directories(nazg_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/minlzma)
 
-target_link_libraries(nazg_core PUBLIC SDL3::SDL3 hidapi::hidapi nlohmann_json::nlohmann_json minlzlib)
+target_link_libraries(nazg_core PUBLIC hidapi::hidapi nlohmann_json::nlohmann_json minlzlib)
 
 # Host-layout legends are UTF-8 string literals ("é", "ß", Cyrillic, CJK). MSVC reads
 # source in the system code page unless told otherwise; GCC and Clang default to UTF-8.
@@ -188,6 +188,8 @@ target_compile_options(nazg_core PUBLIC $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
 
 set(NAZG_SOURCES
   src/Main.cpp
+  src/app/NazgApp.h
+  src/app/NazgApp.cpp
   src/app/NazgAppSettings.h
   src/app/NazgAppSettings.cpp
   src/app/NazgFonts.h
@@ -269,7 +271,7 @@ target_include_directories(nazg PRIVATE
 # hidapi::hidapi is a portable alias resolving to the right per-platform target
 # (winapi / darwin / hidraw), so no platform branching is needed here. It and SDL3
 # arrive through nazg_core, which links them PUBLIC.
-target_link_libraries(nazg PRIVATE nazg_core)
+target_link_libraries(nazg PRIVATE nazg_core SDL3::SDL3)
 
 # The version people see -- Settings' About, the package's name (tools/package_windows.py reads
 # it here). project()'s VERSION is numbers only; this one may carry a pre-release label.

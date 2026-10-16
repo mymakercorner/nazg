@@ -4,9 +4,8 @@
 #include "NazgHidTransport.h"
 
 #include <algorithm>
+#include <cstdio>
 #include <utility>
-
-#include <SDL3/SDL_log.h>
 
 #include "hidapi.h"
 
@@ -438,8 +437,7 @@ namespace nazg
 
         // Only reachable if coroutines resubmit without ever settling. Bail out rather
         // than spin forever inside one frame.
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                     "HidTransport::Pump() still had work after %d passes; giving up this frame",
+        std::fprintf(stderr, "HidTransport::Pump() still had work after %d passes; giving up this frame\n",
                      c_MaxPumpPasses);
     }
 
