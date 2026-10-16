@@ -15,15 +15,13 @@
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_sdlgpu3.h"
 
-#include "adapters/qmk/NazgQmkKeycodeCodec.h"
+#include "adapters/qmk/NazgQmkKeycodes.h"
 #include "adapters/via/NazgCommunityBundle.h"
 #include "adapters/via/NazgKeyboardDefinition.h"
 #include "adapters/via/NazgViaBundle.h"
-#include "adapters/via/NazgViaKeymap.h"
-#include "adapters/via/NazgViaLoader.h"
-#include "adapters/vial/NazgEncoderMap.h"
-#include "adapters/vial/NazgVialLoader.h"
+#include "adapters/vial/NazgVialProtocol.h"
 #include "async/NazgTask.h"
+#include "board/NazgBoardLoad.h"
 #include "library/NazgDefinitionLibrary.h"
 #include "transport/NazgDeviceChannel.h"
 #include "transport/NazgHidTransport.h"
@@ -947,12 +945,10 @@ namespace
         }
     }
 
-    // Open, load everything, close. A Vial board describes itself. A VIA board is drawn by
-    // one of its candidates: the user definitions the caller read for its VID:PID -- passed
-    // by value, so the load does not depend on the library staying put -- the community's and
-    // VIA's own, out of the bundles, which main() owns and so outlive this coroutine. `chosen` is the
-    // remembered choice, if any; when it does not settle which candidate, the load stops
-    // there and the picker asks.
+    // Open, load everything (board/NazgBoardLoad.h), close. The user definitions the caller read
+    // for the board's VID:PID are passed by value, so the load does not depend on the library
+    // staying put; the bundles are main()'s, and outlive this coroutine. `chosen` is the
+    // remembered choice, if any; when it does not settle which candidate, the picker asks.
     nazg::Task<void> LoadBoard(nazg::HidTransport&                    transport,
                                std::string                            path,
                                nazg::DeviceIdentity                   identity,
@@ -981,145 +977,25 @@ namespace
             nazg::HidDeviceChannel channel = co_await nazg::HidDeviceChannel::Open(transport, path);
             nazg::vial::Protocol protocol(channel);
 
-            // Vial first: its probe is harmless on a VIA board, which answers 0xFF.
-            if (co_await protocol.Detect())
+            nazg::BoardLoad load = co_await nazg::LoadBoard(
+                protocol, identity, std::move(candidates), std::move(chosen),
+                { bundle.definitions ? &*bundle.definitions : nullptr, bundle.community ? &*bundle.community : nullptr });
+            for (const std::string& skipped : load.skipped)
+                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", skipped.c_str());
+
+            state.keyboard   = std::move(load.keyboard);
+            state.lock       = load.lock;
+            state.isVia      = !load.isVial;
+            state.isChoosing = !load.isVial && !state.keyboard;
+            state.candidates = std::move(load.candidates);
+            state.bundled    = std::move(load.bundled);
+            state.exportable = std::move(load.exportable);
+            state.inUse.reset();
+            state.definitionSource = load.isVial ? "from the board (Vial)" : std::string();
+            if (load.used)
             {
-                // Asked first: a board in the middle of an unlock answers nothing but the
-                // unlock's own commands, and echoes the rest -- its keymap would read as garbage.
-                const nazg::vial::UnlockStatus lock = co_await protocol.GetUnlockStatus();
-                if (lock.inProgress)
-                    throw std::runtime_error("this board is waiting for an unlock that was started and never "
-                                             "finished, and answers nothing else until then -- unplug it and "
-                                             "plug it back in");
-
-                std::vector<uint8_t> json;
-                state.keyboard         = co_await nazg::vial::LoadKeyboard(protocol, &json);
-                state.lock             = lock;
-                state.exportable       = std::move(json);
-                state.definitionSource = "from the board (Vial)";
-                state.isVia            = false;
-                state.candidates.clear();
-                state.bundled.clear();
-                state.inUse.reset();
-            }
-            else
-            {
-                // The official definition needs the protocol, which chooses V2 or V3; then it
-                // is a lookup in the bundle inflated at start.
-                std::optional<nazg::DefinitionCandidate> official;
-                std::optional<std::vector<uint8_t>>      officialBytes;
-                if (bundle.definitions)
-                {
-                    const uint16_t viaProtocol = co_await protocol.GetProtocolVersion();
-                    officialBytes = bundle.definitions->Find(identity.vendorId, identity.productId, viaProtocol);
-                    if (const auto& bytes = officialBytes)
-                        official = nazg::DefinitionCandidate{
-                            nazg::DefinitionRef::Official(
-                                nazg::via::DefinitionPath(identity.vendorId, identity.productId, viaProtocol)),
-                            nazg::via::ParseDefinition(*bytes), {} };
-                }
-
-                // The community's: every definition for this VID:PID -- vendors' made-up ids
-                // collide. One that does not parse is left out; the bundle's CI should have
-                // refused it.
-                std::vector<nazg::DefinitionCandidate> bundled;
-                if (bundle.community)
-                    for (const nazg::via::CommunityDefinition* entry :
-                         bundle.community->Find(identity.vendorId, identity.productId))
-                        try
-                        {
-                            nazg::DefinitionCandidate candidate{ nazg::DefinitionRef::Community(entry->path),
-                                                                 nazg::via::ParseDefinition(*bundle.community->Bytes(entry->path)),
-                                                                 entry->publisher };
-                            candidate.status = entry->status;
-                            bundled.push_back(std::move(candidate));
-                        }
-                        catch (const std::exception& failure)
-                        {
-                            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s: %s", entry->path.c_str(), failure.what());
-                        }
-                if (official)
-                    bundled.push_back(*official);
-
-                candidates.insert(candidates.end(), bundled.begin(), bundled.end());
-                nazg::RankCandidates(candidates, identity.product);
-
-                const std::optional<size_t> resolved = nazg::ResolveCandidate(candidates, chosen);
-
-                state.isVia      = true;
-                state.bundled    = std::move(bundled);
-                state.candidates = candidates;
-
-                if (!resolved)
-                {
-                    // Nothing to draw with until the user picks: the picker takes the window.
-                    state.keyboard.reset();
-                    state.inUse.reset();
-                    state.isChoosing = true;
-                }
-                else
-                {
-                    const nazg::DefinitionCandidate& use = candidates[*resolved];
-                    state.keyboard         = co_await nazg::via::LoadKeyboard(protocol, use.definition);
-                    state.definitionSource = DescribeInUse(use);
-                    state.inUse            = use.ref;
-                    state.exportable.clear();
-                    if (use.ref.kind == nazg::DefinitionRef::Kind::Official && officialBytes)
-                        state.exportable = std::move(*officialBytes);
-                    else if (use.ref.kind == nazg::DefinitionRef::Kind::Community && bundle.community)
-                        state.exportable = bundle.community->Bytes(use.ref.bundlePath).value_or(std::vector<uint8_t>());
-                }
-            }
-
-            // What the keycode picker offers, which lighting keycodes work on this firmware, and
-            // which sections the board has.
-            if (state.keyboard)
-            {
-                state.keyboard->report = co_await nazg::vial::ReadBoardReport(protocol);
-
-                // A board's own menus may hang on its firmware version -- the column leaves out
-                // those it is too old for. A board that does not answer is version 0, QMK's default.
-                if (!state.keyboard->report.isVial && !state.keyboard->definition.customMenus.empty())
-                {
-                    try
-                    {
-                        state.keyboard->report.firmwareVersion =
-                            co_await protocol.GetKeyboardValue(nazg::via::KeyboardValue::FirmwareVersion);
-                    }
-                    catch (const nazg::ProtocolError&)
-                    {
-                    }
-                }
-
-                // Keymap draws a tap dance from its slot. Unread, its keys say "TD n" and the Tap
-                // Dance section reads them itself.
-                if (const uint8_t count = state.keyboard->report.tapDanceCount; count > 0)
-                {
-                    try
-                    {
-                        state.keyboard->tapDances =
-                            co_await nazg::vial::ReadTapDances(protocol, count, state.keyboard->keycodeVersion);
-                    }
-                    catch (const nazg::ProtocolError&)
-                    {
-                    }
-                }
-
-                // Keymap draws a knob's turns from the encoder map. Unread, or kept by no map, they
-                // are its firmware's own code.
-                if (const uint8_t knobs = nazg::KnobCount(state.keyboard->definition); knobs > 0)
-                {
-                    try
-                    {
-                        const nazg::BoardReport& report = state.keyboard->report;
-                        state.keyboard->encoderMap      = co_await nazg::vial::ReadEncoderMap(
-                            protocol, report.isVial, report.viaProtocol, state.keyboard->keymap.Layers(), knobs,
-                            state.keyboard->keycodeVersion);
-                    }
-                    catch (const nazg::ProtocolError&)
-                    {
-                    }
-                }
+                state.inUse            = state.candidates[*load.used].ref;
+                state.definitionSource = DescribeInUse(state.candidates[*load.used]);
             }
 
             state.activeSection = 0;

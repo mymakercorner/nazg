@@ -110,6 +110,8 @@ set(NAZG_CORE_SOURCES
   src/adapters/vial/NazgVialLoader.cpp
   src/adapters/vial/NazgEncoderMap.h
   src/adapters/vial/NazgEncoderMap.cpp
+  src/board/NazgBoardLoad.h
+  src/board/NazgBoardLoad.cpp
   src/library/NazgDefinitionChoice.h
   src/library/NazgDefinitionChoice.cpp
   src/library/NazgDefinitionLibrary.h
@@ -351,6 +353,7 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(key_shape          tests/KeyShapeTest.cpp)
     nazg_add_test(matrix_description tests/MatrixDescriptionTest.cpp)
     nazg_add_test(via_loader         tests/ViaLoaderTest.cpp)
+    nazg_add_test(board_load         tests/BoardLoadTest.cpp)
     nazg_add_test(via_bundle         tests/ViaBundleTest.cpp)
     nazg_add_test(definition_library tests/DefinitionLibraryTest.cpp)
     nazg_add_test(definition_choice  tests/DefinitionChoiceTest.cpp)
