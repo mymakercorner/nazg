@@ -1022,7 +1022,6 @@ namespace nazg
         ImGui::EndChild();
 
         // A vertical line between the two, no box around the key's levels (Rico, 2026-10-17).
-        const float spacing = ImGui::GetStyle().ItemSpacing.x;
         ImGui::SameLine(0.0f, spacing);
         const ImVec2 line = ImGui::GetCursorScreenPos();
         ImGui::GetWindowDrawList()->AddLine(line, ImVec2(line.x, line.y + height), GridColour());
