@@ -67,6 +67,17 @@ public:
         throw nazg::HidTransportError("FakeDeviceChannel: no scripted report was the reply -- the device did not answer");
     }
 
+    // A report sent with no reply awaited -- recorded with the requests, in order.
+    nazg::Task<void> Send(std::vector<uint8_t> payload) override
+    {
+        m_Requests.push_back(std::move(payload));
+        ++m_Sent;
+        co_return;
+    }
+
+    // Reports sent by Send(), awaiting nothing.
+    size_t SentCount() const noexcept { return m_Sent; }
+
     // Reports read past because they were not the reply, over every request so far.
     size_t DroppedCount() const noexcept { return m_Dropped; }
 
@@ -86,4 +97,5 @@ private:
     std::deque<Scripted>              m_Replies;
     std::vector<std::vector<uint8_t>> m_Requests;
     size_t                            m_Dropped = 0;
+    size_t                            m_Sent    = 0;
 };

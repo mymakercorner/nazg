@@ -76,6 +76,26 @@ namespace
         Check(std::find(fewer.begin(), fewer.end(), "Combos") == fewer.end(), "a feature with no entries is no section");
     }
 
+    // A Leyden Jar board: Diagnostics in the Tools group, after everything else.
+    void TestLeydenJarBoard()
+    {
+        std::printf("a Leyden Jar board\n");
+
+        Keyboard keyboard;
+        keyboard.report.isVial      = true;
+        keyboard.report.macroCount  = 64;
+        keyboard.report.isLeydenJar = true;
+
+        const std::vector<PlannedSection> sections = nazg::PlanSections(keyboard);
+        Check(NamesOf(sections) == std::vector<std::string>{ "Keymap", "Macros", "Diagnostics" }, "Diagnostics last");
+        Check(sections.back().kind == SectionKind::Diagnostics && sections.back().group == SectionGroup::Tools &&
+                  sections.back().icon == Icon::Activity,
+              "in the Tools group, with Tabler's activity");
+
+        keyboard.report.isLeydenJar = false;
+        Check(NamesOf(nazg::PlanSections(keyboard)).size() == 2, "no Leyden Jar, no Diagnostics");
+    }
+
     // NEVEREST 60: VIA's sections, then cipulot's eight menus in the definition's order.
     void TestViaBoardWithMenus()
     {
@@ -157,6 +177,7 @@ int main()
     TestBareBoard();
     TestVialBoard();
     TestViaBoardWithMenus();
+    TestLeydenJarBoard();
     TestMenuIcons();
     TestMonograms();
 

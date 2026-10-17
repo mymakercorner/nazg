@@ -38,6 +38,10 @@ namespace nazg
         // as HidTransport::Request() does; without it the first report is the reply.
         // Every override repeats the default, so a call through either type means the same.
         virtual Task<std::vector<uint8_t>> Request(std::vector<uint8_t> payload, ReplyCheck isReply = {}) = 0;
+
+        // Write one report and wait for nothing: for a command the firmware never answers,
+        // because it restarts first. Throws HidTransportError if the device is gone.
+        virtual Task<void> Send(std::vector<uint8_t> payload) = 0;
     };
 
     // The real channel: a device opened through HidTransport, and closed when the channel goes
@@ -60,6 +64,7 @@ namespace nazg
         ~HidDeviceChannel() override;
 
         Task<std::vector<uint8_t>> Request(std::vector<uint8_t> payload, ReplyCheck isReply = {}) override;
+        Task<void>                 Send(std::vector<uint8_t> payload) override;
 
     private:
         HidDeviceChannel(HidTransport& transport, DeviceId device, uint32_t timeoutMs) noexcept

@@ -129,6 +129,11 @@ namespace nazg
                     sections.push_back({ SectionKind::CustomMenu, SectionGroup::Board, menu.label, IconOfMenu(menu.label), index });
             }
 
+        // The tools, last -- the matrix view joins them after these, while Advanced tools is on. The
+        // Leyden Jar's shows whatever the setting (Rico, 2026-10-17): only its boards answer for it.
+        if (report.isLeydenJar)
+            sections.push_back({ SectionKind::Diagnostics, SectionGroup::Tools, "Diagnostics", Icon::Activity });
+
         return sections;
     }
 

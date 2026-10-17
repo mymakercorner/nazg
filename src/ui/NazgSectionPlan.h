@@ -33,6 +33,7 @@ namespace nazg
         AltRepeatKey,
         QmkSettings,
         CustomMenu,     // one of a VIA V3 definition's own menus
+        Diagnostics,    // the Leyden Jar controller's, in the Tools group
     };
 
     struct PlannedSection
@@ -48,7 +49,8 @@ namespace nazg
     // Nazg's sections the board has -- Keymap always, Layout, Macros, Lighting, Audio, then Vial's
     // features -- followed by its definition's custom menus, in the definition's order: those whose
     // conditions on the firmware version hold, not on Vial, which speaks the custom values without
-    // their channel (via-vial-commands.md, "Lighting") and whose app never draws these menus.
+    // their channel (via-vial-commands.md, "Lighting") and whose app never draws these menus. Then
+    // the tools: a Leyden Jar's Diagnostics.
     [[nodiscard]] std::vector<PlannedSection> PlanSections(const Keyboard& keyboard);
 
     // A custom menu's icon from its label: the label table, which holds every label of VIA's

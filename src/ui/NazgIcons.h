@@ -21,6 +21,7 @@ namespace nazg
     {
         None = 0,   // no icon: a monogram of the label is drawn instead
 
+        Activity              = 0xED23,
         AdjustmentsHorizontal = 0xEC38,
         ArrowBarToDown        = 0xEC88,
         ArrowsJoin            = 0xEDAF,

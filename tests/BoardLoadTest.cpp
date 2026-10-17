@@ -71,7 +71,7 @@ namespace
 
     // Everything a VIA board answers once its definition is settled: the load -- protocol 12,
     // two layers, no layout options, the keymap -- then the board report: the protocol again,
-    // not Vial, four macros.
+    // not Vial, four macros, not a Leyden Jar.
     void ReplyViaBoard(FakeDeviceChannel& channel)
     {
         channel.Reply({ 0x01, 0x00, 0x0C });
@@ -82,6 +82,7 @@ namespace
         channel.Reply({ 0x01, 0x00, 0x0C });
         channel.ReplyUnhandled();
         channel.Reply({ 0x0C, 4 });
+        channel.ReplyUnhandled();   // not a Leyden Jar
     }
 
     void TestNoDefinition()
@@ -115,7 +116,8 @@ namespace
         Check(load.used == 0 && load.candidates[0].ref == DefinitionRef::User(7), "and is the one in use");
         Check(load.exportable.empty(), "a user definition's export is the library's copy, not the load's");
         Check(load.keyboard->report.macroCount == 4 && !load.keyboard->report.isVial, "the board report is read");
-        Check(channel.RequestCount() == 8, "probe, load, report: eight exchanges");
+        Check(!load.keyboard->report.isLeydenJar, "the Leyden Jar's probe refused: not one");
+        Check(channel.RequestCount() == 9, "probe, load, report, the Leyden Jar's probe: nine exchanges");
     }
 
     void TestRememberedChoice()

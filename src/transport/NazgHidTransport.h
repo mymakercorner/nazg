@@ -115,6 +115,7 @@ namespace nazg
         class EnumerateAwaitable;
         class OpenAwaitable;
         class RequestAwaitable;
+        class SendAwaitable;
 
         // Enumerate connected HID devices. Pass a usagePage/usage of 0 for no filter.
         //     auto devices = co_await transport.Enumerate(0xFF60, 0x61);
@@ -137,6 +138,11 @@ namespace nazg
                                                std::vector<uint8_t> payload,
                                                uint32_t             timeoutMs = c_DefaultTimeoutMs,
                                                ReplyCheck           isReply   = {});
+
+        // Write one report and wait for nothing back: a command the firmware does not answer,
+        // because it restarts -- the Leyden Jar's bootloader and EEPROM erase. Throws
+        // HidTransportError on a dead device or an unknown id.
+        [[nodiscard]] SendAwaitable Send(DeviceId device, std::vector<uint8_t> payload);
 
         // Close a device. Not awaitable on purpose: closing cannot meaningfully fail,
         // and it has to work from a destructor -- HidDeviceChannel's, which closes the
@@ -162,10 +168,11 @@ namespace nazg
             Enumerate,
             Open,
             Request,
+            Send,
             Close
         };
 
-        // One struct for all four operations rather than a class hierarchy: the worker
+        // One struct for all five operations rather than a class hierarchy: the worker
         // loop stays a flat switch, and everything an operation carries is visible in
         // one place. Inputs are filled in by the caller, outputs by the worker.
         struct Operation
@@ -175,8 +182,8 @@ namespace nazg
             uint16_t             usagePage = 0;                    // Enumerate
             uint16_t             usage     = 0;                    // Enumerate
             std::string          path;                             // Open
-            DeviceId             device    = c_InvalidDevice;      // Request, Close
-            std::vector<uint8_t> payload;                          // Request
+            DeviceId             device    = c_InvalidDevice;      // Request, Send, Close
+            std::vector<uint8_t> payload;                          // Request, Send
             uint32_t             timeoutMs = c_DefaultTimeoutMs;   // Request
             ReplyCheck           isReply;                          // Request, may be empty
 
@@ -193,12 +200,13 @@ namespace nazg
         void WorkerLoop();
         void Submit(OperationPtr operation);
 
-        // Worker thread only, all four. m_Devices and m_NextDeviceId are touched
+        // Worker thread only, all five. m_Devices and m_NextDeviceId are touched
         // nowhere else, which is why neither needs the mutex.
         void Execute(Operation& operation);
         void ExecuteEnumerate(Operation& operation);
         void ExecuteOpen(Operation& operation);
         void ExecuteRequest(Operation& operation);
+        void ExecuteSend(Operation& operation);
         void ExecuteClose(Operation& operation);
         void CloseAllDevices();
 
@@ -278,6 +286,14 @@ namespace nazg
                 ThrowIfFailed();
                 return std::move(m_Operation->reply);
             }
+        };
+
+        class SendAwaitable : public Awaitable
+        {
+        public:
+            using Awaitable::Awaitable;
+
+            void await_resume() { ThrowIfFailed(); }
         };
     };
 }

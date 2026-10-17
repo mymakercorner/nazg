@@ -96,6 +96,10 @@ namespace nazg
         bool    layerLock         = false;
         bool    hasQmkSettings    = false;   // any at all
 
+        // The board answers the Leyden Jar controller's own commands (adapters/leydenjar): it gets
+        // the Diagnostics section.
+        bool isLeydenJar = false;
+
         // VIA's keyboard value 4, VIA_FIRMWARE_VERSION -- what a custom menu's conditions call
         // {id_firmware_version}. Read only for a board with custom menus; 0 when it does not answer,
         // as QMK's default.

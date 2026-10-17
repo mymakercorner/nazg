@@ -42,4 +42,9 @@ namespace nazg
     {
         co_return co_await m_Transport->Request(m_Device, std::move(payload), m_TimeoutMs, std::move(isReply));
     }
+
+    Task<void> HidDeviceChannel::Send(std::vector<uint8_t> payload)
+    {
+        co_await m_Transport->Send(m_Device, std::move(payload));
+    }
 }

@@ -124,6 +124,10 @@ namespace nazg::via
     public:
         explicit Protocol(DeviceChannel& channel) : m_Channel(channel) {}
 
+        // The channel it speaks on -- for another command family to speak on it too, as the
+        // Leyden Jar's does when a board loads.
+        [[nodiscard]] DeviceChannel& Channel() const noexcept { return m_Channel; }
+
         // 0x01. The one command every version answers, so it is the right first call.
         [[nodiscard]] Task<uint16_t> GetProtocolVersion();
 

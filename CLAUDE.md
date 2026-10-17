@@ -153,14 +153,23 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
 - **Not to be done**: using a definition whose VID:PID differs from the board's (Rico, 2026-10-12) --
   the picker says an import is for another keyboard and why it must not be used (a tester's K10 HE
   reports `3434:0EA7`, which no published file carries; via-registry.md).
-- **Deferred**: the Leyden Jar diagnostics (far later -- already decided: the device stays open
-  while a view polls, and key output is disabled while they show, RAM only, so every close and
-  exit path must enable it again); library export / import (a web-build need).
+- **Deferred**: library export / import (a web-build need).
 
 **Next**: the testers' reports on the second test build, `0.1.0-test.2` (2026-10-13) -- knobs, the
 transport fix for Keychron's double replies, and the community definitions v2026.10.13 (737 boards,
 the GeonWorks recrawl). The tester's Keychron Q6 knob works fully (2026-10-15); the K10 HE
 retest -- the transport fix -- is due the week of 2026-10-19. Then CI: Windows, Linux and macOS building and running the tests.
+
+**In progress** (Rico, 2026-10-17, ahead of CI): the Leyden Jar diagnostics as the Tools group's
+Diagnostics section (ui-design.md, "Plugins"). Built: its commands (`adapters/leydenjar`, scripted
+tests), the transport's `Send()` for the commands never answered, the probe at load
+(`BoardReport::isLeydenJar`, refused cleanly by the Concordia) and the section planned -- a
+placeholder until its mockup is chosen. Decided: the device stays open while a mode polls, and key
+output is off while one shows, RAM only, so every close and exit path must turn it on again.
+Read on the B104 controller (2026-10-17): protocol 0.9.1, 8x18, Beam Spring, one bin (threshold
+300, reference 376), levels 375-378; its controller bits are raw, set = released on a Beam Spring.
+A controller wired to no working matrix is forced to all released by the firmware (FF on a Beam
+Spring, 0 on a Model F), so a bare one shows no presses. Next: the mockup.
 
 # Prior research — read before re-researching anything
 
@@ -198,7 +207,7 @@ Model (model/)      Keyboard + BoardReport: what the board is and has -- the cap
     |
 Board load          board/NazgBoardLoad.*: protocol detected, definition sourced, model filled
     |
-Protocol layer      nazg::via | nazg::vial (VIA's branch) | nazg::qmk keycodes | (Keychron, XAP later)
+Protocol layer      nazg::via | nazg::vial (VIA's branch) | nazg::leydenjar | nazg::qmk keycodes | (Keychron, XAP later)
     |
 Transport           transport/: the DeviceChannel seam -- HidDeviceChannel::Open(), or a
                     scripted channel in tests -- over HidTransport's worker thread

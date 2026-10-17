@@ -133,6 +133,24 @@ namespace nazg
             const std::string message = ToUtf8(hid_error(device));
             return message.empty() ? "no further detail" : message;
         }
+
+        // Writes one report: false, with `error` set, when hidapi refuses it. hidapi wants the
+        // report ID as the first byte on every platform. QMK's raw HID interface uses
+        // unnumbered reports, so that byte is 0 and the firmware never sees it.
+        bool WriteReport(hid_device* device, const std::vector<uint8_t>& payload, std::string& error)
+        {
+            std::vector<uint8_t> framed;
+            framed.reserve(payload.size() + 1);
+            framed.push_back(0x00);
+            framed.insert(framed.end(), payload.begin(), payload.end());
+
+            if (hid_write(device, framed.data(), framed.size()) < 0)
+            {
+                error = "write failed: " + LastError(device);
+                return false;
+            }
+            return true;
+        }
     }
 
     HidTransport::HidTransport()
@@ -178,6 +196,16 @@ namespace nazg
         operation->isReply   = std::move(isReply);
 
         return RequestAwaitable(*this, std::move(operation));
+    }
+
+    HidTransport::SendAwaitable HidTransport::Send(DeviceId device, std::vector<uint8_t> payload)
+    {
+        auto operation     = std::make_shared<Operation>();
+        operation->kind    = OperationKind::Send;
+        operation->device  = device;
+        operation->payload = std::move(payload);
+
+        return SendAwaitable(*this, std::move(operation));
     }
 
     void HidTransport::Close(DeviceId device)
@@ -257,6 +285,7 @@ namespace nazg
         case OperationKind::Enumerate: ExecuteEnumerate(operation); break;
         case OperationKind::Open:      ExecuteOpen(operation);      break;
         case OperationKind::Request:   ExecuteRequest(operation);   break;
+        case OperationKind::Send:      ExecuteSend(operation);      break;
         case OperationKind::Close:     ExecuteClose(operation);     break;
         }
     }
@@ -336,19 +365,8 @@ namespace nazg
         // answer to the last one, or a report nobody asked for.
         DiscardWaitingReports(device);
 
-        // hidapi wants the report ID as the first byte on every platform. QMK's raw
-        // HID interface uses unnumbered reports, so that byte is 0 and the firmware
-        // never sees it.
-        std::vector<uint8_t> framed;
-        framed.reserve(operation.payload.size() + 1);
-        framed.push_back(0x00);
-        framed.insert(framed.end(), operation.payload.begin(), operation.payload.end());
-
-        if (hid_write(device, framed.data(), framed.size()) < 0)
-        {
-            operation.error = "write failed: " + LastError(device);
+        if (!WriteReport(device, operation.payload, operation.error))
             return;
-        }
 
         // A deadline rather than a count of empty reads: a report dropped by the check below
         // takes time too, and a board streaming them must not stretch the wait forever.
@@ -402,6 +420,18 @@ namespace nazg
                 return;
             }
         }
+    }
+
+    void HidTransport::ExecuteSend(Operation& operation)
+    {
+        const auto entry = m_Devices.find(operation.device);
+        if (entry == m_Devices.end())
+        {
+            operation.error = "send to a device that is not open";
+            return;
+        }
+
+        WriteReport(entry->second, operation.payload, operation.error);
     }
 
     void HidTransport::ExecuteClose(Operation& operation)

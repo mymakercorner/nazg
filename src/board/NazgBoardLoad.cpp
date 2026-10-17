@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "adapters/NazgProtocolError.h"
+#include "adapters/leydenjar/NazgLeydenJarProtocol.h"
 #include "adapters/via/NazgViaLoader.h"
 #include "adapters/vial/NazgEncoderMap.h"
 #include "adapters/vial/NazgVialLoader.h"
@@ -78,6 +79,10 @@ namespace nazg
         Task<void> ReadExtras(vial::Protocol& protocol, Keyboard& keyboard)
         {
             keyboard.report = co_await vial::ReadBoardReport(protocol);
+
+            // Any VIA or Vial board can be asked: one that is not a Leyden Jar refuses.
+            leydenjar::Protocol leydenJar(protocol.Channel());
+            keyboard.report.isLeydenJar = (co_await leydenJar.Probe()).has_value();
 
             // A board's own menus may hang on its firmware version -- the column leaves out
             // those it is too old for. A board that does not answer is version 0, QMK's default.

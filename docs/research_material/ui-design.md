@@ -274,6 +274,24 @@ for labels. `KeycapLegend` keeps its two fields -- Keymap puts them in the top-l
 middle-left slots. (It was to gain a third for sublegends; decorative sublegends were dropped
 2026-10-03, and placement by the legend set changes this anyway -- see "Legends".)
 
+*Started 2026-10-17 (Rico).* The wire format is the firmware's
+(`rico_forked_vial-qmk/keyboards/leyden_jar/util_protocol.c`): VIA's get and set keyboard value,
+0x02 and 0x03, with value ids 0x81 to 0x91 and the magic 0x21C0 in bytes 2-3, echoed in the
+reply; a board without it answers `id_unhandled`. Bootloader, reboot and erase EEPROM are not
+answered. Decided with Rico before the mockup:
+
+- **Shown on every Leyden Jar board**, Advanced tools or not: it appears only for a board that
+  answers the protocol probe, and entering the bootloader, erasing the EEPROM and finding a dead
+  key are an end user's needs (the tool's README) as much as a designer's.
+- **Its own key press monitor**, apart from the matrix view's live test: the Leyden Jar's scan
+  needs neither `VIA_INSECURE` nor an unlock, runs with key output off and has the controller's
+  matrix too. The matrix view stays VIA's, behind Advanced tools.
+- **The tool's features, no more**, at first: its information, Enter bootloader, Erase EEPROM,
+  the key press and level monitors, the three views (the board, QMK's matrix, the controller's).
+  The firmware's reboot and per-bin DAC threshold, which the tool never used, wait. The tool's
+  device list and layout choices are Nazg's keyboard list and Layout section.
+- Tested on a complete Model F (Rico's), beside the B104 controller.
+
 **Open: how third-party plugins are delivered.**
 
 | | For | Against |

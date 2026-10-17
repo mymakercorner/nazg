@@ -112,6 +112,8 @@ set(NAZG_CORE_SOURCES
   src/adapters/vial/NazgVialLoader.cpp
   src/adapters/vial/NazgEncoderMap.h
   src/adapters/vial/NazgEncoderMap.cpp
+  src/adapters/leydenjar/NazgLeydenJarProtocol.h
+  src/adapters/leydenjar/NazgLeydenJarProtocol.cpp
   src/board/NazgBoardLoad.h
   src/board/NazgBoardLoad.cpp
   src/board/NazgDeviceList.h
@@ -349,6 +351,7 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(via_protocol       tests/ViaProtocolTest.cpp)
     nazg_add_test(via_macro          tests/ViaMacroTest.cpp)
     nazg_add_test(vial_protocol      tests/VialProtocolTest.cpp)
+    nazg_add_test(leyden_jar_protocol tests/LeydenJarProtocolTest.cpp)
     nazg_add_test(unsolicited_report tests/UnsolicitedReportTest.cpp)
     nazg_add_test(definition         tests/DefinitionTest.cpp)
     nazg_add_test(keyboard_model     tests/KeyboardModelTest.cpp)
