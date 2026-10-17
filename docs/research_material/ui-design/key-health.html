@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- Mockup: Signal levels, second round -- helping the user find the keys at risk (ui-design.md,
+     "Plugins"; the first round is diagnostics-section.html).
+
+     First draft (2026-10-17). Rico's goal: help the user understand, as simply as possible, which
+     keys risk not being recognised, from time to time or at all. No repair advice -- Model F Labs
+     documents the causes; Nazg says what it measured and what looks unstable. No firmware change:
+     everything comes from the existing level sweep (350 to 499, ~6 readings a second), the bins'
+     thresholds and resting levels, and the scans.
+
+     THE LEVELS ARE MADE UP, until the complete Model F is recorded: only the pictures are judged
+     here. They are made up through one algorithm, so the pictures stay honest: each key gets a
+     40-second trace at the firmware's pace (one reading per 172 ms, four slow presses), its numbers
+     are computed from that trace with the tool's rule -- a reading counts as steady when it and its
+     two neighbours are on the same side of the threshold -- and its verdict from those numbers,
+     against its own board (Rico: levels differ from board to board -- the more columns, the lower
+     the pressed levels):
+     - failing: reads pressed at rest; or moved when pressed but never crossed its threshold;
+     - at risk: rests closer to its threshold than half the activation offset; or wanders at rest
+       by as much as its margin; or crosses, at its weakest steady reading, by less than 3 -- Rico's
+       tool's rule; or missed a press; or let go during a hold;
+     - to check: reaches 499, the top of the range -- its true level may be higher (Rico's MX case);
+     - not pressed yet: never seen pressed;
+     - good: the rest.
+     The verdict uses the weakest steady reading on each side, so a Model F's vibration spikes --
+     high readings while held, Rico -- never flatter a key: they are marked as outliers, not used.
+     A controller column whose keys press, together, at half the board's typical margin or less is
+     said once, as a column. The sentences lead with the effect -- "Missed 1 press out of 4", "May
+     type by itself" -- and carry no numbers: those are in the trace and the tooltip (Rico,
+     2026-10-17); "threshold" is the word, as in the firmware and the tool.
+
+     The boards: the F122's real definition (Rico's vial-qmk fork, keyboards/leyden_jar/f122; 8 x 18,
+     7 bins, offset +7) and the B104's (8 bins, offset -30), their layer 0. The controller's wiring
+     taken as the identity. The planted faults, on both: Menu dead; Caps Lock crossing by a hair;
+     ' resting close to its threshold; keypad 5 noisy; G flickering in one hold; Insert stuck;
+     Print Screen and Scroll Lock never pressed; controller column 9 weak; on the F122, Space and
+     Enter with vibration spikes and Pause at 499.
+
+     A controller wired to no matrix -- every threshold at the firmware's sentinel, 300 on a Beam
+     Spring, 1023 on a Model F -- gets one sentence instead of the analysis, the board plain (Rico,
+     2026-10-17).
+
+     With Advanced tools on, a Levels button before Board / Controller puts the Leyden Jar tool's
+     numbers on the keys -- max, now and min, the bin bottom right -- for firmware work; off by
+     default, so the view stays as it is (Rico, 2026-10-17). Without Advanced tools, no numbers: the
+     tooltips have them. A key held down lights on the board, as a finger on it would: the live feedback
+     the numbers gave in the tool.
+
+     Room (Rico, 2026-10-17): the panel a fixed height, the list scrolling inside it under a header
+     that stays; Keys and Whole board as tabs sharing one place; keys not pressed yet one line; the
+     summary's counts filters; one sentence when a quarter of the keys share one problem. "Problems:
+     Many" plants a third of the keys resting close to their threshold to test it.
+
+     The variants: the board coloured by verdict, by margin or not at all; the list as bars or as
+     sentences; the selected key's last presses side by side, its whole recording, or none; the
+     whole board as one dot per key, or not.
+
+     Rico, 2026-10-17: asked what a key's own press history would look like -- drawn as its last
+     presses, kept whenever they were, which gives the count "Missed 1 press out of 4". A weak
+     controller column is one row only: listing its keys pushed the other problems out of sight.
+     The presses side by side, the overlaid view dropped (Rico, 2026-10-17).
+
+     Rico, 2026-10-17: the one-dot-per-key view reads better than the histogram, whose bars said
+     neither what they counted nor which keys they held -- the histograms are dropped. -->
+
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Key health mockup</title>
+<style>
+:root{--window:#f3f3f5;--menubar:#e3e4e9;--text:#1d1e22;--muted:#6b6e78;--control:#ffffff;--border:#c8cad2;--accent:#3b82f6;--accent-text:#fff;--panel:#f8f8fa;--column:#ebecf0;--selected:rgba(59,130,246,.16);
+--plate:#d3d4d8;--key:#ffffff;--keyline:#b4b7c2;--ok:#15803d;--warn:#c2410c;--err:#dc2626;--info:#4b5563;--note:#7c3aed;
+--warnface:#fde7d7;--errface:#fde2e2;--noteface:#ede4fd;--rest:#6b6e78;--press:#3b82f6;--grid:#e3e4e9}
+:root[data-theme="dark"]{--window:#0f0f11;--menubar:#24252b;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--accent:#4296fa;--accent-text:#fff;--panel:#16171b;--column:#16171b;--selected:rgba(66,150,250,.22);
+--plate:#1c1d23;--key:#3a3c48;--keyline:#4b4e5c;--ok:#4ade80;--warn:#fb923c;--err:#f87171;--info:#a1a5b2;--note:#a78bfa;
+--warnface:#4a2a14;--errface:#4a1c1c;--noteface:#2e2148;--rest:#a1a5b2;--press:#4296fa;--grid:#24252b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--window);color:var(--text);font-family:Arimo,"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+.controls{display:flex;flex-wrap:wrap;gap:8px 22px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.group .name{color:var(--muted);margin-right:4px}
+button{font:inherit;padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--control);color:var(--text);cursor:pointer}
+button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+.stage{padding:16px;overflow-x:auto}
+.frame{margin:0 auto;width:1160px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--window);box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.menubar{display:flex;gap:18px;align-items:center;background:var(--menubar);padding:5px 14px}
+.menubar .board{font-weight:600}
+.muted{color:var(--muted)}
+.menubar .right{margin-left:auto;color:var(--muted)}
+.body{display:flex;min-height:560px}
+.col{flex:none;width:180px;background:var(--column);border-right:1px solid var(--border);padding:6px 5px;display:flex;flex-direction:column;gap:2px}
+.col .hdr{font-weight:700;font-size:12px;padding:6px 10px 2px}
+.col .sep{border-top:1px solid var(--border);margin:5px 4px}
+.entry{padding:7px 10px;border-radius:6px;color:var(--muted)}
+.entry.on{background:var(--selected);color:var(--text);box-shadow:inset 3px 0 0 var(--accent)}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;padding:10px 14px 14px;gap:10px}
+.strip{display:flex;gap:3px;align-items:center;padding:4px 0}
+.strip button{padding:2px 10px;font-size:12px}
+.seg{display:inline-flex}
+.seg button{border-radius:0;padding:2px 9px;font-size:12px;margin-left:-1px}
+.seg button:first-child{border-radius:6px 0 0 6px;margin-left:0}
+.seg button:last-child{border-radius:0 6px 6px 0}
+.boardarea{display:flex;justify-content:center}
+svg{display:block;overflow:visible}
+.panel{border:1px solid var(--border);border-radius:6px;background:var(--panel)}
+.mline{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;padding:6px 12px;border-bottom:1px solid var(--border);min-height:38px}
+.mline .title{font-weight:700}
+.mline .desc{color:var(--muted);font-size:12px}
+.mline .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.out{font-size:12px;color:var(--warn)}
+.summary{display:flex;gap:14px;align-items:center;font-size:12px}
+.summary .n{font-weight:700}
+.chip{display:inline-flex;align-items:center;gap:5px}
+.dot{width:9px;height:9px;border-radius:2px;display:inline-block;border:1px solid var(--keyline)}
+.two{display:flex;align-items:stretch;height:300px}
+.two > div{padding:8px 12px}
+.two > .list{flex:1.25;min-width:0;overflow-y:auto;padding-top:0}
+.stick{position:sticky;top:0;background:var(--panel);z-index:1;padding-top:8px}
+.chip.f{cursor:pointer;border-radius:4px;padding:1px 5px;margin:-1px -5px}
+.chip.f:hover{background:var(--hover)}
+.chip.f.on{background:var(--selected);box-shadow:inset 0 0 0 1px var(--accent)}
+.boardnote{color:var(--warn);font-size:12px;padding:2px 4px 6px;line-height:1.45}
+.two > .trace{flex:1;border-left:1px solid var(--border);min-width:0}
+.row{display:grid;grid-template-columns:150px 1fr;align-items:center;gap:8px;padding:2px 4px;border-radius:4px;cursor:pointer}
+.row:hover,.row.sel{background:var(--selected)}
+.row .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .why{font-size:12px;color:var(--muted)}
+.row.child .nm{padding-left:14px;color:var(--muted)}
+.sentence{padding:3px 4px;border-radius:4px;cursor:pointer;line-height:1.45}
+.sentence:hover,.sentence.sel{background:var(--selected)}
+.sentence .k{font-weight:600}
+.v-fail{color:var(--err)} .v-risk{color:var(--warn)} .v-note{color:var(--note)} .v-untested{color:var(--muted)}
+.h4{font-size:12px;font-weight:700;margin:0 0 4px}
+.cap{font-size:11px;color:var(--muted);line-height:1.4;margin-top:3px}
+.hist{border-top:1px solid var(--border);padding:8px 12px}
+.notes{max-width:1160px;margin:0 auto;padding:4px 16px 30px;color:var(--muted);line-height:1.55}
+.notes b{color:var(--text);font-weight:600}
+.notes p{margin:0 0 8px}
+.tip{position:fixed;z-index:9;max-width:360px;padding:6px 9px;border:1px solid var(--border);border-radius:6px;background:var(--control);color:var(--text);font-size:12px;line-height:1.45;box-shadow:0 2px 8px rgba(0,0,0,.15);pointer-events:none;display:none;white-space:pre-line}
+</style>
+</head>
+<body>
+<div class="controls" id="controls"></div>
+<div class="stage"><div class="frame" id="frame"></div></div>
+<div class="notes" id="notes"></div>
+<div class="tip" id="tip"></div>
+<script>
+// The definitions: the F122's from Rico's vial-qmk fork, with its layer 0 by matrix cell; the B104's as
+// in the other mockups, its layer 0 by visual row.
+const F122 = {"name":"leyden_jar/F122","labels":["Split Backspace","Split Left Shift (ISO)","Split Right Shift",["Spacebar","7U","6U"],["Enter","ANSI Enter","ISO Enter","Tie Enter"],"Split Numpad Plus","Split Numpad Enter","Split Numpad 0","Full Nav Cluster"],"keymap":[[{"x":17.75},"7,11\n\n\n0,1","7,10\n\n\n0,1"],[{"y":0.25,"x":6.75},"5,2","5,5","5,15","5,8",{"x":0.5},"5,17","5,16","6,14","5,14",{"x":0.5},"5,13","5,12","5,11","5,10"],[{"x":4.75,"c":"#777777"},"5,0",{"x":1,"c":"#cccccc"},"6,2","6,5","6,15","6,8",{"x":0.5},"6,17","6,16","7,16","7,14",{"x":0.5},"6,13","6,12","6,11","6,10",{"x":0.25},"5,9","5,7","5,6"],[{"y":1,"x":2.5},"6,0","5,1",{"x":0.25},"6,1","7,2","4,2","7,5","7,15","7,8","4,8","7,17","4,16","4,14","4,13","7,13","7,12",{"c":"#aaaaaa","w":2},"7,10\n\n\n0,0",{"x":0.25},"6,9\n\n\n8,0","7,7\n\n\n8,0","6,7\n\n\n8,0",{"x":0.25,"c":"#cccccc"},"6,3","7,3","6,4","7,6"],[{"x":2.5},"7,0","7,1",{"x":0.25,"c":"#aaaaaa","w":1.5},"4,1",{"c":"#cccccc"},"3,2","3,5","4,5","4,15","3,8","3,17","4,17","3,16","3,14","3,13","4,12","4,11",{"w":1.5},"4,10\n\n\n4,0",{"x":0.25,"c":"#aaaaaa"},"7,9\n\n\n8,0","4,9\n\n\n8,0","4,7\n\n\n8,0",{"x":0.25,"c":"#cccccc"},"4,3","4,4","7,4",{"h":2},"4,6\n\n\n5,0",{"x":1.25,"c":"#777777","w":1.25,"h":2,"w2":1.5,"h2":1,"x2":-0.25},"3,10\n\n\n4,1",{"x":1,"c":"#cccccc","w":1.5},"4,10\n\n\n4,2",{"x":0.25},"4,6\n\n\n5,1"],[{"x":2.5},"4,0","3,0",{"x":0.25,"c":"#aaaaaa","w":1.75},"3,1",{"c":"#cccccc"},"2,2","2,5","3,15","2,15","2,8","2,17","2,16","1,16","2,14","2,13","2,12",{"c":"#777777","w":2.25},"3,10\n\n\n4,0",{"x":3.5,"c":"#cccccc"},"3,3","3,4","2,6",{"x":1.25},"3,11\n\n\n4,1",{"x":1.5},"3,11\n\n\n4,2",{"c":"#777777","w":1.25},"3,10\n\n\n4,2",{"x":0.25,"c":"#cccccc"},"3,6\n\n\n5,1"],[{"c":"#aaaaaa","w":1.25},"1,1\n\n\n1,1",{"c":"#cccccc"},"1,2\n\n\n1,1",{"x":0.25},"2,0","2,1",{"x":0.25,"c":"#aaaaaa","w":2.25},"1,1\n\n\n1,0",{"c":"#cccccc"},"1,5","1,15","0,15","0,8","1,8","1,17","0,16","1,14","1,13","1,12",{"c":"#aaaaaa","w":2.75},"1,10\n\n\n2,0",{"x":1.25,"c":"#777777"},"2,9\n\n\n8,0",{"x":1.25,"c":"#cccccc"},"2,3","2,4","1,4",{"c":"#777777","h":2},"1,6\n\n\n6,0",{"x":5.25,"c":"#cccccc"},"1,6\n\n\n6,1"],[{"x":2.5},"1,0","0,0",{"x":0.25,"c":"#aaaaaa","w":1.5},"0,1","0,2",{"w":1.5},"0,5",{"c":"#cccccc","w":7},"0,17\n\n\n3,0",{"c":"#aaaaaa","w":1.5},"0,12","0,11",{"w":1.5},"0,10",{"x":0.25,"c":"#777777"},"0,9\n\n\n8,0","0,7\n\n\n8,0","1,7\n\n\n8,0",{"x":0.25,"c":"#cccccc","w":2},"0,3\n\n\n7,0","0,4",{"x":6.25},"0,6\n\n\n6,1"],[{"y":0.25,"x":8.75,"w":6},"0,17\n\n\n3,1",{"c":"#aaaaaa"},"0,14\n\n\n3,1",{"x":1.25,"w":1.75},"1,11\n\n\n2,1","1,10\n\n\n2,1",{"x":0.25},"6,9\n\n\n8,1","7,7\n\n\n8,1","6,7\n\n\n8,1",{"x":0.25,"c":"#cccccc"},"1,3\n\n\n7,1","0,3\n\n\n7,1"],[{"x":20,"c":"#aaaaaa"},"7,9\n\n\n8,1","4,9\n\n\n8,1","4,7\n\n\n8,1"],[{"x":20,"c":"#cccccc"},"2,10\n\n\n8,1","3,9\n\n\n8,1","3,7\n\n\n8,1"],[{"x":20},"1,9\n\n\n8,1",{"c":"#777777"},"2,9\n\n\n8,1",{"c":"#cccccc"},"2,7\n\n\n8,1"],[{"x":20,"c":"#777777"},"0,9\n\n\n8,1","0,7\n\n\n8,1","1,7\n\n\n8,1"]],"kc":{"5,2":"KC_F13","5,5":"KC_F14","5,15":"KC_F15","5,8":"KC_F16","5,17":"KC_F17","5,16":"KC_F18","6,14":"KC_F19","5,14":"KC_F20","5,13":"KC_F21","5,12":"KC_F22","5,11":"KC_F23","5,10":"KC_F24","5,0":"KC_ESC","6,2":"KC_F1","6,5":"KC_F2","6,15":"KC_F3","6,8":"KC_F4","6,17":"KC_F5","6,16":"KC_F6","7,16":"KC_F7","7,14":"KC_F8","6,13":"KC_F9","6,12":"KC_F10","6,11":"KC_F11","6,10":"KC_F12","5,9":"KC_PSCR","5,7":"KC_SCRL","5,6":"KC_PAUS","6,0":"KC_NO","5,1":"KC_NO","6,1":"KC_GRV","7,2":"KC_1","4,2":"KC_2","7,5":"KC_3","7,15":"KC_4","7,8":"KC_5","4,8":"KC_6","7,17":"KC_7","4,16":"KC_8","4,14":"KC_9","4,13":"KC_0","7,13":"KC_MINS","7,12":"KC_EQL","7,11":"KC_BSLS","7,10":"KC_BSPC","6,9":"KC_INS","7,7":"KC_HOME","6,7":"KC_PGUP","6,3":"KC_NUM","7,3":"KC_PSLS","6,4":"KC_PAST","7,6":"KC_PMNS","7,0":"KC_NO","7,1":"KC_NO","4,1":"KC_TAB","3,2":"KC_Q","3,5":"KC_W","4,5":"KC_E","4,15":"KC_R","3,8":"KC_T","3,17":"KC_Y","4,17":"KC_U","3,16":"KC_I","3,14":"KC_O","3,13":"KC_P","4,12":"KC_LBRC","4,11":"KC_RBRC","4,10":"KC_BSLS","7,9":"KC_DEL","4,9":"KC_END","4,7":"KC_PGDN","4,3":"KC_P7","4,4":"KC_P8","7,4":"KC_P9","4,6":"KC_PPLS","4,0":"KC_NO","3,0":"KC_NO","3,1":"KC_CAPS","2,2":"KC_A","2,5":"KC_S","3,15":"KC_D","2,15":"KC_F","2,8":"KC_G","2,17":"KC_H","2,16":"KC_J","1,16":"KC_K","2,14":"KC_L","2,13":"KC_SCLN","2,12":"KC_QUOT","3,11":"KC_NUHS","3,10":"KC_ENT","2,10":"KC_NO","3,9":"KC_NO","3,7":"KC_NO","3,3":"KC_P4","3,4":"KC_P5","2,6":"KC_P6","3,6":"KC_KP_EQUAL_AS400","2,0":"KC_NO","2,1":"KC_NO","1,1":"KC_LSFT","1,2":"KC_NUBS","1,5":"KC_Z","1,15":"KC_X","0,15":"KC_C","0,8":"KC_V","1,8":"KC_B","1,17":"KC_N","0,16":"KC_M","1,14":"KC_COMM","1,13":"KC_DOT","1,12":"KC_SLSH","1,11":"KC_RSFT","1,10":"KC_RSFT","1,9":"KC_NO","2,9":"KC_UP","2,7":"KC_NO","2,3":"KC_P1","2,4":"KC_P2","1,4":"KC_P3","1,6":"KC_PENT","1,0":"KC_NO","0,0":"KC_NO","0,1":"KC_LCTL","0,2":"KC_LGUI","0,5":"KC_LALT","0,17":"KC_SPC","0,14":"KC_NO","0,12":"KC_RALT","0,11":"KC_APP","0,10":"MO(_FN)","0,9":"KC_LEFT","0,7":"KC_DOWN","1,7":"KC_RIGHT","1,3":"KC_P0","0,3":"KC_P0","0,4":"KC_PDOT","0,6":"KC_PCMM"}};
+const B104 = {"name":"leyden_jar/B104","source":"the board itself (Vial), tests/ModelFDefinition.h","labels":["Split Backspace","Full Left Shift","Split Right Shift",["Enter","ISO Enter","ANSI Enter"],"Split Numpad Zero","Full Nav Cluster"],"keymap":[[{"x":15.5},"6,5\n\n\n0,1","6,11\n\n\n0,1"],[{"x":2.5,"y":0.25},"0,0",{"x":1.0},"0,1","0,3","0,14","0,16",{"x":0.5},"0,2","0,15","6,15","0,13",{"x":0.5},"0,4","0,12","0,5","0,11",{"x":0.25},"0,10","0,9","0,8"],[{"x":2.5,"y":0.5},"6,0","6,1","5,1","6,3","6,14","6,16","5,16","6,2","5,15","6,13","5,4","6,4","6,12",{"w":2.0},"6,11\n\n\n0,0",{"x":0.25},"0,6\n\n\n5,0","0,7\n\n\n5,0","6,7\n\n\n5,0",{"x":0.25},"6,10","5,10","6,9","6,8",{"x":2.75},"0,6\n\n\n5,1","0,7\n\n\n5,1","6,7\n\n\n5,1"],[{"x":2.5,"w":1.5},"5,0","4,1","4,3","5,3","5,14","4,16","4,2","5,2","4,15","5,13","4,4","5,12","5,5",{"x":0.25,"w":1.25,"h":2.0,"w2":1.5,"h2":1.0,"x2":-0.25},"4,11\n\n\n3,0",{"x":0.25},"5,6\n\n\n5,0","6,6\n\n\n5,0","5,7\n\n\n5,0",{"x":0.25},"4,10","4,9","5,9",{"h":2.0},"5,8",{"x":1.0,"w":1.5},"5,11\n\n\n3,1",{"x":0.25},"5,6\n\n\n5,1","6,6\n\n\n5,1","5,7\n\n\n5,1"],[{"x":2.5,"w":1.75},"4,0","3,1","3,3","4,14","3,14","3,16","3,2","3,15","4,13","3,13","3,4","4,12","4,5\n\n\n3,0",{"x":4.75},"3,10","3,9","4,8",{"x":1.25,"w":2.25},"4,5\n\n\n3,1",{"x":0.25},"3,11\n\n\n5,1","4,6\n\n\n5,1","4,7\n\n\n5,1"],[{"w":2.25},"2,1\n\n\n1,1",{"x":0.25,"w":1.25},"2,0\n\n\n1,0","2,1\n\n\n1,0","2,3","2,14","1,14","1,16","2,16","2,2","1,15","1,13","2,4","2,12",{"w":2.75},"2,5\n\n\n2,0",{"x":1.25},"3,6\n\n\n5,0",{"x":1.25},"2,10","2,9","2,8",{"h":2.0},"3,8",{"x":2.75},"2,6\n\n\n5,1","3,6\n\n\n5,1","3,7\n\n\n5,1"],[{"x":2.5,"w":1.25},"1,0",{"w":1.25},"1,1",{"w":1.25},"1,3",{"w":6.25},"1,2",{"w":1.25},"1,4",{"w":1.25},"1,12",{"w":1.25},"1,5",{"w":1.25},"1,11",{"x":0.25},"1,6\n\n\n5,0","2,7\n\n\n5,0","1,7\n\n\n5,0",{"x":0.25,"w":2.0},"1,10\n\n\n4,0","1,8",{"x":3.75},"1,6\n\n\n5,1","2,7\n\n\n5,1","1,7\n\n\n5,1"],[{"x":14.75,"y":0.25,"w":1.75},"3,12\n\n\n2,1","2,11\n\n\n2,1",{"x":3.5},"1,10\n\n\n4,1","1,9\n\n\n4,1"]]};
+const W = s => s.split(' ');
+const B104_ROWS = [
+  W('KC_ESC KC_F1 KC_F2 KC_F3 KC_F4 KC_F5 KC_F6 KC_F7 KC_F8 KC_F9 KC_F10 KC_F11 KC_F12 KC_PSCR KC_SCRL KC_PAUS'),
+  W('KC_GRV KC_1 KC_2 KC_3 KC_4 KC_5 KC_6 KC_7 KC_8 KC_9 KC_0 KC_MINS KC_EQL KC_BSPC KC_INS KC_HOME KC_PGUP KC_NUM KC_PSLS KC_PAST KC_PMNS'),
+  W('KC_TAB KC_Q KC_W KC_E KC_R KC_T KC_Y KC_U KC_I KC_O KC_P KC_LBRC KC_RBRC KC_ENT KC_DEL KC_END KC_PGDN KC_P7 KC_P8 KC_P9 KC_PPLS'),
+  W('KC_CAPS KC_A KC_S KC_D KC_F KC_G KC_H KC_J KC_K KC_L KC_SCLN KC_QUOT KC_BSLS KC_P4 KC_P5 KC_P6'),
+  W('KC_LSFT KC_NUBS KC_Z KC_X KC_C KC_V KC_B KC_N KC_M KC_COMM KC_DOT KC_SLSH KC_RSFT KC_UP KC_P1 KC_P2 KC_P3 KC_PENT'),
+  W('KC_LCTL KC_LGUI KC_LALT KC_SPC KC_RALT KC_RGUI KC_APP KC_RCTL KC_LEFT KC_DOWN KC_RGHT KC_P0 KC_PDOT')];
+
+// ---------------------------------------------------------------------------------------------
+// KLE, as in the other section mockups.
+function parseKle(rows) {
+  const keys = [];
+  let x = 0, y = 0, rx = 0, ry = 0, r = 0, p = {};
+  const pair = s => { const m = /^\s*(\d+)\s*,\s*(\d+)\s*$/.exec(s || ''); return m ? [+m[1], +m[2]] : null; };
+  for (const row of rows) {
+    if (!Array.isArray(row)) continue;
+    for (const item of row) {
+      if (typeof item === 'object') {
+        if ('r' in item) r = item.r;
+        if ('rx' in item || 'ry' in item) { if ('rx' in item) rx = item.rx; if ('ry' in item) ry = item.ry; x = rx; y = ry; }
+        if ('x' in item) x += item.x;
+        if ('y' in item) y += item.y;
+        for (const k of ['w', 'h', 'x2', 'y2', 'w2', 'h2', 'd']) if (k in item) p[k] = item[k];
+        continue;
+      }
+      const w = p.w || 1, h = p.h || 1;
+      const labels = String(item).split('\n');
+      const cell = pair(labels[0]), option = pair(labels[3]);
+      if (cell || p.d)
+        keys.push({ x, y, w, h, x2: p.x2 || 0, y2: p.y2 || 0, w2: p.w2 || w, h2: p.h2 || h, decal: !!p.d,
+                    cell, g: option ? option[0] : -1, o: option ? option[1] : 0 });
+      x += w;
+      p = {};
+    }
+    y += 1;
+    x = rx;
+  }
+  return keys;
+}
+function boundsOf(keys) {
+  const b = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+  for (const k of keys)
+    for (const [x, y, w, h] of [[k.x, k.y, k.w, k.h], [k.x + k.x2, k.y + k.y2, k.w2, k.h2]]) {
+      b.x0 = Math.min(b.x0, x); b.y0 = Math.min(b.y0, y); b.x1 = Math.max(b.x1, x + w); b.y1 = Math.max(b.y1, y + h);
+    }
+  return b;
+}
+const NAMED = { ESC: 'Esc', GRV: '`', MINS: '-', EQL: '=', BSPC: 'Bksp', INS: 'Ins', HOME: 'Home', PGUP: 'PgUp', NUM: 'Num',
+  PSLS: '/', PAST: '*', PMNS: '-', TAB: 'Tab', LBRC: '[', RBRC: ']', ENT: 'Enter', DEL: 'Del', END: 'End', PGDN: 'PgDn',
+  P7: '7', P8: '8', P9: '9', PPLS: '+', CAPS: 'Caps', SCLN: ';', QUOT: "'", BSLS: '\\', NUHS: '#', P4: '4', P5: '5', P6: '6',
+  LSFT: 'Shift', NUBS: '\\', COMM: ',', DOT: '.', SLSH: '/', RSFT: 'Shift', UP: '↑', P1: '1', P2: '2', P3: '3', PENT: 'Enter',
+  LCTL: 'Ctrl', LGUI: 'Win', LALT: 'Alt', SPC: '', RALT: 'AltGr', RGUI: 'Win', APP: 'Menu', RCTL: 'Ctrl', LEFT: '←',
+  DOWN: '↓', RGHT: '→', RIGHT: '→', P0: '0', PDOT: '.', PCMM: ',', PSCR: 'PrtSc', SCRL: 'ScrLk', PAUS: 'Pause', NO: '',
+  KP_EQUAL_AS400: '=' };
+const FULL = { KC_APP: 'Menu', KC_CAPS: 'Caps Lock', KC_QUOT: "' (quote)", KC_P5: 'Keypad 5', KC_G: 'G', KC_SPC: 'Space',
+  KC_ENT: 'Enter', KC_PAUS: 'Pause', KC_INS: 'Insert', KC_PSCR: 'Print Screen', KC_SCRL: 'Scroll Lock', KC_BSPC: 'Backspace',
+  KC_LSFT: 'Left Shift', KC_RSFT: 'Right Shift', KC_TAB: 'Tab', KC_ESC: 'Esc', KC_DEL: 'Delete', KC_HOME: 'Home', KC_END: 'End' };
+const legendOf = kc => { if (/^MO\(/.test(kc)) return 'Fn'; const n = kc.replace(/^KC_/, ''); return n in NAMED ? NAMED[n] : n; };
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+function keysOf(def, kcOf) {
+  const keys = parseKle(def.keymap).filter(k => !k.decal && !(k.g >= 0 && k.o !== 0));
+  kcOf(keys);
+  return keys;
+}
+const BOARDS = {
+  'F122 · Model F, 7 bins': { def: F122, title: 'Model F Labs F122', dir: 1, offset: 7, bins: 7, ref0: 384, refStep: 4,
+    noise: 1.2, press: 48, pressSpread: 8, spikes: true, weak: { column: 14, factor: 0.32 },
+    keys: keysOf(F122, ks => ks.forEach(k => { k.kc = F122.kc[k.cell.join(',')] || 'KC_NO'; })) },
+  'B104 · Beam Spring, 8 bins': { def: B104, title: 'Model F Labs B104', dir: -1, offset: 30, bins: 8, ref0: 452, refStep: 3,
+    noise: 2, press: 85, pressSpread: 10, spikes: false, weak: { column: 13, factor: 0.5 },
+    keys: keysOf(B104, ks => {
+      const rows = [...new Set(ks.map(k => k.y))].sort((a, b) => a - b);
+      rows.forEach((y, i) => ks.filter(k => k.y === y).sort((a, b) => a.x - b.x)
+        .forEach((k, j) => { k.kc = (B104_ROWS[i] || [])[j] || 'KC_NO'; }));
+    }) },
+};
+const ROWS = 8, COLS = 18;
+const PRESS_SAFE = 3;   // Rico's tool: a press less than 3 past the threshold is not safe
+
+// ---------------------------------------------------------------------------------------------
+// The made-up readings: one trace per key, then its numbers, then its verdict.
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const N_READINGS = 232, READING_S = 0.172;          // 40 seconds at the firmware's pace
+const HOLDS = [[22, 38], [70, 86], [120, 134], [176, 192]];   // four slow presses, by reading index
+const HOLD_DEPTH = [1, 0.96, 1.04, 0.92];            // no two presses alike
+const clampLevel = v => (v < 350 ? 0 : Math.min(499, Math.round(v)));
+
+let MANY = false;   // the many-problems scenario
+function buildBoard(b) {
+  const rand = rng(b.bins * 7919 + b.offset);
+  const gauss = () => (rand() + rand() + rand() - 1.5) * 1.15;
+  const binOf = c => Math.min(b.bins - 1, Math.floor(c * b.bins / COLS));
+  b.refs = [...Array(b.bins)].map((_, i) => b.ref0 + i * b.refStep);
+  b.thresholds = b.refs.map(r => r + b.dir * b.offset);
+  for (const k of b.keys) {
+    const [r, c] = k.cell, bin = binOf(c), ref = b.refs[bin], th = b.thresholds[bin];
+    k.bin = bin; k.th = th; k.ref = ref;
+    let rest = ref + gauss() * b.offset * 0.12, noise = b.noise, press = b.dir * (b.press + gauss() * b.pressSpread);
+    if (c === b.weak.column) press *= b.weak.factor;
+    let fault = { KC_APP: 'dead', KC_CAPS: 'hair', KC_QUOT: 'close', KC_P5: 'noisy', KC_G: 'flicker', KC_INS: 'stuck',
+                    KC_PSCR: 'untested', KC_SCRL: 'untested' }[k.kc] || (b.spikes && { KC_SPC: 'spikes', KC_ENT: 'spikes', KC_PAUS: 'top' }[k.kc]);
+    if (MANY && !fault) { const idx = b.keys.indexOf(k); fault = idx % 3 === 1 ? 'close' : idx % 11 === 5 ? 'hair' : null; }
+    k.fault = fault || null;
+    if (fault === 'close') rest = th - b.dir * (b.offset * 0.28);
+    if (fault === 'noisy') noise = b.noise * 6;
+    if (fault === 'dead') press = (th - b.dir * b.offset * (b.dir > 0 ? 0.25 : 0.45)) - rest;
+    if (fault === 'hair') press = (th + b.dir * 2.2) - rest;
+    if (fault === 'top') press = 520 - rest;
+    const tr = [];
+    for (let i = 0; i < N_READINGS; i++) {
+      const h = fault === 'untested' ? -1 : HOLDS.findIndex(([a, z]) => i >= a && i <= z), hold = h >= 0 && HOLDS[h];
+      let v = rest + gauss() * noise;
+      if (hold) {
+        const [a, z] = hold, edge = Math.min(i - a, z - i);
+        const depth = edge >= 2 ? 1 : (edge + 1) / 3;             // two readings in and out: a slow press
+        // Caps Lock's third press stops just short: registered three times out of four.
+        const p = fault === 'hair' ? (h === 2 ? (th - b.dir * 1.5) - rest : press)
+                : fault === 'dead' || fault === 'top' ? press : press * HOLD_DEPTH[h];
+        v = rest + p * depth + gauss() * (b.noise * (fault === 'hair' ? 0.6 : 1.2));
+        if (fault === 'flicker' && i === 78) v = rest + gauss() * noise;
+        if (fault === 'spikes' && (i === a + 4 || i === 80)) v = rest + press + b.dir * 30;
+      }
+      if (fault === 'stuck') v = rest + b.dir * b.press + gauss() * noise;
+      tr.push(clampLevel(v));
+    }
+    k.trace = tr;
+  }
+  return b;
+}
+Object.values(BOARDS).forEach(buildBoard);
+
+// The numbers, from the readings shown -- all of them, or those before the first press.
+const isPressed = (b, k, v) => (b.dir > 0 ? v >= k.th : v <= k.th);
+function statsOf(b, k, upTo) {
+  const tr = k.trace.slice(0, upTo), n = tr.length, side = tr.map(v => isPressed(b, k, v));
+  // The key's usual level, and the press attempts: two readings or more in a row that leave it clearly
+  // towards the threshold -- half the offset -- as a finger does, whether the key crosses or not.
+  // Nazg cannot know when a finger is on a key either.
+  const released = tr.filter((v, i) => !side[i]), usual = median(released);
+  // Its own noise, from the median absolute deviation: a move is clear past three times it, or 30 % of the offset.
+  const sigma = usual === null ? 0 : 1.4826 * median(released.map(v => Math.abs(v - usual)));
+  const clear = Math.max(b.offset * 0.3, 3 * sigma);
+  const away = tr.map((v, i) => side[i] || (usual !== null && b.dir * (v - usual) > clear));
+  // A lone released reading between pressed ones belongs to the hold: let go, not rest.
+  for (let i = 1; i < n - 1; i++) if (!side[i] && side[i - 1] && side[i + 1]) away[i] = true;
+  const attempt = tr.map(() => false);
+  for (let i = 0; i < n;) {
+    if (!away[i]) { i++; continue; }
+    let j = i; while (j < n && away[j]) j++;
+    if (j - i >= 2) {
+      // The way in and out of a slow press belongs to it too.
+      let a = i, z = j - 1;
+      while (a > 0 && b.dir * (tr[a - 1] - usual) > clear / 2) a--;
+      while (z < n - 1 && b.dir * (tr[z + 1] - usual) > clear / 2) z++;
+      for (let x = a; x <= z; x++) attempt[x] = true;
+    }
+    i = j;
+  }
+  const resting = [], steadyPress = [], outliers = [], flicks = [];
+  for (let i = 0; i < n; i++) {
+    if (!attempt[i]) resting.push({ i, v: tr[i] });
+    else if (side[i] && i > 0 && i < n - 1 && side[i - 1] && side[i + 1]) steadyPress.push({ i, v: tr[i] });
+  }
+  // A lone released reading inside a hold: let go. Readings far past the hold's median: spikes, left out.
+  for (let i = 1; i < n - 1; i++) if (attempt[i] && !side[i] && side[i - 1] && side[i + 1]) flicks.push(i);
+  const pm = median(steadyPress.map(p => p.v));
+  for (const p of steadyPress) if (Math.abs(p.v - pm) > 25 && p.v !== 499) outliers.push(p.i);
+  const usedPress = steadyPress.filter(p => !outliers.includes(p.i));
+  const st = { restMed: median(resting.map(p => p.v)), outliers, flicks, top: tr.includes(499) };
+  // The weakest reading on each side: the one nearest the threshold.
+  const nearest = arr => arr.reduce((best, p) => (best === null || Math.abs(p.v - k.th) < Math.abs(best - k.th) ? p.v : best), null);
+  st.restNear = nearest(resting);
+  // How much it wanders: the middle 90 % of its resting readings, so one stray reading does not count.
+  const sorted = resting.map(p => p.v).sort((x, y) => x - y), pct = q => sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))];
+  st.restSpread = sorted.length ? pct(0.95) - pct(0.05) : 0;
+  st.pressWeak = nearest(usedPress);
+  st.restMargin = st.restNear === null ? null : b.dir * (k.th - st.restNear);   // its nearest resting reading
+  st.medMargin = st.restMed === null ? null : b.dir * (k.th - st.restMed);      // its usual level
+  st.pressMargin = st.pressWeak === null ? null : b.dir * (st.pressWeak - k.th);
+  // Pressed without crossing: how near the deepest reading of its attempts came.
+  const tries = tr.filter((v, i) => attempt[i]);
+  st.moved = tries.length > 0;
+  st.closest = st.moved ? Math.min(...tries.map(v => b.dir * (k.th - v))) : null;
+  st.stuck = resting.length === 0 && steadyPress.length > 0;
+  st.seen = steadyPress.length > 0;
+  // Its presses: each run of attempt readings, registered when it holds a steady pressed reading.
+  st.presses = [];
+  for (let i = 0; i < n;) {
+    if (!attempt[i]) { i++; continue; }
+    let j = i; while (j < n && attempt[j]) j++;
+    st.presses.push({ a: i, z: j - 1, registered: steadyPress.some(p => p.i >= i && p.i < j) });
+    i = j;
+  }
+  st.missed = st.presses.filter(p => !p.registered).length;
+  // How its presses vary, press to press: the level each one held -- the median of its steady readings,
+  // spikes left out -- so the way in and out of a slow press is not taken for variation.
+  const held = st.presses.filter(p => p.registered)
+    .map(p => median(usedPress.filter(q => q.i >= p.a && q.i <= p.z).map(q => q.v))).filter(v => v !== null)
+    .map(v => b.dir * (v - k.th));
+  st.pressMedMargin = held.length ? median(held) : null;
+  st.pressBand = held.length ? [Math.min(...held), Math.max(...held)] : null;
+  return st;
+}
+function median(a) { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; }
+
+// Verdicts, against the board's own typical press.
+function judge(b, upTo) {
+  const all = b.keys.map(k => ({ k, st: statsOf(b, k, upTo) }));
+  const typical = median(all.filter(e => e.st.pressMedMargin !== null && e.k.cell[1] !== b.weak.column).map(e => e.st.pressMedMargin)) || 0;
+  for (const e of all) {
+    const { st } = e, reasons = [];
+    let v = 'good';
+    const risk = why => { reasons.push(why); if (v === 'good' || v === 'untested' || v === 'note') v = 'risk'; };
+    if (st.stuck) { v = 'fail'; reasons.push('Types by itself: seen pressed without being touched'); }
+    else {
+      if (st.restMargin !== null && st.restMargin <= 0)
+        risk('May type by itself: went past its threshold untouched');
+      else if (st.medMargin !== null && st.medMargin < b.offset * 0.5)
+        risk('May type by itself: rests close to its threshold');
+      else if (st.medMargin !== null && st.restSpread >= st.medMargin * 0.6)
+        risk('May type by itself: its level wanders at rest');
+      if (!st.seen && st.moved) {
+        v = 'fail';
+        reasons.unshift(st.closest <= 0 ? 'Does not work: barely reaches its threshold, never holds past it'
+                                        : 'Does not work: its presses never reach its threshold');
+      }
+      else if (st.pressMargin !== null && st.pressMargin < PRESS_SAFE)
+        risk('May miss presses: only just past its threshold');
+      if (st.seen && st.missed > 0) {
+        risk(`Missed ${st.missed} ${st.missed === 1 ? 'press' : 'presses'} out of ${st.presses.length}`);
+        reasons.unshift(reasons.pop());
+      }
+      if (st.flicks.length && st.seen) risk(`Let go by itself ${st.flicks.length === 1 ? 'once' : st.flicks.length + ' times'} while held`);
+      if (!st.seen && !st.moved && v === 'good') { v = 'untested'; reasons.push('Not pressed yet'); }
+      if (st.top && v === 'good') { v = 'note'; reasons.push('To check: reads at the top of the range, its real level may be higher'); }
+      else if (st.top) reasons.push('reads at the top of the range');
+    }
+    // A key that does not work says that alone.
+    e.v = v; e.reasons = v === 'fail' ? reasons.slice(0, 1) : reasons;
+    // How healthy, 0 (failing) to 1 (comfortable): the tighter of the two margins, each on its own scale.
+    const r = st.restMargin === null ? 1 : Math.max(0, st.restMargin) / b.offset, p = st.pressMargin === null ? (v === 'fail' ? 0 : 1) : st.pressMargin / Math.max(1, typical);
+    e.health = v === 'fail' ? 0 : Math.max(0, Math.min(1, Math.min(r, p)));
+  }
+  // A controller column pressing at half the board's typical margin or less, together.
+  const columns = [];
+  for (let c = 0; c < COLS; c++) {
+    const inCol = all.filter(e => e.k.cell[1] === c && e.st.pressMedMargin !== null);
+    const m = median(inCol.map(e => e.st.pressMedMargin));
+    if (inCol.length >= 3 && m !== null && m <= typical / 2) columns.push({ c, n: inCol.length, m });
+  }
+  return { all, typical, columns };
+}
+
+// ---------------------------------------------------------------------------------------------
+const state = { board: Object.keys(BOARDS)[0], controller: 'Soldered to a matrix', moment: 'After a pass', colours: 'By verdict', list: 'Bars', trace: 'Its last presses',
+  many: 'A few', tab: 'Keys', filter: null, view: 'Board', advanced: 'Off', levels: false, theme: 'Light', selected: null, hover: null, held: null };
+const board = () => BOARDS[state.board];
+let J = null;
+const upTo = () => (state.moment === 'After a pass' ? N_READINGS : HOLDS[0][0] - 2);
+const VERDICT_ORDER = { fail: 0, risk: 1, note: 2, untested: 3, good: 4 };
+const VERDICT_WORD = { fail: 'failing', risk: 'at risk', note: 'to check', untested: 'not pressed yet', good: 'good' };
+
+const soldered = () => state.controller === 'Soldered to a matrix';
+const sentinel = () => (board().dir > 0 ? 1023 : 300);
+function keyFill(e) {
+  if (state.held === e.k && soldered()) return { cls: 'k live' };
+  if (state.colours === 'Plain' || !soldered()) return { cls: 'k' };
+  if (state.colours === 'By verdict') return { cls: 'k v' + e.v };
+  if (e.v === 'untested') return { cls: 'k vuntested' };
+  const t = Math.round((1 - e.health) * 100);
+  return { cls: 'k', style: `fill:color-mix(in srgb, var(--err) ${Math.min(85, t)}%, var(--key))` };
+}
+function svgStyle(fs) {
+  return `<style>.plate{fill:var(--plate)}.k{fill:var(--key);stroke:var(--keyline)}.k.none{fill:none;stroke-dasharray:3 3;opacity:.55}`
+    + `.k.vfail{fill:var(--errface);stroke:var(--err);stroke-width:2}.k.vrisk{fill:var(--warnface);stroke:var(--warn);stroke-width:2}`
+    + `.k.vnote{fill:var(--noteface);stroke:var(--note);stroke-width:1.5}.k.vuntested{fill:none;stroke-dasharray:4 3}`
+    + `.k.sel{stroke:var(--accent);stroke-width:3}.k.lit{stroke:var(--accent);stroke-width:3}`
+    + `.k.live{fill:color-mix(in srgb, var(--press) 30%, var(--key));stroke:var(--press);stroke-width:2.5}`
+    + `.lv{font-family:Arimo,Arial;pointer-events:none;fill:var(--text);font-variant-numeric:tabular-nums}.lv.ex{fill:var(--muted)}.lv.bn{fill:var(--ok)}`
+    + `.t{font:${fs}px Arimo,Arial;fill:var(--text);text-anchor:middle;pointer-events:none}.t.small{font-size:10px}`
+    + `.ruler{font:11px Arimo,Arial;fill:var(--muted);text-anchor:middle}.ruler.flag{fill:var(--warn);font-weight:700}</style>`;
+}
+function tipOf(e) {
+  const b = board(), { k, st } = e;
+  return [`${FULL[k.kc] || legendOf(k.kc) || 'no key'} · row ${k.cell[0]}, column ${k.cell[1]}${b.bins > 1 ? ` · bin ${k.bin}` : ''}`,
+    `${VERDICT_WORD[e.v]}${e.reasons.length ? ': ' + e.reasons.join('; ') : ''}`,
+    `threshold ${k.th} · at rest ${st.restMed ?? '–'} · weakest press ${st.pressWeak ?? '–'}`].join('\n');
+}
+function boardSvg() {
+  const b = board(), keys = b.keys, bd = boundsOf(keys), avail = 1160 - 180 - 28 - 30;
+  const u = Math.min(44, Math.floor(avail / (bd.x1 - bd.x0 + 0.7))), m = u * 0.35;
+  const W2 = (bd.x1 - bd.x0) * u + 2 * m, H = (bd.y1 - bd.y0) * u + 2 * m, fs = Math.round(u * 0.28), gap = Math.max(1, u * 0.06);
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${W2}" height="${H}">${svgStyle(fs)}<rect class="plate" width="100%" height="100%" rx="12"/><g transform="translate(${m} ${m})">`;
+  const byKey = new Map(J.all.map(e => [e.k, e]));
+  for (const k of keys) {
+    const e = byKey.get(k), f = keyFill(e), lit = isLit(e) ? ' lit' : '', sel = state.selected === e ? ' sel' : '';
+    const rect = (x, y, w, h) => `<rect class="${f.cls}${lit}${sel}" data-key="${keys.indexOf(k)}" x="${x}" y="${y}" width="${w}" height="${h}" rx="${Math.max(2, u * 0.1)}"${f.style ? ` style="${f.style}"` : ''}><title>${esc(tipOf(e))}</title></rect>`;
+    const x = (k.x - bd.x0) * u + gap, y = (k.y - bd.y0) * u + gap, w = k.w * u - 2 * gap, h = k.h * u - 2 * gap;
+    s += rect(x, y, w, h);
+    if (k.w2 !== k.w || k.h2 !== k.h || k.x2 || k.y2) s += rect((k.x + k.x2 - bd.x0) * u + gap, (k.y + k.y2 - bd.y0) * u + gap, k.w2 * u - 2 * gap, k.h2 * u - 2 * gap);
+    s += numbersShown() ? levelsOnKey(e, x, y, w, h, u)
+         : `<text class="t" x="${x + w / 2}" y="${y + h / 2 + fs * 0.35}">${esc(legendOf(k.kc))}</text>`;
+  }
+  return s + `</g></svg>`;
+}
+function gridSvg() {
+  const b = board(), cw = 44, ch = 40, lab = 34, W2 = lab + COLS * cw + 10, H = lab + ROWS * ch + 10;
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${W2}" height="${H}">${svgStyle(11)}<rect class="plate" width="100%" height="100%" rx="12"/>`;
+  const flagged = new Set(J.columns.map(x => x.c));
+  for (let c = 0; c < COLS; c++) s += `<text class="ruler${flagged.has(c) ? ' flag' : ''}" x="${lab + c * cw + cw / 2}" y="${lab - 10}">C${c}</text>`;
+  for (let r = 0; r < ROWS; r++) s += `<text class="ruler" x="${lab / 2 + 2}" y="${lab + r * ch + ch / 2 + 4}">R${r}</text>`;
+  const at = new Map(J.all.map(e => [e.k.cell.join(','), e]));
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+    const e = at.get(`${r},${c}`), x = lab + c * cw + 2, y = lab + r * ch + 2;
+    if (!e) { s += `<rect class="k none" x="${x}" y="${y}" width="${cw - 4}" height="${ch - 4}" rx="4"><title>no key at R${r} C${c}</title></rect>`; continue; }
+    const f = keyFill(e), lit = isLit(e) ? ' lit' : '', sel = state.selected === e ? ' sel' : '';
+    s += `<rect class="${f.cls}${lit}${sel}" data-key="${board().keys.indexOf(e.k)}" x="${x}" y="${y}" width="${cw - 4}" height="${ch - 4}" rx="4"${f.style ? ` style="${f.style}"` : ''}><title>${esc(tipOf(e))}</title></rect>`
+       + (numbersShown() ? levelsOnKey(e, x, y, cw - 4, ch - 4, 40)
+          : `<text class="t small" x="${x + cw / 2 - 2}" y="${y + ch / 2 + 2}">${esc(legendOf(e.k.kc))}</text>`);
+  }
+  return s + `</svg>`;
+}
+// With Advanced tools on, a Levels button on the panel's first line shows the tool's numbers; the
+// default view stays as it is (Rico, 2026-10-17).
+const numbersShown = () => state.advanced === 'On' && state.levels && soldered();
+function toolLevels(e) {
+  const b = board(), k = e.k, tr = k.trace.slice(0, upTo());
+  let max = null, min = null;
+  for (let i = 2; i < tr.length; i++) {
+    const three = [tr[i - 2], tr[i - 1], tr[i]], med = [...three].sort((x, y) => x - y)[1];
+    if (three.every(v => v < k.th)) min = min === null ? med : Math.min(min, med);
+    if (three.every(v => v >= k.th)) max = max === null ? med : Math.max(max, med);
+  }
+  // Held with the mouse: "now" is its usual press -- the live reading a finger would give.
+  let now = tr[tr.length - 1];
+  if (state.held === k) now = e.st.pressMedMargin !== null ? k.th + b.dir * e.st.pressMedMargin
+                            : e.st.closest !== null ? k.th - b.dir * Math.max(0, e.st.closest) : now;
+  return { max, now, min, bin: b.bins > 1 ? k.bin : null };
+}
+function levelsOnKey(e, x, y, w, h, u) {
+  const L = toolLevels(e), fs = Math.max(8, Math.round(u * 0.22)), pad = u * 0.09;
+  const t = (cls, tx, ty, v, anchor) => v === null ? '' : `<text class="lv ${cls}" x="${tx}" y="${ty}"${anchor ? ` text-anchor="${anchor}"` : ''} style="font-size:${fs}px">${v}</text>`;
+  return t('ex', x + pad, y + pad + fs * 0.85, L.max) + t('', x + pad, y + h / 2 + fs * 0.35, L.now)
+       + t('ex', x + pad, y + h - pad, L.min) + t('bn', x + w - pad, y + h - pad, L.bin, 'end');
+}
+// Keys lit by the pointer over a list row: one key, or a column's.
+function isLit(e) {
+  const h = state.hover;
+  if (!h) return false;
+  if (h.column !== undefined) return e.k.cell[1] === h.column && e.st.pressMargin !== null;
+  return h === e;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The list: problems first, a weak column folded into one row.
+function listEntries() {
+  const colSet = new Set(J.columns.map(x => x.c));
+  const onlyWeakPress = e => e.v === 'risk' && e.reasons.length === 1 && /^May miss presses/.test(e.reasons[0]);
+  const rows = [];
+  for (const col of J.columns) {
+    // One row for the column: its keys light on the board under the pointer, not listed one by one,
+    // which would push the other problems out of sight.
+    rows.push({ column: col.c, n: col.n, m: col.m, v: 'risk', order: 1, health: 0.2 });
+  }
+  const loose = J.all.filter(e => e.v !== 'good' && e.v !== 'untested' && !(colSet.has(e.k.cell[1]) && onlyWeakPress(e)))
+    .sort((a, b) => VERDICT_ORDER[a.v] - VERDICT_ORDER[b.v] || a.health - b.health);
+  const out = [];
+  // Failing first, then the column with its keys, then the rest at risk, notes, untested.
+  for (const e of loose.filter(e => e.v === 'fail')) out.push({ e });
+  out.push(...rows);
+  for (const e of loose.filter(e => e.v !== 'fail')) out.push({ e });
+  if (!state.filter) return out;
+  return out.filter(x => (x.column !== undefined ? state.filter === 'risk' : x.e.v === state.filter));
+}
+function barSvg(e) {
+  // The track: the threshold at a fixed place; the resting side to its left, the pressed side to its right,
+  // in level units -- left scaled to the offset, right to the board's typical press.
+  const b = board(), W2 = 300, H = 16, x0 = 110, left = x0 - 8, right = W2 - x0 - 10;
+  const xr = m => x0 - Math.min(left, (m / (b.offset * 1.6)) * left);
+  const xp = m => x0 + Math.max(-left, Math.min(right, (m / (J.typical * 1.15)) * right));
+  const st = e.st;
+  let s = `<svg width="${W2}" height="${H}"><line x1="4" x2="${W2 - 4}" y1="${H / 2}" y2="${H / 2}" stroke="var(--grid)" stroke-width="4" stroke-linecap="round"/>`
+    + `<line x1="${xp(J.typical)}" x2="${xp(J.typical)}" y1="3" y2="${H - 3}" stroke="var(--muted)" stroke-dasharray="2 2"/>`
+    + `<line x1="${x0}" x2="${x0}" y1="0" y2="${H}" stroke="var(--text)" stroke-width="1.5"/>`;
+  if (st.medMargin !== null) {
+    const a = xr(st.medMargin), spread = Math.min(left, (st.restSpread / (b.offset * 1.6)) * left);
+    s += `<rect x="${a - spread / 2}" y="${H / 2 - 3}" width="${Math.max(2, spread)}" height="6" rx="3" fill="var(--rest)" opacity=".35"/>`;
+    const pm = st.pressMedMargin;
+    const p = pm !== null ? xp(pm) : st.closest !== null ? xp(-st.closest) : null;
+    const pressTip = pm !== null ? `Pressed: usually ${pm} past its threshold${st.pressBand[1] > st.pressBand[0] ? `, its presses from ${st.pressBand[0]} to ${st.pressBand[1]}` : ''} — most keys ${J.typical}`
+                   : st.closest <= 0 ? 'Pressed: touched its threshold, never held past it' : `Pressed: never got past its threshold — stopped ${st.closest} short`;
+    if (pm !== null) {
+      const x1 = xp(st.pressBand[0]), x2 = xp(st.pressBand[1]);
+      s += `<rect x="${Math.min(x1, x2)}" y="${H / 2 - 3}" width="${Math.max(2, Math.abs(x2 - x1))}" height="6" rx="3" fill="var(--press)" opacity=".3"/>`;
+    }
+    if (p !== null) s += `<line x1="${a}" x2="${p}" y1="${H / 2}" y2="${H / 2}" stroke="${e.v === 'fail' ? 'var(--err)' : e.v === 'risk' ? 'var(--warn)' : 'var(--press)'}" stroke-width="2"/>`
+      + `<circle cx="${p}" cy="${H / 2}" r="4.5" fill="${pm !== null ? 'var(--press)' : 'var(--window)'}" stroke="${pm !== null ? 'var(--press)' : 'var(--err)'}" stroke-width="2"><title>${pressTip}</title></circle>`;
+    s += `<circle cx="${a}" cy="${H / 2}" r="4" fill="var(--rest)"><title>At rest: ${st.medMargin} from its threshold${st.restSpread ? `, wandering by ${st.restSpread}` : ''}</title></circle>`;
+  } else if (st.stuck) {
+    s += `<circle cx="${xp(J.typical * 0.8)}" cy="${H / 2}" r="4.5" fill="var(--err)"><title>Seen pressed without being touched</title></circle>`;
+  }
+  return s + `</svg>`;
+}
+// When many keys share one problem, it is the keyboard's: said once, above the list (Rico, 2026-10-17).
+const REASON_PLURAL = {
+  'May type by itself: rests close to its threshold': 'rest close to their threshold — they may type by themselves',
+  'May type by itself: its level wanders at rest': 'wander at rest — they may type by themselves',
+  'May type by itself: went past its threshold untouched': 'went past their threshold untouched — they may type by themselves',
+  'May miss presses: only just past its threshold': 'only just get past their threshold — they may miss presses',
+  'Missed': 'missed some of their presses',
+};
+function boardNote() {
+  const tested = J.all.filter(e => e.v !== 'untested').length, by = new Map();
+  for (const e of J.all) {
+    if (e.v !== 'risk' && e.v !== 'fail') continue;
+    for (const r of e.reasons) { const key = /^Missed /.test(r) ? 'Missed' : r; by.set(key, (by.get(key) || 0) + 1); }
+  }
+  const notes = [...by.entries()].filter(([, n]) => n >= Math.max(8, tested / 4)).sort((x, y) => y[1] - x[1]);
+  return notes.map(([r, n]) => `<div class="boardnote"><b>${n} of ${tested} keys</b> ${REASON_PLURAL[r] || r.toLowerCase()}.</div>`).join('');
+}
+const nameOf = e => FULL[e.k.kc] || legendOf(e.k.kc) || `R${e.k.cell[0]} C${e.k.cell[1]}`;
+function listHtml() {
+  // Keys and Whole board: two answers to "where are the problems", sharing one place (Rico, 2026-10-17).
+  const tabs = `<span class="seg">${['Keys', 'Whole board'].map(t => `<button class="${state.tab === t ? 'on' : ''}" data-tab="${t}">${t}</button>`).join('')}</span>`;
+  if (state.tab === 'Whole board')
+    return `<div class="stick"><div class="h4">${tabs} <span class="muted" style="font-weight:400">· one dot per key: hover for its name, click to select it</span></div></div>${dotsHtml()}`;
+  const entries = listEntries(), untested = J.all.filter(e => e.v === 'untested');
+  const showUntested = untested.length && (!state.filter || state.filter === 'untested');
+  let head = `<div class="h4">${tabs} <span class="muted" style="font-weight:400">· the weakest first${state.list === 'Bars' && entries.length ? ', hover a dot for its numbers' : ''}</span></div>`
+    + (state.filter ? '' : boardNote());
+  if (state.list === 'Bars' && entries.length) {
+    // The bars' header, on their own geometry: each part named where it sits, what it tells in a tooltip
+    // on its name (Rico, 2026-10-17: a legend of symbols was unreadable, a sentence over the header
+    // cluttered, "further is safer" under the names still too much).
+    const x0 = 110, W2 = 300, xu = x0 + (W2 - x0 - 10) / 1.15;
+    const tipped = (text, tip) => `<tspan style="cursor:help">${text}<title>${tip}</title></tspan>`;
+    head += `<div class="row" style="cursor:default;background:none;align-items:end"><span></span><svg width="${W2}" height="34" style="font:11px Arimo,Arial">`
+      + `<circle cx="${x0 - 56}" cy="8" r="4" fill="var(--rest)"/><text x="${x0 - 8}" y="12" text-anchor="end" fill="var(--rest)" font-weight="700">`
+      + tipped('at rest', 'How far the key stays from its threshold when untouched, the band how much it wanders. Further is safer: closer, it may type by itself.') + `</text>`
+      + `<text x="${x0 + 8}" y="12" fill="var(--press)" font-weight="700">`
+      + tipped('pressed', 'How far past its threshold the key usually gets when pressed, the band how much its presses vary. Further is safer: closer, it may miss presses.') + `</text>`
+      + `<circle cx="${x0 + 60}" cy="8" r="4.5" fill="var(--press)"/>`
+      + `<line x1="${x0}" x2="${x0}" y1="2" y2="16" stroke="var(--grid)"/>`
+      + `<text x="${x0}" y="27" text-anchor="middle" fill="var(--text)">` + tipped('threshold', 'The level at which the controller counts the key as pressed.') + `</text>`
+      + `<line x1="${x0}" x2="${x0}" y1="29" y2="34" stroke="var(--text)" stroke-width="1.5"/>`
+      + `<text x="${xu}" y="27" text-anchor="middle" fill="var(--muted)">` + tipped('most keys', 'Where most keys of this keyboard usually get to when pressed.') + `</text>`
+      + `<line x1="${xu}" x2="${xu}" y1="29" y2="34" stroke="var(--muted)" stroke-dasharray="2 2"/></svg></div>`;
+  }
+  let h = `<div class="stick">${head}</div>`;
+  for (const x of entries) {
+    if (x.column !== undefined) {
+      h += state.list === 'Bars'
+        ? `<div class="row" data-column="${x.column}"><span class="nm v-risk">Column C${x.column} · ${x.n} keys</span><span class="why">its keys register more weakly than the rest of the keyboard</span></div>`
+        : `<div class="sentence" data-column="${x.column}"><span class="k v-risk">Column C${x.column}</span>: its ${x.n} keys register more weakly than the rest of the keyboard.</div>`;
+      continue;
+    }
+    const e = x.e, name = nameOf(e);
+    h += state.list === 'Bars'
+      ? `<div class="row${state.selected === e ? ' sel' : ''}" data-key="${board().keys.indexOf(e.k)}"><span class="nm ${'v-' + e.v}" title="${esc(e.reasons.join('; '))}">${esc(name)}</span>${barSvg(e)}</div>`
+      : `<div class="sentence${state.selected === e ? ' sel' : ''}" data-key="${board().keys.indexOf(e.k)}"><span class="k ${'v-' + e.v}">${esc(name)}</span> — ${esc(e.reasons.join('. '))}.</div>`;
+  }
+  if (!entries.length && !showUntested) h += `<div class="cap" style="padding:6px 4px">No key looks at risk.</div>`;
+  // Keys not pressed yet are a to-do, not a problem: one line, dashed on the board.
+  if (showUntested) {
+    const names = untested.map(nameOf);
+    h += `<div class="sentence" style="cursor:default;color:var(--muted)"><b>Not pressed yet</b>: ${esc(names.slice(0, 8).join(', '))}`
+      + `${names.length > 8 ? ` and ${names.length - 8} more` : ''} — dashed on the board.</div>`;
+  }
+  return h;
+}
+// A key's levels: its own last presses, side by side -- or the whole recording.
+function traceHtml() {
+  const e = state.selected;
+  if (!e) return `<div class="h4">A key's levels</div><div class="cap">Click a key, on the board or in the list, to see its levels.</div>`;
+  const b = board(), k = e.k, tr = k.trace.slice(0, upTo()), st = e.st, n = tr.length;
+  const name = FULL[k.kc] || legendOf(k.kc) || `R${k.cell[0]} C${k.cell[1]}`;
+  const vals = tr.filter(v => v > 0).concat([k.th, k.ref]);
+  const lo = Math.min(...vals) - 5, hi = Math.max(...vals) + 5, H = 128, top = 14, bottom = 24;
+  const Y = v => top + (1 - ((v || lo) - lo) / (hi - lo)) * (H - top - bottom);
+  const marks = (X, i, v) => (st.outliers.includes(i) ? `<circle cx="${X(i)}" cy="${Y(v)}" r="4" fill="none" stroke="var(--note)" stroke-width="1.5"><title>a spike: left out</title></circle>` : '')
+    + (st.flicks.includes(i) ? `<path d="M${X(i) - 4},${Y(v) + (b.dir > 0 ? 9 : -9)} l4,${b.dir > 0 ? -6 : 6} l4,${b.dir > 0 ? 6 : -6}z" fill="var(--warn)"><title>let go while held</title></path>` : '');
+  const thLine = (x1, x2, label) => `<line x1="${x1}" x2="${x2}" y1="${Y(k.th)}" y2="${Y(k.th)}" stroke="var(--err)" stroke-dasharray="5 3"/>`
+    + (label ? `<text x="${x2}" y="${Y(k.th) + (b.dir > 0 ? -3 : 10)}" text-anchor="end" fill="var(--err)">threshold ${k.th}</text>` : '');
+  const ago = i => { const sec = Math.round((n - 1 - i) * READING_S); return sec < 2 ? 'just now' : `${sec} s ago`; };
+  let body = '', legend = '';
+  const presses = st.stuck ? [] : st.presses;
+  if (state.trace === 'Its last presses') {
+    // At rest: its resting readings' range as a band, its usual level as a line.
+    const restVals = tr.filter((v, i) => !st.presses.some(p => i >= p.a && i <= p.z));
+    const rLo = restVals.length ? Math.min(...restVals) : null, rHi = restVals.length ? Math.max(...restVals) : null;
+    const rest = `<g><text x="4" y="10" fill="var(--muted)">at rest</text>`
+      + (rLo !== null ? `<rect x="10" y="${Math.min(Y(rHi), Y(rLo))}" width="28" height="${Math.max(2, Math.abs(Y(rHi) - Y(rLo)))}" fill="var(--rest)" opacity=".35"/>`
+        + `<line x1="10" x2="38" y1="${Y(st.restMed)}" y2="${Y(st.restMed)}" stroke="var(--rest)" stroke-width="2"/>` : '')
+      + thLine(6, 42, false) + `<text x="24" y="${H - 8}" text-anchor="middle" fill="var(--muted)">${rLo !== null ? `${rLo}–${rHi}` : '–'}</text></g>`;
+    if (!presses.length) {
+      body = `<svg width="390" height="${H}" style="font:10px Arimo,Arial">${rest}<text x="60" y="${H / 2}" fill="var(--muted)">${st.stuck ? 'Seen pressed all the time: no press to show' : 'Not pressed yet'}</text></svg>`;
+    } else {
+      const shown = presses.slice(-4), pw = 76, gap = 6, x0 = 52;
+      let svg = `<svg width="${x0 + shown.length * (pw + gap) + 4}" height="${H}" style="font:10px Arimo,Arial">${rest}`;
+      shown.forEach((p, j) => {
+        const a = Math.max(0, p.a - 2), z = Math.min(n - 1, p.z + 2), left = x0 + j * (pw + gap);
+        const X = i => left + ((i - a) / Math.max(1, z - a)) * pw;
+        svg += `<rect x="${left - 2}" y="${top - 4}" width="${pw + 4}" height="${H - top - bottom + 8}" rx="4" fill="none" stroke="var(--grid)"/>`
+          + thLine(left - 2, left + pw + 2, false)
+          + `<polyline fill="none" stroke="${p.registered ? 'var(--press)' : 'var(--warn)'}" stroke-width="1.6" points="${tr.slice(a, z + 1).map((v, x) => `${X(a + x)},${Y(v)}`).join(' ')}"/>`;
+        for (let i = a; i <= z; i++) svg += marks(X, i, tr[i]);
+        svg += `<text x="${left + pw / 2}" y="${H - 12}" text-anchor="middle" fill="${p.registered ? 'var(--ok)' : 'var(--warn)'}">${p.registered ? '✓ registered' : '✗ missed'}</text>`
+          + `<text x="${left + pw / 2}" y="${H - 1}" text-anchor="middle" fill="var(--muted)">${ago(p.a)}</text>`;
+      });
+      body = svg + `</svg>`;
+      legend = `the dashed line: its threshold, ${k.th} · the band at rest: its resting readings, the line its usual level`;
+    }
+  } else {
+    const W2 = 390, pad = 26, X = i => pad + (i / (N_READINGS - 1)) * (W2 - pad - 6);
+    let svg = `<svg width="${W2}" height="${H}" style="font:10px Arimo,Arial">` + thLine(pad, W2 - 6, true)
+      + `<line x1="${pad}" x2="${W2 - 6}" y1="${Y(k.ref)}" y2="${Y(k.ref)}" stroke="var(--muted)" stroke-dasharray="1 3"/>`
+      + `<text x="${pad + 2}" y="${Y(k.ref) + (b.dir > 0 ? 11 : -3)}" fill="var(--muted)">bin ${k.bin} at rest ${k.ref}</text>`
+      + `<text x="${pad}" y="${H - 4}" fill="var(--muted)">−${Math.round(N_READINGS * READING_S)} s</text><text x="${W2 - 6}" y="${H - 4}" text-anchor="end" fill="var(--muted)">now</text>`
+      + `<polyline fill="none" stroke="var(--press)" stroke-width="1.5" points="${tr.map((v, i) => `${X(i)},${Y(v)}`).join(' ')}"/>`;
+    tr.forEach((v, i) => svg += marks(X, i, v));
+    body = svg + `</svg>`;
+    legend = 'the whole recording since the mode opened';
+  }
+  return `<div class="h4">${esc(name)} <span class="${'v-' + e.v}" style="font-weight:400">· ${VERDICT_WORD[e.v]}</span></div>${body}`
+    + `<div class="cap">${e.reasons.length ? esc(e.reasons.join('. ')) + '. ' : ''}${legend}${st.outliers.length ? ' · <span class="v-note">◯ spikes, left out</span>' : ''}${st.flicks.length ? ' · <span class="v-risk">▲ let go while held</span>' : ''}</div>`;
+}
+// One dot per key, two rows -- at rest, pressed -- the threshold between them. Each row has its own
+// scale, as the margins do: the resting side against the offset, the pressed side against the board's
+// usual press. The orange zone is where a dot means "at risk".
+function dotsHtml() {
+  const b = board(), W2 = 500, x0 = 175, rowH = 46, H = 2 * rowH + 40;
+  const restMax = Math.max(b.offset * 1.6, ...J.all.map(e => e.st.medMargin ?? 0));
+  const pressMax = Math.max(J.typical * 1.6, ...J.all.map(e => e.st.pressMargin ?? 0));
+  const xr = m => x0 - Math.max(-40, Math.min(1, m / restMax)) * (x0 - 20);
+  const xp = m => x0 + Math.max(-1, Math.min(1, m / pressMax)) * (W2 - x0 - 20);
+  const yRest = 18 + rowH / 2, yPress = 18 + rowH + 10 + rowH / 2;
+  const colour = v => ({ fail: 'var(--err)', risk: 'var(--warn)', note: 'var(--note)', untested: 'var(--muted)', good: 'var(--rest)' }[v]);
+  let s = `<svg width="${W2}" height="${H}" style="font:11px Arimo,Arial">`
+    + `<rect x="${xr(b.offset * 0.5)}" y="${yRest - rowH / 2}" width="${x0 - xr(b.offset * 0.5)}" height="${rowH}" fill="var(--warnface)"/>`
+    + `<rect x="${x0}" y="${yPress - rowH / 2}" width="${xp(PRESS_SAFE) - x0}" height="${rowH}" fill="var(--warnface)"/>`
+    + `<line x1="${x0}" x2="${x0}" y1="8" y2="${H - 14}" stroke="var(--err)" stroke-width="1.5"/>`
+    + `<text x="${x0}" y="${H - 2}" text-anchor="middle" fill="var(--err)">threshold</text>`
+    + `<text x="8" y="${yRest + 4}" fill="var(--muted)">at rest</text><text x="8" y="${yPress + 4}" fill="var(--muted)">pressed</text>`
+    + `<text x="${x0 - 8}" y="${yRest - rowH / 2 + 11}" text-anchor="end" fill="var(--muted)">← further from it is safer</text>`
+    + `<text x="${x0 + 8}" y="${yPress - rowH / 2 + 11}" fill="var(--muted)">further past it is safer →</text>`;
+  const keys = board().keys;
+  J.all.forEach((e, idx) => {
+    const jit = (((idx * 37) % 13) - 6) * 2.6, name = FULL[e.k.kc] || legendOf(e.k.kc) || `R${e.k.cell[0]} C${e.k.cell[1]}`;
+    const sel = state.selected === e, r = sel ? 6 : e.v === 'good' ? 3 : 4.5;
+    const dot = (x, y, hollow) => `<circle data-key="${keys.indexOf(e.k)}" cx="${x}" cy="${y + jit * (e.v === 'good' ? 1 : 0.4)}" r="${r}" `
+      + `fill="${hollow ? 'var(--panel)' : colour(e.v)}" stroke="${sel ? 'var(--accent)' : colour(e.v)}" stroke-width="${sel ? 2.5 : 1.5}" opacity="${e.v === 'good' ? 0.55 : 1}" style="cursor:pointer">`
+      + `<title>${esc(name + ' · ' + VERDICT_WORD[e.v] + (e.reasons.length ? ': ' + e.reasons.join('; ') : ''))}</title></circle>`;
+    if (e.st.stuck) { s += dot(x0 + 30, yRest, false); return; }
+    if (e.st.medMargin !== null) s += dot(xr(e.st.medMargin), yRest, false);
+    if (e.st.pressMargin !== null) s += dot(xp(e.st.pressMargin), yPress, false);
+    else if (e.st.closest !== null) s += dot(xp(-Math.max(0, e.st.closest)) - (e.st.closest <= 0 ? 6 : 0), yPress, true);
+  });
+  s += `</svg>`;
+  return `<div style="padding-top:6px">${s}`
+    + `<div class="cap">Healthy keys crowd far from the threshold on both rows. A dot in the orange zone is at risk; a hollow dot on the pressed row never got past the threshold.</div></div>`;
+}
+function summaryHtml() {
+  const c = { fail: 0, risk: 0, note: 0, untested: 0, good: 0 };
+  J.all.forEach(e => c[e.v]++);
+  const chip = (v, face, line) => `<span class="chip${v !== 'good' && c[v] ? ' f' : ''}${state.filter === v ? ' on' : ''}"${v !== 'good' && c[v] ? ` data-filter="${v}" title="Show only these keys"` : ''}>`
+    + `<span class="dot" style="background:${face};border-color:${line}"></span><span class="n">${c[v]}</span> ${VERDICT_WORD[v]}</span>`;
+  return `<div class="summary">${chip('good', 'var(--key)', 'var(--keyline)')}${chip('risk', 'var(--warnface)', 'var(--warn)')}${chip('fail', 'var(--errface)', 'var(--err)')}`
+    + `${c.note ? chip('note', 'var(--noteface)', 'var(--note)') : ''}${chip('untested', 'transparent', 'var(--muted)')}</div>`;
+}
+function panelHtml() {
+  if (!soldered())
+    return `<div class="mline"><span class="title">Signal levels</span></div>`
+      + `<div style="padding:14px 18px;line-height:1.6"><b>This controller is not connected to a keyboard matrix.</b><br>`
+      + `<span class="muted">At start-up its firmware found no switch, and set every threshold to ${sentinel()} so that nothing ever registers. `
+      + `There are no levels to show. It measures again each time the keyboard is plugged in.</span></div>`
+      + `<div class="mline" style="border-top:1px solid var(--border);border-bottom:none"><span class="out">Key output off: the keyboard types nothing while Diagnostics shows</span></div>`;
+  const viewSeg = `<span class="seg">${['Board', 'Controller'].map(v => `<button class="${state.view === v ? 'on' : ''}" data-view="${v}">${v}</button>`).join('')}</span>`;
+  const hint = state.moment === 'After a pass' ? 'press each key slowly, one after the other' : 'press each key slowly, one after the other -- nothing pressed yet';
+  const levelsButton = state.advanced === 'On'
+    ? `<button class="${state.levels ? 'on' : ''}" data-act="levels" title="The Leyden Jar tool's numbers on the keys: the highest reading above the threshold, the reading now, the lowest below it, and the bin">Levels</button>` : '';
+  let h = `<div class="mline"><span class="title">Signal levels</span><span class="desc">${hint}</span><span class="right">${levelsButton}${viewSeg}</span></div>`
+    + `<div class="mline">${summaryHtml()}<span class="right"><button data-act="clear">Clear</button></span></div>`;
+  h += `<div class="two"><div class="list">${listHtml()}</div>${state.trace !== 'None' ? `<div class="trace">${traceHtml()}</div>` : ''}</div>`;
+  return h + `<div class="mline" style="border-top:1px solid var(--border);border-bottom:none"><span class="out">Key output off: the keyboard types nothing while Diagnostics shows</span></div>`;
+}
+function columnHtml() {
+  const vial = ['Keymap', 'Layout', 'Macros', 'Tap Dance', 'Combos', 'Key Overrides', 'QMK Settings'];
+  return `<div class="col"><div class="hdr">Vial</div>${vial.map(e => `<div class="entry">${e}</div>`).join('')}`
+    + `<div class="sep"></div><div class="hdr">Tools</div><div class="entry on">Diagnostics</div></div>`;
+}
+function render() {
+  document.documentElement.dataset.theme = state.theme.toLowerCase();
+  J = judge(board(), upTo());
+  if (state.selected) state.selected = J.all.find(e => e.k === state.selected.k) || null;
+  renderControls();
+  document.getElementById('frame').innerHTML =
+    `<div class="menubar"><span class="board">${board().title} ▾</span><span class="muted">Vial 6</span><span class="right">Settings</span></div>`
+  + `<div class="body">${columnHtml()}<div class="main"><div class="strip"><button>Key presses</button><button class="on">Signal levels</button><button>Device</button></div>`
+  + `<div class="boardarea" id="boardarea">${state.view === 'Board' ? boardSvg() : gridSvg()}</div><div class="panel" id="panel">${panelHtml()}</div></div></div>`;
+}
+function redrawBoard() { const b = document.getElementById('boardarea'); if (b) b.innerHTML = state.view === 'Board' ? boardSvg() : gridSvg(); }
+function renderControls() {
+  const c = document.getElementById('controls');
+  c.innerHTML = '';
+  [['board', 'Board', Object.keys(BOARDS)],
+   ['controller', 'Controller', ['Soldered to a matrix', 'Not soldered']],
+   ['moment', 'When', ['Nothing pressed yet', 'After a pass']],
+   ['colours', 'The board', ['By verdict', 'By margin', 'Plain']],
+   ['list', 'The list', ['Bars', 'Sentences']],
+   ['trace', 'A key\'s levels', ['Its last presses', 'The whole recording', 'None']],
+   ['many', 'Problems', ['A few', 'Many']],
+   ['advanced', 'Advanced tools', ['Off', 'On']],
+   ['theme', 'Theme', ['Light', 'Dark']]].forEach(([k, name, values]) => {
+    const g = document.createElement('div'); g.className = 'group';
+    g.innerHTML = `<span class="name">${name}</span>`;
+    values.forEach(v => {
+      const bt = document.createElement('button'); bt.textContent = v;
+      if (state[k] === v) bt.className = 'on';
+      bt.onclick = () => {
+        state[k] = v;
+        if (k === 'board' || k === 'many') { state.selected = null; state.filter = null; }
+        if (k === 'many') { MANY = v === 'Many'; Object.values(BOARDS).forEach(buildBoard); }
+        render();
+      };
+      g.appendChild(bt);
+    });
+    c.appendChild(g);
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
+const frame = document.getElementById('frame');
+frame.addEventListener('click', e => {
+  const t = e.target.closest('[data-key], [data-view], [data-column], [data-act], [data-tab], [data-filter]');
+  if (!t) return;
+  if (t.dataset.tab) { state.tab = t.dataset.tab; render(); return; }
+  if (t.dataset.filter) { state.filter = state.filter === t.dataset.filter ? null : t.dataset.filter; state.tab = 'Keys'; render(); return; }
+  if (t.dataset.act === 'levels') { state.levels = !state.levels; render(); return; }
+  if (t.dataset.view) state.view = t.dataset.view;
+  else if (t.dataset.key !== undefined) { const k = board().keys[+t.dataset.key]; const en = J.all.find(x => x.k === k); state.selected = state.selected === en ? null : en; }
+  else if (t.dataset.column !== undefined) { state.view = 'Controller'; }
+  render();
+});
+frame.addEventListener('mouseover', e => {
+  const row = e.target.closest('.list [data-key], .list [data-column]');
+  let h = null;
+  if (row) h = row.dataset.column !== undefined ? { column: +row.dataset.column } : J.all.find(x => x.k === board().keys[+row.dataset.key]);
+  if (h !== state.hover && JSON.stringify(h && h.column) !== JSON.stringify(state.hover && state.hover.column) || (h && h.k) !== (state.hover && state.hover.k)) { state.hover = h; redrawBoard(); }
+});
+const tip = document.getElementById('tip');
+frame.addEventListener('mousemove', e => {
+  const r = e.target.closest('rect[data-key], circle[data-key]') || (e.target.tagName === 'circle' && e.target.querySelector('title') ? e.target : null);
+  const t = r && r.querySelector('title');
+  if (t) { tip.textContent = t.textContent; tip.style.display = 'block'; } else tip.style.display = 'none';
+  tip.style.left = Math.min(e.clientX + 14, innerWidth - 380) + 'px'; tip.style.top = (e.clientY + 18) + 'px';
+});
+frame.addEventListener('mousedown', e => {
+  const r = e.target.closest('#boardarea rect[data-key]');
+  if (!r) return;
+  state.held = board().keys[+r.dataset.key]; redrawBoard(); e.preventDefault();
+});
+addEventListener('mouseup', () => { if (state.held) { state.held = null; redrawBoard(); } });
+frame.addEventListener('mouseleave', () => { tip.style.display = 'none'; if (state.hover) { state.hover = null; redrawBoard(); } });
+
+document.getElementById('notes').innerHTML = `
+<p><b>The levels are made up</b> until the complete Model F is recorded -- judge the pictures. They come from made-up 40-second traces, four presses per key, read
+as Nazg would read them, so every number on screen follows from the readings. Click a key, on the board or in the list, to see its trace.</p>
+<p><b>When</b>: <b>nothing pressed yet</b> -- what Nazg knows at once: stuck keys, keys resting near their threshold, unsteady ones;
+everything else "not pressed yet". <b>After a pass</b> -- the user pressed each key slowly, as the line asks.</p>
+<p><b>The board</b>: coloured <b>by verdict</b> -- good keys left plain, so only the problems stand out; <b>by margin</b> -- the tighter
+of each key's two margins as a red tint, untested dashed; or <b>plain</b>, the list alone telling.</p>
+<p><b>The list</b>, the weakest first, a weak controller column folded into one row -- its keys not listed, which pushed the
+other problems out of sight; they light on the board under the pointer: as <b>bars</b> -- each key's usual
+resting level (with how much it wanders, the grey band), the threshold, its weakest steady press, this keyboard's usual press dotted,
+each part named in a header right above the bars (a legend of symbols was unreadable, Rico) -- or as <b>sentences</b>, in words. Hover a row: its key lights on the board; a column row lights the column,
+a click shows the controller's grid.</p>
+<p><b>Room</b> (Rico, 2026-10-17): the panel keeps one height and the list scrolls inside it, under a header that stays; the whole
+board is a tab beside the keys, not a block below them; keys not pressed yet are one line, not rows; the counts are filters --
+click "at risk" for those keys alone; and when many keys share one problem, a sentence above the list says it once. Try
+<b>Problems: Many</b>.</p>
+<p><b>The whole board</b>, a tab beside the keys: <b>one dot per key</b> -- two rows, at rest and pressed, the threshold between them; healthy keys crowd far
+from it, problems stand alone in the orange zone; hover a dot for its key, click to select it. It replaced a histogram of the same
+numbers, whose bars said neither what they counted nor which keys they held (Rico, 2026-10-17).</p>
+<p><b>A key's levels</b>: its own last presses, whenever they were -- a key pressed a minute ago keeps them, where a window of the
+last seconds would have lost them -- <b>side by side</b>, the last four, each marked registered or missed (Rico chose them over an overlaid view, 2026-10-17); at
+their left its resting readings as a band.
+Four presses make a count anyone reads: <b>missed 1 press out of 4</b> -- Caps Lock, whose third press stops short. Or <b>the
+whole recording</b>, 40 seconds here. Spikes and lets-go are marked.</p>
+<p><b>The rules</b> are placeholders for the recording to set: at risk when resting nearer than half the offset, wandering as much
+as the margin, pressing by less than a third of the board's usual press, or letting go while held; failing when pressed at rest, or
+moving without ever crossing. All relative to the board, never fixed numbers.</p>`;
+
+render();
+</script>
+</body>
+</html>

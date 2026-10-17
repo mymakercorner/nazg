@@ -354,7 +354,64 @@ keys around it. **On a Beam Spring the flipper is against its pad when the key i
 pressing the key takes the flipper away, so a Beam Spring at rest is a Model F held down, and an
 unpopulated Beam Spring position reads like a pressed key.
 
-**To do before the second round of Signal levels: a recording** of the complete Model F, every key
+**Signal levels, second round: telling the keys at risk** (Rico, 2026-10-17): the goal is to help
+the user see, as simply as possible, which keys may not be recognised -- now and then, or at all --
+beyond the tool's raw numbers. No repair advice: Model F Labs documents the causes; Nazg says what
+it measured and what looks unstable, and asks the user to press each key slowly. The mockup,
+first draft: [ui-design/key-health.html](ui-design/key-health.html) -- the F122's and the B104's
+real definitions, made-up levels run through one algorithm (a trace per key, its numbers by the
+tool's three-in-a-row rule, a verdict against its own board), planted faults on both. Its
+variants: the board coloured by verdict, by margin or plain; the keys to look at as bars or
+sentences, the weakest first, a weak controller column folded into one row -- its keys not listed,
+which pushed the other problems out of sight; the selected key's **own last presses**, kept whenever
+they were -- a window of the last seconds loses a key pressed a minute ago -- **side by side**,
+the last four, each marked registered or missed (Rico, 2026-10-17: an overlaid view, aligned at
+their start, dropped); from several presses a count
+anyone reads, **"registered 3 times out of 4"**, the "now and then" case in words; the whole board as one dot per key -- two rows, at rest and pressed, the
+threshold between them, an orange zone where a dot means at risk. **The histogram is dropped**
+(Rico, 2026-10-17): its bars said neither what they counted nor which keys they held; one dot per
+key reads better. Settled in the reasoning: a verdict rests on the weakest steady reading on each
+side, so a Model F's vibration spikes -- high readings while held -- are marked and left out; a
+press attempt is a run of readings leaving the key's usual level clearly (four times its own noise
+or 30 % of the offset), as Nazg cannot know when a finger is on a key.
+
+**Its words** (Rico, 2026-10-17): *threshold*, as in the firmware and the tool; the sentences lead
+with the effect and carry no numbers -- "Missed 1 press out of 4", "May type by itself: rests close
+to its threshold", "Does not work: its presses never reach its threshold", "May miss presses: only
+just past its threshold"; the numbers stay in the key's trace and its tooltip. The summary: good,
+at risk, failing, to check (a level at 499), not pressed yet. A key that does not work says that
+alone. **A press is safe at least 3 past its threshold** -- the rule of Rico's tool, which coloured
+a key lighter within 3 -- where the draft had a third of the board's usual press; a weak
+controller column is still said against the rest of the keyboard, in words.
+
+**The bars** (Rico, 2026-10-17): a header on the bars' own geometry names each part where it sits --
+at rest and pressed with their dots, threshold, most keys -- what each means in a tooltip on its
+name; a legend of symbols, then a sentence above the header, were unclear. Both sides show a dot
+and a band: at rest, the usual level and how much it wanders; pressed, the usual press and **how
+much the presses vary from one to the next** -- the level each press held, the median of its steady
+readings, so the way in and out of a slow press is not taken for variation. "Most keys" is where
+the keyboard's keys usually get to when pressed.
+
+**A controller with no matrix** (Rico, 2026-10-17): every threshold at the firmware's sentinel -- 300
+on a Beam Spring, 1023 on a Model F, read with the controller's information -- so Signal levels and
+Key presses say it in one sentence instead of their analysis, the board plain; Device stays as it is.
+**No numbers on the keys** by default: the verdicts, the bars and the tooltips say it in words.
+**The tool's max / now / min + bin are an Advanced tools layer** (Rico, 2026-10-17), for firmware
+work -- they replace the round-one choice of numbers on every key for everyone: Advanced tools adds a
+**Levels** button on the panel's first line, before Board / Controller, off by default, so the
+default view stays even in advanced mode; and **the key being
+pressed lights on the board**, the live feedback the numbers used to give.
+
+**Room** (Rico, 2026-10-17: the place taken worried him, with many keys at risk and with the whole
+board shown): the panel keeps **one height**, the list scrolling inside it under a header that stays;
+**Keys and Whole board are tabs** sharing that place -- two answers to where the problems are; keys
+not pressed yet are **one line**, not rows -- a to-do, dashed on the board; the summary's **counts
+filter** the list -- "at risk" shows those keys alone; and when a quarter of the keys share one
+problem, **one sentence** says it above the list -- "36 of 123 keys went past their threshold
+untouched -- they may type by themselves" -- the keyboard's problem, not the keys'. The mockup's
+"Problems: Many" puts a third of the keys close to their threshold to try it.
+
+**To do before choosing the second round: a recording** of the complete Model F, every key
 pressed slowly, read-only, key output off during it (Rico, 2026-10-17 -- the board was not ready
 yet). Its numbers set the limits and feed the mockup.
 
