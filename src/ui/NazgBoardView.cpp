@@ -239,27 +239,38 @@ namespace nazg
                 return;
             path.push_back(path.front());
 
-            // Along the whole path, so the dashes run on round the corners.
-            float along = 0.0f;
+            // Along the whole path, so the dashes run on round the corners: what is left of the dash
+            // or gap under way is carried from one segment to the next. Each pass either ends the
+            // segment or moves on by what was left -- never by a step too small for a float to add,
+            // which once hung the frame loop.
+            bool  on   = true;
+            float left = dash;
             for (size_t i = 0; i + 1 < path.size(); ++i)
             {
                 const ImVec2 a      = path[i];
                 const ImVec2 b      = path[i + 1];
                 const float  length = std::hypot(b.x - a.x, b.y - a.y);
-                float        done   = 0.0f;
-                while (done < length)
+                const auto   at     = [&](float along)
                 {
-                    const float phase = std::fmod(along, 2 * dash);
-                    const float step  = std::min(length - done, (phase < dash ? dash : 2 * dash) - phase);
-                    if (phase < dash)
+                    const float t = along / length;
+                    return ImVec2(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t);
+                };
+
+                float done = 0.0f;
+                while (length - done > 0.0f)
+                {
+                    if (left >= length - done)
                     {
-                        const float t0 = done / length;
-                        const float t1 = (done + step) / length;
-                        drawList->AddLine(ImVec2(a.x + (b.x - a.x) * t0, a.y + (b.y - a.y) * t0),
-                                          ImVec2(a.x + (b.x - a.x) * t1, a.y + (b.y - a.y) * t1), colour, thickness);
+                        if (on)
+                            drawList->AddLine(at(done), b, colour, thickness);
+                        left -= length - done;
+                        break;
                     }
-                    done += step;
-                    along += step;
+                    if (on)
+                        drawList->AddLine(at(done), at(done + left), colour, thickness);
+                    done += left;
+                    on   = !on;
+                    left = dash;
                 }
             }
         }
