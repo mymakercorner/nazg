@@ -1586,7 +1586,10 @@ namespace nazg
         lo -= 5;
         hi += 5;
 
-        const float  H = 128 * u, top = 14 * u, bottom = 24 * u;
+        // Three lines under each press: what it held, where the key rested before it, when.
+        const float  lineH = ImGui::GetTextLineHeight();
+        const float  top = 14 * u, bottom = 3 * lineH + 8 * u, H = top + 90 * u + bottom;
+        const float  wordsY = H - bottom + 6 * u;
         const ImVec2 at = ImGui::GetCursorScreenPos();
         const auto   Y  = [&](int v) { return at.y + top + (1.0f - static_cast<float>((v > 0 ? v : lo) - lo) / (hi - lo)) * (H - top - bottom); };
         ImDrawList*  drawList = ImGui::GetWindowDrawList();
@@ -1611,7 +1614,7 @@ namespace nazg
                                     ImVec2(at.x + 38 * u, std::max(Y(*rHi), Y(*rLo)) + 2 * u), Faded(RestColour(), 0.35f));
             drawList->AddLine(ImVec2(at.x + 10 * u, Y(*st.restMedian)), ImVec2(at.x + 38 * u, Y(*st.restMedian)), RestColour(), 2 * u);
             const std::string range = std::to_string(*rLo) + "-" + std::to_string(*rHi);
-            drawList->AddText(ImVec2(at.x + 24 * u - ImGui::CalcTextSize(range.c_str()).x / 2, at.y + H - 18 * u), RestColour(),
+            drawList->AddText(ImVec2(at.x + 24 * u - ImGui::CalcTextSize(range.c_str()).x / 2, at.y + wordsY), RestColour(),
                               range.c_str());
         }
         DashedLine(drawList, ImVec2(at.x + 6 * u, Y(k.threshold)), ImVec2(at.x + 42 * u, Y(k.threshold)), red, 5 * u, 3 * u, 1.0f);
@@ -1656,14 +1659,34 @@ namespace nazg
                                    : press.held ? "held " + std::to_string(m_Scale.direction * (*press.held - k.threshold)) + " past"
                                                 : "too short to measure";
                 const ImU32 colour = press.registered ? ImGui::ColorConvertFloat4ToU32(ColourOf(PanelColour::Success)) : RestColour();
-                drawList->AddText(ImVec2(left + pw / 2 - ImGui::CalcTextSize(what.c_str()).x / 2, at.y + H - bottom + 6 * u),
-                                  colour, what.c_str());
-                const std::string ago = press.first < m_ReadingTimes.size() ? Seconds(now - m_ReadingTimes[press.first]) : "";
-                drawList->AddText(ImVec2(left + pw / 2 - ImGui::CalcTextSize(ago.c_str()).x / 2, at.y + H - 6 * u), RestColour(),
-                                  ago.c_str());
+                const auto  centred = [&](const std::string& text, float y, ImU32 ink)
+                {
+                    drawList->AddText(ImVec2(left + pw / 2 - ImGui::CalcTextSize(text.c_str()).x / 2, at.y + y), ink, text.c_str());
+                };
+                centred(what, wordsY, colour);
+
+                // Where the key rested just before the press -- its last readings at rest, up to five, by
+                // their median -- or, pressed from the first reading, just after it (Rico, 2026-10-17).
+                std::vector<int> before;
+                for (size_t i = press.first; i > 0 && before.size() < 5;)
+                    if (!inPress[--i])
+                        before.push_back(trace[i]);
+                for (size_t i = press.last + 1; before.empty() && i < n && i <= press.last + 5; ++i)
+                    if (!inPress[i])
+                        before.push_back(trace[i]);
+                if (!before.empty())
+                {
+                    std::sort(before.begin(), before.end());
+                    const int margin = m_Scale.direction * (k.threshold - before[before.size() / 2]);
+                    centred("rest " + std::to_string(margin) + (m_Scale.direction > 0 ? " below" : " above"), wordsY + lineH,
+                            RestColour());
+                }
+
+                centred(press.first < m_ReadingTimes.size() ? Seconds(now - m_ReadingTimes[press.first]) : std::string(),
+                        wordsY + 2 * lineH, RestColour());
             }
         }
-        ImGui::Dummy(ImVec2(0.0f, H + 8 * u));
+        ImGui::Dummy(ImVec2(0.0f, H + 4 * u));
 
         std::string caption = ReasonsOf(judged, ". ");
         if (!caption.empty())
