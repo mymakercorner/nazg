@@ -18,9 +18,9 @@
 //     median -- a Model F's first reading overshoots -- and a key's strength is its STRONGEST hold;
 //     how holds differ is never a verdict;
 //   - failing: seen pressed with nothing at rest; or never past its threshold in 3 presses or more;
-//   - at risk: resting closer to its threshold than half the offset, or wandering by 60 % of its
-//     margin, or past it untouched; or even its firmest hold under 3 past its threshold -- the rule
-//     of Rico's tool;
+//   - at risk: resting less than 3 from its threshold, or wandering by 60 % of its margin, or past
+//     it untouched; or even its firmest hold under 3 past its threshold -- the rule of Rico's tool,
+//     one number for both sides (Rico, 2026-10-17);
 //   - no verdict from a released reading inside a hold: it is counted as part of the press.
 //
 // Everything is judged against the key's own board -- its bin's threshold, the offset, the other
@@ -39,9 +39,10 @@
 
 namespace nazg
 {
-    // Rico's tool: a press less than 3 past its threshold is not safe -- it coloured such a key
-    // lighter.
-    inline constexpr int c_PressSafe = 3;
+    // Rico's tool: a level less than 3 from its threshold is not safe -- it coloured such a key
+    // lighter. One margin for both sides: a hold past the threshold, a key at rest short of it
+    // (Rico, 2026-10-17: the draft's half the offset at rest is dropped).
+    inline constexpr int c_SafeMargin = 3;
 
     // Presses that never crossed before a key is said not to work; fewer ask to press it again.
     inline constexpr size_t c_FailAfter = 3;

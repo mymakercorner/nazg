@@ -80,7 +80,7 @@ namespace nazg
             while (j < n && away[j])
                 ++j;
 
-            if (j - i >= 2 || (pressed[i] && d * (trace[i] - th) >= c_PressSafe))
+            if (j - i >= 2 || (pressed[i] && d * (trace[i] - th) >= c_SafeMargin))
             {
                 PressAttempt     press;
                 std::vector<int> past;
@@ -211,7 +211,7 @@ namespace nazg
             {
                 if (st.restMargin && *st.restMargin <= 0)
                     risk(KeyReason::WentPastUntouched);
-                else if (st.medianMargin && *st.medianMargin < scale.offset * 0.5)
+                else if (st.medianMargin && *st.medianMargin < c_SafeMargin)
                     risk(KeyReason::RestsClose);
                 else if (st.medianMargin && st.restSpread >= *st.medianMargin * 0.6)
                     risk(KeyReason::WandersAtRest);
@@ -221,7 +221,7 @@ namespace nazg
                     v = KeyVerdict::Failing;
                     reasons.insert(reasons.begin(), KeyReason::NeverReaches);
                 }
-                else if (st.measured && *st.pressMargin < c_PressSafe)
+                else if (st.measured && *st.pressMargin < c_SafeMargin)
                 {
                     risk(KeyReason::OnlyJustPast);
                 }

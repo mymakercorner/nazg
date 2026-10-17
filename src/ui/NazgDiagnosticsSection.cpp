@@ -1403,8 +1403,9 @@ namespace nazg
         const float gutter    = std::max(ImGui::CalcTextSize(restName).x, ImGui::CalcTextSize(pressName).x) + 12 * u;
         const float left      = at.x + gutter;   // the dots' area
         const float right     = at.x + w;
-        const float x0        = left + (right - left) * 0.4f;   // the threshold, absolute
 
+        // One scale for both rows, a level as wide on each (Rico, 2026-10-17), the threshold placed so
+        // that the widest margin of each side fits.
         float restMax  = m_Scale.offset * 1.6f;
         float pressMax = m_Health.typical * 1.6f;
         for (const JudgedKey& judged : m_Health.keys)
@@ -1412,20 +1413,14 @@ namespace nazg
             restMax  = std::max(restMax, static_cast<float>(judged.stats.medianMargin.value_or(0)));
             pressMax = std::max(pressMax, static_cast<float>(judged.stats.pressMargin.value_or(0)));
         }
+        restMax  = std::max(restMax, 1.0f);
         pressMax = std::max(pressMax, 1.0f);
 
-        // Each side on its own scale, kept inside the dots' area -- a key past its threshold untouched
-        // stops at the right edge.
-        const float inset = 8 * u;
-        const auto  xr    = [&](float margin)
-        {
-            return std::clamp(x0 - margin / restMax * (x0 - left - inset), left + inset, right - inset);
-        };
-        const auto xp = [&](float margin)
-        {
-            return std::clamp(x0 + std::clamp(margin / pressMax, -1.0f, 1.0f) * (right - x0 - inset), left + inset,
-                              right - inset);
-        };
+        const float inset   = 8 * u;
+        const float perStep = (right - left - 2 * inset) / (restMax + pressMax);
+        const float x0      = left + inset + restMax * perStep;
+        const auto  xr      = [&](float margin) { return std::clamp(x0 - margin * perStep, left + inset, right - inset); };
+        const auto  xp      = [&](float margin) { return std::clamp(x0 + margin * perStep, left + inset, right - inset); };
         const float top    = at.y + lineH + 4 * u;   // under the hints
         const float yRest  = top + rowH / 2;
         const float yPress = top + rowH + 10 * u + rowH / 2;
@@ -1433,8 +1428,8 @@ namespace nazg
         const ImU32 zone   = BoardColours::ConditionTint(KeyCondition::AtRisk);
         const ImU32 red    = VerdictColour(KeyVerdict::Failing);
 
-        drawList->AddRectFilled(ImVec2(xr(m_Scale.offset * 0.5f), yRest - rowH / 2), ImVec2(x0, yRest + rowH / 2), zone);
-        drawList->AddRectFilled(ImVec2(x0, yPress - rowH / 2), ImVec2(xp(static_cast<float>(c_PressSafe)), bottom), zone);
+        drawList->AddRectFilled(ImVec2(xr(static_cast<float>(c_SafeMargin)), yRest - rowH / 2), ImVec2(x0, yRest + rowH / 2), zone);
+        drawList->AddRectFilled(ImVec2(x0, yPress - rowH / 2), ImVec2(xp(static_cast<float>(c_SafeMargin)), bottom), zone);
         drawList->AddLine(ImVec2(x0, top), ImVec2(x0, bottom + 4 * u), red, 1.5f * u);
 
         const char* threshold = "threshold";

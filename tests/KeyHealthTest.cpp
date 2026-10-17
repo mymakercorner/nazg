@@ -237,9 +237,9 @@ namespace
                   reasons == std::vector<KeyReason>{ KeyReason::OnlyJustPast },
               "its firmest hold 1 past: may miss presses");
 
-        Check(VerdictOf(Trace(60, 381, { { 10, 14 } }, 400), c_Threshold, modelF, &reasons) == KeyVerdict::AtRisk &&
+        Check(VerdictOf(Trace(60, 382, { { 10, 14 } }, 400), c_Threshold, modelF, &reasons) == KeyVerdict::AtRisk &&
                   reasons.front() == KeyReason::RestsClose,
-              "resting 3 short, under half the offset: may type by itself");
+              "resting 2 short, under 3: may type by itself");
 
         std::vector<uint16_t> wandering = Trace(60, 370, { { 10, 14 } }, 400);
         for (size_t i = 20; i < 60; i += 4)
@@ -303,7 +303,7 @@ namespace
         // A third of the keys rest close to their threshold: the keyboard's problem.
         for (size_t k = 0; k < traces.size(); k += 3)
         {
-            traces[k]     = Trace(60, 381, { { 10, 14 }, { 30, 34 } }, 414);
+            traces[k]     = Trace(60, 382, { { 10, 14 }, { 30, 34 } }, 414);
             keys[k].trace = traces[k];   // its buffer is a new one
         }
         health = nazg::JudgeBoard(keys, modelF, 8);
