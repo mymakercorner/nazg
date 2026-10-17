@@ -308,8 +308,7 @@ or not; the board in Device or folded away; how the bootloader and the erase ask
 - **Key presses: now and seen** -- as the matrix view's live test, every key pressed since the mode
   opened stays marked, with a count of those seen.
 - **Max, now and min on each key, the bin bottom right** when there is more than one -- the slots
-  decided earlier. With the sweep's window one extreme reads 0 (Beam Spring) or 499 (Model F) once
-  a key is pressed.
+  decided earlier.
 - **A Clear button**: the extremes in Signal levels, the keys seen in Key presses. The tool has none.
 - **The board shown in Device**, as the tool draws it.
 - **Enter bootloader at once**, as the tool; **Erase EEPROM asks in a dialog**, naming what is lost.
@@ -340,11 +339,24 @@ a 100 us settle and a scan -- the 136 ms, the same for any bin count. Where a lo
 firmware or frames, is to be measured, not assumed.
 
 **The levels' window** (`leyden_jar_detect_levels()`): a key's level is the last DAC value it trips
-at in that sweep, so it reads 0 below 350 -- every pressed Beam Spring key -- and 499 above it --
-a pressed Model F. A threshold is a bin's resting median plus its activation offset, -30 on a Beam
-Spring, +7 or +10 on a Model F; a controller wired to no matrix gets 300 on a Beam Spring, 1023 on
-a Model F, so nothing is ever pressed -- the bare B104 answers 300. The level view shows a key at
-rest and how near it comes to its threshold, not how far past it goes.
+at in that sweep, 0 below 350 and 499 above. Real keys stay inside the window, pressed or not --
+unpopulated flippers too, lower on a Model F (Rico, 2026-10-17); 499 is reached only by Rico's
+split test firmware, on MX switches rather than a capacitive matrix: **a level at 499 is a warning,
+the true value perhaps higher, not an error.** A threshold is a bin's resting median plus its
+activation offset, -30 on a Beam Spring, +7 or +10 on a Model F; a controller wired to no matrix
+(its highest level at most 380, `UNCONNECTED_LEVEL`) gets 300 on a Beam Spring, 1023 on a Model F,
+so nothing is ever pressed -- the bare B104 answers 300, its 376 being no switch's level.
+
+**Levels differ from board to board** (Rico, 2026-10-17): the more columns, the lower the pressed
+levels -- an F122's are lower than an F77's. So whether a key is at risk cannot be judged against
+fixed numbers: only against its own board -- its bin's threshold and resting level, and the other
+keys around it. **On a Beam Spring the flipper is against its pad when the key is NOT pressed**:
+pressing the key takes the flipper away, so a Beam Spring at rest is a Model F held down, and an
+unpopulated Beam Spring position reads like a pressed key.
+
+**To do before the second round of Signal levels: a recording** of the complete Model F, every key
+pressed slowly, read-only, key output off during it (Rico, 2026-10-17 -- the board was not ready
+yet). Its numbers set the limits and feed the mockup.
 
 **Key output stays off for as long as the section shows** (Rico, 2026-10-17), every mode, Device
 included: the tool turns it off on connecting and on again only on leaving, so that the keys

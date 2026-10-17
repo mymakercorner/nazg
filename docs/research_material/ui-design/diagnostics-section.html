@@ -28,18 +28,19 @@
        or restarted -- Nazg's hotplug sees it go.
 
      - levels are found by a sweep of the DAC from 350 to 499, as at start-up (Rico): a key's level
-       is the last value it trips at, 0 below the window -- a pressed Beam Spring key -- and 499
-       above it -- a pressed Model F;
+       is the last value it trips at, 0 below the window and 499 above it. Real keys stay inside it,
+       pressed or not; 499 only on Rico's MX test board -- a warning, not an error (Rico);
      - a threshold is a bin's resting median plus its activation offset: -30 on a Beam Spring,
        +7 or +10 on a Model F; a controller wired to no matrix gets 300 (Beam Spring) or 1023.
 
      The boards: the B104's real definition, at choice 0 of every layout option, its layer 0;
      the controller's real answers (2026-10-17, the bare B104): protocol 0.9.1, 8 x 18, Beam
-     Spring, one bin, reference 376, levels 375-378 at rest -- its threshold 300 is the no-matrix
-     one, so the mockup uses the 346 it would calibrate to soldered. "Model F, 3 bins" is made up
-     on the same geometry after the F104's config.h. The levels move by simulation: hold a key
-     down with the mouse to press it; two keys are made weak -- Caps Lock only just passes the
-     threshold, Right Ctrl stops short of it.
+     Spring, one bin, threshold 300 and levels 375-378 -- both the no-matrix ones, no switch's.
+     "Model F, 3 bins" is made up on the same geometry after the F104's config.h. The levels move
+     by simulation: hold a key down with the mouse to press it; two keys are made weak -- Caps Lock
+     only just passes the threshold, Right Ctrl stops short of it.
+     THE SIMULATED LEVELS ARE WRONG (Rico, 2026-10-17): pressed keys do not leave the window, and
+     376 is no soldered key's resting level. The second round takes its numbers from a real board.
 
      The pace, measured on the bare B104 with key output ON (2026-10-17): a round trip 2 ms; a
      level reading 172 ms -- the sweep 136 ms, 150 steps of a 100 us settle and a scan, then 18
@@ -540,13 +541,14 @@ const PACE_MS = { 'Signal levels': 172, 'Key presses': 19 };
 })();
 
 document.getElementById('notes').innerHTML = `
+<p><b>The simulated levels are wrong</b> (Rico, 2026-10-17): real keys stay inside the sweep's window, 350 to 499, pressed or
+not, and the B104's 376 is a controller with no switch. The second round of this mode takes its numbers from a real board.</p>
 <p><b>Hold a key down with the mouse</b> to press it; the levels move as the firmware's would. Two keys are made weak: <b>Caps Lock</b>
 only just passes the threshold -- on the Model F, the tool's lighter colour; on the Beam Spring it reads 0 as any pressed key, below
 the sweep's window -- and <b>Right Ctrl</b> stops short of it: the case the monitor exists for, a key that stopped working after
 shipping. Hover a key for its numbers and its connectors.</p>
-<p><b>The numbers</b> come from a sweep of the DAC, 350 to 499, as at start-up: a level below it reads 0, above it 499. So a
-pressed Beam Spring key reads 0 and a pressed Model F 499 -- the window shows a key at rest and how close it comes, not how deep it
-goes.</p>
+<p><b>The numbers</b> come from a sweep of the DAC, 350 to 499, as at start-up: a level below it reads 0, above it 499. Real keys
+stay inside it; 499 is reached only on MX switches, and is a warning -- the true level may be higher.</p>
 <p><b>The strip</b> is the three modes, as decided. <b>Opens on</b>: which mode the section shows first -- Key presses is what an
 owner with a dead key wants; Device holds what is asked most (bootloader, erase).</p>
 <p><b>The view choice</b>: the board, QMK's matrix or the controller's connectors -- the tool's combo box. In the panel's first
