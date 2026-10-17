@@ -904,6 +904,7 @@ namespace nazg
             return;
         }
 
+        ImGui::AlignTextToFramePadding();   // the line has buttons: its words level with them
         ImGui::TextUnformatted("Key presses");
         ImGui::SameLine();
         ColouredText(PanelColour::Muted, "press keys on the keyboard: each lights while it is down");
@@ -918,6 +919,7 @@ namespace nazg
             if (key.row < m_Seen.size() && key.column < 32 && (m_Seen[key.row] >> key.column & 1u) != 0)
                 ++seen;
 
+        ImGui::AlignTextToFramePadding();
         DrawKeyOutputLine();
         char count[64];
         std::snprintf(count, sizeof(count), "seen %zu of %zu keys", seen, m_Keys.size());
@@ -944,6 +946,7 @@ namespace nazg
         const float u = Unit();
 
         // The first line: the instruction, then Levels -- with Advanced tools -- and the view.
+        ImGui::AlignTextToFramePadding();
         ImGui::TextUnformatted("Signal levels");
         ImGui::SameLine();
         ColouredText(PanelColour::Muted, "press each key down firmly and hold it a moment, one after the other");
@@ -1055,7 +1058,7 @@ namespace nazg
             char text[48];
             std::snprintf(text, sizeof(text), "%zu %s", count, WordOf(verdict));
             const float  box   = 9 * u;
-            const ImVec2 size(box + 5 * u + ImGui::CalcTextSize(text).x, ImGui::GetTextLineHeight());
+            const ImVec2 size(box + 5 * u + ImGui::CalcTextSize(text).x, ImGui::GetFrameHeight());
             const ImVec2 at      = ImGui::GetCursorScreenPos();
             const bool   filters = verdict != KeyVerdict::Good && count > 0;
 
@@ -1082,7 +1085,7 @@ namespace nazg
             else if (verdict != KeyVerdict::ToDo)
                 drawList->AddRectFilled(b0, b1, BoardColours::ConditionTint(ConditionOf(verdict)), 2 * u);
             drawList->AddRect(b0, b1, verdict == KeyVerdict::Good ? BoardColours::Outline() : VerdictColour(verdict), 2 * u);
-            drawList->AddText(ImVec2(b1.x + 5 * u, at.y), TextColour(), text);
+            drawList->AddText(ImVec2(b1.x + 5 * u, at.y + (size.y - ImGui::GetTextLineHeight()) / 2), TextColour(), text);
         }
 
         RightAlign(ButtonWidth("Clear"));
@@ -1786,6 +1789,7 @@ namespace nazg
                 m_Request = Leave(false);
             ImGui::EndDisabled();
             ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
             ColouredText(PanelColour::Muted, "to flash a new firmware: the board leaves Nazg and shows as a drive");
 
             ImGui::TableNextRow();
@@ -1797,6 +1801,7 @@ namespace nazg
             ImGui::PopStyleColor();
             ImGui::EndDisabled();
             ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
             ColouredText(PanelColour::Muted, "every layer, macro, tap dance, combo, override and setting back to the "
                                              "firmware's own -- the board restarts");
             ImGui::EndTable();
