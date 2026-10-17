@@ -218,6 +218,11 @@ namespace nazg
         [[nodiscard]] bool IsAwaitingBoard() const;
         void               CloseUnpluggedBoard();
 
+        // A section sent the board away (Section::BoardLeft()): closed as if unplugged, the list
+        // saying where it went -- an erase restarts it too fast for hotplug to see it go.
+        void CloseLeftBoard();
+        void CloseBoard(std::string said);
+
         // Leaving the board -- for another, the list, another definition, or quitting.
         [[nodiscard]] bool HasUnsaved() const;
         void               LeaveBoard(std::function<void()> leave);

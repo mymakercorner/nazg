@@ -387,10 +387,29 @@ namespace nazg
         std::string name = m_Board.keyboard ? m_Board.keyboard->Name() : m_Board.identity.product;
         if (name.empty())
             name = "The keyboard";
-        m_DeviceList.unplugged     = name + " was unplugged." +
-                                     (HasUnsaved() ? " The changes not written to it are lost." : "");
+        CloseBoard(name + " was unplugged." + (HasUnsaved() ? " The changes not written to it are lost." : ""));
+    }
+
+    // A section sent the board away -- its bootloader, an erase -- and nothing waits on it any more.
+    void App::CloseLeftBoard()
+    {
+        if (IsAwaitingBoard())
+            return;
+        for (const auto& section : m_Board.sections)
+            if (std::string said = section->BoardLeft(); !said.empty())
+            {
+                CloseBoard(std::move(said));
+                return;
+            }
+    }
+
+    // The list comes back saying `said` until the board is listed again.
+    void App::CloseBoard(std::string said)
+    {
+        m_DeviceList.unplugged     = std::move(said);
         m_DeviceList.unpluggedPath = m_Board.path;
 
+        m_BoardUnplugged        = false;
         m_PendingLeave          = nullptr;
         m_SavingBeforeLeave     = false;
         m_DiscardingBeforeLeave = false;
@@ -555,6 +574,7 @@ namespace nazg
             StartRefresh();
         }
         CloseUnpluggedBoard();
+        CloseLeftBoard();
 
         // The matrix live test asks for every key of the board to be pressed, and they all type
         // into Nazg: with keyboard navigation on, an arrow then Space would click whatever has

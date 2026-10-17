@@ -87,6 +87,9 @@ namespace nazg
         // Stops polling once the reading in flight is back, and closes the board: key output on.
         void WhileHidden() override;
 
+        // Sent to its bootloader, or erased and restarting.
+        [[nodiscard]] std::string BoardLeft() const override { return m_Link == Link::Gone ? m_Message : std::string(); }
+
     private:
         enum class Mode
         {

@@ -108,6 +108,11 @@ namespace nazg
         // keep the board open. Called in a frame, DescribeBoard() in that frame starts nothing.
         virtual void WhileHidden() {}
 
+        // The board was sent away by a command it never answers -- to its bootloader, or erased and
+        // restarting: what the keyboard list says of it, empty while it is here. Nazg closes the
+        // board then, as when it is unplugged -- a restart can be too quick for hotplug to see.
+        [[nodiscard]] virtual std::string BoardLeft() const { return {}; }
+
         // Changes not written to the board yet -- Macros writes by Save (ui-design.md, "The Macros
         // section"). Kept while the user moves between sections; before the board is closed or
         // Nazg quits, the user is asked: Save, which starts the write -- wait for IsBusy() to end --
