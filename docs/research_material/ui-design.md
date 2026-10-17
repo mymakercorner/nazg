@@ -2424,6 +2424,38 @@ menu's *Switch to* follows too.
   replugged, or a reflash done -- is only listed, not reopened; and a first board plugged in
   while the empty list shows is not opened either -- the lone board is opened at start only.
 
+## Saved layouts
+
+**Designing** (2026-10-18; mockup [saved-layouts.html](ui-design/saved-layouts.html), first round).
+Saving a board to a Vial `.vil` file and loading one back, to be feature complete with Vial: the
+file's format, and how vial-gui restores one, are in [vil-files.md](vil-files.md).
+
+Settled before the mockup (Rico, 2026-10-18):
+
+- **Loading shows what would change first, then one Apply** -- not written at once, as Vial does.
+  Only what differs is written, each value read back.
+- **A file from another keyboard** (another Vial UID) **is asked about**, as Vial does, and loaded if
+  the user says so; what does not fit the board -- another matrix size, slots or layers past its
+  own -- is still left out, and said.
+- **VIA and Vial boards alike.** A VIA board's file holds the keymap, knobs, layout options and
+  macros, with `uid: -1`, as vial-gui writes one.
+
+Chosen on the mockup (Rico, 2026-10-18):
+
+- **Save to file… / Load from file…**, in the board menu under *Switch to*. Vial's "layout" is
+  Nazg's Layout section, so not Vial's words; Export / Import and Back up / Restore declined.
+- **The review in place of the board screen**, as Settings is: the board draws what it would hold,
+  the changed keys lit, the strip counting them per layer; a panel line under the pointer lights
+  the keys it concerns. The popup saying the keys in words was declined.
+- **Once written, said, then Back to the board**: the review stays, saying "Written and read back"
+  with the count, and what failed if anything did.
+- **Nazg adds the board's VID:PID to the files it writes** -- a key Vial ignores -- so a VIA board's
+  file (`uid: -1`) says where it came from, and another board's is asked about as a Vial one is.
+
+With them, as the mockup proposed: Nazg writes Vial's own spellings (`M0`, `LT1(KC_A)`, `USER00`)
+so Vial loads its files, and reads a file's raw values with the keycodes of the firmware that saved
+it. A locked Vial board asks for its unlock keys before Apply -- that unlock is untested on hardware.
+
 ## The matrix view
 
 How the board is wired: which row and which column of the switch matrix each key sits on.

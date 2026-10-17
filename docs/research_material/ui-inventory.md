@@ -187,7 +187,7 @@ This is the model the survey recommends taking (README, "For a multi-protocol cl
 | Layout options | Layout tab | Layouts sub-pane | layout drop-down with drawings | read from the board and drawn, **not editable** |
 | Unlock | Security menu | none (VIA has no lock) | automatic modal | status readable, **no UI** |
 | Save model | keymap live; features Save/Revert | live | live + Save/Discard + undo/redo | live, with read-back |
-| Keymap file | `.vil` save/load | JSON save/load | planned | — |
+| Keymap file | `.vil` save/load | JSON save/load | planned | `.vil` save/load, designing (ui-design.md, "Saved layouts") |
 | Matrix / key tester | tab | pane | — | — |
 | Macros, tap dance, combos... | tabs | Macros only | — | — |
 | Lighting / custom menus | Lighting tab | V3 `menus` sub-panes | — | — (step 5) |

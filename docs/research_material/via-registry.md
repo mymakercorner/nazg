@@ -521,9 +521,9 @@ with `CMD_VIAL_GET_KEYBOARD_ID`, and generated from 8 random bytes by
 - **It names a model, not a unit** — two Model Fs report the same UID — and uniqueness holds
   only in the repository: an out-of-tree build copying another board's `config.h`
   duplicates it.
-- **vial-gui uses it as a safety check** twice: a saved layout (`.vil`) refuses to load onto
-  a board with another UID (`keymap_editor.py`), and the flasher compares the `.vfw` file's
-  UID with the board's (`firmware_flasher.py`).
+- **vial-gui uses it as a safety check** twice: a saved layout (`.vil`) for another UID asks
+  "are you sure?" before loading, Yes loading it anyway (`keymap_editor.py`), and the flasher
+  refuses a `.vfw` file whose UID is not the board's (`firmware_flasher.py`).
 
 For Nazg it is the key for anything saved per Vial board model — saved layouts, and a
 per-device choice should overriding an embedded definition ever be allowed.

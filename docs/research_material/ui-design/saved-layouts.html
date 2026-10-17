@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- Mockup of saving a board to a Vial .vil file and loading one (ui-design.md, "Saved layouts").
+
+     First round (2026-10-18). The format, and how vial-gui restores one, are in vil-files.md:
+     plain JSON holding the keymap, knobs, layout options, macros, tap dance, combos, key overrides,
+     alt repeat keys and QMK settings, keycodes as names, the Vial UID to say which keyboard.
+
+     Settled before the mockup (Rico, 2026-10-18):
+     - loading shows what changes first, then one Apply -- not written at once as Vial does;
+     - a file from another keyboard (another Vial UID) is ASKED about, as Vial does, then loaded if
+       the user says so -- what does not fit the board is still checked and left out;
+     - VIA and Vial boards alike: a VIA board's file holds its keymap, knobs, layout options and
+       macros, with uid -1, as vial-gui writes it.
+
+     The variants: what the two menu items are called; the review in place of the board screen or
+     in a popup; what happens once it is written.
+
+     Settled 2026-10-18 (Rico): Save to file… / Load from file…; the review in place of the board;
+     once written, said, then Back to the board; and Nazg adds the board's VID:PID to its files, so
+     a VIA board's file is asked about too. The toggles keep the alternatives.
+
+     The board: the Model F Labs B104 (Rico's vial-qmk fork, keymaps/vial-ansi: its vial.json and
+     keymap.c's three layers). The file's changes, slots and values are made up. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saved layouts mockup</title>
+<style>
+:root{--window:#f3f3f5;--menubar:#e3e4e9;--text:#1d1e22;--muted:#6b6e78;--control:#ffffff;--border:#c8cad2;--accent:#3b82f6;--accent-text:#fff;--panel:#f8f8fa;--column:#ebecf0;--hover:rgba(0,0,0,.06);--selected:rgba(59,130,246,.16);
+--plate:#d3d4d8;--key:#ffffff;--keyline:#b4b7c2;--ok:#15803d;--warn:#c2410c;--err:#dc2626;--info:#4b5563;
+--chg:#2563eb;--chgface:#e3edfd;--behav:#8b5cf6;--fw:#dc2626;--shade:rgba(20,22,30,.35)}
+:root[data-theme="dark"]{--window:#0f0f11;--menubar:#24252b;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--accent:#4296fa;--accent-text:#fff;--panel:#16171b;--column:#16171b;--hover:rgba(255,255,255,.07);--selected:rgba(66,150,250,.22);
+--plate:#1c1d23;--key:#3a3c48;--keyline:#4b4e5c;--ok:#4ade80;--warn:#fb923c;--err:#f87171;--info:#a1a5b2;
+--chg:#60a5fa;--chgface:#1b2a44;--behav:#a78bfa;--fw:#f87171;--shade:rgba(0,0,0,.55)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--window);color:var(--text);font-family:Arimo,"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+.controls{display:flex;flex-wrap:wrap;gap:8px 22px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.group .name{color:var(--muted);margin-right:4px}
+button{font:inherit;padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--control);color:var(--text);cursor:pointer}
+button.on,button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+button:disabled{opacity:.45;cursor:default}
+code{font-family:Consolas,monospace;font-size:12px}
+.stage{padding:16px;overflow-x:auto}
+.frame{position:relative;margin:0 auto;width:1160px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--window);box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.menubar{display:flex;gap:18px;align-items:center;background:var(--menubar);padding:5px 14px}
+.menubar .board{font-weight:600;padding:1px 6px;margin-left:-6px;border-radius:5px}
+.menubar .board.open{background:var(--selected)}
+.muted{color:var(--muted)}
+.menubar .right{margin-left:auto;display:flex;gap:18px;color:var(--muted)}
+.menubar .note{color:var(--ok)}
+.menu{position:absolute;top:27px;left:8px;z-index:5;min-width:240px;padding:4px;border:1px solid var(--border);border-radius:6px;background:var(--control);box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.menu .it{display:flex;justify-content:space-between;gap:20px;padding:4px 10px;border-radius:4px}
+.menu .it.hl{background:var(--selected)}
+.menu .it .sub{color:var(--muted)}
+.menu .sep{border-top:1px solid var(--border);margin:4px 2px}
+.body{display:flex;min-height:560px}
+.col{flex:none;width:180px;background:var(--column);border-right:1px solid var(--border);padding:6px 5px;display:flex;flex-direction:column;gap:2px}
+.col .hdr{font-weight:700;font-size:12px;padding:6px 10px 2px}
+.col .sep{border-top:1px solid var(--border);margin:5px 4px}
+.entry{padding:7px 10px;border-radius:6px;color:var(--muted)}
+.entry.on{background:var(--selected);color:var(--text);box-shadow:inset 3px 0 0 var(--accent)}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;padding:10px 14px 14px;gap:10px}
+.boardarea{display:flex;justify-content:center}
+svg.board{display:block;overflow:visible}
+.strip{display:flex;gap:4px;align-items:center}
+.strip .tab{padding:4px 12px;border:1px solid var(--border);border-radius:6px;background:var(--control);cursor:pointer}
+.strip .tab.on{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+.strip .tab .n{font-size:11px;margin-left:6px;opacity:.8}
+.panel{border:1px solid var(--border);border-radius:6px;background:var(--panel)}
+.title{font-weight:700}
+.head{display:flex;align-items:center;gap:6px 14px;padding:7px 12px;border-bottom:1px solid var(--border);flex-wrap:wrap;min-height:41px}
+.head .desc{color:var(--muted);font-size:12px}
+.head .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.head .ok{color:var(--ok)}
+.lines{display:grid;grid-template-columns:140px 1fr;gap:5px 14px;padding:8px 12px}
+.lines .lab{white-space:nowrap}
+.lines .same{color:var(--muted)}
+.lines .val .n{font-weight:600}
+.lines .row{display:contents}
+.lines .row.hov>div{color:var(--chg)}
+.says{padding:2px 12px 9px;font-size:12px;line-height:1.6;color:var(--info)}
+.says .w{color:var(--warn)}
+.bar{height:8px;border-radius:4px;background:var(--border);overflow:hidden;width:220px}
+.bar i{display:block;height:100%;background:var(--accent)}
+.shade{position:absolute;inset:0;background:var(--shade);display:flex;align-items:center;justify-content:center;z-index:6}
+.dialog{width:540px;max-width:92%;border:1px solid var(--border);border-radius:8px;background:var(--window);box-shadow:0 8px 30px rgba(0,0,0,.3)}
+.dialog.wide{width:720px}
+.dialog .dt{padding:8px 14px;font-weight:700;border-bottom:1px solid var(--border);background:var(--menubar);border-radius:8px 8px 0 0}
+.dialog .dt .desc{margin-left:12px;font-weight:400;font-size:12px;color:var(--muted)}
+.dialog .db{padding:12px 14px;line-height:1.55}
+.dialog .df{display:flex;gap:8px;justify-content:flex-end;align-items:center;padding:8px 14px 12px}
+.notes{max-width:1160px;margin:0 auto;padding:4px 16px 30px;color:var(--muted);line-height:1.55}
+.notes b{color:var(--text);font-weight:600}
+.notes p{margin:0 0 8px}
+</style>
+</head>
+<body>
+<div class="controls" id="controls"></div>
+<div class="stage"><div class="frame" id="frame"></div></div>
+<div class="notes" id="notes"></div>
+<script>
+"use strict";
+// The B104 from Rico's vial-qmk fork (keymaps/vial-ansi): its definition's layouts, and keymap.c's
+// layers by matrix cell.
+const BOARD_DEF = {"name":"Model F Labs B104","labels":["Split Backspace","Split Left Shift (ISO)","Split Right Shift",["Enter","ANSI Enter","ISO Enter"],"Split Numpad Zero","Full Nav Cluster"],"keymap":[[{"x":15.5},"6,5\n\n\n0,1","6,11\n\n\n0,1"],[{"x":2.5,"y":0.25},"0,0",{"x":1.0},"0,1","0,3","0,14","0,16",{"x":0.5},"0,2","0,15","6,15","0,13",{"x":0.5},"0,4","0,12","0,5","0,11",{"x":0.25},"0,10","0,9","0,8"],[{"x":2.5,"y":0.5},"6,0","6,1","5,1","6,3","6,14","6,16","5,16","6,2","5,15","6,13","5,4","6,4","6,12",{"w":2.0},"6,11\n\n\n0,0",{"x":0.25},"0,6\n\n\n5,0","0,7\n\n\n5,0","6,7\n\n\n5,0",{"x":0.25},"6,10","5,10","6,9","6,8",{"x":2.75},"0,6\n\n\n5,1","0,7\n\n\n5,1","6,7\n\n\n5,1"],[{"x":2.5,"w":1.5},"5,0","4,1","4,3","5,3","5,14","4,16","4,2","5,2","4,15","5,13","4,4","5,12","5,5",{"w":1.5},"5,11\n\n\n3,0",{"x":0.25},"5,6\n\n\n5,0","6,6\n\n\n5,0","5,7\n\n\n5,0",{"x":0.25},"4,10","4,9","5,9",{"h":2.0},"5,8",{"x":1.25,"w":1.25,"h":2.0,"w2":1.5,"h2":1.0,"x2":-0.25},"4,11\n\n\n3,1",{"x":0.25},"5,6\n\n\n5,1","6,6\n\n\n5,1","5,7\n\n\n5,1"],[{"x":2.5,"w":1.75},"4,0","3,1","3,3","4,14","3,14","3,16","3,2","3,15","4,13","3,13","3,4","4,12",{"w":2.25},"4,5\n\n\n3,0",{"x":3.5},"3,10","3,9","4,8",{"x":1.25},"4,5\n\n\n3,1",{"x":1.5},"3,11\n\n\n5,1","4,6\n\n\n5,1","4,7\n\n\n5,1"],[{"w":1.25},"2,0\n\n\n1,1","2,1\n\n\n1,1",{"x":0.25,"w":2.25},"2,1\n\n\n1,0","2,3","2,14","1,14","1,16","2,16","2,2","1,15","1,13","2,4","2,12",{"w":2.75},"2,5\n\n\n2,0",{"x":1.25},"3,6\n\n\n5,0",{"x":1.25},"2,10","2,9","2,8",{"h":2.0},"3,8",{"x":2.75},"2,6\n\n\n5,1","3,6\n\n\n5,1","3,7\n\n\n5,1"],[{"x":2.5,"w":1.25},"1,0",{"w":1.25},"1,1",{"w":1.25},"1,3",{"w":6.25},"1,2",{"w":1.25},"1,4",{"w":1.25},"1,12",{"w":1.25},"1,5",{"w":1.25},"1,11",{"x":0.25},"1,6\n\n\n5,0","2,7\n\n\n5,0","1,7\n\n\n5,0",{"x":0.25,"w":2.0},"1,10\n\n\n4,0","1,8",{"x":3.75},"1,6\n\n\n5,1","2,7\n\n\n5,1","1,7\n\n\n5,1"],[{"x":14.75,"y":0.25,"w":1.75},"3,12\n\n\n2,1","2,11\n\n\n2,1",{"x":3.5},"1,10\n\n\n4,1","1,9\n\n\n4,1"]],"rows":8,"cols":18};
+const SENDS = {"0,0":["KC_ESC","KC_PWR","KC_NO"],"0,1":["KC_F1","KC_BRID","KC_NO"],"0,3":["KC_F2","KC_BRIU","KC_NO"],"0,14":["KC_F3","KC_NO","KC_NO"],"0,16":["KC_F4","KC_NO","KC_NO"],"0,2":["KC_F5","KC_NO","KC_NO"],"0,15":["KC_F6","KC_MSTP","KC_NO"],"6,15":["KC_F7","KC_MPRV","KC_NO"],"0,13":["KC_F8","KC_MPLY","KC_NO"],"0,4":["KC_F9","KC_MNXT","KC_NO"],"0,12":["KC_F10","KC_MUTE","KC_NO"],"0,5":["KC_F11","KC_VOLD","KC_NO"],"0,11":["KC_F12","KC_VOLU","KC_NO"],"0,10":["KC_PSCR","KC_EJCT","KC_NO"],"0,9":["KC_SCRL","KC_NO","KC_NO"],"0,8":["KC_PAUS","KC_NO","KC_NO"],"6,0":["KC_GRV","KC_NO","KC_NO"],"6,1":["KC_1","KC_NO","KC_NO"],"5,1":["KC_2","KC_NO","KC_NO"],"6,3":["KC_3","KC_NO","KC_NO"],"6,14":["KC_4","KC_NO","KC_NO"],"6,16":["KC_5","KC_NO","KC_NO"],"5,16":["KC_6","KC_NO","KC_NO"],"6,2":["KC_7","KC_NO","KC_NO"],"5,15":["KC_8","KC_NO","KC_NO"],"6,13":["KC_9","KC_NO","KC_NO"],"5,4":["KC_0","KC_NO","KC_NO"],"6,4":["KC_MINS","KC_NO","HF_DWLD"],"6,12":["KC_EQL","KC_NO","HF_DWLU"],"6,5":["KC_NO","KC_NO","KC_NO"],"6,11":["KC_BSPC","KC_NO","KC_NO"],"0,6":["KC_INS","KC_NO","KC_NO"],"0,7":["KC_HOME","KC_NO","KC_NO"],"6,7":["KC_PGUP","KC_NO","KC_NO"],"6,10":["KC_NUM","KC_NO","KC_NO"],"5,10":["KC_PSLS","KC_NO","KC_NO"],"6,9":["KC_PAST","KC_NO","KC_NO"],"6,8":["KC_PMNS","KC_NO","KC_NO"],"5,0":["KC_TAB","KC_NO","KC_NO"],"4,1":["KC_Q","KC_NO","KC_NO"],"4,3":["KC_W","KC_NO","KC_NO"],"5,3":["KC_E","KC_NO","EE_CLR"],"5,14":["KC_R","KC_NO","QK_BOOT"],"4,16":["KC_T","KC_NO","HF_TOGG"],"4,2":["KC_Y","KC_NO","KC_NO"],"5,2":["KC_U","KC_NO","KC_NO"],"4,15":["KC_I","KC_NO","KC_NO"],"5,13":["KC_O","KC_NO","KC_NO"],"4,4":["KC_P","KC_NO","KC_NO"],"5,12":["KC_LBRC","KC_NO","KC_NO"],"5,5":["KC_RBRC","KC_NO","KC_NO"],"5,11":["KC_BSLS","KC_NO","KC_NO"],"5,6":["KC_DEL","KC_NO","KC_NO"],"6,6":["KC_END","KC_NO","KC_NO"],"5,7":["KC_PGDN","KC_NO","KC_NO"],"4,10":["KC_P7","KC_NO","KC_NO"],"4,9":["KC_P8","KC_NO","KC_NO"],"5,9":["KC_P9","KC_NO","KC_NO"],"5,8":["KC_PPLS","KC_NO","KC_NO"],"4,0":["KC_CAPS","KC_NO","KC_NO"],"3,1":["KC_A","KC_NO","KC_NO"],"3,3":["KC_S","KC_NO","KC_NO"],"4,14":["KC_D","KC_NO","KC_NO"],"3,14":["KC_F","KC_NO","KC_NO"],"3,16":["KC_G","KC_NO","KC_NO"],"3,2":["KC_H","KC_NO","KC_NO"],"3,15":["KC_J","KC_NO","KC_NO"],"4,13":["KC_K","KC_NO","KC_NO"],"3,13":["KC_L","KC_NO","KC_NO"],"3,4":["KC_SCLN","KC_NO","KC_NO"],"4,12":["KC_QUOT","KC_NO","KC_NO"],"4,5":["KC_ENT","KC_NO","KC_NO"],"4,11":["KC_NO","KC_NO","KC_NO"],"3,11":["KC_NO","KC_NO","KC_NO"],"4,6":["KC_NO","KC_NO","KC_NO"],"4,7":["KC_NO","KC_NO","KC_NO"],"3,10":["KC_P4","KC_NO","KC_NO"],"3,9":["KC_P5","KC_NO","KC_NO"],"4,8":["KC_P6","KC_NO","KC_NO"],"2,0":["KC_NO","KC_NO","KC_NO"],"2,1":["KC_LSFT","KC_NO","KC_NO"],"2,3":["KC_Z","KC_NO","KC_NO"],"2,14":["KC_X","KC_NO","KC_NO"],"1,14":["KC_C","KC_NO","KC_NO"],"1,16":["KC_V","KC_NO","KC_NO"],"2,16":["KC_B","KC_NO","KC_NO"],"2,2":["KC_N","KC_NO","NK_TOGG"],"1,15":["KC_M","KC_NO","KC_NO"],"1,13":["KC_COMM","KC_NO","KC_NO"],"2,4":["KC_DOT","KC_NO","KC_NO"],"2,12":["KC_SLSH","KC_NO","KC_NO"],"3,12":["KC_NO","KC_NO","KC_NO"],"2,5":["KC_RSFT","KC_NO","KC_NO"],"2,11":["KC_NO","KC_NO","KC_NO"],"2,6":["KC_NO","KC_NO","KC_NO"],"3,6":["KC_UP","KC_NO","KC_NO"],"3,7":["KC_NO","KC_NO","KC_NO"],"2,10":["KC_P1","KC_NO","KC_NO"],"2,9":["KC_P2","KC_NO","KC_NO"],"2,8":["KC_P3","KC_NO","KC_NO"],"3,8":["KC_PENT","KC_NO","KC_NO"],"1,0":["KC_LCTL","KC_NO","KC_NO"],"1,1":["KC_LGUI","KC_NO","KC_NO"],"1,3":["KC_LALT","KC_NO","KC_NO"],"1,2":["KC_SPC","MO(2)","KC_TRNS"],"1,4":["KC_RALT","KC_NO","KC_NO"],"1,12":["MO(1)","KC_TRNS","KC_TRNS"],"1,5":["KC_APP","KC_NO","KC_NO"],"1,11":["KC_RCTL","KC_NO","KC_NO"],"1,6":["KC_LEFT","KC_NO","KC_NO"],"2,7":["KC_DOWN","KC_NO","KC_NO"],"1,7":["KC_RGHT","KC_NO","KC_NO"],"1,10":["KC_P0","KC_NO","KC_NO"],"1,9":["KC_NO","KC_NO","KC_NO"],"1,8":["KC_PDOT","KC_NO","KC_NO"]};
+
+// ---------------------------------------------------------------------------------------------
+// KLE, as in the other section mockups.
+function parseKle(rows) {
+  const keys = [];
+  let x = 0, y = 0, rx = 0, ry = 0, r = 0, p = {};
+  const pair = s => { const m = /^\s*(\d+)\s*,\s*(\d+)\s*$/.exec(s || ''); return m ? [+m[1], +m[2]] : null; };
+  for (const row of rows) {
+    if (!Array.isArray(row)) continue;
+    for (const item of row) {
+      if (typeof item === 'object') {
+        if ('r' in item) r = item.r;
+        if ('rx' in item || 'ry' in item) { if ('rx' in item) rx = item.rx; if ('ry' in item) ry = item.ry; x = rx; y = ry; }
+        if ('x' in item) x += item.x;
+        if ('y' in item) y += item.y;
+        for (const k of ['w', 'h', 'x2', 'y2', 'w2', 'h2', 'd']) if (k in item) p[k] = item[k];
+        continue;
+      }
+      const w = p.w || 1, h = p.h || 1;
+      const labels = String(item).split('\n');
+      const cell = pair(labels[0]), option = pair(labels[3]);
+      if (cell || p.d)
+        keys.push({ x, y, w, h, x2: p.x2 || 0, y2: p.y2 || 0, w2: p.w2 || w, h2: p.h2 || h, decal: !!p.d,
+                    cell, g: option ? option[0] : -1, o: option ? option[1] : 0 });
+      x += w;
+      p = {};
+    }
+    y += 1;
+    x = rx;
+  }
+  return keys;
+}
+// Keys of choice 0 of every group: the B104 has no rotated key, and its choices are drawn in place.
+const KEYS = parseKle(BOARD_DEF.keymap).filter(k => !k.decal && (k.g < 0 || k.o === 0));
+function boundsOf(keys) {
+  const b = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+  for (const k of keys)
+    for (const [x, y, w, h] of [[k.x, k.y, k.w, k.h], [k.x + k.x2, k.y + k.y2, k.w2, k.h2]]) {
+      b.x0 = Math.min(b.x0, x); b.y0 = Math.min(b.y0, y); b.x1 = Math.max(b.x1, x + w); b.y1 = Math.max(b.y1, y + h);
+    }
+  return b;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Legends, short -- Nazg's own come from its short-forms table.
+const NAMED = { ESC: 'Esc', MINS: '-', EQL: '=', BSPC: 'Bksp', DEL: 'Del', TAB: 'Tab', LBRC: '[', RBRC: ']', BSLS: '\\',
+  CAPS: 'Caps', SCLN: ';', QUOT: "'", ENT: 'Enter', LSFT: 'Shift', RSFT: 'Shift', COMM: ',', DOT: '.', SLSH: '/',
+  LCTL: 'Ctrl', RCTL: 'Ctrl', LGUI: 'Win', RGUI: 'Win', LALT: 'Alt', RALT: 'AltGr', SPC: '', GRV: '`', UP: '↑', DOWN: '↓',
+  LEFT: '←', RGHT: '→', PGUP: 'PgUp', PGDN: 'PgDn', END: 'End', HOME: 'Home', INS: 'Ins', PSCR: 'PrtSc', SCRL: 'ScrLk', PAUS: 'Pause',
+  MUTE: 'Mute', VOLU: 'Vol +', VOLD: 'Vol −', NO: '', APP: 'Menu', NUM: 'Num', PSLS: '/', PAST: '*', PMNS: '-', PPLS: '+',
+  PENT: 'Enter', PDOT: '.', MPLY: 'Play', MSTP: 'Stop', MPRV: 'Prev', MNXT: 'Next', EJCT: 'Eject', BRID: 'Bri −', BRIU: 'Bri +', PWR: 'Power' };
+function legendOf(kc) {
+  if (!kc || kc === 'KC_TRNS') return { m: '' };
+  let m;
+  if ((m = /^MO\((\d+)\)$/.exec(kc))) return { h: 'Layer', m: 'Fn ' + m[1], cls: 'hb' };
+  if ((m = /^LCTL_T\(KC_(\w+)\)$/.exec(kc))) return { h: 'Ctrl', m: NAMED[m[1]] || m[1], cls: 'hb' };
+  if ((m = /^M(\d+)$/.exec(kc))) return { h: 'Macro', m: m[1], cls: 'hb' };
+  if ((m = /^TD\((\d+)\)$/.exec(kc))) return { h: 'Tap Dance', m: m[1], cls: 'hb' };
+  if (kc === 'QK_BOOT' || kc === 'EE_CLR') return { h: 'Firmware', m: kc === 'QK_BOOT' ? 'Boot' : 'Clear', cls: 'hf' };
+  if (/^HF_/.test(kc)) return { h: 'Haptic', m: kc.slice(3, 7), cls: 'h' };
+  if (kc === 'NK_TOGG') return { h: 'NKRO', m: 'On/Off', cls: 'h' };
+  if (/^0x/.test(kc)) return { m: '?' };
+  const n = kc.replace(/^KC_/, '');
+  if (n in NAMED) return { m: NAMED[n] };
+  if (/^P\d$/.test(n)) return { m: n.slice(1) };
+  return { m: n };
+}
+const words = kc => {
+  if (!kc || kc === 'KC_NO') return 'nothing';
+  if (kc === 'KC_TRNS') return 'the layer under it';
+  const l = legendOf(kc);
+  return ((l.h ? l.h + ' ' : '') + (l.m || kc)).trim();
+};
+
+// ---------------------------------------------------------------------------------------------
+// The file, as made-up differences from what the board holds: keys by their layer-0 keycode.
+const FILE_KEYS = [
+  { layer: 0, at: 'KC_CAPS', to: 'LCTL_T(KC_ESC)' },
+  { layer: 0, at: 'KC_SCRL', to: 'M0' },
+  { layer: 0, at: 'KC_PAUS', to: 'TD(0)' },
+  { layer: 1, at: 'KC_I', to: 'KC_UP' },   { layer: 1, at: 'KC_J', to: 'KC_LEFT' },
+  { layer: 1, at: 'KC_K', to: 'KC_DOWN' }, { layer: 1, at: 'KC_L', to: 'KC_RGHT' },
+  { layer: 1, at: 'KC_U', to: 'KC_HOME' }, { layer: 1, at: 'KC_O', to: 'KC_END' },
+];
+// What Nazg cannot read in a file saved on older firmware: one key on layer 1.
+const UNREADABLE = { layer: 1, at: 'KC_H', raw: '0x5F40' };
+
+const FILES = {
+  'This keyboard': { name: 'Model F Labs B104.vil', other: false, shape: true, old: false },
+  'Another keyboard, same matrix': { name: 'B104 ISO build.vil', other: true, shape: true, old: false },
+  'Another keyboard, other matrix': { name: 'Model F Labs F77.vil', other: true, shape: false, old: false },
+  'Saved on older firmware': { name: 'B104 2023.vil', other: false, shape: true, old: true },
+};
+const NAMES = {
+  'Save to file… / Load from file…': ['Save to file…', 'Load from file…', 'Load'],
+  'Export… / Import…': ['Export…', 'Import…', 'Import'],
+  'Back up… / Restore…': ['Back up…', 'Restore…', 'Restore'],
+};
+const STEPS = ['Board menu', 'Asked: another keyboard', 'Review', 'Writing', 'Written', 'Saved'];
+const state = { step: 'Review', file: 'This keyboard', names: Object.keys(NAMES)[0], where: 'In place of the board',
+  after: 'Said, then Back to the board', lock: 'Unlocked', theme: 'Light', layer: 0, hover: null };
+const fileOf = () => FILES[state.file];
+const verb = () => NAMES[state.names][2];
+
+// ---------------------------------------------------------------------------------------------
+// What the board holds, and what it would hold with the file.
+const baseOf = k => (SENDS[k.cell.join(',')] || ['KC_NO'])[0];
+function nowAt(k, layer) { return (SENDS[k.cell.join(',')] || [])[layer] || 'KC_NO'; }
+function fileAt(k, layer) {
+  const f = fileOf();
+  if (f.old && layer === UNREADABLE.layer && baseOf(k) === UNREADABLE.at) return UNREADABLE.raw;
+  if (!f.shape) return nowAt(k, layer);
+  const c = FILE_KEYS.find(c => c.layer === layer && c.at === baseOf(k));
+  return c ? c.to : nowAt(k, layer);
+}
+const loaded = () => state.step === 'Written' || state.step === 'Saved';
+
+// The review's lines: what each part of the file changes. `keys`: what the line lights on the board.
+function reviewLines() {
+  const f = fileOf(), L = [];
+  if (f.shape) {
+    const per = [0, 1, 2].map(l => FILE_KEYS.filter(k => k.layer === l).length);
+    L.push({ id: 'keymap', lab: 'Keymap', val: `<span class="n">${FILE_KEYS.length} keys</span> -- ${per.map((n, l) => n ? `${n} on layer ${l}` : '').filter(Boolean).join(', ')}`
+      + (state.where === 'In a popup' ? `: ${FILE_KEYS.map(c => `${words(c.at)} → ${words(c.to)}`).join(', ')}` : ', lit on the board') });
+    L.push({ id: 'layout', lab: 'Layout', val: `<span class="n">Split Backspace</span> on -- off now` });
+  } else {
+    L.push({ id: 'keymap', lab: 'Keymap', warn: true, val: `<span style="color:var(--warn)">not loaded</span> -- the file's keymap has 8 × 16 cells, this keyboard's 8 × 18: its keys would land on other keys` });
+    L.push({ id: 'layout', lab: 'Layout', warn: true, val: `<span style="color:var(--warn)">not loaded</span> -- its options are another keyboard's` });
+  }
+  L.push({ id: 'macros', lab: 'Macros', val: `<span class="n">2 of 16</span> -- M0 changed, M1 new`, keys: /^M[01]$/ });
+  L.push({ id: 'td', lab: 'Tap Dance', val: `<span class="n">1 of 16</span> -- TD0 new`, keys: /^TD\(0\)$/ });
+  L.push({ id: 'combos', lab: 'Combos', val: 'the same', same: true });
+  L.push({ id: 'ko', lab: 'Key Overrides', val: 'the same', same: true });
+  L.push({ id: 'arep', lab: 'Alt Repeat Key', val: 'none in the file', same: true });
+  L.push({ id: 'qmk', lab: 'QMK Settings', val: `<span class="n">2</span> -- Tapping Term 200 → 180 ms, Permissive Hold on` });
+  return L;
+}
+const changeCount = () => (fileOf().shape ? FILE_KEYS.length + 1 : 0) + 2 + 1 + 2;
+
+function reviewSays() {
+  const f = fileOf(), out = [];
+  if (f.other) out.push(`<span class="w">Saved from another keyboard</span> -- loaded as you asked; what does not fit this one is left out.`);
+  if (f.old) {
+    out.push(`Saved on a firmware older than QMK's keycode renumbering (Vial 5): read with that firmware's keycodes.`);
+    out.push(`<span class="w">1 key Nazg cannot read</span> -- layer 1, where H is on layer 0, holds <code>${UNREADABLE.raw}</code> in the file: it stays as the board has it.`);
+  }
+  if (state.lock === 'Locked') out.push(`<span class="w">Macros, Tap Dance and QMK Settings need the keyboard unlocked</span> -- Apply asks you to hold its unlock keys first; the keymap does not need it.`);
+  if (state.step !== 'Written') out.push(`Nothing is written before Apply, and only what differs is. Lighting, Audio and the board's own menus are not in a .vil file.`);
+  return out.map(s => `<div>${s}</div>`).join('');
+}
+
+// ---------------------------------------------------------------------------------------------
+// The board: what it holds, or -- in the review -- what it would hold, the changed keys lit.
+function boardSvg(review, avail) {
+  const bd = boundsOf(KEYS), layer = state.layer;
+  const u = Math.min(46, Math.floor(avail / (bd.x1 - bd.x0 + 0.7))), m = u * 0.35;
+  const W = (bd.x1 - bd.x0) * u + 2 * m, H = (bd.y1 - bd.y0) * u + 2 * m;
+  const fs = Math.round(u * 0.28), hs = Math.round(u * 0.2), gap = Math.max(1, u * 0.06);
+  const line = state.hover && reviewLines().find(l => l.id === state.hover);
+  let s = `<svg class="board" xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><style>.plate{fill:var(--plate)}.k{fill:var(--key);stroke:var(--keyline)}`
+    + `.k.li{fill:var(--chgface);stroke:var(--chg);stroke-width:2}.k.bad{stroke:var(--warn);stroke-width:2;stroke-dasharray:4 3}`
+    + `.t{font:${fs}px Arimo,Arial;fill:var(--text);text-anchor:middle;pointer-events:none}.t.h{font-size:${hs}px;fill:var(--muted)}`
+    + `.t.hb{font-size:${hs}px;fill:var(--behav)}.t.hf{font-size:${hs}px;fill:var(--fw)}.t.dim{opacity:.4}</style>`;
+  s += `<rect class="plate" width="100%" height="100%" rx="12"/><g transform="translate(${m} ${m})">`;
+  for (const k of KEYS) {
+    const now = nowAt(k, layer), then = fileAt(k, layer);
+    const kc = review || loaded() ? then : now;
+    const changed = review && then !== now && !/^0x/.test(then);
+    const lit = line ? !!(line.keys && line.keys.test(kc)) || (line.id === 'keymap' && changed) : changed;
+    const bad = review && /^0x/.test(then);
+    const lg = legendOf(kc);
+    const x = (k.x - bd.x0) * u + gap, y = (k.y - bd.y0) * u + gap, w = k.w * u - 2 * gap, hh = k.h * u - 2 * gap;
+    const tip = review && (changed || bad) ? `<title>${bad ? `${then} in the file: Nazg cannot read it, so it stays ${words(now)}` : `now ${words(now)} · from the file ${words(then)}`}</title>` : `<title>${kc}</title>`;
+    const cls = 'k' + (lit ? ' li' : '') + (bad ? ' bad' : '');
+    const rect = (rx, ry, rw, rh) => `<rect class="${cls}" x="${rx}" y="${ry}" width="${rw}" height="${rh}" rx="${Math.max(2, u * 0.1)}">${tip}</rect>`;
+    s += rect(x, y, w, hh);
+    if (k.w2 !== k.w || k.h2 !== k.h || k.x2 || k.y2) s += rect((k.x + k.x2 - bd.x0) * u + gap, (k.y + k.y2 - bd.y0) * u + gap, k.w2 * u - 2 * gap, k.h2 * u - 2 * gap);
+    const dim = review && !lit && !bad ? ' dim' : '';
+    if (lg.h) s += `<text class="t ${lg.cls}${dim}" x="${x + w / 2}" y="${y + u * 0.27}">${lg.h}</text>`;
+    s += `<text class="t${dim}" x="${x + w / 2}" y="${y + hh / 2 + fs * 0.35 + (lg.h ? u * 0.08 : 0)}">${String(lg.m).replace('&', '&amp;').replace('<', '&lt;')}</text>`;
+  }
+  return s + `</g></svg>`;
+}
+function stripHtml(review) {
+  return `<div class="strip">` + [0, 1, 2].map(l => {
+    const n = review && fileOf().shape ? FILE_KEYS.filter(c => c.layer === l).length : 0;
+    return `<span class="tab${state.layer === l ? ' on' : ''}" data-layer="${l}">Layer ${l}${n ? `<span class="n">${n}</span>` : ''}</span>`;
+  }).join('') + `</div>`;
+}
+
+// ---------------------------------------------------------------------------------------------
+function menubarHtml() {
+  const open = state.step === 'Board menu';
+  let note = '';
+  if (state.step === 'Saved') note = `<span class="note">Saved to Model F Labs B104.vil</span>`;
+  if (state.step === 'Written' && state.after === 'Back to the board at once')
+    note = `<span class="note">${verb() === 'Load' ? 'Loaded' : verb() === 'Import' ? 'Imported' : 'Restored'} ${fileOf().name} -- ${changeCount()} changes</span>`;
+  const lock = state.lock === 'Locked' ? '<span class="muted">Locked</span>' : '';
+  let html = `<div class="menubar"><span class="board${open ? ' open' : ''}">Model F Labs B104 ▾</span><span class="muted">Vial 6</span>${lock}`
+    + `<span class="right">${note}<span>Settings</span></span></div>`;
+  if (open) {
+    const [save, load] = NAMES[state.names];
+    html += `<div class="menu"><div class="it">Switch to<span class="sub">Aquanaut · VIA ▸</span></div><div class="sep"></div>`
+      + `<div class="it">${save}</div><div class="it hl">${load}</div><div class="sep"></div><div class="it">All keyboards</div></div>`;
+  }
+  return html;
+}
+function boardScreenHtml() {
+  const col = `<div class="col"><div class="hdr">Vial</div>`
+    + ['Keymap', 'Layout', 'Macros', 'Tap Dance', 'Combos', 'Key Overrides', 'Alt Repeat Key', 'QMK Settings']
+        .map((e, i) => `<div class="entry${i ? '' : ' on'}">${e}</div>`).join('')
+    + `<div class="sep"></div><div class="hdr">Tools</div><div class="entry">Diagnostics</div></div>`;
+  return `<div class="body">${col}<div class="main">${stripHtml(false)}<div class="boardarea">${boardSvg(false, 1160 - 180 - 60)}</div>`
+    + `<div class="panel"><div class="head"><span class="muted">Click a key to change what it sends.</span></div></div></div></div>`;
+}
+function linesHtml() {
+  return `<div class="lines">` + reviewLines().map(l =>
+    `<div class="row${state.hover === l.id ? ' hov' : ''}" data-hover="${l.keys || l.id === 'keymap' ? l.id : ''}">`
+    + `<div class="lab${l.same ? ' same' : ''}">${l.lab}</div><div class="val${l.same ? ' same' : ''}">${l.val}</div></div>`).join('') + `</div>`;
+}
+function reviewHead(inDialog) {
+  const f = fileOf(), name = `<span class="title">${verb()} ${f.name}</span><span class="desc">saved 2026-10-12 · Vial ${f.old ? 5 : 6}</span>`;
+  let right;
+  if (state.step === 'Writing') right = `<span class="muted">Writing 9 of ${changeCount() + 4}…</span><div class="bar"><i style="width:55%"></i></div><button disabled>Cancel</button>`;
+  else if (state.step === 'Written') right = `<span class="ok">Written and read back -- ${changeCount()} changes</span><button class="primary">Back to the board</button>`;
+  else right = `<button>Cancel</button><button class="primary">${state.lock === 'Locked' ? 'Unlock and apply' : 'Apply'}</button>`;
+  return inDialog ? { name, right } : `<div class="head">${name}<span class="right">${right}</span></div>`;
+}
+function reviewInPlaceHtml() {
+  return `<div class="body"><div class="main">${fileOf().shape ? stripHtml(true) : ''}<div class="boardarea">${boardSvg(true, 1160 - 60)}</div>`
+    + `<div class="panel">${reviewHead(false)}${linesHtml()}<div class="says">${reviewSays()}</div></div></div></div>`;
+}
+function reviewDialogHtml() {
+  const h = reviewHead(true);
+  return `<div class="shade"><div class="dialog wide"><div class="dt">${h.name}</div>${linesHtml()}<div class="says">${reviewSays()}</div>`
+    + `<div class="df">${h.right}</div></div></div>`;
+}
+function askHtml() {
+  const f = fileOf();
+  return `<div class="shade"><div class="dialog"><div class="dt">Another keyboard's file</div><div class="db">`
+    + `<b>${f.name}</b> was saved from another keyboard: its Vial ID is <code>0x9c2e41b07d3a5f18</code>, this one's <code>0x51d2a08c3e6b9f47</code>. `
+    + `The ID names a keyboard model, so this is most likely a different model.<br><br>`
+    + `<span class="muted">Nothing is written yet: Nazg shows what would change, and leaves out what does not fit.</span></div>`
+    + `<div class="df"><button>Cancel</button><button class="primary">${verb()} anyway</button></div></div></div>`;
+}
+
+function frameHtml() {
+  const st = state.step;
+  let html = menubarHtml();
+  const popup = state.where === 'In a popup';
+  const reviewing = st === 'Review' || st === 'Writing' || (st === 'Written' && state.after !== 'Back to the board at once');
+  if (reviewing && !popup) return html + reviewInPlaceHtml();
+  html += boardScreenHtml();
+  if (reviewing && popup) html += reviewDialogHtml();
+  if (st === 'Asked: another keyboard') html += askHtml();
+  return html;
+}
+
+// ---------------------------------------------------------------------------------------------
+const CONTROLS = [
+  ['Step', 'step', STEPS],
+  ['File', 'file', Object.keys(FILES)],
+  ['Names', 'names', Object.keys(NAMES)],
+  ['Review', 'where', ['In place of the board', 'In a popup']],
+  ['Once written', 'after', ['Said, then Back to the board', 'Back to the board at once']],
+  ['Board', 'lock', ['Unlocked', 'Locked']],
+  ['Theme', 'theme', ['Light', 'Dark']],
+];
+function disabled(key, v) {
+  if (key === 'step' && v === 'Asked: another keyboard') return !fileOf().other;
+  return false;
+}
+function render() {
+  document.documentElement.dataset.theme = state.theme.toLowerCase();
+  if (state.step === 'Asked: another keyboard' && !fileOf().other) state.step = 'Review';
+  document.getElementById('controls').innerHTML = CONTROLS.map(([name, key, vals]) =>
+    `<div class="group"><span class="name">${name}</span>` + vals.map(v =>
+      `<button data-key="${key}" data-val="${v}"${state[key] === v ? ' class="on"' : ''}${disabled(key, v) ? ' disabled' : ''}>${v}</button>`).join('') + `</div>`).join('');
+  document.getElementById('frame').innerHTML = frameHtml();
+  document.getElementById('notes').innerHTML = NOTES;
+}
+document.getElementById('controls').addEventListener('click', e => {
+  const b = e.target.closest('button[data-key]');
+  if (!b || b.disabled) return;
+  state[b.dataset.key] = b.dataset.val;
+  if (b.dataset.key === 'file' && FILES[b.dataset.val].other && state.step === 'Board menu') state.step = 'Asked: another keyboard';
+  render();
+});
+const frame = document.getElementById('frame');
+frame.addEventListener('click', e => {
+  const t = e.target.closest('[data-layer]');
+  if (t) { state.layer = +t.dataset.layer; render(); }
+});
+frame.addEventListener('mouseover', e => {
+  const r = e.target.closest('[data-hover]');
+  const hover = r && r.dataset.hover ? r.dataset.hover : null;
+  if (hover !== state.hover) { state.hover = hover; frame.innerHTML = frameHtml(); }
+});
+
+const NOTES = `
+<p><b>Where.</b> Two items in the board menu, under <i>Switch to</i>, on every board -- VIA's and Vial's. They add nothing to the
+first glance: the menu is already there. Vial calls them <i>Save current layout…</i> and <i>Load saved layout…</i>, but in Nazg
+"layout" is the Layout section's options, so the names are among the variants.</p>
+<p><b>Saving</b> reads what the board holds that a .vil keeps -- the sections it has not opened yet included, about a second on the
+Model F -- asks where to save it (the system's dialog, named after the board: <i>Model F Labs B104.vil</i>), and says it is done in the
+header. Nazg writes Vial's own spellings (<code>M0</code>, <code>LT1(KC_A)</code>, <code>USER00</code>), and a raw value only
+where Vial has no name, so Vial loads Nazg's files as its own (vil-files.md).</p>
+<p><b>Loading</b> picks a file, reads the board, and shows what would change before writing anything (Rico, 2026-10-18). In place of
+the board screen, the board draws what it would hold, the changed keys lit, the strip counting them per layer; a line of the panel
+under the pointer lights the keys it concerns (Macros: the M0 key). The popup keeps the board screen behind and says the keys in
+words. What is the same is faint; Apply writes only what differs, each value read back, as the sections do. A write that fails
+half way leaves what was written, and the review says what was not.</p>
+<p><b>Another keyboard's file</b> -- another Vial ID -- is asked about first, as Vial does (Rico, 2026-10-18); "Load anyway" goes on
+to the review. What does not fit is left out and said: a keymap of another matrix size (Vial would put its keys on other keys),
+slots past the board's count, layers past its layers. A key Nazg cannot read stays as the board has it, outlined.</p>
+<p><b>Older firmware.</b> vial-gui replays a raw value as the new board's, wrong across QMK's renumbering. Nazg reads the file's
+raw values with the keycodes of the firmware that saved it (its <code>vial_protocol</code>), so a file from before 2023 loads right.</p>
+<p><b>VIA boards.</b> A VIA board's file says <code>uid: -1</code>, so Nazg adds the board's VID:PID to its files -- Vial ignores
+keys it does not know -- and asks about a VIA file from another board the same way (Rico, 2026-10-18). The lock: Apply on a locked
+Vial board asks for its unlock keys first (the unlock itself is still untested on hardware).</p>`;
+render();
+</script>
+</body>
+</html>
