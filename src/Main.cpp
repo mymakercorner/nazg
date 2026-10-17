@@ -152,6 +152,13 @@ namespace
         bool                       isExportClosed = false;   // the save dialog closed...
         std::optional<std::string> exportPath;             // ...with a place chosen, or none
         std::string                suggested;              // the file name offered; SDL may read it until it closes
+
+        // The saved layouts' dialogs (.vil), one at a time: closed, with a file chosen or none.
+        bool                       isLayoutOpenClosed = false;
+        std::optional<std::string> layoutOpenPath;
+        bool                       isLayoutSaveClosed = false;
+        std::optional<std::string> layoutSavePath;
+        std::string                layoutSuggested;
     };
 
     void SDLCALL OnImportChosen(void* userdata, const char* const* filelist, int)
@@ -174,6 +181,30 @@ namespace
         answers.exportPath.reset();
         if (filelist != nullptr && *filelist != nullptr)   // null: an error; empty: cancelled
             answers.exportPath = *filelist;
+    }
+
+    // A dialog's first file, or none -- cancelled, or an error.
+    std::optional<std::string> FirstChosen(const char* const* filelist)
+    {
+        if (filelist == nullptr || *filelist == nullptr)
+            return std::nullopt;
+        return std::string(*filelist);
+    }
+
+    void SDLCALL OnLayoutOpenChosen(void* userdata, const char* const* filelist, int)
+    {
+        auto&                             answers = *static_cast<DialogAnswers*>(userdata);
+        const std::lock_guard<std::mutex> lock(answers.mutex);
+        answers.isLayoutOpenClosed = true;
+        answers.layoutOpenPath     = FirstChosen(filelist);
+    }
+
+    void SDLCALL OnLayoutSaveChosen(void* userdata, const char* const* filelist, int)
+    {
+        auto&                             answers = *static_cast<DialogAnswers*>(userdata);
+        const std::lock_guard<std::mutex> lock(answers.mutex);
+        answers.isLayoutSaveClosed = true;
+        answers.layoutSavePath     = FirstChosen(filelist);
     }
 
     // Windows runs a loop of its own while the window is dragged -- moved or resized -- and the
@@ -308,6 +339,17 @@ int main(int, char**)
         SDL_ShowSaveFileDialog(OnExportChosen, &answers, pWindow, c_Filters, 1,
                                answers.suggested.empty() ? nullptr : answers.suggested.c_str());
     };
+    platform.showLayoutOpenDialog = [&answers, pWindow]
+    {
+        static const SDL_DialogFileFilter c_Filters[] = { { "Vial layout", "vil" } };
+        SDL_ShowOpenFileDialog(OnLayoutOpenChosen, &answers, pWindow, c_Filters, 1, nullptr, false);
+    };
+    platform.showLayoutSaveDialog = [&answers, pWindow](const std::string& suggested)
+    {
+        answers.layoutSuggested = suggested;   // App opens one at a time
+        static const SDL_DialogFileFilter c_Filters[] = { { "Vial layout", "vil" } };
+        SDL_ShowSaveFileDialog(OnLayoutSaveChosen, &answers, pWindow, c_Filters, 1, answers.layoutSuggested.c_str());
+    };
 
     // Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -359,17 +401,29 @@ int main(int, char**)
                 std::vector<std::string>   imported;
                 bool                       isExportClosed = false;
                 std::optional<std::string> exportPath;
+                bool                       isLayoutOpenClosed = false;
+                std::optional<std::string> layoutOpenPath;
+                bool                       isLayoutSaveClosed = false;
+                std::optional<std::string> layoutSavePath;
                 {
                     const std::lock_guard<std::mutex> lock(answers.mutex);
                     imported.swap(answers.imported);
                     isExportClosed = std::exchange(answers.isExportClosed, false);
                     exportPath     = std::move(answers.exportPath);
                     answers.exportPath.reset();
+                    isLayoutOpenClosed = std::exchange(answers.isLayoutOpenClosed, false);
+                    layoutOpenPath     = std::exchange(answers.layoutOpenPath, std::nullopt);
+                    isLayoutSaveClosed = std::exchange(answers.isLayoutSaveClosed, false);
+                    layoutSavePath     = std::exchange(answers.layoutSavePath, std::nullopt);
                 }
                 if (isExportClosed)
                     app.OnExportChosen(std::move(exportPath));
                 if (!imported.empty())
                     app.OnImportChosen(std::move(imported));
+                if (isLayoutOpenClosed)
+                    app.OnLayoutOpenChosen(std::move(layoutOpenPath));
+                if (isLayoutSaveClosed)
+                    app.OnLayoutSaveChosen(std::move(layoutSavePath));
             }
 
             // Before the minimized early-out below, otherwise board work stalls for as long as

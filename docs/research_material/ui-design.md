@@ -2426,7 +2426,11 @@ menu's *Switch to* follows too.
 
 ## Saved layouts
 
-**Designing** (2026-10-18; mockup [saved-layouts.html](ui-design/saved-layouts.html), first round).
+**Built** 2026-10-18 from the mockup [saved-layouts.html](ui-design/saved-layouts.html). **Tried by
+Rico on the Model F the same day, and it works**: Save; the file loaded back says "the same"; a key
+changed in Keymap found and written back by Apply; a .vil saved by Vial loaded; Nazg's file loaded
+in Vial; the Concordia's file asked about as another keyboard's, its keymap left out. Save on the
+Concordia Type C (VIA) seen through a probe. Not yet seen: Unlock and apply, Load on a VIA board.
 Saving a board to a Vial `.vil` file and loading one back, to be feature complete with Vial: the
 file's format, and how vial-gui restores one, are in [vil-files.md](vil-files.md).
 
@@ -2455,6 +2459,26 @@ Chosen on the mockup (Rico, 2026-10-18):
 With them, as the mockup proposed: Nazg writes Vial's own spellings (`M0`, `LT1(KC_A)`, `USER00`)
 so Vial loads its files, and reads a file's raw values with the keycodes of the firmware that saved
 it. A locked Vial board asks for its unlock keys before Apply -- that unlock is untested on hardware.
+
+As built (2026-10-18), where it differs from the mockup or adds to it:
+
+- **Vial's names, from its own table.** vial-gui writes and reads its own names -- `KC_ENTER`,
+  `RGB_TOG` -- not QMK's: a file spelled in QMK's would load in Vial as nothing. Nazg carries
+  vial-gui's v5 and v6 names (`adapters/vial/NazgVialKeycodeNameTable.cpp`, vil-files.md). **A VIA
+  board's keys are written as raw values**: vial-gui reads a VIA board's names with its v5 table,
+  wrong on a renumbered firmware.
+- **The strip marks a layer the file changes with a dot**, the strip's own mark for changes, not
+  a count.
+- **The other-keyboard question comes once the board is read** -- a Vial board's UID is read then --
+  over the review screen, before anything is shown as changing.
+- **Unlock**: only what a locked board refuses needs it -- the macros, and Boot anywhere, which it
+  stores as nothing (via-vial-commands.md, "What the lock gates"); then Apply reads "Unlock and
+  apply" and the unlock screen comes first. The mockup also named Tap Dance and QMK Settings: wrong.
+- **Back to the board loads the board again**, so every section reads what it now holds.
+- **Left out and said**: a keymap of another matrix size (and the knobs and layout options with
+  it), layers and slots past the board's, macros longer than its buffer, settings its firmware
+  lacks, knobs on a firmware with no encoder map; a value Nazg cannot read stays as the board
+  has it, its key outlined.
 
 ## The matrix view
 

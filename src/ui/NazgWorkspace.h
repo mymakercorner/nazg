@@ -55,7 +55,11 @@ namespace nazg
         bool hasChoice   = false;   // a remembered choice to forget
         bool hasAdvanced = false;   // the Advanced submenu, with the setting on
         bool canExport   = false;
+        bool hasKeyboard = false;   // loaded: its contents can be saved to a file, or loaded from one
         bool isBusy      = false;   // a load or a write in flight: nothing may replace the board
+        // On the right, before the lock: what Save to file... did -- "Saved to B104.vil" -- or is doing.
+        std::string note;
+        bool        isNoteWarning = false;
 
         bool isSettingsShown = false;
     };
@@ -66,6 +70,8 @@ namespace nazg
         bool changeDefinition = false;
         bool forgetChoice     = false;
         bool exportDefinition = false;
+        bool saveLayout       = false;   // Save to file...: a Vial saved layout (ui-design.md, "Saved layouts")
+        bool loadLayout       = false;   // Load from file...
         bool allKeyboards     = false;
         bool toggleLock       = false;   // the lock state was clicked: unlock, or lock again
         bool settings         = false;   // the settings button: show or leave them

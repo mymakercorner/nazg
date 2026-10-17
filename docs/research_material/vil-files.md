@@ -22,7 +22,7 @@ file still loads.
 | `version` | `1` |
 | `uid` | the Vial keyboard UID (`FE 00`), a JSON integer -- 64 bits, so past 2^53 a JavaScript reader loses digits. **`-1` on a VIA board** (vial-gui opens VIA boards too, "VIA stack") |
 | `layout` | `[layer][row][col]`, the **whole matrix**, a keycode per cell; the integer `-1` for a cell vial-gui did not read (no key of the definition on it) |
-| `encoder_layout` | `[layer][encoder]` -> `[cw, ccw]` -- **clockwise first**, keycodes |
+| `encoder_layout` | `[layer][encoder]` -> `[ccw, cw]` -- **counter-clockwise first**: direction 0 then 1, as `vial_get_encoder` answers (vial-gui's code names index 0 `cw`, wrongly) |
 | `layout_options` | `id_layout_options`' raw integer; `-1` when vial-gui did not read it (a definition without layout labels) |
 | `macro` | one list per macro slot, each a list of actions `[tag, ...]` (below) |
 | `vial_protocol`, `via_protocol` | the board's when saved (`-1` / VIA's on a VIA board) -- **written, never read back** |
@@ -50,19 +50,37 @@ Every keycode goes through vial-gui's `Keycode.serialize()`:
   value past Vial's table.
 
 `restore` reads each with `Keycode.deserialize()` against **the board it is loading onto**: a name
-through the table, then `AnyKeycode` (QMK's spellings: `LT(1,KC_A)`, `MT(MOD_LCTL|MOD_LSFT,KC_A)`,
-`OSM(...)`, `C(S(KC_A))`...), and a plain integer as is. What neither reads becomes `0` -- `KC_NO`,
-silently.
+through the table, then `AnyKeycode` (the function forms: `LT(1,KC_A)`, `MT(MOD_LCTL|MOD_LSFT,KC_A)`,
+`OSM(...)`, `C(S(KC_A))`..., and numbers), and a plain integer as is. What neither reads becomes `0`
+-- `KC_NO`, silently.
 
-Spellings that are **Vial's, not QMK's** -- Nazg must read them and, to be read back by Vial,
-write them:
+**Vial's names are its own, not QMK's** (compared 2026-10-18, scratch script against Nazg's table):
+of the ~570 names vial-gui writes, some 480 differ from QMK's current short names -- `KC_ENTER`
+for `KC_ENT`, `KC_BSPACE`, `KC_LCTRL`, `RGB_TOG` for `UG_TOGG`, `KC_GESC` for `QK_GESC`, `HPT_TOG`
+for `HF_TOGG`, `KC_MS_U` for `MS_UP` -- and `AnyKeycode` knows only Vial's names and their aliases,
+**not QMK's short ones**: a file spelled `KC_ENT` loads in Vial as nothing. So a writer must use
+Vial's names, and a reader must know them. Vial-only forms besides:
 
 | Vial writes | QMK's name | Nazg's model |
 |---|---|---|
 | `M0` ... `M<n>` | `MC_0`, `QK_MACRO_0` | `MacroKey` |
-| `USER00` ... `USER15` (the board's `customKeycodes` names are accepted as aliases) | `QK_USER_0` ... | the user keycode |
+| `USER00` ... `USER15` (the board's `customKeycodes` names are accepted as aliases) | `QK_KB_0` ... -- **`QK_KB`, not `QK_USER`**: `USER00` is `0x7E00` | the keyboard keycode |
 | `LT0(KC_A)` ... `LT15(...)` | `LT(0,KC_A)` | `LayerTapKey` -- Vial also reads `LT(0,KC_A)` |
 | `FN_MO13`, `FN_MO23` | `0x7C77` / `0x7C78`, QMK's `QK_TRI_LAYER_LOWER` / `UPPER` (`0x5F10` / `0x5F11` in Vial's v5 table) | named |
+
+**vial-gui reads a VIA board with its v5 table.** `Keycode.protocol` is the board's Vial protocol,
+`-1` on a VIA board, and every protocol but 6 means v5: on a renumbered VIA firmware vial-gui names
+keys by the old numbering. Its own files stay consistent -- the names stand for the board's raw
+values through v5 -- but names a writer chose by meaning would be read wrong. Nazg writes a VIA
+board's keycodes as raw values.
+
+**In Nazg**: `adapters/vial/NazgVialKeycodeNameTable.cpp` holds vial-gui's names with their v5 and
+v6 values, taken as data from `keycodes/keycodes_v5.py`, `keycodes_v6.py` and the names
+`keycodes.py` gives keycodes. To redo it by hand when vial-gui changes them: read both tables'
+`kc` dictionaries, add the `LT0(kc)`..`LT15(kc)` and `USER00`..`USER63` their loops make, keep the
+names `keycodes.py` gives a keycode (`K(...)`, `Keycode(...)`) as Key rows, the `(kc)` masks as
+Masked rows and the bases `M`, `TD` and the layer keys count from as Base rows, sorted by name.
+v5's `TO(n)` sets QMK's old `ON_PRESS` bit, `0x10`; a value past 16 bits marks a keycode v5 lacks.
 
 **The renumbering trap.** Names carry across keycode versions -- a file saved on a pre-renumbering
 firmware (`vial_protocol` < 6, Vial's v5 table) loads by name onto a renumbered one. **A hex string
@@ -109,8 +127,12 @@ the keymap restored and the macros not.
   above -- no protocol code.
 - **On a VIA board** the file carries the keymap, encoders, layout options and macros, `uid: -1`:
   what vial-gui writes for one. VIA's own JSON backup is another format.
-- **Nazg adds one key of its own**, the board's VID:PID (Rico, 2026-10-18): vial-gui reads only the
-  keys it knows, so its files still load there, and a VIA board's file -- `uid: -1` -- can say which
-  board it came from.
+- **Nazg adds one key of its own**, `"nazg": {"vendor_id", "product_id", "keycode_version"}` -- the
+  board's VID:PID (Rico, 2026-10-18), so a VIA board's file (`uid: -1`) can say which board it came
+  from, and the keycode version its raw values are numbered in. vial-gui reads only the keys it
+  knows, so Nazg's files still load there.
+- **Reading a raw value**: with Nazg's `keycode_version`, else the keycodes of the file's Vial
+  protocol, else -- a VIA board's file -- the board's own. A value of an older numbering that the
+  codec cannot place is not replayed: it is said, and the board keeps its own.
 - **Matrix shape is the import's job**: compare the file's `layout` extents and slot counts with
   the board's before writing anything, rather than Vial's silent misplacement.

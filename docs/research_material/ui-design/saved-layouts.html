@@ -17,6 +17,9 @@
      The variants: what the two menu items are called; the review in place of the board screen or
      in a popup; what happens once it is written.
 
+     Built 2026-10-18: the strip marks a changed layer with a dot, as Nazg's strips mark changes; only macros and
+     Boot need a locked board unlocked (via-vial-commands.md), not Tap Dance and QMK Settings as first drawn.
+
      Settled 2026-10-18 (Rico): Save to file… / Load from file…; the review in place of the board;
      once written, said, then Back to the board; and Nazg adds the board's VID:PID to its files, so
      a VIA board's file is asked about too. The toggles keep the alternatives.
@@ -69,7 +72,7 @@ svg.board{display:block;overflow:visible}
 .strip{display:flex;gap:4px;align-items:center}
 .strip .tab{padding:4px 12px;border:1px solid var(--border);border-radius:6px;background:var(--control);cursor:pointer}
 .strip .tab.on{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
-.strip .tab .n{font-size:11px;margin-left:6px;opacity:.8}
+.strip .tab .dot{display:inline-block;width:6px;height:6px;border-radius:3px;background:var(--warn);margin-left:6px;vertical-align:middle}
 .panel{border:1px solid var(--border);border-radius:6px;background:var(--panel)}
 .title{font-weight:700}
 .head{display:flex;align-items:center;gap:6px 14px;padding:7px 12px;border-bottom:1px solid var(--border);flex-wrap:wrap;min-height:41px}
@@ -254,7 +257,7 @@ function reviewSays() {
     out.push(`Saved on a firmware older than QMK's keycode renumbering (Vial 5): read with that firmware's keycodes.`);
     out.push(`<span class="w">1 key Nazg cannot read</span> -- layer 1, where H is on layer 0, holds <code>${UNREADABLE.raw}</code> in the file: it stays as the board has it.`);
   }
-  if (state.lock === 'Locked') out.push(`<span class="w">Macros, Tap Dance and QMK Settings need the keyboard unlocked</span> -- Apply asks you to hold its unlock keys first; the keymap does not need it.`);
+  if (state.lock === 'Locked') out.push(`<span class="w">The keyboard is locked: Vial refuses macros, and stores Boot as nothing, until it is unlocked</span> -- Apply asks for its unlock keys first.`);
   if (state.step !== 'Written') out.push(`Nothing is written before Apply, and only what differs is. Lighting, Audio and the board's own menus are not in a .vil file.`);
   return out.map(s => `<div>${s}</div>`).join('');
 }
@@ -294,7 +297,7 @@ function boardSvg(review, avail) {
 function stripHtml(review) {
   return `<div class="strip">` + [0, 1, 2].map(l => {
     const n = review && fileOf().shape ? FILE_KEYS.filter(c => c.layer === l).length : 0;
-    return `<span class="tab${state.layer === l ? ' on' : ''}" data-layer="${l}">Layer ${l}${n ? `<span class="n">${n}</span>` : ''}</span>`;
+    return `<span class="tab${state.layer === l ? ' on' : ''}" data-layer="${l}">Layer ${l}${n ? `<span class="dot"></span>` : ''}</span>`;
   }).join('') + `</div>`;
 }
 
@@ -416,7 +419,7 @@ Model F -- asks where to save it (the system's dialog, named after the board: <i
 header. Nazg writes Vial's own spellings (<code>M0</code>, <code>LT1(KC_A)</code>, <code>USER00</code>), and a raw value only
 where Vial has no name, so Vial loads Nazg's files as its own (vil-files.md).</p>
 <p><b>Loading</b> picks a file, reads the board, and shows what would change before writing anything (Rico, 2026-10-18). In place of
-the board screen, the board draws what it would hold, the changed keys lit, the strip counting them per layer; a line of the panel
+the board screen, the board draws what it would hold, the changed keys lit, a dot on each layer it changes; a line of the panel
 under the pointer lights the keys it concerns (Macros: the M0 key). The popup keeps the board screen behind and says the keys in
 words. What is the same is faint; Apply writes only what differs, each value read back, as the sections do. A write that fails
 half way leaves what was written, and the review says what was not.</p>

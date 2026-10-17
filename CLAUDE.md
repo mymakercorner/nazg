@@ -44,6 +44,11 @@ exists, where, and how far it has been proven.
   the keyboard list, the open board or Settings. Screens report clicks; `App` (`app/NazgApp.*`) acts. *Advanced tools*, off by default,
   shows designer and debugging tools only. The board
   screen is a section column, a strip, the board and a panel (`ui/NazgWorkspace.*`).
+- **Saved layouts** (ui-design.md, "Saved layouts"; Rico, 2026-10-18): the board menu's Save to file... and
+  Load from file..., Vial's `.vil` for every board (vil-files.md). `adapters/vial/NazgVialSavedLayout.*` reads
+  and writes the file in vial-gui's own keycode names (`NazgVialKeycodeNames.*`, its v5 and v6 tables);
+  `board/NazgSavedLayoutTransfer.*` reads the board, compares and writes what differs, read back;
+  `ui/NazgSavedLayoutReview.*` shows what would change before Apply.
 - **Hotplug** (ui-design.md, "Hotplug"): no Refresh. `Main.cpp` polls SDL's
   `SDL_hid_device_change_count()`; `App` lists again half a second after the last change, asks
   only new paths their protocol (`board/NazgDeviceList.*`), and closes the open board once its
@@ -134,6 +139,7 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
 | Key overrides, read and written (Model F) | |
 | | Alt repeat keys -- no board at hand has them |
 | Audio planned from a definition, and a firmware without audio said (Concordia, a test definition) | Audio and Clicky read or written, Play a sound -- no board at hand has audio built in |
+| Saved layouts on the Model F (Rico, 2026-10-18): Save; its own file loaded back as "the same"; a changed key found and written back; a .vil from Vial loaded; Nazg's file loaded in Vial; the Concordia's file asked about, its keymap left out. Save on the Concordia (probe) | Unlock and apply (the Model F is `VIAL_INSECURE`); Load on a VIA board |
 | A board's own menus: a few EC features (Concordia Type C); all 35909 registry controls parse (test) | |
 | Hotplug: boards plugged and unplugged, the list and the open board following (Rico, 2026-10-16) | |
 | Key health on Rico's F77 recordings: nothing accused, 26 good and 49 to hold, as the mockup (test) | |

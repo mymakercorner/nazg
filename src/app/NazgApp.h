@@ -32,6 +32,7 @@
 #include "transport/NazgHidTransport.h"
 #include "ui/NazgKeycapLegend.h"
 #include "ui/NazgMatrixView.h"
+#include "ui/NazgSavedLayoutReview.h"
 #include "ui/NazgSection.h"
 #include "ui/NazgTheme.h"
 #include "ui/NazgVialUnlock.h"
@@ -68,6 +69,9 @@ namespace nazg
         // loop's thread, in OnImportChosen() and OnExportChosen().
         std::function<void()>                             showImportDialog;
         std::function<void(const std::string& suggested)> showExportDialog;
+        // Likewise for saved layouts (.vil): OnLayoutOpenChosen() and OnLayoutSaveChosen().
+        std::function<void()>                             showLayoutOpenDialog;
+        std::function<void(const std::string& suggested)> showLayoutSaveDialog;
     };
 
     class App
@@ -109,6 +113,9 @@ namespace nazg
         // The file dialogs' answers: the files to import; where to export, none when cancelled.
         void OnImportChosen(std::vector<std::string> paths);
         void OnExportChosen(std::optional<std::string> path);
+        // A saved layout to load, and where to save one; none when cancelled.
+        void OnLayoutOpenChosen(std::optional<std::string> path);
+        void OnLayoutSaveChosen(std::optional<std::string> path);
 
         // A HID device came or went, as the shell heard it: the list is read again once they stop
         // changing (ui-design.md, "Hotplug").
@@ -175,6 +182,9 @@ namespace nazg
             // stored copy is read from the library when exported.
             std::vector<uint8_t> exportable;
             std::string          exportMessage;
+            // What Save to file... did, in the header (ui-design.md, "Saved layouts").
+            std::string layoutNote;
+            bool        isLayoutNoteWarning = false;
 
             // What the board screen shows, Keymap first (ui/NazgSection.h), and the one chosen.
             // Made for the keyboard above once it has loaded, and dropped when a load starts.
@@ -189,6 +199,9 @@ namespace nazg
             // An unlock under way, while the board screen shows it instead of the sections.
             // Behind a pointer: it holds a Task that refers to it, so it must never move.
             std::unique_ptr<VialUnlock> unlock;
+            // A saved layout being loaded: what it changes, shown in the sections' place until
+            // written or cancelled (ui-design.md, "Saved layouts"). Behind a pointer, as the unlock.
+            std::unique_ptr<SavedLayoutReview> review;
 
             // A section still working, or an unlock, refers to the keyboard: nothing reloads it
             // meanwhile.
@@ -200,6 +213,7 @@ namespace nazg
         Task<void> LoadBoard(std::string path, DeviceIdentity identity, std::vector<DefinitionCandidate> candidates,
                              std::optional<DefinitionRef> chosen);
         Task<void> LockBoard(std::string path);
+        Task<void> SaveLayout(std::string path);
 
         void StartRefresh();
         void StartLoad(const std::string& path, const DeviceIdentity& identity, std::optional<DefinitionRef> chosen);
@@ -262,6 +276,7 @@ namespace nazg
         Task<void>       m_RefreshTask;
         Task<void>       m_LoadTask;
         Task<void>       m_LockTask;
+        Task<void>       m_LayoutTask;   // Save to file...: reading the board, then writing the file
 
         // Leaving the board while a section holds changes not written yet: the user is asked,
         // Save, Discard or Cancel, and the leaving waits in `m_PendingLeave` (ui-design.md, "The
@@ -282,6 +297,10 @@ namespace nazg
         bool                 m_IsExportOpen = false;
         std::vector<uint8_t> m_ExportBytes;
         std::string          m_ExportName;   // the definition's, for the message
+
+        // A saved layout's dialog is open: one at a time. And Apply waits for the unlock it asked for.
+        bool m_IsLayoutDialogOpen = false;
+        bool m_ApplyAfterUnlock   = false;
 
         bool                   m_ShowAllHidDevices = false;   // the keyboard list shows only keyboards unless asked
         bool                   m_ShowSettings      = false;   // Settings in place of the main area

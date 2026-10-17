@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstdio>
 #include <exception>
+#include <fstream>
 #include <utility>
 
 #include "imgui.h"
@@ -15,6 +16,7 @@
 #include "app/NazgFonts.h"
 #include "board/NazgBoardLoad.h"
 #include "board/NazgDeviceList.h"
+#include "board/NazgSavedLayoutTransfer.h"
 #include "files/NazgFiles.h"
 #include "transport/NazgDeviceChannel.h"
 #include "ui/NazgDefinitionPicker.h"
@@ -80,7 +82,7 @@ namespace nazg
 
     bool App::BoardState::IsWorking() const
     {
-        return unlock != nullptr ||
+        return unlock != nullptr || (review && review->IsBusy()) ||
                std::any_of(sections.begin(), sections.end(), [](const auto& section) { return section->IsBusy(); });
     }
 
@@ -308,6 +310,33 @@ namespace nazg
         }
     }
 
+    // Save to file...: what the board holds, read, then written as a Vial saved layout -- said where
+    // the definition's export is.
+    Task<void> App::SaveLayout(std::string path)
+    {
+        m_Board.layoutNote          = "Saving...";
+        m_Board.isLayoutNoteWarning = false;
+        try
+        {
+            HidDeviceChannel    channel = co_await HidDeviceChannel::Open(m_Transport, m_Board.path);
+            vial::Protocol      protocol(channel);
+            const BoardContents board   = co_await ReadBoardContents(protocol, *m_Board.keyboard, m_Board.identity.vendorId,
+                                                                     m_Board.identity.productId);
+            const std::string   text    = vial::WriteSavedLayout(board.layout);
+
+            std::ofstream stream(PathFromUtf8(path), std::ios::binary | std::ios::trunc);
+            stream.write(text.data(), static_cast<std::streamsize>(text.size()));
+            stream.close();
+            m_Board.layoutNote          = stream ? "Saved to " + FileName(path) : "Not saved: cannot write " + FileName(path);
+            m_Board.isLayoutNoteWarning = !stream;
+        }
+        catch (const std::exception& failure)
+        {
+            m_Board.layoutNote          = std::string("Not saved: ") + failure.what();
+            m_Board.isLayoutNoteWarning = true;
+        }
+    }
+
     // A Task still running must not be replaced: destroying it would free a coroutine frame the
     // transport still holds a handle to.
     void App::StartRefresh()
@@ -350,12 +379,15 @@ namespace nazg
 
     bool App::IsBoardBusy() const
     {
-        return IsLoadRunning() || (m_LockTask.IsValid() && !m_LockTask.IsDone()) || m_Board.IsWorking();
+        return IsLoadRunning() || (m_LockTask.IsValid() && !m_LockTask.IsDone()) ||
+               (m_LayoutTask.IsValid() && !m_LayoutTask.IsDone()) || m_Board.IsWorking();
     }
 
     bool App::IsBoardHeld() const
     {
-        return IsLoadRunning() || (m_LockTask.IsValid() && !m_LockTask.IsDone()) || m_Board.unlock != nullptr ||
+        return IsLoadRunning() || (m_LockTask.IsValid() && !m_LockTask.IsDone()) ||
+               (m_LayoutTask.IsValid() && !m_LayoutTask.IsDone()) || m_Board.unlock != nullptr ||
+               (m_Board.review && m_Board.review->IsBusy()) ||
                std::any_of(m_Board.sections.begin(), m_Board.sections.end(),
                            [](const auto& section) { return section->IsBusy() && !section->IsPolling(); });
     }
@@ -371,7 +403,8 @@ namespace nazg
     bool App::IsAwaitingBoard() const
     {
         return IsLoadRunning() || (m_LockTask.IsValid() && !m_LockTask.IsDone()) ||
-               (m_Board.unlock && m_Board.unlock->IsRequesting()) ||
+               (m_LayoutTask.IsValid() && !m_LayoutTask.IsDone()) ||
+               (m_Board.unlock && m_Board.unlock->IsRequesting()) || (m_Board.review && m_Board.review->IsBusy()) ||
                std::any_of(m_Board.sections.begin(), m_Board.sections.end(),
                            [](const auto& section) { return section->IsBusy(); });
     }
@@ -546,6 +579,53 @@ namespace nazg
         m_ExportBytes.clear();
     }
 
+    void App::OnLayoutSaveChosen(std::optional<std::string> path)
+    {
+        m_IsLayoutDialogOpen = false;
+        if (!path || !m_Board.keyboard)
+            return;
+        WhenBoardIdle([this, chosen = *path]
+        {
+            if (m_Board.keyboard)
+                m_LayoutTask = SaveLayout(chosen);
+        });
+    }
+
+    // The file is read here, and refused if it is no saved layout; the review reads the board.
+    void App::OnLayoutOpenChosen(std::optional<std::string> path)
+    {
+        m_IsLayoutDialogOpen = false;
+        if (!path || !m_Board.keyboard)
+            return;
+
+        vial::SavedLayout file;
+        try
+        {
+            const std::optional<std::vector<uint8_t>> bytes = ReadWholeFile(PathFromUtf8(*path));
+            if (!bytes)
+                throw std::runtime_error("cannot read " + *path);
+            file = vial::ReadSavedLayout(std::string_view(reinterpret_cast<const char*>(bytes->data()), bytes->size()),
+                                         m_Board.keyboard->keycodeVersion);
+        }
+        catch (const std::exception& failure)
+        {
+            m_Board.error = std::string("Not loaded: ") + failure.what();
+            return;
+        }
+
+        WhenBoardIdle([this, file, name = FileName(*path)]
+        {
+            if (!m_Board.keyboard)
+                return;
+            m_ShowSettings = false;
+            m_Board.error.clear();
+            m_Board.layoutNote.clear();
+            m_Board.review = std::make_unique<SavedLayoutReview>(m_Transport, m_Board.path, *m_Board.keyboard,
+                                                                 m_Board.identity.vendorId, m_Board.identity.productId,
+                                                                 m_Settings.legends, m_Board.lock, name, file);
+        });
+    }
+
     // ------------------------------------------------------------------------------------------
     // The frame.
 
@@ -703,6 +783,9 @@ namespace nazg
                 header.hasChoice = m_Board.isVia && m_Library.library &&
                                    m_Library.library->FindChoice(m_Board.identity) != nullptr;
                 header.canExport = !m_Board.exportable.empty() || UserEntryInUse() != nullptr;
+                header.hasKeyboard = !m_Board.isLoading;
+                header.note          = m_Board.layoutNote;
+                header.isNoteWarning = m_Board.isLayoutNoteWarning;
 
                 header.hasAdvanced = m_Settings.advancedTools;
 
@@ -782,6 +865,23 @@ namespace nazg
 
         if (action.exportDefinition)
             ExportBoardDefinition();
+
+        // A saved layout: the board's name offered for the file, what a file system refuses left out.
+        if ((action.saveLayout || action.loadLayout) && !isBusy && m_Board.keyboard && !m_IsLayoutDialogOpen)
+        {
+            m_IsLayoutDialogOpen = true;
+            if (action.loadLayout)
+                m_Platform.showLayoutOpenDialog();
+            else
+            {
+                constexpr std::string_view c_Refused = "<>:\"/\\|?*";
+                std::string                suggested;
+                for (const char c : m_Board.keyboard->Name())
+                    if (c_Refused.find(c) == std::string_view::npos && static_cast<unsigned char>(c) >= 0x20)
+                        suggested.push_back(c);
+                m_Platform.showLayoutSaveDialog((suggested.empty() ? std::string("layout") : suggested) + ".vil");
+            }
+        }
 
         // Closes the board; the list is kept current as devices come and go.
         if (action.allKeyboards && !isBusy)
@@ -1044,9 +1144,15 @@ namespace nazg
             if (m_Board.unlock->IsDone())
             {
                 if (m_Board.unlock->IsUnlocked())
+                {
                     m_Board.lock->unlocked = true;
+                    // Unlocked for a saved layout's Apply: written now.
+                    if (m_ApplyAfterUnlock && m_Board.review)
+                        m_Board.review->StartWriting();
+                }
                 else
                     m_Board.error = m_Board.unlock->Failure();
+                m_ApplyAfterUnlock = false;
                 m_Board.unlock.reset();
             }
             return false;
@@ -1054,6 +1160,37 @@ namespace nazg
 
         if (!m_Board.keyboard || m_Board.isLoading)
             return false;
+
+        // A saved layout being loaded, in the sections' place, as Settings is: no column.
+        if (m_Board.review)
+        {
+            DrawView(*m_Board.review, m_Board.review->Preview(), m_Settings.workspace);
+
+            const SavedLayoutReview::Action action = m_Board.review->TakeAction();
+            if (action.cancel && !m_Board.review->IsBusy())
+                m_Board.review.reset();
+            else if (action.apply)
+            {
+                // A locked board refuses macros and stores Boot as nothing: unlocked first, on the
+                // unlock's own screen, then written.
+                if (m_Board.review->NeedsUnlock() && m_Board.lock && !m_Board.lock->unlocked)
+                {
+                    m_ApplyAfterUnlock = true;
+                    m_Board.unlock     = std::make_unique<VialUnlock>(m_Transport, m_Board.path, *m_Board.keyboard,
+                                                                      m_Board.lock->unlockKeys, m_Settings.legends);
+                }
+                else
+                    m_Board.review->StartWriting();
+            }
+            else if (action.back)
+                // Loaded again, so every section reads what the board now holds.
+                WhenBoardIdle([this]
+                {
+                    m_Board.review.reset();
+                    StartLoad(m_Board.path, m_Board.identity, m_Board.inUse);
+                });
+            return false;
+        }
 
         // The sections of a board just loaded: every one it should have, from what the load read
         // (ui/NazgSectionPlan.h), each made by ui/NazgSectionFactory.h.

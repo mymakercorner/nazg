@@ -449,8 +449,15 @@ namespace nazg
                     ImGui::Separator();
                 }
 
+                // What the board holds, in a Vial saved layout (.vil) and back -- every board, VIA's too
+                // (ui-design.md, "Saved layouts").
+                action.saveLayout = ImGui::MenuItem("Save to file...", nullptr, false, view.hasKeyboard && !view.isBusy);
+                action.loadLayout = ImGui::MenuItem("Load from file...", nullptr, false, view.hasKeyboard && !view.isBusy);
+                ImGui::SetItemTooltip("A Vial layout file (.vil): what changes is shown before anything is written.");
+
                 if (view.isVia)
                 {
+                    ImGui::Separator();
                     action.changeDefinition = ImGui::MenuItem("Change definition...", nullptr, false, !view.isBusy);
                     action.forgetChoice     = ImGui::MenuItem("Forget choice", nullptr, false, view.hasChoice);
                     ImGui::SetItemTooltip("Nazg asks again the next time this board is opened,\n"
@@ -486,7 +493,15 @@ namespace nazg
         float width = ImGui::CalcTextSize(settings).x + 2 * spacing;
         if (lock != nullptr)
             width += ImGui::CalcTextSize(lock).x + spacing;
+        if (!view.note.empty())
+            width += ImGui::CalcTextSize(view.note.c_str()).x + 2 * spacing;
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + std::max(0.0f, ImGui::GetContentRegionAvail().x - width));
+
+        if (!view.note.empty())
+        {
+            ColouredText(view.isNoteWarning ? PanelColour::Warning : PanelColour::Success, "%s", view.note.c_str());
+            ImGui::SameLine(0.0f, 2 * spacing);
+        }
 
         // Clicking it is how the board is unlocked, or locked again.
         if (lock != nullptr)
