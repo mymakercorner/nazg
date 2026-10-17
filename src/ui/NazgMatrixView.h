@@ -15,8 +15,9 @@
 // built board -- a view of its own, with no hover, no wiring and no dimming. The board is opened once and kept open while the test runs, polled every
 // 20 ms as VIA and Vial poll it, and closed when the test stops -- so while it runs nothing
 // else may talk to the board: HID hands every open handle a copy of each reply, and one left
-// idle would read a stale one next. StopLiveTest() is for whoever needs the board; the test
-// also stops once another section is shown, WhileHidden().
+// idle would read a stale one next. The test stops once another section is shown, or when Nazg
+// needs the board -- WhileHidden(); its polling holds the header's board menu back meanwhile no
+// more than the diagnostics' does (IsPolling()).
 //
 // The firmware must consent (via-vial-commands.md): a Vial board only while unlocked, which
 // the test checks first; a mainline VIA board only when built with VIA_INSECURE, or with
@@ -70,12 +71,13 @@ namespace nazg
         // A request in flight, which refers to the view.
         [[nodiscard]] bool IsBusy() const override;
 
-        // Stops the live test once its request is back: the next section must have the board.
-        void WhileHidden() override;
+        // The live test only reads, so its requests hold nothing back: whatever needs the board stops
+        // it through WhileHidden() and waits for the reading in flight (ui/NazgSection.h).
+        [[nodiscard]] bool IsPolling() const override { return IsBusy(); }
 
-        // Ends the live test and closes the board, for another request to use it. Only when
-        // not IsBusy(); does nothing when no test runs.
-        void StopLiveTest();
+        // Stops the live test once its request is back: the next section, or whatever Nazg does with
+        // the board next, must have it.
+        void WhileHidden() override;
 
         // The live test is reading the board. Its keys then type into Nazg, so none of them
         // may drive the UI -- the caller turns keyboard navigation off.
@@ -94,6 +96,10 @@ namespace nazg
 
         // The strip is on Live test: the board and the panel show the test, not the wiring.
         [[nodiscard]] bool IsLiveShown() const noexcept { return m_Live != Live::Off && !m_WantsWiring; }
+
+        // Ends the live test and closes the board, for another request to use it. Only when
+        // not IsBusy(); does nothing when no test runs.
+        void StopLiveTest();
 
         Task<void> StartLive();
         Task<void> Poll();
