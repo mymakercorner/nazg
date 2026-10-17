@@ -3,6 +3,7 @@
 
 #include "NazgLeydenJarProtocol.h"
 
+#include <algorithm>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -227,5 +228,18 @@ namespace nazg::leydenjar
             info.isLeftHalf = co_await protocol.IsLeftHalf();
 
         co_return info;
+    }
+
+    uint16_t UnconnectedThreshold(SwitchTechnology technology) noexcept
+    {
+        return technology == SwitchTechnology::BeamSpring ? 300 : 1023;
+    }
+
+    bool IsWiredToNoMatrix(const ControllerInfo& info) noexcept
+    {
+        const uint16_t sentinel = UnconnectedThreshold(info.details.technology);
+        return !info.thresholds.empty() &&
+               std::all_of(info.thresholds.begin(), info.thresholds.end(),
+                           [sentinel](uint16_t threshold) { return threshold == sentinel; });
     }
 }

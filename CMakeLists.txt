@@ -144,6 +144,8 @@ set(NAZG_CORE_SOURCES
   src/model/NazgQmkSettings.cpp
   src/model/NazgLighting.h
   src/model/NazgLighting.cpp
+  src/model/NazgKeyHealth.h
+  src/model/NazgKeyHealth.cpp
   src/ui/NazgKeycapLegend.h
   src/ui/NazgKeycapLegend.cpp
   src/ui/NazgHostLayoutTable.cpp
@@ -352,6 +354,7 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(via_macro          tests/ViaMacroTest.cpp)
     nazg_add_test(vial_protocol      tests/VialProtocolTest.cpp)
     nazg_add_test(leyden_jar_protocol tests/LeydenJarProtocolTest.cpp)
+    nazg_add_test(key_health         tests/KeyHealthTest.cpp ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/leyden-jar)
     nazg_add_test(unsolicited_report tests/UnsolicitedReportTest.cpp)
     nazg_add_test(definition         tests/DefinitionTest.cpp)
     nazg_add_test(keyboard_model     tests/KeyboardModelTest.cpp)

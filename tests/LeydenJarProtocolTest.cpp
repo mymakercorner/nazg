@@ -314,6 +314,26 @@ namespace
             Check(channel.RequestCount() == 4, "nothing else asked");
         }
     }
+
+    // A controller wired to no matrix: every threshold at the firmware's sentinel.
+    void TestWiredToNoMatrix()
+    {
+        std::printf("wired to no matrix\n");
+
+        leydenjar::ControllerInfo info;
+        info.details.technology = leydenjar::SwitchTechnology::BeamSpring;
+        info.thresholds         = { 300 };
+        Check(leydenjar::IsWiredToNoMatrix(info), "the bare B104: 300 on a Beam Spring");
+
+        info.details.technology = leydenjar::SwitchTechnology::ModelF;
+        Check(!leydenjar::IsWiredToNoMatrix(info), "300 is a threshold on a Model F");
+        info.thresholds = { 1023, 1023, 1023 };
+        Check(leydenjar::IsWiredToNoMatrix(info), "1023 in every bin on a Model F");
+        info.thresholds = { 384, 1023, 397 };
+        Check(!leydenjar::IsWiredToNoMatrix(info), "a board with one bin unused is wired");
+        info.thresholds.clear();
+        Check(!leydenjar::IsWiredToNoMatrix(info), "nothing read, nothing said");
+    }
 }
 
 int main()
@@ -326,6 +346,7 @@ int main()
     TestKeyOutput();
     TestUnansweredCommands();
     TestControllerInfo();
+    TestWiredToNoMatrix();
 
     return TestResult();
 }

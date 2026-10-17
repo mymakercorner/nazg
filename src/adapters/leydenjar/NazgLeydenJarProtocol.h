@@ -179,4 +179,12 @@ namespace nazg::leydenjar
     // Everything ControllerInfo holds, in the order the Leyden Jar tool reads it: what a version
     // lacks is left at its default. Throws ProtocolError if the board refuses any of it.
     [[nodiscard]] Task<ControllerInfo> ReadControllerInfo(Protocol& protocol);
+
+    // The threshold the firmware sets when it finds the controller wired to no working matrix -- its
+    // highest level at most 380 at start-up -- so that nothing is ever pressed: 300 on a Beam Spring,
+    // 1023 on a Model F (ui-design.md, "The levels' window"). The bare B104 answers 300.
+    [[nodiscard]] uint16_t UnconnectedThreshold(SwitchTechnology technology) noexcept;
+
+    // Every threshold at that sentinel: there are no levels to judge.
+    [[nodiscard]] bool IsWiredToNoMatrix(const ControllerInfo& info) noexcept;
 }
