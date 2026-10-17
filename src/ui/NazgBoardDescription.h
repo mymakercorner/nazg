@@ -93,6 +93,18 @@ namespace nazg
         inline constexpr uint8_t Checked = 0x80;
     }
 
+    // Rule 2 too: what a diagnosis found the key to be -- the Leyden Jar's Signal levels
+    // (ui-design.md, "Plugins"). Failing, at risk and to check tint the face and outline it in the
+    // theme's error, warning and second colours; a key still to test is dashed, its face left out.
+    enum class KeyCondition : uint8_t
+    {
+        None,
+        Failing,
+        AtRisk,
+        ToCheck,
+        ToTest,
+    };
+
     // Rule 1 too: whose keycode a key's legends are (ui-design.md, "Transparent keys"). QMK takes
     // a key's keycode from the highest active layer down: KC_TRNS says "keep looking", KC_NO
     // "stop, do nothing". On a partial layer a key wears the keycode below it, and says which of
@@ -138,9 +150,10 @@ namespace nazg
         // A VIA knob's, set with the legends; none on any other key.
         std::optional<KnobLegend> knob;
 
-        KeyFill fill  = KeyFill::Neutral;
-        float   heat  = 0.0f;   // with KeyFill::Heat
-        uint8_t marks = 0;
+        KeyFill      fill      = KeyFill::Neutral;
+        float        heat      = 0.0f;   // with KeyFill::Heat
+        uint8_t      marks     = 0;
+        KeyCondition condition = KeyCondition::None;
 
         // One slot -- turning the key's legends into slot legends, all empty, if they were not.
         Legend& operator[](LegendSlot slot);

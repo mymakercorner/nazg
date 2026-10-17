@@ -129,5 +129,10 @@ namespace nazg
         [[nodiscard]] ImU32 Highlighted();             // outline
         [[nodiscard]] ImU32 HighlightedSecond();       // outline
         [[nodiscard]] ImU32 Warning();                 // outline
+
+        // A diagnosed key's outline, and the tint of its face: the panels' error and warning
+        // colours, the second highlight's for one to check, the keycap border's for one to test.
+        [[nodiscard]] ImU32 Condition(KeyCondition condition);
+        [[nodiscard]] ImU32 ConditionTint(KeyCondition condition);   // overlay
     }
 }

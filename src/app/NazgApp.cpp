@@ -353,6 +353,18 @@ namespace nazg
         return IsLoadRunning() || (m_LockTask.IsValid() && !m_LockTask.IsDone()) || m_Board.IsWorking();
     }
 
+    bool App::IsBoardHeld() const
+    {
+        return IsLoadRunning() || (m_LockTask.IsValid() && !m_LockTask.IsDone()) || m_Board.unlock != nullptr ||
+               std::any_of(m_Board.sections.begin(), m_Board.sections.end(),
+                           [](const auto& section) { return section->IsBusy() && !section->IsPolling(); });
+    }
+
+    void App::WhenBoardIdle(std::function<void()> act)
+    {
+        m_WhenIdle = std::move(act);
+    }
+
     // Narrower than IsBoardBusy(): a request in flight, which the board's going ends with an error
     // soon enough. An unlock waiting to poll again, or a live test between two readings, awaits
     // nothing.
@@ -382,6 +394,7 @@ namespace nazg
         m_PendingLeave          = nullptr;
         m_SavingBeforeLeave     = false;
         m_DiscardingBeforeLeave = false;
+        m_WhenIdle              = nullptr;
         m_Board                 = BoardState{};
     }
 
@@ -400,7 +413,7 @@ namespace nazg
     {
         if (!HasUnsaved())
         {
-            leave();
+            WhenBoardIdle(std::move(leave));
             return;
         }
         m_PendingLeave          = std::move(leave);
@@ -578,6 +591,20 @@ namespace nazg
             }
         }
 
+        // Waiting for the board to be idle: every section stops, and the waiting is over once the
+        // last reading is back -- before the board is drawn, so nothing starts again this frame.
+        if (m_WhenIdle)
+        {
+            for (const auto& section : m_Board.sections)
+                section->WhileHidden();
+            if (!IsBoardBusy())
+            {
+                std::function<void()> act = std::move(m_WhenIdle);
+                m_WhenIdle                = nullptr;
+                act();
+            }
+        }
+
         // One window filling the platform's: the header, then Settings, the open board or the
         // keyboard list under it (ui-design.md, "The regions").
         bool isBoardShown = false;
@@ -596,7 +623,7 @@ namespace nazg
             ImGui::PopStyleVar(2);
 
             const bool        hasBoard = m_Board.isLoading || m_Board.keyboard.has_value() || m_Board.isChoosing;
-            const bool        isBusy   = IsBoardBusy();
+            const bool        isBusy   = IsBoardHeld() || m_WhenIdle != nullptr;
             const std::string name     = DrawHeader(hasBoard, isBusy);
 
             DrawLeaveQuestion();
@@ -611,6 +638,12 @@ namespace nazg
 
             ImGui::End();
         }
+
+        // Settings, the picker or the unlock in the board's place: what runs only while a section
+        // shows stops -- the diagnostics turn key output on again, the live test lets the board go.
+        if (!isBoardShown)
+            for (const auto& section : m_Board.sections)
+                section->WhileHidden();
 
         // The window stops shrinking where the board would. ImGui's coordinates are the window's;
         // a minimized window has none, and keeps the minimum it had.
@@ -711,19 +744,21 @@ namespace nazg
             }
         }
 
-        // Locked: unlock, on its own screen. Unlocked: lock again at once.
+        // Locked: unlock, on its own screen. Unlocked: lock again at once. Either talks to the
+        // board, so the sections let it go first.
         if (action.toggleLock && !isBusy && m_Board.keyboard && m_Board.lock)
-        {
-            m_ShowSettings = false;
-            m_Board.error.clear();
-            if (m_Board.matrix)
-                m_Board.matrix->StopLiveTest();
-            if (!m_Board.lock->unlocked)
-                m_Board.unlock = std::make_unique<VialUnlock>(m_Transport, m_Board.path, *m_Board.keyboard,
-                                                              m_Board.lock->unlockKeys, m_Settings.legends);
-            else
-                m_LockTask = LockBoard(m_Board.path);
-        }
+            WhenBoardIdle([this]
+            {
+                if (!m_Board.keyboard || !m_Board.lock)
+                    return;
+                m_ShowSettings = false;
+                m_Board.error.clear();
+                if (!m_Board.lock->unlocked)
+                    m_Board.unlock = std::make_unique<VialUnlock>(m_Transport, m_Board.path, *m_Board.keyboard,
+                                                                  m_Board.lock->unlockKeys, m_Settings.legends);
+                else
+                    m_LockTask = LockBoard(m_Board.path);
+            });
 
         if (action.exportDefinition)
             ExportBoardDefinition();
@@ -753,18 +788,17 @@ namespace nazg
         if (m_PendingLeave)
         {
             // Saving first: once the writes are done, leave -- unless one failed and left
-            // something unsaved, which is then asked about again. Discarding: once nothing works
-            // on the board -- the matrix view's live test may have a reading in flight.
-            if ((m_SavingBeforeLeave || m_DiscardingBeforeLeave) && !IsBoardBusy())
+            // something unsaved, which is then asked about again. Discarding: at once. Either way
+            // once nothing works on the board -- a section polling stops first (WhenBoardIdle()).
+            if ((m_SavingBeforeLeave || m_DiscardingBeforeLeave) && !IsBoardHeld())
             {
                 const bool discarding   = m_DiscardingBeforeLeave;
                 m_SavingBeforeLeave     = false;
                 m_DiscardingBeforeLeave = false;
                 if (discarding || !HasUnsaved())
                 {
-                    std::function<void()> leave = std::move(m_PendingLeave);
-                    m_PendingLeave              = nullptr;
-                    leave();
+                    WhenBoardIdle(std::move(m_PendingLeave));
+                    m_PendingLeave = nullptr;
                 }
             }
         }
@@ -978,7 +1012,7 @@ namespace nazg
                 m_Board.isChoosing = false;
                 m_Board.foreignImports.clear();
                 if (!m_Board.keyboard || m_Board.inUse != picked)
-                    StartLoad(m_Board.path, m_Board.identity, picked);
+                    WhenBoardIdle([this, picked] { StartLoad(m_Board.path, m_Board.identity, picked); });
             }
             return false;
         }
@@ -1007,6 +1041,7 @@ namespace nazg
         {
             const SectionContext context{ m_Transport,
                                           m_Board.path,
+                                          m_Board.identity,
                                           *m_Board.keyboard,
                                           m_Settings.legends,
                                           m_Board.lock,

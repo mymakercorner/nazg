@@ -205,6 +205,15 @@ namespace nazg
         [[nodiscard]] bool IsLoadRunning() const;
         [[nodiscard]] bool IsBoardBusy() const;
 
+        // Busy with what holds the header back: a load, a lock, an unlock, a write -- not a
+        // section's polling (Section::IsPolling()), which WhenBoardIdle() stops first.
+        [[nodiscard]] bool IsBoardHeld() const;
+
+        // `act` once nothing works on the board: at once, or after every section was told to stop
+        // (Section::WhileHidden()) and its last reading is back. What replaces or reloads the board
+        // goes through here -- a running Task must never be destroyed, and one handle at a time.
+        void WhenBoardIdle(std::function<void()> act);
+
         // The open board unplugged: closed once no reply from it is awaited.
         [[nodiscard]] bool IsAwaitingBoard() const;
         void               CloseUnpluggedBoard();
@@ -256,6 +265,7 @@ namespace nazg
         std::function<void()> m_PendingLeave;
         bool                  m_SavingBeforeLeave     = false;
         bool                  m_DiscardingBeforeLeave = false;
+        std::function<void()> m_WhenIdle;   // WhenBoardIdle()'s, waiting for the sections to stop
         bool                  m_QuitRequested         = false;   // the window's close, heard by the shell
         bool                  m_QuitConfirmed         = false;   // and allowed
 

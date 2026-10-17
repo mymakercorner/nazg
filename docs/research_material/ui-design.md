@@ -446,6 +446,27 @@ show 26 keys good, 49 to measure again with a hold -- its presses were brief -- 
 included: the tool turns it off on connecting and on again only on leaving, so that the keys
 pressed while testing send nothing to the computer -- Rico added the firmware's command for that.
 
+*Built 2026-10-17* (`ui/NazgDiagnosticsSection.*`, `model/NazgKeyHealth.*`), from both mockups'
+defaults: the board by verdict, the list as bars, a key's last four presses. How it holds the
+decisions above:
+
+- **Key output on again on every path out**: the section opens the board, sets "key output on" as
+  the channel's farewell, then turns it off. The transport writes a device's farewell whenever it
+  closes it -- the section hidden, Settings or the unlock shown, another board, a reload, quitting
+  -- and at its shutdown, so a path nobody thought of is covered too. Only a crash of Nazg is left.
+- **The pace**: a reading -- the sweep and its column reads, or a scan and its rows -- goes to the
+  transport's worker as one series of requests, and the next is asked from the coroutine as soon as
+  the last is back: the board's time plus at most a frame, where one round trip per frame made a
+  level reading some 300 ms longer. Verdicts are judged again at most twice a second: a 4-minute
+  recording takes 1.2 ms in Release, 86 ms in Debug.
+- **Leaving while it polls**: a polling section no longer holds the header back. Switching board,
+  All keyboards, the lock and quitting stop it first and act once its last reading is back.
+- **Not in the mockups, chosen in the build** -- for Rico to check: a reading is kept until Clear or
+  another load, across modes; Clear in Signal levels forgets every reading, a new pass; Key presses
+  on a controller wired to no matrix says "There are no key presses to show"; a key to check is
+  outlined in the second highlight's colour (the theme has no purple); the USB release is printed
+  as BCD.
+
 **Open: how third-party plugins are delivered.**
 
 | | For | Against |

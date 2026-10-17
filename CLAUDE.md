@@ -96,6 +96,14 @@ exists, where, and how far it has been proven.
     board lighting the keys that change it; written at once, read each time the section is shown
     (`ui/NazgAudioSection.*`, `adapters/via/NazgViaAudio.*`).
   - **Matrix view** (Tools, with *Advanced tools* on) -- wiring and a live test.
+  - **Diagnostics** (Tools, every board answering the Leyden Jar's probe; `ui/NazgDiagnosticsSection.*`)
+    -- Key presses (now and seen; the board, QMK's matrix or the controller's), Signal levels (the
+    keys at risk judged by `model/NazgKeyHealth.*`: verdicts on the board, bars, the whole board as
+    dots, a key's last presses; Levels with Advanced tools), Device (the controller's, Vial's and USB's
+    information, Enter bootloader, Erase EEPROM). Key output off while it shows: on again is the
+    channel's farewell, written whenever the board closes, the transport's shutdown included. Each
+    reading is one request series on the transport's worker, not a frame per round trip. A polling
+    section holds nothing back (`Section::IsPolling()`): App's `WhenBoardIdle()` stops it first.
   - **A board's own menus** (VIA V3 custom menus, Board group) -- submenus in the strip, lines in two
     columns, showIf, sliders tied by constraints, Keymap's picker under the lines, written at once
     (`ui/NazgCustomMenuSection.*`, `adapters/via/NazgViaCustomMenu.*`). Read per submenu when shown.
@@ -128,6 +136,7 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
 | Audio planned from a definition, and a firmware without audio said (Concordia, a test definition) | Audio and Clicky read or written, Play a sound -- no board at hand has audio built in |
 | A board's own menus: a few EC features (Concordia Type C); all 35909 registry controls parse (test) | |
 | Hotplug: boards plugged and unplugged, the list and the open board following (Rico, 2026-10-16) | |
+| Key health on Rico's F77 recordings: nothing accused, 26 good and 49 to hold, as the mockup (test) | The Diagnostics section on a board -- Rico tests it on his F77 |
 
 ## Traps already found
 
@@ -160,16 +169,12 @@ transport fix for Keychron's double replies, and the community definitions v2026
 the GeonWorks recrawl). The tester's Keychron Q6 knob works fully (2026-10-15); the K10 HE
 retest -- the transport fix -- is due the week of 2026-10-19. Then CI: Windows, Linux and macOS building and running the tests.
 
-**In progress** (Rico, 2026-10-17, ahead of CI): the Leyden Jar diagnostics as the Tools group's
-Diagnostics section (ui-design.md, "Plugins"). Built: its commands (`adapters/leydenjar`, scripted
-tests), the transport's `Send()` for the commands never answered, the probe at load
-(`BoardReport::isLeydenJar`, refused cleanly by the Concordia) and the section planned -- a
-placeholder until its mockup is chosen. Decided: the device stays open while a mode polls, and key
-output is off while one shows, RAM only, so every close and exit path must turn it on again.
-Read on the B104 controller (2026-10-17): protocol 0.9.1, 8x18, Beam Spring, one bin (threshold
-300, reference 376), levels 375-378; its controller bits are raw, set = released on a Beam Spring.
-A controller wired to no working matrix is forced to all released by the firmware (FF on a Beam
-Spring, 0 on a Model F), so a bare one shows no presses. Next: the mockup.
+**In progress** (Rico, 2026-10-17, ahead of CI): the Leyden Jar diagnostics, built from the two
+mockups (ui-design.md, "Plugins", "Built"), waiting for Rico's test on his F77 -- never the B104,
+his daily board. Read on the B104 controller (2026-10-17): protocol 0.9.1, 8x18, Beam Spring, one
+bin (threshold 300, reference 376), levels 375-378; its controller bits are raw, set = released on
+a Beam Spring. A controller wired to no working matrix is forced to all released by the firmware
+(FF on a Beam Spring, 0 on a Model F) and every threshold set to a sentinel: the section says so.
 
 # Prior research — read before re-researching anything
 

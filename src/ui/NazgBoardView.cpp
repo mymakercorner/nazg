@@ -226,6 +226,44 @@ namespace nazg
             drawList->PathStroke(colour, thickness, ImDrawFlags_Closed);
         }
 
+        // StrokeContour()'s line in dashes of `dash` pixels, as many gaps between: a key still to
+        // test, its face left out.
+        void StrokeContourDashed(ImDrawList* drawList, const std::vector<ContourPoint>& face, Rounding rounding,
+                                 float inset, float thickness, float dash, ImU32 colour)
+        {
+            TraceContour(drawList, InsetContour(face, inset), std::max(0.0f, rounding.outer - inset),
+                         rounding.inner + inset);
+            std::vector<ImVec2> path(drawList->_Path.begin(), drawList->_Path.end());
+            drawList->PathClear();
+            if (path.size() < 2)
+                return;
+            path.push_back(path.front());
+
+            // Along the whole path, so the dashes run on round the corners.
+            float along = 0.0f;
+            for (size_t i = 0; i + 1 < path.size(); ++i)
+            {
+                const ImVec2 a      = path[i];
+                const ImVec2 b      = path[i + 1];
+                const float  length = std::hypot(b.x - a.x, b.y - a.y);
+                float        done   = 0.0f;
+                while (done < length)
+                {
+                    const float phase = std::fmod(along, 2 * dash);
+                    const float step  = std::min(length - done, (phase < dash ? dash : 2 * dash) - phase);
+                    if (phase < dash)
+                    {
+                        const float t0 = done / length;
+                        const float t1 = (done + step) / length;
+                        drawList->AddLine(ImVec2(a.x + (b.x - a.x) * t0, a.y + (b.y - a.y) * t0),
+                                          ImVec2(a.x + (b.x - a.x) * t1, a.y + (b.y - a.y) * t1), colour, thickness);
+                    }
+                    done += step;
+                    along += step;
+                }
+            }
+        }
+
         // A command's band along the top of the face p0-p1, in its category's colour: the face's
         // top edge down to `height`, its rounded corners followed, so the band never pokes past
         // them.
@@ -537,16 +575,38 @@ namespace nazg
             else if (pass == KeyPass::Lip)
             {
                 // The face's shape, lower by the lip, behind every face: it shows only in the
-                // key's own bottom gap.
+                // key's own bottom gap. A key still to test has neither.
                 std::vector<ContourPoint> lip = ContourOnScreen(key, origin, unit, gap);
                 for (ContourPoint& point : lip)
                     point.y += unit * c_Lip;
-                FillContour(drawList, lip, rounding, WithStates(BoardColours::Lip(), described.marks, hovered));
+                if (described.condition != KeyCondition::ToTest)
+                    FillContour(drawList, lip, rounding, WithStates(BoardColours::Lip(), described.marks, hovered));
+            }
+            else if (described.condition == KeyCondition::ToTest)
+            {
+                // Dashed, its face left out: not tested yet (ui-design.md, "Plugins", "Room").
+                const std::vector<ContourPoint> face = ContourOnScreen(key, origin, unit, gap);
+                const ImU32 states = WithStates(IM_COL32(0, 0, 0, 0), described.marks, hovered);
+                if ((states & IM_COL32_A_MASK) != 0)
+                    FillContour(drawList, face, rounding, states);
+
+                const float border = std::max(1.0f, 1.5f * scale);
+                StrokeContourDashed(drawList, face, rounding, border / 2, border, std::max(3.0f, unit * 0.09f),
+                                    BoardColours::Condition(KeyCondition::ToTest));
+
+                const float thickness = std::max(2.0f, unit * 0.04f);
+                if ((described.marks & Mark::Selected) != 0)
+                    StrokeContour(drawList, face, rounding, thickness / 2, thickness, BoardColours::Selected());
+                else if ((described.marks & Mark::Highlighted) != 0)
+                    StrokeContour(drawList, face, rounding, thickness / 2, thickness, BoardColours::Highlighted());
             }
             else
             {
                 const std::vector<ContourPoint> face = ContourOnScreen(key, origin, unit, gap);
-                FillContour(drawList, face, rounding, WithStates(colours.face, described.marks, hovered));
+                ImU32 faceColour = colours.face;
+                if (described.condition != KeyCondition::None)
+                    faceColour = Over(faceColour, BoardColours::ConditionTint(described.condition));
+                FillContour(drawList, face, rounding, WithStates(faceColour, described.marks, hovered));
 
                 if (CurrentBoardStyle().keycaps == KeycapStyle::Outlined)
                 {
@@ -574,9 +634,15 @@ namespace nazg
                 }
 
                 // Outlines nest along the contour, the first outermost, so several states read at
-                // once.
+                // once -- a diagnosis outermost of all.
                 const float thickness = std::max(2.0f, unit * 0.04f);
                 float       inset     = 0.0f;
+                if (described.condition != KeyCondition::None)
+                {
+                    StrokeContour(drawList, face, rounding, thickness / 2, thickness,
+                                  BoardColours::Condition(described.condition));
+                    inset += thickness;
+                }
                 for (const auto& [mark, colour] :
                      { std::pair{ Mark::Selected, BoardColours::Selected() },
                        std::pair{ Mark::Warning, BoardColours::Warning() },

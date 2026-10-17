@@ -9,6 +9,7 @@
 #include "ui/NazgAudioSection.h"
 #include "ui/NazgCombosSection.h"
 #include "ui/NazgCustomMenuSection.h"
+#include "ui/NazgDiagnosticsSection.h"
 #include "ui/NazgKeyOverridesSection.h"
 #include "ui/NazgKeymapSection.h"
 #include "ui/NazgLayoutSection.h"
@@ -58,6 +59,9 @@ namespace nazg
         case SectionKind::CustomMenu:
             return std::make_unique<CustomMenuSection>(transport, path, keyboard, legends, context.advancedTools,
                                                        planned.customMenu);
+        case SectionKind::Diagnostics:
+            return std::make_unique<DiagnosticsSection>(transport, path, keyboard, legends, context.advancedTools,
+                                                        context.identity);
         default:
             return std::make_unique<PlaceholderSection>(std::move(planned));
         }

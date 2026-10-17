@@ -14,6 +14,7 @@
 #include <string>
 
 #include "adapters/vial/NazgVialProtocol.h"
+#include "library/NazgDefinitionChoice.h"
 #include "model/NazgKeyboard.h"
 #include "transport/NazgHidTransport.h"
 #include "ui/NazgKeycapLegend.h"
@@ -28,6 +29,7 @@ namespace nazg
     {
         HidTransport&                            transport;
         std::string                              path;               // where the board was opened
+        const DeviceIdentity&                    identity;           // its USB description
         Keyboard&                                keyboard;
         LegendSettings&                          legends;            // Macros may set the host layout
         const std::optional<vial::UnlockStatus>& lock;               // a Vial board's

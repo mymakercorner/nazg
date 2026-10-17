@@ -97,8 +97,15 @@ namespace nazg
         // section and the board. Nothing closes or reloads the board while it is busy.
         [[nodiscard]] virtual bool IsBusy() const { return false; }
 
-        // Every frame another section is shown instead: time to stop what runs only while this one
-        // shows -- the matrix view's live test, which keeps the board open.
+        // Busy only polling: readings asked again and again to keep the view current -- the Leyden
+        // Jar diagnostics' -- which nothing waits on. It holds nothing back: whatever needs the
+        // board stops it through WhileHidden() and waits for IsBusy() to end, a reading at most.
+        [[nodiscard]] virtual bool IsPolling() const { return false; }
+
+        // Every frame another section is shown instead, or the board is not shown at all -- Settings,
+        // the unlock -- or Nazg waits to do something else with the board: time to stop what runs
+        // only while this one shows -- the matrix view's live test, the diagnostics' polling, which
+        // keep the board open. Called in a frame, DescribeBoard() in that frame starts nothing.
         virtual void WhileHidden() {}
 
         // Changes not written to the board yet -- Macros writes by Save (ui-design.md, "The Macros

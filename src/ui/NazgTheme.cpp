@@ -340,5 +340,25 @@ namespace nazg
         ImU32 Highlighted() { return Current().highlighted; }
         ImU32 HighlightedSecond() { return Current().second; }
         ImU32 Warning() { return Current().warning; }
+
+        ImU32 Condition(KeyCondition condition)
+        {
+            const Palette& t = Current();
+            switch (condition)
+            {
+            case KeyCondition::Failing: return t.error;
+            case KeyCondition::AtRisk:  return t.warningText;
+            case KeyCondition::ToCheck: return t.second;
+            case KeyCondition::ToTest:  return t.outline;
+            case KeyCondition::None:    break;
+            }
+            return t.outline;
+        }
+
+        ImU32 ConditionTint(KeyCondition condition)
+        {
+            // As light a tint as the checked one, so the legends keep their contrast.
+            return (Condition(condition) & ~IM_COL32_A_MASK) | IM_COL32(0, 0, 0, 56);
+        }
     }
 }
