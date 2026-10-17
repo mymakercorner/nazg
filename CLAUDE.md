@@ -136,7 +136,8 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
 | Audio planned from a definition, and a firmware without audio said (Concordia, a test definition) | Audio and Clicky read or written, Play a sound -- no board at hand has audio built in |
 | A board's own menus: a few EC features (Concordia Type C); all 35909 registry controls parse (test) | |
 | Hotplug: boards plugged and unplugged, the list and the open board following (Rico, 2026-10-16) | |
-| Key health on Rico's F77 recordings: nothing accused, 26 good and 49 to hold, as the mockup (test) | The Diagnostics section on a board -- Rico tests it on his F77 |
+| Key health on Rico's F77 recordings: nothing accused, 26 good and 49 to hold, as the mockup (test) | Enter bootloader and Erase EEPROM from Diagnostics |
+| Diagnostics on Rico's F77: key output off and on again, Key presses, Signal levels, Device (2026-10-17) | |
 
 ## Traps already found
 
@@ -170,8 +171,8 @@ the GeonWorks recrawl). The tester's Keychron Q6 knob works fully (2026-10-15); 
 retest -- the transport fix -- is due the week of 2026-10-19. Then CI: Windows, Linux and macOS building and running the tests.
 
 **In progress** (Rico, 2026-10-17, ahead of CI): the Leyden Jar diagnostics, built from the two
-mockups (ui-design.md, "Plugins", "Built"), waiting for Rico's test on his F77 -- never the B104,
-his daily board. Read on the B104 controller (2026-10-17): protocol 0.9.1, 8x18, Beam Spring, one
+mockups (ui-design.md, "Plugins", "Built"), seen working on Rico's F77 (2026-10-17) -- never tested
+on the B104, his daily board; the choices made in the build wait for his review. Read on the B104 controller (2026-10-17): protocol 0.9.1, 8x18, Beam Spring, one
 bin (threshold 300, reference 376), levels 375-378; its controller bits are raw, set = released on
 a Beam Spring. A controller wired to no working matrix is forced to all released by the firmware
 (FF on a Beam Spring, 0 on a Model F) and every threshold set to a sentinel: the section says so.
