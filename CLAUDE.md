@@ -99,7 +99,7 @@ exists, where, and how far it has been proven.
   - **Diagnostics** (Tools, every board answering the Leyden Jar's probe; `ui/NazgDiagnosticsSection.*`)
     -- Key presses (now and seen; the board, QMK's matrix or the controller's), Signal levels (the
     keys at risk judged by `model/NazgKeyHealth.*`: verdicts on the board, bars, the whole board as
-    dots, a key's last presses; Levels with Advanced tools), Device (the controller's, Vial's and USB's
+    dots, a key's last presses; the threshold margins and Levels, for everyone), Device (the controller's, Vial's and USB's
     information, Enter bootloader, Erase EEPROM). Key output off while it shows: on again is the
     channel's farewell, written whenever the board closes, the transport's shutdown included. Each
     reading is one request series on the transport's worker, not a frame per round trip. A polling

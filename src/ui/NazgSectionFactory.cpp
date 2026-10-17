@@ -60,8 +60,8 @@ namespace nazg
             return std::make_unique<CustomMenuSection>(transport, path, keyboard, legends, context.advancedTools,
                                                        planned.customMenu);
         case SectionKind::Diagnostics:
-            return std::make_unique<DiagnosticsSection>(transport, path, keyboard, legends, context.advancedTools,
-                                                        context.safeMargins, context.identity);
+            return std::make_unique<DiagnosticsSection>(transport, path, keyboard, legends, context.safeMargins,
+                                                        context.identity);
         default:
             return std::make_unique<PlaceholderSection>(std::move(planned));
         }

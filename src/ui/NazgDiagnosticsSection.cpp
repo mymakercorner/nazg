@@ -213,10 +213,10 @@ namespace nazg
     }
 
     DiagnosticsSection::DiagnosticsSection(HidTransport& transport, std::string path, const Keyboard& keyboard,
-                                           const LegendSettings& legends, const bool& advancedTools,
-                                           SafeMargins& safeMargins, DeviceIdentity identity)
+                                           const LegendSettings& legends, SafeMargins& safeMargins,
+                                           DeviceIdentity identity)
         : m_Transport(transport), m_Path(std::move(path)), m_Keyboard(keyboard), m_Legends(legends),
-          m_AdvancedTools(advancedTools), m_SafeMargins(safeMargins), m_Identity(std::move(identity))
+          m_SafeMargins(safeMargins), m_Identity(std::move(identity))
     {
     }
 
@@ -737,10 +737,10 @@ namespace nazg
 
     // Coloured by verdict -- only the problems, the keys to test plain (Rico, 2026-10-17: the dashed
     // keys to test were dropped), those pressed ticked -- a key down lit, the
-    // selected one outlined; with Advanced tools and Levels, the tool's numbers instead of legends.
+    // selected one outlined; with Levels, the tool's numbers instead of legends.
     void DiagnosticsSection::DescribeLevels(BoardDescription& board)
     {
-        const bool numbers    = m_AdvancedTools && m_LevelsOnKeys;
+        const bool numbers    = m_LevelsOnKeys;
         const bool controller = m_View == View::Controller;
         const size_t rows     = m_Info.details.controllerRows;
 
@@ -945,26 +945,22 @@ namespace nazg
 
         const float u = Unit();
 
-        // The first line: the instruction, then Levels -- with Advanced tools -- and the view.
+        // The first line: the instruction, then the margins, Levels and the view.
         ImGui::AlignTextToFramePadding();
         ImGui::TextUnformatted("Signal levels");
         ImGui::SameLine();
         ColouredText(PanelColour::Muted, "press each key down firmly and hold it a moment, one after the other");
 
-        // With Advanced tools only, so the default view stays as it is (Rico, 2026-10-17): the threshold
+        // For everyone, Advanced tools or not -- Diagnostics is an expert's section (Rico, 2026-10-17): the threshold
         // margins, 3 unless changed for the session, set apart by a divider from Levels -- off by
         // default -- and Board / Controller.
-        const bool  levels  = m_AdvancedTools;
         const float spacing = ImGui::GetStyle().ItemSpacing.x;
         const float field   = 70 * u;
         const float divider = 4 * spacing + 1.0f;
-        const float width   = SegmentsWidth({ "Board", "Controller" }) +
-                            (levels ? ImGui::CalcTextSize("Threshold margin").x + ImGui::CalcTextSize("rest").x +
-                                          ImGui::CalcTextSize("press").x + 2 * field + divider +
-                                          ButtonWidth("Levels") + 6 * spacing
-                                    : 0.0f);
+        const float width   = SegmentsWidth({ "Board", "Controller" }) + ImGui::CalcTextSize("Threshold margin").x +
+                            ImGui::CalcTextSize("rest").x + ImGui::CalcTextSize("press").x + 2 * field + divider +
+                            ButtonWidth("Levels") + 6 * spacing;
         RightAlign(width);
-        if (levels)
         {
             const char* explained = "How close to its threshold a key may get before it is at risk, each side's.";
             ColouredText(PanelColour::Muted, "Threshold margin");

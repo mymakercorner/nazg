@@ -470,10 +470,13 @@ decisions above:
 - **One safe margin, 3, on both sides** (Rico, 2026-10-17): a key resting less than 3 from its
   threshold is at risk, as a hold less than 3 past it -- the draft's half the offset at rest is
   dropped. The whole board draws both rows on **one scale**, a level as wide on each, so the two
-  orange zones are the same width. **An expert can change both margins**: with Advanced tools,
+  orange zones are the same width. **An expert can change both margins**:
   "Threshold margin, rest [3], press [3]", set apart from Levels by a divider, judged again at once
   -- kept for the session only, back to 3 when Nazg starts (Rico, 2026-10-17; "Safe at rest" was
   unclear).
+- **Everything without Advanced tools** (Rico, 2026-10-17, changing his mind): the margins and the
+  Levels button show for everyone -- Diagnostics is an expert's section itself. This replaces
+  "Levels with Advanced tools" above.
 - **One reading at rest touching the threshold is enough to warn** (Rico, 2026-10-17, his F77's C,
   at rest 385-397 against a threshold of 397): "went past its threshold untouched" -- a key that once
   reached its threshold untouched may type by itself. A single reading less than 3 past is not a

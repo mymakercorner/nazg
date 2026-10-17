@@ -12,8 +12,10 @@
 //     board, QMK's matrix or the controller's, the choice on the panel's first line;
 //   - Signal levels: which keys may not be recognised, now and then or at all -- the board coloured
 //     by verdict, the keys to look at as bars or the whole board as one dot per key, a key's last
-//     presses side by side (model/NazgKeyHealth.h); with Advanced tools, a Levels button puts the
-//     tool's numbers on the keys -- max, now, min and the bin -- for firmware work;
+//     presses side by side (model/NazgKeyHealth.h); the threshold margins the verdicts are judged by,
+//     and a Levels button putting the tool's numbers on the keys -- max, now, min and the bin -- for
+//     firmware work. All of it without Advanced tools: Diagnostics is an expert's section itself
+//     (Rico, 2026-10-17);
 //   - Device: the controller's, Vial's and USB's information, Enter bootloader, Erase EEPROM.
 //
 // Key output is off for as long as the section shows, every mode: the keys pressed while testing
@@ -63,7 +65,6 @@ namespace nazg
                            std::string           path,
                            const Keyboard&       keyboard,
                            const LegendSettings& legends,
-                           const bool&           advancedTools,
                            SafeMargins&          safeMargins,
                            DeviceIdentity        identity);
 
@@ -194,14 +195,13 @@ namespace nazg
         std::string           m_Path;
         const Keyboard&       m_Keyboard;
         const LegendSettings& m_Legends;
-        const bool&           m_AdvancedTools;
         SafeMargins&          m_SafeMargins;   // App's, for the session
         SafeMargins           m_JudgedMargins;  // those m_Health was judged by
         DeviceIdentity        m_Identity;
 
         Mode m_Mode          = Mode::KeyPresses;
         View m_View          = View::Board;   // Signal levels has no QMK matrix: it shows the board there
-        bool m_LevelsOnKeys  = false;         // the Levels button, with Advanced tools
+        bool m_LevelsOnKeys  = false;         // the Levels button
         bool m_HiddenThisFrame = false;       // WhileHidden() was called: nothing starts this frame
 
         // The board, open while the section shows.
