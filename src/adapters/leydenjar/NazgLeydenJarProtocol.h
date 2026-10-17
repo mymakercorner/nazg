@@ -164,6 +164,20 @@ namespace nazg::leydenjar
         [[nodiscard]] Task<void> ScanControllerMatrix();
         [[nodiscard]] Task<std::vector<uint8_t>> GetControllerMatrix(uint8_t columns);
 
+        // The readings the Diagnostics section polls, each a scan or the level sweep then its reads,
+        // sent as one series (DeviceChannel::RequestSeries()): the board's time, not one frame per
+        // round trip. Levels by [controller column][controller row]; the logical rows' bits, bit n
+        // column n; the controller's columns as GetControllerMatrix() reads them.
+        [[nodiscard]] Task<std::vector<std::vector<uint16_t>>> ReadLevels(uint8_t columns, uint8_t rows);
+        [[nodiscard]] Task<std::vector<uint32_t>>              ReadLogicalMatrix(uint8_t rows);
+        [[nodiscard]] Task<std::vector<uint8_t>>               ReadControllerMatrix(uint8_t columns);
+
+        // Key output off until the device is closed, whichever way: on again is set as the channel's
+        // farewell first (DeviceChannel::SetFarewell()), so leaving the section, another board, a
+        // reload, quitting and the transport's shutdown all turn it back on (ui-design.md,
+        // "Plugins"). Only Nazg crashing is left -- the firmware keeps it in RAM, so an unplug.
+        [[nodiscard]] Task<void> TurnKeyOutputOffUntilClosed();
+
         // Not answered: the board leaves -- to its bootloader, or rebooting with its EEPROM
         // cleared, which VIA's and Vial's settings live in. Hotplug sees it go.
         [[nodiscard]] Task<void> EnterBootloader();

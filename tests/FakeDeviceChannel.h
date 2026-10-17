@@ -78,6 +78,20 @@ public:
     // Reports sent by Send(), awaiting nothing.
     size_t SentCount() const noexcept { return m_Sent; }
 
+    // The report the real channel would write on closing, as last set; empty for none.
+    void SetFarewell(std::vector<uint8_t> payload) override { m_Farewell = std::move(payload); }
+    const std::vector<uint8_t>& Farewell() const noexcept { return m_Farewell; }
+
+    // Series run, each one a call -- their requests are in Requests() with the rest.
+    nazg::Task<std::vector<std::vector<uint8_t>>> RequestSeries(std::vector<std::vector<uint8_t>> payloads,
+                                                                std::vector<nazg::ReplyCheck>     checks) override
+    {
+        ++m_Series;
+        co_return co_await nazg::DeviceChannel::RequestSeries(std::move(payloads), std::move(checks));
+    }
+
+    size_t SeriesCount() const noexcept { return m_Series; }
+
     // Reports read past because they were not the reply, over every request so far.
     size_t DroppedCount() const noexcept { return m_Dropped; }
 
@@ -98,4 +112,6 @@ private:
     std::vector<std::vector<uint8_t>> m_Requests;
     size_t                            m_Dropped = 0;
     size_t                            m_Sent    = 0;
+    size_t                            m_Series  = 0;
+    std::vector<uint8_t>              m_Farewell;
 };

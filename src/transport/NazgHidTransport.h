@@ -115,6 +115,7 @@ namespace nazg
         class EnumerateAwaitable;
         class OpenAwaitable;
         class RequestAwaitable;
+        class SeriesAwaitable;
         class SendAwaitable;
 
         // Enumerate connected HID devices. Pass a usagePage/usage of 0 for no filter.
@@ -138,6 +139,24 @@ namespace nazg
                                                std::vector<uint8_t> payload,
                                                uint32_t             timeoutMs = c_DefaultTimeoutMs,
                                                ReplyCheck           isReply   = {});
+
+        // Several requests, each written once the reply to the one before it is in, all on the
+        // worker: what Request() does for each, without a return to the frame loop between them --
+        // Pump() resumes only what has completed, so a request after a request waits for the next
+        // frame. A Leyden Jar level reading is its sweep then eighteen column reads: 37 ms on the
+        // wire, some 300 ms one per frame (ui-design.md, "Plugins", "The pace"). One check per
+        // payload, or none for "the first report"; the replies in order. The first failure throws,
+        // and nothing after it is written.
+        [[nodiscard]] SeriesAwaitable RequestSeries(DeviceId                          device,
+                                                    std::vector<std::vector<uint8_t>> payloads,
+                                                    uint32_t                          timeoutMs = c_DefaultTimeoutMs,
+                                                    std::vector<ReplyCheck>           checks    = {});
+
+        // A report written when the device is closed -- by Close(), or by Shutdown() at exit -- its
+        // answer read and dropped: what puts back a setting the firmware keeps in RAM on every path
+        // that closes the device, the Leyden Jar's key output (ui-design.md, "Plugins"). An empty
+        // payload takes it back. Not awaitable, as Close(); nothing if the device is not open.
+        void SetFarewell(DeviceId device, std::vector<uint8_t> payload);
 
         // Write one report and wait for nothing back: a command the firmware does not answer,
         // because it restarts -- the Leyden Jar's bootloader and EEPROM erase. Throws
@@ -168,11 +187,13 @@ namespace nazg
             Enumerate,
             Open,
             Request,
+            Series,
             Send,
+            Farewell,
             Close
         };
 
-        // One struct for all five operations rather than a class hierarchy: the worker
+        // One struct for all seven operations rather than a class hierarchy: the worker
         // loop stays a flat switch, and everything an operation carries is visible in
         // one place. Inputs are filled in by the caller, outputs by the worker.
         struct Operation
@@ -182,10 +203,14 @@ namespace nazg
             uint16_t             usagePage = 0;                    // Enumerate
             uint16_t             usage     = 0;                    // Enumerate
             std::string          path;                             // Open
-            DeviceId             device    = c_InvalidDevice;      // Request, Send, Close
-            std::vector<uint8_t> payload;                          // Request, Send
-            uint32_t             timeoutMs = c_DefaultTimeoutMs;   // Request
+            DeviceId             device    = c_InvalidDevice;      // Request, Series, Send, Farewell, Close
+            std::vector<uint8_t> payload;                          // Request, Send, Farewell
+            uint32_t             timeoutMs = c_DefaultTimeoutMs;   // Request, Series
             ReplyCheck           isReply;                          // Request, may be empty
+
+            std::vector<std::vector<uint8_t>> payloads;   // Series
+            std::vector<ReplyCheck>           checks;     // Series, may be shorter
+            std::vector<std::vector<uint8_t>> replies;    // Series
 
             std::vector<HidDeviceInfo> devices;                       // Enumerate
             DeviceId                   opened = c_InvalidDevice;      // Open
@@ -200,17 +225,27 @@ namespace nazg
         void WorkerLoop();
         void Submit(OperationPtr operation);
 
-        // Worker thread only, all five. m_Devices and m_NextDeviceId are touched
-        // nowhere else, which is why neither needs the mutex.
+        // Worker thread only, all of them. m_Devices, m_Farewells and m_NextDeviceId are
+        // touched nowhere else, which is why none needs the mutex.
         void Execute(Operation& operation);
         void ExecuteEnumerate(Operation& operation);
         void ExecuteOpen(Operation& operation);
         void ExecuteRequest(Operation& operation);
+        void ExecuteSeries(Operation& operation);
         void ExecuteSend(Operation& operation);
+        void ExecuteFarewell(Operation& operation);
         void ExecuteClose(Operation& operation);
         void CloseAllDevices();
 
-        std::unordered_map<DeviceId, ::hid_device_*> m_Devices;
+        // One report written and its reply read: Request()'s work, false with `error` set.
+        bool Exchange(::hid_device_* device, const std::vector<uint8_t>& payload, uint32_t timeoutMs,
+                      const ReplyCheck& isReply, std::vector<uint8_t>& reply, std::string& error);
+
+        // The device's farewell, if it has one, written and answered before it is closed.
+        void SayFarewell(DeviceId id, ::hid_device_* device);
+
+        std::unordered_map<DeviceId, ::hid_device_*>       m_Devices;
+        std::unordered_map<DeviceId, std::vector<uint8_t>> m_Farewells;
         DeviceId                                     m_NextDeviceId = c_InvalidDevice + 1;
 
         std::thread             m_Worker;
@@ -285,6 +320,18 @@ namespace nazg
             {
                 ThrowIfFailed();
                 return std::move(m_Operation->reply);
+            }
+        };
+
+        class SeriesAwaitable : public Awaitable
+        {
+        public:
+            using Awaitable::Awaitable;
+
+            std::vector<std::vector<uint8_t>> await_resume()
+            {
+                ThrowIfFailed();
+                return std::move(m_Operation->replies);
             }
         };
 

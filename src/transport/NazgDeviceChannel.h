@@ -39,9 +39,21 @@ namespace nazg
         // Every override repeats the default, so a call through either type means the same.
         virtual Task<std::vector<uint8_t>> Request(std::vector<uint8_t> payload, ReplyCheck isReply = {}) = 0;
 
+        // Several requests in a row, as Request() each with its own check -- `checks` may be shorter,
+        // the rest taking the first report -- the replies in order. Throws at the first that fails,
+        // writing nothing after it. Here one Request() after the other; the real channel hands the
+        // whole series to the transport's worker, so it does not wait a frame per round trip.
+        virtual Task<std::vector<std::vector<uint8_t>>> RequestSeries(std::vector<std::vector<uint8_t>> payloads,
+                                                                      std::vector<ReplyCheck>           checks);
+
         // Write one report and wait for nothing: for a command the firmware never answers,
         // because it restarts first. Throws HidTransportError if the device is gone.
         virtual Task<void> Send(std::vector<uint8_t> payload) = 0;
+
+        // A report to write when the device is closed, whichever way -- the channel destroyed, or
+        // the transport shut down at exit -- its answer dropped (HidTransport::SetFarewell()). For a
+        // setting the firmware keeps in RAM, put back as it was. Empty: none.
+        virtual void SetFarewell(std::vector<uint8_t> payload) = 0;
     };
 
     // The real channel: a device opened through HidTransport, and closed when the channel goes
@@ -64,7 +76,10 @@ namespace nazg
         ~HidDeviceChannel() override;
 
         Task<std::vector<uint8_t>> Request(std::vector<uint8_t> payload, ReplyCheck isReply = {}) override;
+        Task<std::vector<std::vector<uint8_t>>> RequestSeries(std::vector<std::vector<uint8_t>> payloads,
+                                                              std::vector<ReplyCheck>           checks) override;
         Task<void>                 Send(std::vector<uint8_t> payload) override;
+        void                       SetFarewell(std::vector<uint8_t> payload) override;
 
     private:
         HidDeviceChannel(HidTransport& transport, DeviceId device, uint32_t timeoutMs) noexcept

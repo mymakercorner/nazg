@@ -26,6 +26,10 @@ namespace nazg
         // from a QMK device can exceed it (RAW_EPSIZE is half that).
         constexpr size_t c_MaxReportSize = 64;
 
+        // How long a farewell's answer is waited for before the device is closed: the firmware
+        // answers within a few milliseconds, and an exit must not hang on a board that does not.
+        constexpr uint32_t c_FarewellReplyMs = 250;
+
         // Cap on the stale reports discarded at once, so a device that streams input cannot
         // hold the worker in that loop.
         constexpr int c_MaxStaleReports = 64;
@@ -198,6 +202,32 @@ namespace nazg
         return RequestAwaitable(*this, std::move(operation));
     }
 
+    HidTransport::SeriesAwaitable HidTransport::RequestSeries(DeviceId                          device,
+                                                              std::vector<std::vector<uint8_t>> payloads,
+                                                              uint32_t                          timeoutMs,
+                                                              std::vector<ReplyCheck>           checks)
+    {
+        auto operation       = std::make_shared<Operation>();
+        operation->kind      = OperationKind::Series;
+        operation->device    = device;
+        operation->payloads  = std::move(payloads);
+        operation->timeoutMs = timeoutMs;
+        operation->checks    = std::move(checks);
+
+        return SeriesAwaitable(*this, std::move(operation));
+    }
+
+    void HidTransport::SetFarewell(DeviceId device, std::vector<uint8_t> payload)
+    {
+        auto operation     = std::make_shared<Operation>();
+        operation->kind    = OperationKind::Farewell;
+        operation->device  = device;
+        operation->payload = std::move(payload);
+
+        // No continuation, as Close().
+        Submit(std::move(operation));
+    }
+
     HidTransport::SendAwaitable HidTransport::Send(DeviceId device, std::vector<uint8_t> payload)
     {
         auto operation     = std::make_shared<Operation>();
@@ -285,7 +315,9 @@ namespace nazg
         case OperationKind::Enumerate: ExecuteEnumerate(operation); break;
         case OperationKind::Open:      ExecuteOpen(operation);      break;
         case OperationKind::Request:   ExecuteRequest(operation);   break;
+        case OperationKind::Series:    ExecuteSeries(operation);    break;
         case OperationKind::Send:      ExecuteSend(operation);      break;
+        case OperationKind::Farewell:  ExecuteFarewell(operation);  break;
         case OperationKind::Close:     ExecuteClose(operation);     break;
         }
     }
@@ -359,19 +391,45 @@ namespace nazg
             return;
         }
 
-        hid_device* device = entry->second;
+        Exchange(entry->second, operation.payload, operation.timeoutMs, operation.isReply, operation.reply,
+                 operation.error);
+    }
 
+    void HidTransport::ExecuteSeries(Operation& operation)
+    {
+        const auto entry = m_Devices.find(operation.device);
+        if (entry == m_Devices.end())
+        {
+            operation.error = "request for a device that is not open";
+            return;
+        }
+
+        const ReplyCheck firstReport;
+        for (size_t index = 0; index < operation.payloads.size(); ++index)
+        {
+            const ReplyCheck&    isReply = index < operation.checks.size() ? operation.checks[index] : firstReport;
+            std::vector<uint8_t> reply;
+            if (!Exchange(entry->second, operation.payloads[index], operation.timeoutMs, isReply, reply,
+                          operation.error))
+                return;
+            operation.replies.push_back(std::move(reply));
+        }
+    }
+
+    bool HidTransport::Exchange(hid_device* device, const std::vector<uint8_t>& payload, uint32_t timeoutMs,
+                                const ReplyCheck& isReply, std::vector<uint8_t>& reply, std::string& error)
+    {
         // Nothing waiting can be the answer to this request, which is not sent yet: a second
         // answer to the last one, or a report nobody asked for.
         DiscardWaitingReports(device);
 
-        if (!WriteReport(device, operation.payload, operation.error))
-            return;
+        if (!WriteReport(device, payload, error))
+            return false;
 
         // A deadline rather than a count of empty reads: a report dropped by the check below
         // takes time too, and a board streaming them must not stretch the wait forever.
         using Clock = std::chrono::steady_clock;
-        const Clock::time_point deadline = Clock::now() + std::chrono::milliseconds(operation.timeoutMs);
+        const Clock::time_point deadline = Clock::now() + std::chrono::milliseconds(timeoutMs);
 
         unsigned char buffer[c_MaxReportSize];
         int           dropped = 0;
@@ -388,18 +446,18 @@ namespace nazg
 
             if (bytesRead < 0)
             {
-                operation.error = "read failed: " + LastError(device);
-                return;
+                error = "read failed: " + LastError(device);
+                return false;
             }
 
             if (bytesRead > 0)
             {
-                operation.reply.assign(buffer, buffer + bytesRead);
-                if (!operation.isReply || operation.isReply(operation.reply))
-                    return;
+                reply.assign(buffer, buffer + bytesRead);
+                if (!isReply || isReply(reply))
+                    return true;
 
                 // Not the reply -- a report nobody asked for, arrived while waiting. Dropped.
-                operation.reply.clear();
+                reply.clear();
                 ++dropped;
             }
 
@@ -407,17 +465,16 @@ namespace nazg
             // here: the deadline has passed by the time this first pass gets here.
             if (Clock::now() >= deadline)
             {
-                operation.error = "device did not answer within " +
-                                  std::to_string(operation.timeoutMs) + " ms";
+                error = "device did not answer within " + std::to_string(timeoutMs) + " ms";
                 if (dropped > 0)
-                    operation.error += " (" + std::to_string(dropped) + " report(s) that were not the reply dropped)";
-                return;
+                    error += " (" + std::to_string(dropped) + " report(s) that were not the reply dropped)";
+                return false;
             }
 
             if (!m_Running.load())
             {
-                operation.error = "transport shut down while waiting for the device";
-                return;
+                error = "transport shut down while waiting for the device";
+                return false;
             }
         }
     }
@@ -434,12 +491,24 @@ namespace nazg
         WriteReport(entry->second, operation.payload, operation.error);
     }
 
+    void HidTransport::ExecuteFarewell(Operation& operation)
+    {
+        if (m_Devices.find(operation.device) == m_Devices.end())
+            return;
+
+        if (operation.payload.empty())
+            m_Farewells.erase(operation.device);
+        else
+            m_Farewells[operation.device] = std::move(operation.payload);
+    }
+
     void HidTransport::ExecuteClose(Operation& operation)
     {
         const auto entry = m_Devices.find(operation.device);
         if (entry == m_Devices.end())
             return;   // unknown or already closed: nothing to do
 
+        SayFarewell(entry->first, entry->second);
         hid_close(entry->second);
         m_Devices.erase(entry);
     }
@@ -447,9 +516,30 @@ namespace nazg
     void HidTransport::CloseAllDevices()
     {
         for (const auto& entry : m_Devices)
+        {
+            SayFarewell(entry.first, entry.second);
             hid_close(entry.second);
+        }
 
         m_Devices.clear();
+    }
+
+    // Its answer read here, so it never reaches whoever opens the device next. A device already
+    // gone fails both quietly: the firmware's RAM went with it.
+    void HidTransport::SayFarewell(DeviceId id, hid_device* device)
+    {
+        const auto farewell = m_Farewells.find(id);
+        if (farewell == m_Farewells.end())
+            return;
+
+        std::string ignored;
+        DiscardWaitingReports(device);
+        if (WriteReport(device, farewell->second, ignored))
+        {
+            unsigned char buffer[c_MaxReportSize];
+            hid_read_timeout(device, buffer, sizeof(buffer), static_cast<int>(c_FarewellReplyMs));
+        }
+        m_Farewells.erase(farewell);
     }
 
     void HidTransport::Pump()

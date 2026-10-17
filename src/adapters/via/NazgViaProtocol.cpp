@@ -101,11 +101,34 @@ namespace nazg::via
     Task<std::vector<uint8_t>> Protocol::SendFrame(std::vector<uint8_t> frame, bool hasArguments, size_t echoed)
     {
         const uint8_t commandId = frame[0];
-        const Command command   = static_cast<Command>(commandId);
         const uint8_t subId     = frame[1];
 
         ReplyCheck           isReply = ReplyTo(frame, echoed);
         std::vector<uint8_t> reply   = co_await m_Channel.Request(std::move(frame), std::move(isReply));
+
+        CheckReply(reply, commandId, subId, hasArguments);
+        co_return reply;
+    }
+
+    Task<std::vector<std::vector<uint8_t>>> Protocol::SendFrames(std::vector<std::vector<uint8_t>> frames, size_t echoed)
+    {
+        std::vector<ReplyCheck> checks;
+        std::vector<std::pair<uint8_t, uint8_t>> sent;
+        for (const std::vector<uint8_t>& frame : frames)
+        {
+            checks.push_back(ReplyTo(frame, echoed));
+            sent.emplace_back(frame[0], frame[1]);
+        }
+
+        std::vector<std::vector<uint8_t>> replies = co_await m_Channel.RequestSeries(std::move(frames), std::move(checks));
+        for (size_t index = 0; index < replies.size(); ++index)
+            CheckReply(replies[index], sent[index].first, sent[index].second, true);
+        co_return replies;
+    }
+
+    void Protocol::CheckReply(const std::vector<uint8_t>& reply, uint8_t commandId, uint8_t subId, bool hasArguments)
+    {
+        const Command command = static_cast<Command>(commandId);
 
         if (reply.size() < c_ReportSize)
             throw ProtocolError("short reply to command " + Hex(commandId) + ": " +
@@ -125,7 +148,6 @@ namespace nazg::via
         }
 
         // A reply for another command never gets here: the channel read past it.
-        co_return reply;
     }
 
     Task<bool> Protocol::Supports(Command command, std::initializer_list<uint8_t> arguments)

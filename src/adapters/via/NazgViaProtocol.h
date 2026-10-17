@@ -213,6 +213,11 @@ namespace nazg::via
         [[nodiscard]] Task<std::vector<uint8_t>> SendFrame(std::vector<uint8_t> frame, bool hasArguments,
                                                            size_t echoed);
 
+        // Several frames sent as one series (DeviceChannel::RequestSeries()), each reply checked
+        // as SendFrame() checks it: for readings of many requests, which must not wait a frame each.
+        [[nodiscard]] Task<std::vector<std::vector<uint8_t>>> SendFrames(std::vector<std::vector<uint8_t>> frames,
+                                                                         size_t                            echoed);
+
         // How many leading bytes of a request for this command its reply keeps: the command id,
         // then the address the firmware reads and writes past -- via-vial-commands.md, "VIA --
         // command set". 1 for the custom values, which depend on the channel.
@@ -227,6 +232,10 @@ namespace nazg::via
         DeviceChannel& m_Channel;
 
     private:
+        // Throws ProtocolError for a reply too short, or a refusal -- naming the sub-id when the
+        // request had arguments.
+        static void CheckReply(const std::vector<uint8_t>& reply, uint8_t commandId, uint8_t subId, bool hasArguments);
+
         // 0x0E and 0x12 differ only in the command id.
         [[nodiscard]] Task<std::vector<uint8_t>> ReadChunked(Command command, uint16_t offset, uint16_t length);
     };

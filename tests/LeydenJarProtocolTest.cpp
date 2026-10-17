@@ -231,6 +231,49 @@ namespace
 
         channel.Reply(Answer(c_Get, leydenjar::Value::KeyOutput, { 1 }));
         Check(Run(protocol.IsKeyOutputEnabled()), "read back on");
+
+        // Off until closed: on again is the channel's farewell, set before it goes off.
+        FakeDeviceChannel   section;
+        leydenjar::Protocol diagnostics(section);
+        section.ReplyEcho();
+        Run(diagnostics.TurnKeyOutputOffUntilClosed());
+        Check(IsRequest(section.Farewell(), c_Set, leydenjar::Value::KeyOutput) && section.Farewell()[4] == 1,
+              "the farewell turns key output on");
+        Check(section.RequestCount() == 1 && section.RequestAt(0)[4] == 0, "then it is turned off");
+    }
+
+    // The section's readings: each one series, the board's time rather than a frame per round trip.
+    void TestReadingSeries()
+    {
+        std::printf("readings as one series\n");
+
+        FakeDeviceChannel   channel;
+        leydenjar::Protocol protocol(channel);
+
+        channel.ReplyEcho();
+        channel.Reply(Answer(c_Get, leydenjar::Value::ColumnLevels, { 0, 0, 0x76, 0x01, 0x80, 0x01 }));
+        channel.Reply(Answer(c_Get, leydenjar::Value::ColumnLevels, { 1, 0, 0x00, 0x00, 0xF3, 0x01 }));
+        const std::vector<std::vector<uint16_t>> levels = Run(protocol.ReadLevels(2, 2));
+        Check(channel.SeriesCount() == 1 && channel.RequestCount() == 3, "the sweep and two columns in one series");
+        Check(IsRequest(channel.RequestAt(0), c_Set, leydenjar::Value::DetectLevels) && channel.RequestAt(2)[4] == 1,
+              "the sweep first, then each column asked for");
+        Check(levels == std::vector<std::vector<uint16_t>>{ { 374, 384 }, { 0, 499 } },
+              "levels by controller column, then row");
+
+        channel.ReplyEcho();
+        channel.Reply(Answer(c_Get, leydenjar::Value::LogicalMatrixRow, { 0, 0, 0, 0, 0x04, 0, 0, 0 }));
+        channel.Reply(Answer(c_Get, leydenjar::Value::LogicalMatrixRow, { 1, 0, 0, 0, 0, 0, 0, 0 }));
+        Check(Run(protocol.ReadLogicalMatrix(2)) == std::vector<uint32_t>{ 4, 0 } && channel.SeriesCount() == 2,
+              "a logical scan and its rows in one series");
+
+        channel.ReplyEcho();
+        channel.Reply(Answer(c_Get, leydenjar::Value::ControllerMatrix, { 0xFF, 0xFE }));
+        Check(Run(protocol.ReadControllerMatrix(2)) == std::vector<uint8_t>{ 0xFF, 0xFE } && channel.SeriesCount() == 3,
+              "a controller scan and its read in one series");
+
+        channel.ReplyEcho();
+        channel.ReplyUnhandled();
+        Check(Throws<ProtocolError>([&] { Run(protocol.ReadLevels(1, 2)); }), "a refusal in a series throws");
     }
 
     void TestUnansweredCommands()
@@ -344,6 +387,7 @@ int main()
     TestDetailsAndMapping();
     TestReadings();
     TestKeyOutput();
+    TestReadingSeries();
     TestUnansweredCommands();
     TestControllerInfo();
     TestWiredToNoMatrix();

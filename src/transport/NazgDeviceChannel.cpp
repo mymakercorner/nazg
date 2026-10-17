@@ -7,6 +7,17 @@
 
 namespace nazg
 {
+    Task<std::vector<std::vector<uint8_t>>> DeviceChannel::RequestSeries(std::vector<std::vector<uint8_t>> payloads,
+                                                                         std::vector<ReplyCheck>           checks)
+    {
+        std::vector<std::vector<uint8_t>> replies;
+        replies.reserve(payloads.size());
+        for (size_t index = 0; index < payloads.size(); ++index)
+            replies.push_back(co_await Request(std::move(payloads[index]),
+                                               index < checks.size() ? std::move(checks[index]) : ReplyCheck{}));
+        co_return replies;
+    }
+
     Task<HidDeviceChannel> HidDeviceChannel::Open(HidTransport& transport, std::string path, uint32_t timeoutMs)
     {
         const DeviceId device = co_await transport.Open(std::move(path));
@@ -43,8 +54,19 @@ namespace nazg
         co_return co_await m_Transport->Request(m_Device, std::move(payload), m_TimeoutMs, std::move(isReply));
     }
 
+    Task<std::vector<std::vector<uint8_t>>> HidDeviceChannel::RequestSeries(std::vector<std::vector<uint8_t>> payloads,
+                                                                            std::vector<ReplyCheck>           checks)
+    {
+        co_return co_await m_Transport->RequestSeries(m_Device, std::move(payloads), m_TimeoutMs, std::move(checks));
+    }
+
     Task<void> HidDeviceChannel::Send(std::vector<uint8_t> payload)
     {
         co_await m_Transport->Send(m_Device, std::move(payload));
+    }
+
+    void HidDeviceChannel::SetFarewell(std::vector<uint8_t> payload)
+    {
+        m_Transport->SetFarewell(m_Device, std::move(payload));
     }
 }

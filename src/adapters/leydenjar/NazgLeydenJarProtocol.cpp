@@ -34,6 +34,21 @@ namespace nazg::leydenjar
         {
             return Version{ reply[c_Payload], reply[c_Payload + 1], ReadLittleEndian16(reply, c_Payload + 2) };
         }
+
+        // One controller column's levels, after its index.
+        std::vector<uint16_t> LevelsIn(const std::vector<uint8_t>& reply, uint8_t rows)
+        {
+            std::vector<uint16_t> levels(rows);
+            for (size_t row = 0; row < rows; ++row)
+                levels[row] = ReadLittleEndian16(reply, c_ColumnData + 2 * row);
+            return levels;
+        }
+
+        // One logical row: its index in two bytes, two more unused, then its 32 bits.
+        uint32_t RowIn(const std::vector<uint8_t>& reply)
+        {
+            return ReadLittleEndian32(reply, c_Payload + 4);
+        }
     }
 
     std::vector<uint8_t> Protocol::MakeRequest(via::Command command, Value value, std::initializer_list<uint8_t> payload)
@@ -154,13 +169,7 @@ namespace nazg::leydenjar
     {
         CheckFits(rows, 2, c_ColumnData, "levels");
 
-        const std::vector<uint8_t> reply =
-            co_await Ask(via::Command::GetKeyboardValue, Value::ColumnLevels, { column, 0 });
-
-        std::vector<uint16_t> levels(rows);
-        for (size_t row = 0; row < rows; ++row)
-            levels[row] = ReadLittleEndian16(reply, c_ColumnData + 2 * row);
-        co_return levels;
+        co_return LevelsIn(co_await Ask(via::Command::GetKeyboardValue, Value::ColumnLevels, { column, 0 }), rows);
     }
 
     Task<void> Protocol::ScanLogicalMatrix()
@@ -170,10 +179,7 @@ namespace nazg::leydenjar
 
     Task<uint32_t> Protocol::GetLogicalMatrixRow(uint8_t row)
     {
-        // The row's index in two bytes, two more unused, then its 32 bits.
-        const std::vector<uint8_t> reply =
-            co_await Ask(via::Command::GetKeyboardValue, Value::LogicalMatrixRow, { row, 0 });
-        co_return ReadLittleEndian32(reply, c_Payload + 4);
+        co_return RowIn(co_await Ask(via::Command::GetKeyboardValue, Value::LogicalMatrixRow, { row, 0 }));
     }
 
     Task<void> Protocol::ScanControllerMatrix()
@@ -187,6 +193,53 @@ namespace nazg::leydenjar
 
         const std::vector<uint8_t> reply = co_await Ask(via::Command::GetKeyboardValue, Value::ControllerMatrix);
         co_return std::vector<uint8_t>(reply.begin() + c_Payload, reply.begin() + c_Payload + columns);
+    }
+
+    Task<std::vector<std::vector<uint16_t>>> Protocol::ReadLevels(uint8_t columns, uint8_t rows)
+    {
+        CheckFits(rows, 2, c_ColumnData, "levels");
+
+        std::vector<std::vector<uint8_t>> frames{ MakeRequest(via::Command::SetKeyboardValue, Value::DetectLevels) };
+        for (uint8_t column = 0; column < columns; ++column)
+            frames.push_back(MakeRequest(via::Command::GetKeyboardValue, Value::ColumnLevels, { column, 0 }));
+
+        const std::vector<std::vector<uint8_t>> replies = co_await SendFrames(std::move(frames), c_Echoed);
+
+        std::vector<std::vector<uint16_t>> levels;
+        for (size_t column = 0; column < columns; ++column)
+            levels.push_back(LevelsIn(replies[1 + column], rows));
+        co_return levels;
+    }
+
+    Task<std::vector<uint32_t>> Protocol::ReadLogicalMatrix(uint8_t rows)
+    {
+        std::vector<std::vector<uint8_t>> frames{ MakeRequest(via::Command::SetKeyboardValue, Value::ScanLogicalMatrix) };
+        for (uint8_t row = 0; row < rows; ++row)
+            frames.push_back(MakeRequest(via::Command::GetKeyboardValue, Value::LogicalMatrixRow, { row, 0 }));
+
+        const std::vector<std::vector<uint8_t>> replies = co_await SendFrames(std::move(frames), c_Echoed);
+
+        std::vector<uint32_t> bits;
+        for (size_t row = 0; row < rows; ++row)
+            bits.push_back(RowIn(replies[1 + row]));
+        co_return bits;
+    }
+
+    Task<std::vector<uint8_t>> Protocol::ReadControllerMatrix(uint8_t columns)
+    {
+        CheckFits(columns, 1, c_Payload, "controller columns");
+
+        const std::vector<std::vector<uint8_t>> replies = co_await SendFrames(
+            { MakeRequest(via::Command::SetKeyboardValue, Value::ScanControllerMatrix),
+              MakeRequest(via::Command::GetKeyboardValue, Value::ControllerMatrix) },
+            c_Echoed);
+        co_return std::vector<uint8_t>(replies[1].begin() + c_Payload, replies[1].begin() + c_Payload + columns);
+    }
+
+    Task<void> Protocol::TurnKeyOutputOffUntilClosed()
+    {
+        m_Channel.SetFarewell(MakeRequest(via::Command::SetKeyboardValue, Value::KeyOutput, { 1 }));
+        co_await SetKeyOutputEnabled(false);
     }
 
     Task<void> Protocol::EnterBootloader()
