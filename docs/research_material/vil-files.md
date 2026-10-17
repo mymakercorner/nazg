@@ -68,11 +68,12 @@ Vial's names, and a reader must know them. Vial-only forms besides:
 | `LT0(KC_A)` ... `LT15(...)` | `LT(0,KC_A)` | `LayerTapKey` -- Vial also reads `LT(0,KC_A)` |
 | `FN_MO13`, `FN_MO23` | `0x7C77` / `0x7C78`, QMK's `QK_TRI_LAYER_LOWER` / `UPPER` (`0x5F10` / `0x5F11` in Vial's v5 table) | named |
 
-**vial-gui reads a VIA board with its v5 table.** `Keycode.protocol` is the board's Vial protocol,
-`-1` on a VIA board, and every protocol but 6 means v5: on a renumbered VIA firmware vial-gui names
-keys by the old numbering. Its own files stay consistent -- the names stand for the board's raw
-values through v5 -- but names a writer chose by meaning would be read wrong. Nazg writes a VIA
-board's keycodes as raw values.
+**vial-gui reads a VIA board with its v5 table** -- `Keycode.protocol` is the board's Vial
+protocol, `-1` on a VIA board, and every protocol but 6 means v5 -- **and opens only VIA protocol 9
+boards** (`SUPPORTED_VIA_PROTOCOL = [-1, 9]`, `keyboard_comm.py`), all from before the renumbering:
+v5 is right for every VIA board it can open, so this is no bug. It does mean a VIA file from
+vial-gui is numbered as VIA 9's keycodes, and that names chosen by meaning for a later VIA board
+would be read wrong. Nazg writes a VIA board's keycodes as raw values.
 
 **In Nazg**: `adapters/vial/NazgVialKeycodeNameTable.cpp` holds vial-gui's names with their v5 and
 v6 values, taken as data from `keycodes/keycodes_v5.py`, `keycodes_v6.py` and the names
@@ -132,7 +133,7 @@ the keymap restored and the macros not.
   from, and the keycode version its raw values are numbered in. vial-gui reads only the keys it
   knows, so Nazg's files still load there.
 - **Reading a raw value**: with Nazg's `keycode_version`, else the keycodes of the file's Vial
-  protocol, else -- a VIA board's file -- the board's own. A value of an older numbering that the
+  protocol, else of its VIA protocol (vial-gui's VIA files are VIA 9's), else the board's own. A value of an older numbering that the
   codec cannot place is not replayed: it is said, and the board keeps its own.
 - **Matrix shape is the import's job**: compare the file's `layout` extents and slot counts with
   the board's before writing anything, rather than Vial's silent misplacement.

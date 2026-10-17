@@ -9,8 +9,9 @@
 // its own names. So a file Nazg writes spells keys with these names, or Vial would load them as
 // nothing; and a file Vial wrote is read through them. Two tables, as vial-gui has: v6 for a board
 // on Vial protocol 6, v5 for everything else -- a VIA board included, which vial-gui reads with
-// protocol -1 and so with v5, wrong on a renumbered firmware: Nazg writes such a board's keycodes
-// as raw values instead (adapters/vial/NazgVialSavedLayout.h).
+// protocol -1 and so with v5: right for the VIA 9 boards it opens, all from before the renumbering,
+// wrong for a later one, so Nazg writes a VIA board's keycodes as raw values instead
+// (adapters/vial/NazgVialSavedLayout.h).
 //
 // Values, not keycodes: what a value means is the codec's, for the board's keycode version
 // (adapters/qmk/NazgQmkKeycodeCodec.h). Pure, so it tests with literals.

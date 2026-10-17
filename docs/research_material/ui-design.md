@@ -2466,7 +2466,7 @@ As built (2026-10-18), where it differs from the mockup or adds to it:
   `RGB_TOG` -- not QMK's: a file spelled in QMK's would load in Vial as nothing. Nazg carries
   vial-gui's v5 and v6 names (`adapters/vial/NazgVialKeycodeNameTable.cpp`, vil-files.md). **A VIA
   board's keys are written as raw values**: vial-gui reads a VIA board's names with its v5 table,
-  wrong on a renumbered firmware.
+  from before the renumbering -- right for the VIA 9 boards it opens, wrong for any later one.
 - **The strip marks a layer the file changes with a dot**, the strip's own mark for changes, not
   a count.
 - **The other-keyboard question comes once the board is read** -- a Vial board's UID is read then --

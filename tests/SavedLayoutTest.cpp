@@ -144,15 +144,17 @@ namespace
     {
         std::printf("a VIA board's file\n");
 
-        // vial-gui reads a VIA board with its v5 table, so its names are the board's raw values seen
-        // through v5: KC_ENTER is 0x28 anywhere, and 0x7c16 is the board's own.
-        const char* file = R"vil({"version": 1, "uid": -1, "vial_protocol": -1, "via_protocol": 12,
-            "layout": [[["KC_ENTER", "0x7c16"]]], "layout_options": -1})vil";
+        // vial-gui opens only VIA 9 boards, before QMK's renumbering, and names their keys with its v5
+        // table: Boot was 0x5c00 then.
+        const char* file = R"vil({"version": 1, "uid": -1, "vial_protocol": -1, "via_protocol": 9,
+            "layout": [[["KC_ENTER", "QK_BOOT", "0x5c00"]]], "layout_options": -1})vil";
         const vial::SavedLayout layout = vial::ReadSavedLayout(file, qmk::KeycodeVersion::V0_0_9);
 
         Check(!layout.uid, "uid -1: no UID");
         Check(layout.keymap[0][0][0] == Keycode{ NamedKey{ "KC_ENT" } }, "a name");
-        Check(layout.keymap[0][0][1] == Keycode{ NamedKey{ "QK_GESC" } }, "a raw value, read as the board numbers it");
+        Check(layout.keymap[0][0][1] == Keycode{ NamedKey{ "QK_BOOT" } }, "a name of the old numbering");
+        Check(layout.keymap[0][0][2] == Keycode{ NamedKey{ "QK_BOOT" } },
+              "a raw value read with VIA 9's keycodes, not the renumbered board's");
         Check(!layout.layoutOptions, "layout options -1: none");
     }
 

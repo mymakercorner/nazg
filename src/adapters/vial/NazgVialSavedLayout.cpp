@@ -12,6 +12,7 @@
 
 #include "adapters/qmk/NazgQmkExpression.h"
 #include "adapters/qmk/NazgQmkKeycodeCodec.h"
+#include "adapters/via/NazgViaLoader.h"
 #include "adapters/vial/NazgVialKeycodeNames.h"
 #include "adapters/vial/NazgVialLoader.h"
 
@@ -372,9 +373,9 @@ namespace nazg::vial
         if (file.contains("via_protocol"))
             layout.viaProtocol = static_cast<int32_t>(Integer(file["via_protocol"]).value_or(-1));
 
-        // What the file's raw values are numbered in: Nazg's word, else the Vial protocol's
-        // keycodes, else -- a VIA board's file, which vial-gui fills with the board's own values --
-        // the board's.
+        // What the file's raw values are numbered in: Nazg's word, else the keycodes of the Vial
+        // protocol, else of the VIA protocol -- vial-gui opens only VIA 9 boards, before the
+        // renumbering -- else the board's.
         std::optional<qmk::KeycodeVersion> rawVersion;
         if (file.contains("nazg") && file["nazg"].is_object())
         {
@@ -384,9 +385,12 @@ namespace nazg::vial
             if (nazg.contains("keycode_version") && nazg["keycode_version"].is_string())
                 rawVersion = VersionNamed(nazg["keycode_version"].get<std::string>());
         }
+        if (!rawVersion && layout.vialProtocol >= 0)
+            rawVersion = KeycodeVersionFor(static_cast<uint32_t>(layout.vialProtocol));
+        if (!rawVersion && layout.viaProtocol >= 0)
+            rawVersion = via::KeycodeVersionFor(static_cast<uint16_t>(layout.viaProtocol));
         if (!rawVersion)
-            rawVersion = layout.vialProtocol >= 0 ? KeycodeVersionFor(static_cast<uint32_t>(layout.vialProtocol))
-                                                  : boardVersion;
+            rawVersion = boardVersion;
         const Reader reader(NameTableFor(layout.vialProtocol), *rawVersion, boardVersion);
 
         std::string unreadable;

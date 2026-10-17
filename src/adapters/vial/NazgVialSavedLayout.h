@@ -15,8 +15,8 @@
 // What a value in the file means depends on the firmware that saved it: vial-gui names keys from
 // its v5 or v6 table by the file's Vial protocol, and replays a raw value as it is. Nazg reads a
 // raw value with the keycodes of the firmware that saved it -- Nazg's key, else the Vial protocol,
-// else, for a VIA board's file, the board loading it -- so a file from before QMK's renumbering
-// loads right. A value that cannot be read is left out, and said.
+// else the VIA protocol -- so a file from before QMK's renumbering loads right. A value that cannot
+// be read is left out, and said.
 //
 // Pure: no device, so it tests with literals.
 
@@ -98,6 +98,7 @@ namespace nazg::vial
 
     // The model into a file's text, as vial-gui writes one, Nazg's key added. Keycodes are encoded
     // with `layout.keycodeVersion`, spelled with vial-gui's names on a Vial board and as raw values
-    // on a VIA board -- vial-gui would read names there with the wrong table.
+    // on a VIA board: vial-gui would read names there with its v5 table, before the renumbering --
+    // right for the VIA 9 boards it opens, wrong for any later one.
     [[nodiscard]] std::string WriteSavedLayout(const SavedLayout& layout);
 }
