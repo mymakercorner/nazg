@@ -367,7 +367,7 @@ which pushed the other problems out of sight; the selected key's **own last pres
 they were -- a window of the last seconds loses a key pressed a minute ago -- **side by side**,
 the last four, each marked registered or missed (Rico, 2026-10-17: an overlaid view, aligned at
 their start, dropped); from several presses a count
-anyone reads, **"registered 3 times out of 4"**, the "now and then" case in words; the whole board as one dot per key -- two rows, at rest and pressed, the
+anyone reads, "registered 3 times out of 4" -- dropped after the F77 recording, below; the whole board as one dot per key -- two rows, at rest and pressed, the
 threshold between them, an orange zone where a dot means at risk. **The histogram is dropped**
 (Rico, 2026-10-17): its bars said neither what they counted nor which keys they held; one dot per
 key reads better. Settled in the reasoning: a verdict rests on the weakest steady reading on each
@@ -376,7 +376,7 @@ press attempt is a run of readings leaving the key's usual level clearly (four t
 or 30 % of the offset), as Nazg cannot know when a finger is on a key.
 
 **Its words** (Rico, 2026-10-17): *threshold*, as in the firmware and the tool; the sentences lead
-with the effect and carry no numbers -- "Missed 1 press out of 4", "May type by itself: rests close
+with the effect and carry no numbers -- "May type by itself: rests close
 to its threshold", "Does not work: its presses never reach its threshold", "May miss presses: only
 just past its threshold"; the numbers stay in the key's trace and its tooltip. The summary: good,
 at risk, failing, to check (a level at 499), not pressed yet. A key that does not work says that
@@ -411,9 +411,36 @@ problem, **one sentence** says it above the list -- "36 of 123 keys went past th
 untouched -- they may type by themselves" -- the keyboard's problem, not the keys'. The mockup's
 "Problems: Many" puts a third of the keys close to their threshold to try it.
 
-**To do before choosing the second round: a recording** of the complete Model F, every key
-pressed slowly, read-only, key output off during it (Rico, 2026-10-17 -- the board was not ready
-yet). Its numbers set the limits and feed the mockup.
+**Recorded: Rico's F77** (2026-10-17), read-only, key output off during it and on again after:
+0.9.1, Model F, 3 bins, offset 10, an 8 x 16 controller, **155 ms a reading** with key output off.
+Two recordings: 4 minutes with every key pressed slowly, then 2 minutes of K, F and Num Lock held on
+purpose. What they showed:
+
+- **A press lasts one or two readings unless held**: of 150 presses, 95 lasted two readings and 24
+  one. The tool's three-in-a-row rule cannot judge real presses.
+- **A hold is steady, but its level is the finger's.** K held 3, 10 and 11 past its threshold, F 3 to
+  18, Num Lock 15 every time, and all three keys work (Rico). A buckling spring has no half press; a
+  light touch before the buckle moves the level part-way without activating -- Fn read 7 short.
+- **A Model F's first reading of a press overshoots** -- J 438 then 427 -- so the highest reading is
+  never the key's level (Rico).
+- **At rest the board is quiet**: keys 6 to 15 below their threshold, moving by 5 at most.
+- 147 of 150 presses crossed, by 4 to 45; no level reached 499.
+
+**The rules that follow** (Rico, 2026-10-17), replacing the draft's:
+
+| | |
+|---|---|
+| A press | readings clearly off the key's usual level -- one is enough when well past the threshold; it registers when a reading crosses |
+| A hold's level | measured only over 3 readings or more, by their median: the overshoot left out |
+| A key's strength | its **strongest** measured hold -- what it can do; at risk under 3 past the threshold, Rico's tool's rule |
+| Failing | reads pressed at rest; or never past its threshold in 3 presses or more |
+| To do | not pressed yet; pressed without crossing -- "press it again, firmly"; registered too briefly -- "hold it a moment to measure it" |
+| No verdict | from how a key's holds differ -- the finger; nor from one released reading inside a hold -- on the F77 it accused six healthy keys |
+
+So **"Missed 1 press out of 4" is gone**: it would have counted the finger's light presses as the
+key's. The instruction becomes **press each key down firmly and hold it a moment**, and the summary's
+last count, **to do**. The mockup carries the F77 itself: its definition and its 4 minutes of readings
+show 26 keys good, 49 to measure again with a hold -- its presses were brief -- and no false alarm.
 
 **Key output stays off for as long as the section shows** (Rico, 2026-10-17), every mode, Device
 included: the tool turns it off on connecting and on again only on leaving, so that the keys
