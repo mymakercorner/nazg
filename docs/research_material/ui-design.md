@@ -470,7 +470,9 @@ decisions above:
 - **One safe margin, 3, on both sides** (Rico, 2026-10-17): a key resting less than 3 from its
   threshold is at risk, as a hold less than 3 past it -- the draft's half the offset at rest is
   dropped. The whole board draws both rows on **one scale**, a level as wide on each, so the two
-  orange zones are the same width.
+  orange zones are the same width. **An expert can change both margins**: with Advanced tools, "Safe
+  at rest" and "pressed" fields before Levels, 3 by default, judged again at once -- kept for the
+  session only, back to 3 when Nazg starts (Rico, 2026-10-17).
 - **Not in the mockups, chosen in the build** -- for Rico to check: a reading is kept until Clear or
   another load, across modes; Clear in Signal levels forgets every reading, a new pass; Key presses
   on a controller wired to no matrix says "There are no key presses to show"; a key to check is

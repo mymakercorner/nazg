@@ -15,6 +15,7 @@
 
 #include "adapters/vial/NazgVialProtocol.h"
 #include "library/NazgDefinitionChoice.h"
+#include "model/NazgKeyHealth.h"
 #include "model/NazgKeyboard.h"
 #include "transport/NazgHidTransport.h"
 #include "ui/NazgKeycapLegend.h"
@@ -34,6 +35,7 @@ namespace nazg
         LegendSettings&                          legends;            // Macros may set the host layout
         const std::optional<vial::UnlockStatus>& lock;               // a Vial board's
         const bool&                              advancedTools;
+        SafeMargins&                             safeMargins;        // the diagnostics', for the session
         const bool&                              moveToNextKey;      // Keymap's, after a pick
         bool&                                    hostLayoutChosen;   // Macros asks until it is
     };

@@ -1066,6 +1066,7 @@ namespace nazg
                                           m_Settings.legends,
                                           m_Board.lock,
                                           m_Settings.advancedTools,
+                                          m_SafeMargins,
                                           m_Settings.moveToNextKey,
                                           m_Settings.hostLayoutChosen };
             for (PlannedSection& planned : PlanSections(*m_Board.keyboard))

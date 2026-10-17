@@ -61,7 +61,7 @@ namespace nazg
                                                        planned.customMenu);
         case SectionKind::Diagnostics:
             return std::make_unique<DiagnosticsSection>(transport, path, keyboard, legends, context.advancedTools,
-                                                        context.identity);
+                                                        context.safeMargins, context.identity);
         default:
             return std::make_unique<PlaceholderSection>(std::move(planned));
         }

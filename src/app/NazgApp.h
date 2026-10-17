@@ -26,6 +26,7 @@
 #include "async/NazgTask.h"
 #include "library/NazgDefinitionChoice.h"
 #include "library/NazgLibraryActions.h"
+#include "model/NazgKeyHealth.h"
 #include "model/NazgKeyboard.h"
 #include "settings/NazgSettings.h"
 #include "transport/NazgHidTransport.h"
@@ -284,6 +285,7 @@ namespace nazg
 
         bool                   m_ShowAllHidDevices = false;   // the keyboard list shows only keyboards unless asked
         bool                   m_ShowSettings      = false;   // Settings in place of the main area
+        SafeMargins            m_SafeMargins;                 // the diagnostics', changed by an expert: never saved
         bool                   m_OpenLoneBoard     = true;    // until the first list is in
         bool                   m_BoardUnplugged    = false;   // the open board's path is no longer listed
         std::optional<ThemeId> m_AppliedTheme;                // set when the theme changes

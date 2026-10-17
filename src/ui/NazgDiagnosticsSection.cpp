@@ -214,9 +214,9 @@ namespace nazg
 
     DiagnosticsSection::DiagnosticsSection(HidTransport& transport, std::string path, const Keyboard& keyboard,
                                            const LegendSettings& legends, const bool& advancedTools,
-                                           DeviceIdentity identity)
+                                           SafeMargins& safeMargins, DeviceIdentity identity)
         : m_Transport(transport), m_Path(std::move(path)), m_Keyboard(keyboard), m_Legends(legends),
-          m_AdvancedTools(advancedTools), m_Identity(std::move(identity))
+          m_AdvancedTools(advancedTools), m_SafeMargins(safeMargins), m_Identity(std::move(identity))
     {
     }
 
@@ -490,7 +490,8 @@ namespace nazg
             }
             levels.push_back(one);
         }
-        m_Health         = JudgeBoard(levels, m_Scale, m_Info.details.controllerColumns);
+        m_Health         = JudgeBoard(levels, m_Scale, m_Info.details.controllerColumns, m_SafeMargins);
+        m_JudgedMargins  = m_SafeMargins;
         m_JudgedReadings = m_ReadingTimes.size();
         m_JudgedAt       = ImGui::GetTime();
     }
@@ -608,8 +609,11 @@ namespace nazg
         if (m_Keys.empty() || m_KeysSelection != m_Keyboard.layoutSelection)
             FindKeys(board);
 
-        if (m_Mode == Mode::SignalLevels && m_ReadingTimes.size() > m_JudgedReadings &&
-            (m_JudgedReadings == 0 || ImGui::GetTime() - m_JudgedAt >= c_JudgeInterval))
+        // Judged again with new readings, at most twice a second, and at once with new margins.
+        if (m_Mode == Mode::SignalLevels && !m_ReadingTimes.empty() &&
+            ((m_ReadingTimes.size() > m_JudgedReadings &&
+              (m_JudgedReadings == 0 || ImGui::GetTime() - m_JudgedAt >= c_JudgeInterval)) ||
+             m_JudgedMargins != m_SafeMargins))
             Judge();
 
         // Device draws the board, as the tool does; Signal levels has the board and the controller.
@@ -944,14 +948,37 @@ namespace nazg
         ImGui::SameLine();
         ColouredText(PanelColour::Muted, "press each key down firmly and hold it a moment, one after the other");
 
-        // Levels, before Board / Controller, only with Advanced tools and off by default, so the
-        // default view stays as it is (Rico, 2026-10-17).
-        const bool  levels = m_AdvancedTools;
-        const float width  = SegmentsWidth({ "Board", "Controller" }) +
-                            (levels ? ButtonWidth("Levels") + ImGui::GetStyle().ItemSpacing.x : 0.0f);
+        // With Advanced tools only, so the default view stays as it is (Rico, 2026-10-17): the safe
+        // margins, 3 unless changed for the session, then Levels, off by default, before Board /
+        // Controller.
+        const bool  levels  = m_AdvancedTools;
+        const float spacing = ImGui::GetStyle().ItemSpacing.x;
+        const float field   = 70 * u;
+        const float width   = SegmentsWidth({ "Board", "Controller" }) +
+                            (levels ? ImGui::CalcTextSize("Safe at rest").x + ImGui::CalcTextSize("pressed").x +
+                                          2 * field + ButtonWidth("Levels") + 5 * spacing
+                                    : 0.0f);
         RightAlign(width);
         if (levels)
         {
+            const auto margin = [&](const char* label, const char* id, int& value, const char* tip)
+            {
+                ImGui::TextUnformatted(label);
+                ImGui::SetItemTooltip("%s", tip);
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(field);
+                if (ImGui::InputInt(id, &value, 1, 1))
+                    value = std::clamp(value, 0, 99);
+                ImGui::SetItemTooltip("%s", tip);
+                ImGui::SameLine();
+            };
+            margin("Safe at rest", "##rest", m_SafeMargins.rest,
+                   "A key resting closer than this to its threshold is at risk: it may type by itself.\n"
+                   "3 by default, the Leyden Jar tool's; back to 3 when Nazg starts again.");
+            margin("pressed", "##press", m_SafeMargins.press,
+                   "A key whose firmest hold gets less than this past its threshold is at risk: it may miss presses.\n"
+                   "3 by default, the Leyden Jar tool's; back to 3 when Nazg starts again.");
+
             if (ToggleButton("Levels", m_LevelsOnKeys))
                 m_LevelsOnKeys = !m_LevelsOnKeys;
             ImGui::SetItemTooltip("The Leyden Jar tool's numbers on the keys: the highest reading above the threshold,\n"
@@ -1428,8 +1455,8 @@ namespace nazg
         const ImU32 zone   = BoardColours::ConditionTint(KeyCondition::AtRisk);
         const ImU32 red    = VerdictColour(KeyVerdict::Failing);
 
-        drawList->AddRectFilled(ImVec2(xr(static_cast<float>(c_SafeMargin)), yRest - rowH / 2), ImVec2(x0, yRest + rowH / 2), zone);
-        drawList->AddRectFilled(ImVec2(x0, yPress - rowH / 2), ImVec2(xp(static_cast<float>(c_SafeMargin)), bottom), zone);
+        drawList->AddRectFilled(ImVec2(xr(static_cast<float>(m_JudgedMargins.rest)), yRest - rowH / 2), ImVec2(x0, yRest + rowH / 2), zone);
+        drawList->AddRectFilled(ImVec2(x0, yPress - rowH / 2), ImVec2(xp(static_cast<float>(m_JudgedMargins.press)), bottom), zone);
         drawList->AddLine(ImVec2(x0, top), ImVec2(x0, bottom + 4 * u), red, 1.5f * u);
 
         const char* threshold = "threshold";

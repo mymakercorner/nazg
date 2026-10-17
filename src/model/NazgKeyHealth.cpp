@@ -176,7 +176,7 @@ namespace nazg
         return stats;
     }
 
-    BoardHealth JudgeBoard(std::span<const KeyLevels> keys, LevelScale scale, int columns)
+    BoardHealth JudgeBoard(std::span<const KeyLevels> keys, LevelScale scale, int columns, SafeMargins margins)
     {
         BoardHealth board;
         board.keys.reserve(keys.size());
@@ -211,7 +211,7 @@ namespace nazg
             {
                 if (st.restMargin && *st.restMargin <= 0)
                     risk(KeyReason::WentPastUntouched);
-                else if (st.medianMargin && *st.medianMargin < c_SafeMargin)
+                else if (st.medianMargin && *st.medianMargin < margins.rest)
                     risk(KeyReason::RestsClose);
                 else if (st.medianMargin && st.restSpread >= *st.medianMargin * 0.6)
                     risk(KeyReason::WandersAtRest);
@@ -221,7 +221,7 @@ namespace nazg
                     v = KeyVerdict::Failing;
                     reasons.insert(reasons.begin(), KeyReason::NeverReaches);
                 }
-                else if (st.measured && *st.pressMargin < c_SafeMargin)
+                else if (st.measured && *st.pressMargin < margins.press)
                 {
                     risk(KeyReason::OnlyJustPast);
                 }

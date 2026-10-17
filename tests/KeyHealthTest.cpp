@@ -256,6 +256,14 @@ namespace
                   reasons.back() == KeyReason::TopOfRange,
               "a hold at 499: to check");
 
+        // An expert's margin: 1 past is safe enough when the press margin is 1.
+        {
+            const std::vector<uint16_t> trace = Trace(60, c_Rest, { { 10, 14 }, { 30, 34 } }, 385);
+            const KeyLevels             key{ trace, c_Threshold, 0 };
+            Check(nazg::JudgeBoard(std::span(&key, 1), modelF, 1, { 3, 1 }).keys[0].verdict == KeyVerdict::Good,
+                  "1 past with a press margin of 1: good");
+        }
+
         // A released reading inside a hold is part of the press, not a verdict.
         std::vector<uint16_t> flick = Trace(60, c_Rest, { { 10, 16 }, { 30, 36 } }, 400);
         flick[13] = 376;

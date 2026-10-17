@@ -44,6 +44,16 @@ namespace nazg
     // (Rico, 2026-10-17: the draft's half the offset at rest is dropped).
     inline constexpr int c_SafeMargin = 3;
 
+    // The margins a verdict is judged by, each side's: c_SafeMargin unless an expert changes them
+    // for the session, with Advanced tools (Rico, 2026-10-17).
+    struct SafeMargins
+    {
+        int rest  = c_SafeMargin;   // at rest: less from the threshold, the key may type by itself
+        int press = c_SafeMargin;   // pressed: even its firmest hold less past it, it may miss presses
+
+        bool operator==(const SafeMargins&) const = default;
+    };
+
     // Presses that never crossed before a key is said not to work; fewer ask to press it again.
     inline constexpr size_t c_FailAfter = 3;
 
@@ -184,7 +194,8 @@ namespace nazg
         size_t                  judged = 0;   // keys not to do
     };
 
-    [[nodiscard]] BoardHealth JudgeBoard(std::span<const KeyLevels> keys, LevelScale scale, int columns);
+    [[nodiscard]] BoardHealth JudgeBoard(std::span<const KeyLevels> keys, LevelScale scale, int columns,
+                                         SafeMargins margins = {});
 
     // Rico's tool's numbers on a key, for firmware work: the highest and the lowest of the medians of
     // three readings in a row all at or past the threshold, and all short of it -- whichever way the

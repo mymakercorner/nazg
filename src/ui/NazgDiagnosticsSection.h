@@ -64,6 +64,7 @@ namespace nazg
                            const Keyboard&       keyboard,
                            const LegendSettings& legends,
                            const bool&           advancedTools,
+                           SafeMargins&          safeMargins,
                            DeviceIdentity        identity);
 
         DiagnosticsSection(const DiagnosticsSection&)            = delete;
@@ -194,6 +195,8 @@ namespace nazg
         const Keyboard&       m_Keyboard;
         const LegendSettings& m_Legends;
         const bool&           m_AdvancedTools;
+        SafeMargins&          m_SafeMargins;   // App's, for the session
+        SafeMargins           m_JudgedMargins;  // those m_Health was judged by
         DeviceIdentity        m_Identity;
 
         Mode m_Mode          = Mode::KeyPresses;
