@@ -1252,26 +1252,28 @@ namespace nazg
     {
         // The bars' geometry (key-health.html, barSvg()): the threshold at a fixed place, the resting
         // side left of it scaled to the offset, the pressed side right of it to most keys' press.
+        // One width per level on both sides (Rico, 2026-10-17), the threshold placed so that 1.6
+        // times the offset fits at rest and a little more than most keys' hold pressed.
         struct BarScale
         {
-            float u = 1.0f, width = 300.0f, x0 = 110.0f, left = 102.0f, right = 180.0f;
-            int   offset = 10, typical = 1;
+            float u = 1.0f, width = 300.0f, x0 = 110.0f, perLevel = 1.0f;
+            int   typical = 1;
 
-            float Rest(float margin) const { return u * (x0 - std::min(left, margin / (offset * 1.6f) * left)); }
-            float Press(float margin) const
-            {
-                return u * (x0 + std::clamp(margin / (std::max(1, typical) * 1.15f) * right, -left, right));
-            }
+            float At(float x) const { return u * std::clamp(x, 4.0f, width - 4.0f); }
+            float Rest(float margin) const { return At(x0 - margin * perLevel); }
+            float Press(float margin) const { return At(x0 + margin * perLevel); }
         };
 
         BarScale BarScaleOf(float u, int offset, int typical)
         {
+            const float rest  = std::max(1, offset) * 1.6f;
+            const float press = std::max(1, typical) * 1.15f;
+
             BarScale scale;
-            scale.u       = u;
-            scale.left    = scale.x0 - 8;
-            scale.right   = scale.width - scale.x0 - 10;
-            scale.offset  = std::max(1, offset);
-            scale.typical = typical;
+            scale.u        = u;
+            scale.perLevel = (scale.width - 18.0f) / (rest + press);
+            scale.x0       = 8.0f + rest * scale.perLevel;
+            scale.typical  = typical;
             return scale;
         }
 
@@ -1341,7 +1343,7 @@ namespace nazg
         if (st.medianMargin)
         {
             const float a      = at.x + scale.Rest(static_cast<float>(*st.medianMargin));
-            const float spread = std::min(scale.left, st.restSpread / (scale.offset * 1.6f) * scale.left) * u;
+            const float spread = std::min(scale.x0 - 4.0f, st.restSpread * scale.perLevel) * u;
             drawList->AddRectFilled(ImVec2(a - spread / 2, cy - 3 * u), ImVec2(a - spread / 2 + std::max(2 * u, spread), cy + 3 * u),
                                     Faded(RestColour(), 0.35f), 3 * u);
 
