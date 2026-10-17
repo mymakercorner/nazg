@@ -1626,7 +1626,9 @@ namespace nazg
         else
         {
             const size_t first = presses.size() > 4 ? presses.size() - 4 : 0;
-            const float  pw = 76 * u, gap = 6 * u, x0 = 52 * u;
+            // Each box as wide as the longest of the words under it, so they never run into each other.
+            const float  pw = std::max(76 * u, ImGui::CalcTextSize("too short to measure").x + 4 * u);
+            const float  gap = 8 * u, x0 = 52 * u;
             const double now = m_ReadingTimes.empty() ? 0.0 : m_ReadingTimes[std::min(n, m_ReadingTimes.size()) - 1];
             for (size_t j = first; j < presses.size(); ++j)
             {
