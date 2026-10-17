@@ -637,7 +637,8 @@ namespace nazg
     }
 
     // A matrix as a plain grid: QMK's, by the definition's rows and columns, or the controller's
-    // connectors, R0... and C0... Each cell wears its key's legends; a cell with none is faint.
+    // connectors -- both ruled R0... and C0... (Rico, 2026-10-17). Each cell wears its key's legends;
+    // a cell with none is faint.
     void DiagnosticsSection::DescribeGrid(BoardDescription& board, bool controller)
     {
         const leydenjar::Details& details = m_Info.details;
@@ -683,7 +684,7 @@ namespace nazg
         {
             EdgeLabel label;
             label.edge = BoardEdge::Top;
-            label.text = (controller ? "C" : "") + std::to_string(column);
+            label.text = "C" + std::to_string(column);
             label.keys.push_back(column);
             if (controller && m_Mode == Mode::SignalLevels && std::find(weak.begin(), weak.end(), column) != weak.end())
                 label.marks |= Mark::Highlighted;
@@ -693,7 +694,7 @@ namespace nazg
         {
             EdgeLabel label;
             label.edge = BoardEdge::Left;
-            label.text = (controller ? "R" : "") + std::to_string(row);
+            label.text = "R" + std::to_string(row);
             label.keys.push_back(size_t{ row } * columns);
             grid.labels.push_back(std::move(label));
         }
@@ -807,8 +808,7 @@ namespace nazg
                 ImGui::SetTooltip("%s  ·  row %d, column %d", k.name.c_str(), k.row, k.column);
         }
         else if (m_View != View::Board)
-            ImGui::SetTooltip("No key at %s%d %s%d", m_View == View::Controller ? "R" : "row ", geometry.row,
-                              m_View == View::Controller ? "C" : "column ", geometry.column);
+            ImGui::SetTooltip("No key at R%d C%d", geometry.row, geometry.column);
 
         if (m_Mode == Mode::SignalLevels && events.clickedKey && key)
             m_Selected = m_Selected == key ? std::nullopt : key;
