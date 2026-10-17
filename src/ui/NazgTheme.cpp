@@ -349,7 +349,6 @@ namespace nazg
             case KeyCondition::Failing: return t.error;
             case KeyCondition::AtRisk:  return t.warningText;
             case KeyCondition::ToCheck: return t.second;
-            case KeyCondition::ToTest:  return t.outline;
             case KeyCondition::None:    break;
             }
             return t.outline;

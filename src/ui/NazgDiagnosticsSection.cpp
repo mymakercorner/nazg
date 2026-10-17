@@ -72,7 +72,7 @@ namespace nazg
             case KeyVerdict::Failing: return KeyCondition::Failing;
             case KeyVerdict::AtRisk:  return KeyCondition::AtRisk;
             case KeyVerdict::ToCheck: return KeyCondition::ToCheck;
-            case KeyVerdict::ToDo:    return KeyCondition::ToTest;
+            case KeyVerdict::ToDo:    break;   // plain: the list's to-do lines name them
             case KeyVerdict::Good:    break;
             }
             return KeyCondition::None;
@@ -731,7 +731,8 @@ namespace nazg
         }
     }
 
-    // Coloured by verdict -- good keys plain, so only the problems stand out -- a key down lit, the
+    // Coloured by verdict -- good keys and those to test plain, so only the problems stand out (Rico,
+    // 2026-10-17: the dashed keys to test were dropped) -- a key down lit, the
     // selected one outlined; with Advanced tools and Levels, the tool's numbers instead of legends.
     void DiagnosticsSection::DescribeLevels(BoardDescription& board)
     {
@@ -1178,7 +1179,7 @@ namespace nazg
             ImGui::PopID();
         }
 
-        // Keys not pressed yet are a to-do, not a problem: one line each kind, dashed on the board.
+        // Keys not pressed yet are a to-do, not a problem: one line each kind, plain on the board.
         const bool showToDo = !m_Filter || *m_Filter == KeyVerdict::ToDo;
         bool       anyToDo  = false;
         if (showToDo)
@@ -1204,8 +1205,6 @@ namespace nazg
                     line += (index == 0 ? "" : ", ") + names[index];
                 if (names.size() > 8)
                     line += " and " + std::to_string(names.size() - 8) + " more";
-                if (kind == KeyToDo::Press)
-                    line += " -- dashed on the board";
                 ColouredText(PanelColour::Muted, "%s.", line.c_str());
             }
         }

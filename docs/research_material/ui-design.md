@@ -461,6 +461,10 @@ decisions above:
   recording takes 1.2 ms in Release, 86 ms in Debug.
 - **Leaving while it polls**: a polling section no longer holds the header back. Switching board,
   All keyboards, the lock and quitting stop it first and act once its last reading is back.
+- **Keys to test drawn plain** (Rico, 2026-10-17, seeing it on his F77): the dashed outline of the
+  mockup's "Room" is dropped -- only problems are coloured on the board, and the list's to-do lines
+  name the keys to press or hold.
+- **QMK's matrix ruled R0... and C0...**, as the controller's (Rico, 2026-10-17).
 - **Not in the mockups, chosen in the build** -- for Rico to check: a reading is kept until Clear or
   another load, across modes; Clear in Signal levels forgets every reading, a new pass; Key presses
   on a controller wired to no matrix says "There are no key presses to show"; a key to check is

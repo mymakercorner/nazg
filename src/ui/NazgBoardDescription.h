@@ -95,14 +95,13 @@ namespace nazg
 
     // Rule 2 too: what a diagnosis found the key to be -- the Leyden Jar's Signal levels
     // (ui-design.md, "Plugins"). Failing, at risk and to check tint the face and outline it in the
-    // theme's error, warning and second colours; a key still to test is dashed, its face left out.
+    // theme's error, warning and second colours; a key good or still to test is drawn plain.
     enum class KeyCondition : uint8_t
     {
         None,
         Failing,
         AtRisk,
         ToCheck,
-        ToTest,
     };
 
     // Rule 1 too: whose keycode a key's legends are (ui-design.md, "Transparent keys"). QMK takes
