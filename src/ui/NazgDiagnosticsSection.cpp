@@ -948,19 +948,26 @@ namespace nazg
         ImGui::SameLine();
         ColouredText(PanelColour::Muted, "press each key down firmly and hold it a moment, one after the other");
 
-        // With Advanced tools only, so the default view stays as it is (Rico, 2026-10-17): the safe
-        // margins, 3 unless changed for the session, then Levels, off by default, before Board /
-        // Controller.
+        // With Advanced tools only, so the default view stays as it is (Rico, 2026-10-17): the threshold
+        // margins, 3 unless changed for the session, set apart by a divider from Levels -- off by
+        // default -- and Board / Controller.
         const bool  levels  = m_AdvancedTools;
         const float spacing = ImGui::GetStyle().ItemSpacing.x;
         const float field   = 70 * u;
+        const float divider = 4 * spacing + 1.0f;
         const float width   = SegmentsWidth({ "Board", "Controller" }) +
-                            (levels ? ImGui::CalcTextSize("Safe at rest").x + ImGui::CalcTextSize("pressed").x +
-                                          2 * field + ButtonWidth("Levels") + 5 * spacing
+                            (levels ? ImGui::CalcTextSize("Threshold margin").x + ImGui::CalcTextSize("rest").x +
+                                          ImGui::CalcTextSize("press").x + 2 * field + divider +
+                                          ButtonWidth("Levels") + 6 * spacing
                                     : 0.0f);
         RightAlign(width);
         if (levels)
         {
+            const char* explained = "How close to its threshold a key may get before it is at risk, each side's.";
+            ColouredText(PanelColour::Muted, "Threshold margin");
+            ImGui::SetItemTooltip("%s", explained);
+            ImGui::SameLine();
+
             const auto margin = [&](const char* label, const char* id, int& value, const char* tip)
             {
                 ImGui::TextUnformatted(label);
@@ -972,12 +979,20 @@ namespace nazg
                 ImGui::SetItemTooltip("%s", tip);
                 ImGui::SameLine();
             };
-            margin("Safe at rest", "##rest", m_SafeMargins.rest,
-                   "A key resting closer than this to its threshold is at risk: it may type by itself.\n"
+            margin("rest", "##rest", m_SafeMargins.rest,
+                   "At rest: a key resting closer than this to its threshold is at risk -- it may type by itself.\n"
                    "3 by default, the Leyden Jar tool's; back to 3 when Nazg starts again.");
-            margin("pressed", "##press", m_SafeMargins.press,
-                   "A key whose firmest hold gets less than this past its threshold is at risk: it may miss presses.\n"
-                   "3 by default, the Leyden Jar tool's; back to 3 when Nazg starts again.");
+            margin("press", "##press", m_SafeMargins.press,
+                   "Pressed: a key whose firmest hold gets less than this past its threshold is at risk -- it may miss\n"
+                   "presses. 3 by default, the Leyden Jar tool's; back to 3 when Nazg starts again.");
+
+            // The divider: the margins judge, what follows only shows.
+            ImGui::SameLine(0.0f, 2 * spacing);
+            const ImVec2 at = ImGui::GetCursorScreenPos();
+            ImGui::GetWindowDrawList()->AddLine(ImVec2(at.x, at.y + 2 * u), ImVec2(at.x, at.y + ImGui::GetFrameHeight() - 2 * u),
+                                                GridColour());
+            ImGui::Dummy(ImVec2(1.0f, ImGui::GetFrameHeight()));
+            ImGui::SameLine(0.0f, 2 * spacing);
 
             if (ToggleButton("Levels", m_LevelsOnKeys))
                 m_LevelsOnKeys = !m_LevelsOnKeys;
