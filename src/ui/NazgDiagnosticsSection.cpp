@@ -1020,8 +1020,15 @@ namespace nazg
         DrawKeyList();
         ImGui::PopTextWrapPos();
         ImGui::EndChild();
-        ImGui::SameLine();
-        ImGui::BeginChild("levels", ImVec2(0.0f, height), ImGuiChildFlags_Borders);
+
+        // A vertical line between the two, no box around the key's levels (Rico, 2026-10-17).
+        const float spacing = ImGui::GetStyle().ItemSpacing.x;
+        ImGui::SameLine(0.0f, spacing);
+        const ImVec2 line = ImGui::GetCursorScreenPos();
+        ImGui::GetWindowDrawList()->AddLine(line, ImVec2(line.x, line.y + height), GridColour());
+        ImGui::Dummy(ImVec2(1.0f, height));
+        ImGui::SameLine(0.0f, 2 * spacing);
+        ImGui::BeginChild("levels", ImVec2(0.0f, height));
         ImGui::PushTextWrapPos(0.0f);
         DrawKeyLevels();
         ImGui::PopTextWrapPos();
