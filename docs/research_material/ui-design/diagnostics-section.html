@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- Mockup of the Diagnostics section, the Leyden Jar controller's (ui-design.md, "Plugins").
+
+     First round (2026-10-17). The Leyden Jar Diagnostic Tool's features, no more (Rico,
+     2026-10-17): the controller's information, Enter bootloader, Erase EEPROM, the key press
+     and level monitors, three views -- the board, QMK's matrix, the controller's. Already
+     decided: a section in the Tools group, icon `activity`, shown on every Leyden Jar board;
+     its strip the modes -- key presses, signal levels, device; the level view's legends at fixed
+     slots -- the maximum top left, the current level middle left, the minimum bottom left, the
+     bin bottom right; the controller's matrix a plain grid with R0... and C0... connectors; the
+     board open while a mode polls, key output off while the section shows -- every mode, as the
+     tool keeps it off while connected (Rico, 2026-10-17) -- on again on every path out.
+
+     What the firmware does, from keyboards/leyden_jar/ in Rico's vial-qmk fork and the tool
+     (2026-10-17):
+     - levels are measured on demand (0x84), then read a controller column at a time (0x86);
+       the key presses are a scan (0x87 or 0x88) then its result;
+     - a key is pressed when its level rises past its bin's threshold on a Model F, falls to it
+       on a Beam Spring; the tool's maximum is the highest level seen above the threshold, its
+       minimum the lowest below, each the median of three readings in a row on the same side --
+       so a Beam Spring's maximum is its highest released level and its minimum its lowest
+       pressed one, a Model F's the other way round;
+     - the tool colours a key pressed, and lighter when its level is within 3 of the threshold;
+     - a controller wired to no working matrix answers every key released (Rico);
+     - bootloader and EEPROM erase are not answered: the board leaves, and comes back as a drive
+       or restarted -- Nazg's hotplug sees it go.
+
+     - levels are found by a sweep of the DAC from 350 to 499, as at start-up (Rico): a key's level
+       is the last value it trips at, 0 below the window -- a pressed Beam Spring key -- and 499
+       above it -- a pressed Model F;
+     - a threshold is a bin's resting median plus its activation offset: -30 on a Beam Spring,
+       +7 or +10 on a Model F; a controller wired to no matrix gets 300 (Beam Spring) or 1023.
+
+     The boards: the B104's real definition, at choice 0 of every layout option, its layer 0;
+     the controller's real answers (2026-10-17, the bare B104): protocol 0.9.1, 8 x 18, Beam
+     Spring, one bin, reference 376, levels 375-378 at rest -- its threshold 300 is the no-matrix
+     one, so the mockup uses the 346 it would calibrate to soldered. "Model F, 3 bins" is made up
+     on the same geometry after the F104's config.h. The levels move by simulation: hold a key
+     down with the mouse to press it; two keys are made weak -- Caps Lock only just passes the
+     threshold, Right Ctrl stops short of it.
+
+     The pace, measured on the bare B104 with key output ON (2026-10-17): a round trip 2 ms; a
+     level reading 172 ms -- the sweep 136 ms, 150 steps of a 100 us settle and a scan, then 18
+     column reads 37 ms -- about 6 a second (Rico: 20 ms polling is impossible); a logical scan and
+     its rows 19 ms. With key output on, the firmware also scans the matrix for QMK, once per bin,
+     and QMK works serially, so every command waits longer on a board with many bins; with key
+     output OFF -- all the while Diagnostics shows -- it skips that scan (matrix.c,
+     matrix_scan_custom()), so the commands answer at USB pace and only the sweep is long, the same
+     for any bin count. The mockup moves at those times.
+
+     Settled 2026-10-17 (Rico): opens on Key presses; the view choice in the panel; key presses now
+     and seen, with a count; max, now, min and the bin on each key; a Clear button (extremes in
+     Signal levels, seen keys in Key presses); the board shown in Device; Enter bootloader at once,
+     as the tool; Erase EEPROM asking in a dialog; Device with Vial's and USB's information beside
+     the controller's, as the tool. Still open: the level colours (to discuss). The toggles keep the
+     alternatives. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diagnostics section mockup</title>
+<style>
+:root{--window:#f3f3f5;--menubar:#e3e4e9;--text:#1d1e22;--muted:#6b6e78;--control:#ffffff;--border:#c8cad2;--accent:#3b82f6;--accent-text:#fff;--panel:#f8f8fa;--column:#ebecf0;--hover:rgba(0,0,0,.06);--selected:rgba(59,130,246,.16);
+--plate:#d3d4d8;--key:#ffffff;--keyline:#b4b7c2;--ok:#15803d;--warn:#c2410c;--err:#dc2626;--info:#4b5563;
+--pressed:#3b82f6;--pressedface:#dbe8fd;--near:#c2410c;--nearface:#fde7d7;--seenface:#dcf3e3;--seen:#15803d;--bin:#15803d;--cold:#ffffff;--hot:#3b82f6}
+:root[data-theme="dark"]{--window:#0f0f11;--menubar:#24252b;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--accent:#4296fa;--accent-text:#fff;--panel:#16171b;--column:#16171b;--hover:rgba(255,255,255,.07);--selected:rgba(66,150,250,.22);
+--plate:#1c1d23;--key:#3a3c48;--keyline:#4b4e5c;--ok:#4ade80;--warn:#fb923c;--err:#f87171;--info:#a1a5b2;
+--pressed:#4296fa;--pressedface:#1e3a5f;--near:#fb923c;--nearface:#4a2a14;--seenface:#173826;--seen:#4ade80;--bin:#4ade80;--cold:#3a3c48;--hot:#4296fa}
+*{box-sizing:border-box}
+body{margin:0;background:var(--window);color:var(--text);font-family:Arimo,"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+.controls{display:flex;flex-wrap:wrap;gap:8px 22px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.group .name{color:var(--muted);margin-right:4px}
+button{font:inherit;padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--control);color:var(--text);cursor:pointer}
+button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+button.danger{color:var(--err);border-color:var(--err)}
+button.dangerfill{background:var(--err);border-color:var(--err);color:#fff}
+.stage{padding:16px;overflow-x:auto}
+.frame{position:relative;margin:0 auto;width:1160px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--window);box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.menubar{display:flex;gap:18px;align-items:center;background:var(--menubar);padding:5px 14px}
+.menubar .board{font-weight:600}
+.muted{color:var(--muted)}
+.menubar .right{margin-left:auto;color:var(--muted)}
+.body{display:flex;min-height:560px}
+.col{flex:none;width:180px;background:var(--column);border-right:1px solid var(--border);padding:6px 5px;display:flex;flex-direction:column;gap:2px}
+.col .hdr{font-weight:700;font-size:12px;padding:6px 10px 2px}
+.col .sep{border-top:1px solid var(--border);margin:5px 4px}
+.entry{padding:7px 10px;border-radius:6px;color:var(--muted)}
+.entry.on{background:var(--selected);color:var(--text);box-shadow:inset 3px 0 0 var(--accent)}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;padding:10px 14px 14px;gap:10px}
+.strip{display:flex;gap:3px;align-items:center;padding:4px 0}
+.strip button{padding:2px 10px;font-size:12px;flex:none}
+.strip .end{margin-left:auto}
+.seg{display:inline-flex}
+.seg button{border-radius:0;padding:2px 9px;font-size:12px;margin-left:-1px}
+.seg button:first-child{border-radius:6px 0 0 6px;margin-left:0}
+.seg button:last-child{border-radius:0 6px 6px 0}
+.boardarea{display:flex;justify-content:center;user-select:none}
+svg.board{display:block;overflow:visible}
+.panel{border:1px solid var(--border);border-radius:6px;background:var(--panel)}
+.mline{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;padding:6px 12px;border-bottom:1px solid var(--border);min-height:41px}
+.mline:last-child{border-bottom:none}
+.mline .title{font-weight:700}
+.mline .desc{color:var(--muted);font-size:12px}
+.mline .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.msg{font-size:12px}
+.msg .ok{color:var(--ok)} .msg .warn{color:var(--warn)}
+.out{font-size:12px;color:var(--warn)}
+.grid{display:grid;grid-template-columns:150px auto;align-items:center;gap:5px 12px;padding:8px 18px}
+.grid .lab{white-space:nowrap;color:var(--muted)}
+.grid .val{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;min-height:22px}
+.grid .val .desc{color:var(--muted);font-size:12px}
+.cols{display:flex;gap:0}
+.cols > div{flex:1}
+.cols > div + div{border-left:1px solid var(--border)}
+.cols h4{margin:8px 18px 0;font-size:12px}
+.actions{display:grid;grid-template-columns:150px auto;gap:8px 12px;align-items:center;padding:8px 18px 10px}
+.actions .desc{color:var(--muted);font-size:12px}
+.confirm{display:inline-flex;gap:6px;align-items:center}
+.confirm .q{color:var(--err);font-size:12px}
+.says{padding:4px 2px 0;font-size:12px;line-height:1.55;color:var(--info)}
+.says .w{color:var(--warn)}
+.legendkey{display:inline-grid;grid-template-columns:auto auto;gap:0 8px;font-size:11px;line-height:1.2;padding:2px 6px;border:1px solid var(--keyline);border-radius:4px;background:var(--key)}
+.legendkey .b{color:var(--bin);text-align:right}
+.modal{position:absolute;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center}
+.dialog{width:430px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:14px 16px;box-shadow:0 6px 24px rgba(0,0,0,.25);line-height:1.5}
+.dialog h3{margin:0 0 8px;font-size:14px}
+.dialog .btns{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+.notes{max-width:1160px;margin:0 auto;padding:4px 16px 30px;color:var(--muted);line-height:1.55}
+.notes b{color:var(--text);font-weight:600}
+.notes p{margin:0 0 8px}
+.tip{position:fixed;z-index:9;max-width:340px;padding:6px 9px;border:1px solid var(--border);border-radius:6px;background:var(--control);color:var(--text);font-size:12px;line-height:1.45;box-shadow:0 2px 8px rgba(0,0,0,.15);pointer-events:none;display:none}
+</style>
+</head>
+<body>
+<div class="controls" id="controls"></div>
+<div class="stage"><div class="frame" id="frame"></div></div>
+<div class="notes" id="notes"></div>
+<div class="tip" id="tip"></div>
+<script>
+// The B104's definition as the board serves it (tests/ModelFDefinition.h), as in the other mockups.
+const B104 = {"name":"leyden_jar/B104","source":"the board itself (Vial), tests/ModelFDefinition.h","labels":["Split Backspace","Full Left Shift","Split Right Shift",["Enter","ISO Enter","ANSI Enter"],"Split Numpad Zero","Full Nav Cluster"],"keymap":[[{"x":15.5},"6,5\n\n\n0,1","6,11\n\n\n0,1"],[{"x":2.5,"y":0.25},"0,0",{"x":1.0},"0,1","0,3","0,14","0,16",{"x":0.5},"0,2","0,15","6,15","0,13",{"x":0.5},"0,4","0,12","0,5","0,11",{"x":0.25},"0,10","0,9","0,8"],[{"x":2.5,"y":0.5},"6,0","6,1","5,1","6,3","6,14","6,16","5,16","6,2","5,15","6,13","5,4","6,4","6,12",{"w":2.0},"6,11\n\n\n0,0",{"x":0.25},"0,6\n\n\n5,0","0,7\n\n\n5,0","6,7\n\n\n5,0",{"x":0.25},"6,10","5,10","6,9","6,8",{"x":2.75},"0,6\n\n\n5,1","0,7\n\n\n5,1","6,7\n\n\n5,1"],[{"x":2.5,"w":1.5},"5,0","4,1","4,3","5,3","5,14","4,16","4,2","5,2","4,15","5,13","4,4","5,12","5,5",{"x":0.25,"w":1.25,"h":2.0,"w2":1.5,"h2":1.0,"x2":-0.25},"4,11\n\n\n3,0",{"x":0.25},"5,6\n\n\n5,0","6,6\n\n\n5,0","5,7\n\n\n5,0",{"x":0.25},"4,10","4,9","5,9",{"h":2.0},"5,8",{"x":1.0,"w":1.5},"5,11\n\n\n3,1",{"x":0.25},"5,6\n\n\n5,1","6,6\n\n\n5,1","5,7\n\n\n5,1"],[{"x":2.5,"w":1.75},"4,0","3,1","3,3","4,14","3,14","3,16","3,2","3,15","4,13","3,13","3,4","4,12","4,5\n\n\n3,0",{"x":4.75},"3,10","3,9","4,8",{"x":1.25,"w":2.25},"4,5\n\n\n3,1",{"x":0.25},"3,11\n\n\n5,1","4,6\n\n\n5,1","4,7\n\n\n5,1"],[{"w":2.25},"2,1\n\n\n1,1",{"x":0.25,"w":1.25},"2,0\n\n\n1,0","2,1\n\n\n1,0","2,3","2,14","1,14","1,16","2,16","2,2","1,15","1,13","2,4","2,12",{"w":2.75},"2,5\n\n\n2,0",{"x":1.25},"3,6\n\n\n5,0",{"x":1.25},"2,10","2,9","2,8",{"h":2.0},"3,8",{"x":2.75},"2,6\n\n\n5,1","3,6\n\n\n5,1","3,7\n\n\n5,1"],[{"x":2.5,"w":1.25},"1,0",{"w":1.25},"1,1",{"w":1.25},"1,3",{"w":6.25},"1,2",{"w":1.25},"1,4",{"w":1.25},"1,12",{"w":1.25},"1,5",{"w":1.25},"1,11",{"x":0.25},"1,6\n\n\n5,0","2,7\n\n\n5,0","1,7\n\n\n5,0",{"x":0.25,"w":2.0},"1,10\n\n\n4,0","1,8",{"x":3.75},"1,6\n\n\n5,1","2,7\n\n\n5,1","1,7\n\n\n5,1"],[{"x":14.75,"y":0.25,"w":1.75},"3,12\n\n\n2,1","2,11\n\n\n2,1",{"x":3.5},"1,10\n\n\n4,1","1,9\n\n\n4,1"]]};
+const W = s => s.split(' ');
+const MODELF_ROWS = [
+  W('KC_ESC KC_F1 KC_F2 KC_F3 KC_F4 KC_F5 KC_F6 KC_F7 KC_F8 KC_F9 KC_F10 KC_F11 KC_F12 KC_PSCR KC_SCRL KC_PAUS'),
+  W('KC_GRV KC_1 KC_2 KC_3 KC_4 KC_5 KC_6 KC_7 KC_8 KC_9 KC_0 KC_MINS KC_EQL KC_BSPC KC_INS KC_HOME KC_PGUP KC_NUM KC_PSLS KC_PAST KC_PMNS'),
+  W('KC_TAB KC_Q KC_W KC_E KC_R KC_T KC_Y KC_U KC_I KC_O KC_P KC_LBRC KC_RBRC KC_ENT KC_DEL KC_END KC_PGDN KC_P7 KC_P8 KC_P9 KC_PPLS'),
+  W('KC_CAPS KC_A KC_S KC_D KC_F KC_G KC_H KC_J KC_K KC_L KC_SCLN KC_QUOT KC_BSLS KC_P4 KC_P5 KC_P6'),
+  W('KC_LSFT KC_NUBS KC_Z KC_X KC_C KC_V KC_B KC_N KC_M KC_COMM KC_DOT KC_SLSH KC_RSFT KC_UP KC_P1 KC_P2 KC_P3 KC_PENT'),
+  W('KC_LCTL KC_LGUI KC_LALT KC_SPC KC_RALT KC_RGUI KC_APP KC_RCTL KC_LEFT KC_DOWN KC_RGHT KC_P0 KC_PDOT')];
+
+// ---------------------------------------------------------------------------------------------
+// KLE, as in the other section mockups.
+function parseKle(rows) {
+  const keys = [];
+  let x = 0, y = 0, rx = 0, ry = 0, r = 0, p = {};
+  const pair = s => { const m = /^\s*(\d+)\s*,\s*(\d+)\s*$/.exec(s || ''); return m ? [+m[1], +m[2]] : null; };
+  for (const row of rows) {
+    if (!Array.isArray(row)) continue;
+    for (const item of row) {
+      if (typeof item === 'object') {
+        if ('r' in item) r = item.r;
+        if ('rx' in item || 'ry' in item) { if ('rx' in item) rx = item.rx; if ('ry' in item) ry = item.ry; x = rx; y = ry; }
+        if ('x' in item) x += item.x;
+        if ('y' in item) y += item.y;
+        for (const k of ['w', 'h', 'x2', 'y2', 'w2', 'h2', 'd']) if (k in item) p[k] = item[k];
+        continue;
+      }
+      const w = p.w || 1, h = p.h || 1;
+      const labels = String(item).split('\n');
+      const cell = pair(labels[0]), option = pair(labels[3]);
+      if (cell || p.d)
+        keys.push({ x, y, w, h, x2: p.x2 || 0, y2: p.y2 || 0, w2: p.w2 || w, h2: p.h2 || h, r, rx, ry, decal: !!p.d,
+                    cell, g: option ? option[0] : -1, o: option ? option[1] : 0 });
+      x += w;
+      p = {};
+    }
+    y += 1;
+    x = rx;
+  }
+  return keys;
+}
+function boundsOf(keys) {
+  const b = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+  for (const k of keys)
+    for (const [x, y, w, h] of [[k.x, k.y, k.w, k.h], [k.x + k.x2, k.y + k.y2, k.w2, k.h2]]) {
+      b.x0 = Math.min(b.x0, x); b.y0 = Math.min(b.y0, y); b.x1 = Math.max(b.x1, x + w); b.y1 = Math.max(b.y1, y + h);
+    }
+  return b;
+}
+const NAMED = { ESC: 'Esc', GRV: '`', MINS: '-', EQL: '=', BSPC: 'Bksp', INS: 'Ins', HOME: 'Home', PGUP: 'PgUp', NUM: 'Num',
+  PSLS: '/', PAST: '*', PMNS: '-', TAB: 'Tab', LBRC: '[', RBRC: ']', ENT: 'Enter', DEL: 'Del', END: 'End', PGDN: 'PgDn',
+  P7: '7', P8: '8', P9: '9', PPLS: '+', CAPS: 'Caps', SCLN: ';', QUOT: "'", BSLS: '\\', P4: '4', P5: '5', P6: '6',
+  LSFT: 'Shift', NUBS: '\\', COMM: ',', DOT: '.', SLSH: '/', RSFT: 'Shift', UP: '↑', P1: '1', P2: '2', P3: '3', PENT: 'Enter',
+  LCTL: 'Ctrl', LGUI: 'Win', LALT: 'Alt', SPC: '', RALT: 'AltGr', RGUI: 'Win', APP: 'Menu', RCTL: 'Ctrl', LEFT: '←',
+  DOWN: '↓', RGHT: '→', P0: '0', PDOT: '.', PSCR: 'PrtSc', SCRL: 'ScrLk', PAUS: 'Pause', NO: '' };
+const legendOf = kc => { const n = kc.replace(/^KC_/, ''); return n in NAMED ? NAMED[n] : n; };
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+// The keys at choice 0 of every option, with their layer-0 keycode, by visual row.
+const KEYS = (() => {
+  const keys = parseKle(B104.keymap).filter(k => !k.decal && !(k.g >= 0 && k.o !== 0));
+  const rows = [...new Set(keys.map(k => k.y))].sort((a, b) => a - b);
+  rows.forEach((y, i) => keys.filter(k => k.y === y).sort((a, b) => a.x - b.x)
+    .forEach((k, j) => { k.kc = (MODELF_ROWS[i] || [])[j] || 'KC_NO'; }));
+  return keys;
+})();
+const CELL = new Map(KEYS.map(k => [k.cell.join(','), k]));   // "row,col" -> key
+const ROWS = 8, COLS = 18;
+
+// ---------------------------------------------------------------------------------------------
+// The controller. A threshold is the bin's resting median plus its activation offset (common.c):
+// -30 on a Beam Spring, +10 on an F104. The B104's resting level is real (376); its threshold is
+// what it would calibrate to soldered, 346 -- the bare board answers 300, the "no matrix" sentinel.
+// "Model F, 3 bins" is made up on the same geometry, after the F104's config.h.
+const SETUPS = {
+  'B104 · Beam Spring, 1 bin': { beam: true, thresholds: [346], refs: [376], binOf: () => 0, press: 200, short: 12 },
+  'Made up · Model F, 3 bins': { beam: false, thresholds: [402, 411, 420], refs: [392, 401, 410],
+    binOf: (r, c) => (c < 6 ? 0 : c < 12 ? 1 : 2), press: 560, short: 4 },
+};
+// Levels are found by sweeping the DAC from 350 to 499 (leyden_jar_detect_levels()): a key's level is
+// the last value it trips at -- 0 below the window (a pressed Beam Spring key), 499 above it (a pressed Model F).
+const SWEEP_LOW = 350, SWEEP_HIGH = 499;
+const swept = v => (v < SWEEP_LOW ? 0 : Math.min(v, SWEEP_HIGH));
+const setup = () => SETUPS[state.setup];
+// Weak keys, to see what the monitor is for: Caps Lock barely reaches the threshold, Right Ctrl never.
+const WEAK = { KC_CAPS: 'barely', KC_RCTL: 'never' };
+
+// Per controller position: the simulated level, the readings kept, the extremes.
+const SIM = [];
+function resetSim() {
+  SIM.length = 0;
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++)
+    SIM.push({ r, c, held: false, depth: 0, last: [], now: 0, max: null, min: null, seen: false, offset: ((r * 7 + c * 3) % 4) - 1 });
+  tick();
+}
+const simAt = (r, c) => SIM[r * COLS + c];
+const thresholdOf = s => setup().thresholds[setup().binOf(s.r, s.c)];
+const isPressedLevel = (s, level) => setup().beam ? level <= thresholdOf(s) : level >= thresholdOf(s);
+function levelOf(s) {
+  const st = setup(), k = CELL.get(`${s.r},${s.c}`), weak = k && WEAK[k.kc];
+  const rest = st.refs[st.binOf(s.r, s.c)] + s.offset + (Math.random() < 0.5 ? 0 : (Math.random() < 0.5 ? -1 : 1));
+  if (!k) return swept(rest);                                   // no switch: the level stays at rest
+  const th = thresholdOf(s), sign = st.beam ? -1 : 1;
+  let target = st.press;
+  if (weak === 'barely') target = th + sign * 2;                // just past it -- on a Beam Spring, below the window: 0
+  if (weak === 'never') target = th - sign * st.short;          // stops short of the threshold
+  return swept(Math.round(rest + (target - rest) * s.depth + (s.depth > 0 ? (Math.random() * 4 - 2) : 0)));
+}
+function tick() {
+  for (const s of SIM) {
+    s.depth = s.held ? Math.min(1, s.depth + 0.5) : Math.max(0, s.depth - 0.5);
+    s.now = levelOf(s);
+    s.last.push(s.now); if (s.last.length > 3) s.last.shift();
+    if (s.last.length === 3) {
+      const med = [...s.last].sort((a, b) => a - b)[1], th = thresholdOf(s);
+      if (s.last.every(v => v < th)) s.min = s.min === null ? med : Math.min(s.min, med);
+      if (s.last.every(v => v >= th)) s.max = s.max === null ? med : Math.max(s.max, med);
+    }
+    if (isPressedLevel(s, s.now) && CELL.get(`${s.r},${s.c}`)) s.seen = true;
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+const state = { setup: Object.keys(SETUPS)[0], opens: 'Key presses', mode: null, view: 'Board', viewAt: 'In the panel',
+  presses: 'Now and seen', levels: 'Max, now, min + bin', colour: 'Pressed / barely', device: 'With Vial and USB',
+  deviceBoard: 'Shown', erase: 'A dialog', boot: 'At once', clear: 'Clear button', advanced: 'Off', theme: 'Light',
+  confirming: null, msg: null, gone: null };
+const MODES = ['Key presses', 'Signal levels', 'Device'];
+const live = () => !state.gone && state.mode !== 'Device';
+
+// What the board shows: for each key of the definition, or each cell of a matrix grid.
+function keyState(s) {
+  if (!s) return { cls: 'k' };
+  const k = CELL.get(`${s.r},${s.c}`);
+  const pressed = isPressedLevel(s, s.now);
+  if (state.mode === 'Key presses') {
+    if (pressed && k) return { cls: 'k pr' };
+    if (state.presses === 'Now and seen' && s.seen) return { cls: 'k seen' };
+    return { cls: 'k' };
+  }
+  if (state.mode === 'Signal levels') {
+    if (state.colour === 'Margin as a heat map') {
+      const st = setup(), th = thresholdOf(s), ref = st.refs[st.binOf(s.r, s.c)];
+      const t = Math.max(0, Math.min(1, (s.now - ref) / (th - ref)));
+      return { cls: 'k', heat: t, pressed };
+    }
+    if (pressed) return { cls: Math.abs(s.now - thresholdOf(s)) <= 3 ? 'k near' : 'k pr' };
+  }
+  return { cls: 'k' };
+}
+
+function levelLegends(s, x, y, w, h, u) {
+  const fs = Math.max(9, Math.round(u * 0.22)), pad = u * 0.1, out = [];
+  const t = (cls, tx, ty, txt, anchor) => out.push(`<text class="lv ${cls}" x="${tx}" y="${ty}"${anchor ? ` text-anchor="${anchor}"` : ''} style="font-size:${fs}px">${txt}</text>`);
+  const bin = setup().thresholds.length > 1 ? setup().binOf(s.r, s.c) : null;
+  if (state.levels === 'Max, now, min + bin') {
+    if (s.max !== null) t('mx', x + pad, y + pad + fs * 0.85, s.max);
+    t('cur', x + pad, y + h / 2 + fs * 0.35, s.now);
+    if (s.min !== null) t('mn', x + pad, y + h - pad, s.min);
+    if (bin !== null) t('bn', x + w - pad, y + h - pad, bin, 'end');
+  } else {
+    t('cur', x + w / 2, y + h / 2 + fs * 0.35, s.now, 'middle');
+    if (bin !== null) t('bn', x + w - pad, y + h - pad, bin, 'end');
+  }
+  return out.join('');
+}
+function keyRect(cls, x, y, w, h, u, st, title) {
+  let style = '';
+  if (st.heat !== undefined) {
+    const p = Math.round(st.heat * 100);
+    style = ` style="fill:color-mix(in srgb, var(--hot) ${p}%, var(--cold))${st.pressed ? ';stroke:var(--pressed);stroke-width:2' : ''}"`;
+  }
+  return `<rect class="${cls}" x="${x}" y="${y}" width="${w}" height="${h}" rx="${Math.max(2, u * 0.1)}"${style}><title>${title}</title></rect>`;
+}
+function tipOf(k, s) {
+  const st = setup(), side = st.beam ? 'below' : 'above';
+  const lines = [`${k ? `${esc(legendOf(k.kc) || 'Space')} · ` : ''}row ${s.r}, column ${s.c} · connectors R${s.r} C${s.c}`];
+  if (state.mode === 'Signal levels') {
+    lines.push(`level ${s.now} · threshold ${thresholdOf(s)}${st.thresholds.length > 1 ? ` (bin ${st.binOf(s.r, s.c)})` : ''}`);
+    lines.push(`highest above it ${s.max ?? '–'} · lowest below it ${s.min ?? '–'} -- pressed ${side}`);
+  }
+  if (!k) lines.push('no key at this position');
+  return lines.join('\n');
+}
+
+// The board as the definition draws it.
+function boardSvg() {
+  const bd = boundsOf(KEYS), avail = 1160 - 180 - 28 - 30;
+  const u = Math.min(46, Math.floor(avail / (bd.x1 - bd.x0 + 0.7))), m = u * 0.35;
+  const W = (bd.x1 - bd.x0) * u + 2 * m, H = (bd.y1 - bd.y0) * u + 2 * m;
+  const fs = Math.round(u * 0.28), gap = Math.max(1, u * 0.06);
+  let svg = `<svg class="board" xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${svgStyle(fs)}`
+    + `<rect class="plate" width="100%" height="100%" rx="12"/><g transform="translate(${m} ${m})">`;
+  for (const k of KEYS) {
+    const s = simAt(k.cell[0], k.cell[1]), st = live() ? keyState(s) : { cls: 'k' };
+    const x = (k.x - bd.x0) * u + gap, y = (k.y - bd.y0) * u + gap, w = k.w * u - 2 * gap, h = k.h * u - 2 * gap;
+    svg += `<g data-cell="${k.cell.join(',')}">` + keyRect(st.cls, x, y, w, h, u, st, tipOf(k, s));
+    if (k.w2 !== k.w || k.h2 !== k.h || k.x2 || k.y2)
+      svg += keyRect(st.cls, (k.x + k.x2 - bd.x0) * u + gap, (k.y + k.y2 - bd.y0) * u + gap, k.w2 * u - 2 * gap, k.h2 * u - 2 * gap, u, st, tipOf(k, s));
+    if (state.mode === 'Signal levels' && live()) svg += levelLegends(s, x, y, w, h, u);
+    else svg += `<text class="t${state.mode === 'Key presses' && st.cls === 'k pr' ? ' on' : ''}" x="${x + w / 2}" y="${y + h / 2 + fs * 0.35}">${esc(legendOf(k.kc))}</text>`;
+    svg += `</g>`;
+  }
+  return svg + `</g></svg>`;
+}
+// A matrix as a plain grid: QMK's (by the definition's row,col) or the controller's connectors.
+// With the B104's mapping both are the identity; an XWhatsit-wired board would differ.
+function gridSvg(controller) {
+  const u = 44, lab = 34, cw = u * 1.0, ch = u * 0.95;
+  const W = lab + COLS * cw + 10, H = lab + ROWS * ch + 10, fs = 11;
+  let svg = `<svg class="board" xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${svgStyle(fs)}`
+    + `<rect class="plate" width="100%" height="100%" rx="12"/>`;
+  for (let c = 0; c < COLS; c++)
+    svg += `<text class="ruler" x="${lab + c * cw + cw / 2}" y="${lab - 10}">${controller ? 'C' : ''}${c}</text>`;
+  for (let r = 0; r < ROWS; r++)
+    svg += `<text class="ruler" x="${lab / 2 + 2}" y="${lab + r * ch + ch / 2 + 4}">${controller ? 'R' : ''}${r}</text>`;
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+    const s = simAt(r, c), k = CELL.get(`${r},${c}`), st = live() ? keyState(s) : { cls: 'k' };
+    const x = lab + c * cw + 2, y = lab + r * ch + 2, w = cw - 4, h = ch - 4;
+    svg += `<g data-cell="${r},${c}">` + keyRect(st.cls + (k ? '' : ' none'), x, y, w, h, u, st, tipOf(k, s));
+    if (state.mode === 'Signal levels' && live()) svg += levelLegends(s, x, y, w, h, u);
+    else if (k) svg += `<text class="t small${st.cls === 'k pr' ? ' on' : ''}" x="${x + w / 2}" y="${y + h / 2 + 4}">${esc(legendOf(k.kc))}</text>`;
+    svg += `</g>`;
+  }
+  return svg + `</svg>`;
+}
+function svgStyle(fs) {
+  return `<style>.plate{fill:var(--plate)}.k{fill:var(--key);stroke:var(--keyline)}.k.none{fill:none;stroke-dasharray:3 3;opacity:.6}`
+    + `.k.pr{fill:var(--pressedface);stroke:var(--pressed);stroke-width:2}.k.near{fill:var(--nearface);stroke:var(--near);stroke-width:2}`
+    + `.k.seen{fill:var(--seenface);stroke:var(--seen)}`
+    + `.t{font:${fs}px Arimo,Arial;fill:var(--text);text-anchor:middle;pointer-events:none}.t.small{font-size:11px}`
+    + `.ruler{font:11px Arimo,Arial;fill:var(--muted);text-anchor:middle}`
+    + `.lv{font-family:Arimo,Arial;pointer-events:none;fill:var(--text);font-variant-numeric:tabular-nums}.lv.mx,.lv.mn{fill:var(--muted)}.lv.bn{fill:var(--bin)}</style>`;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The panel.
+const viewSeg = () => `<span class="seg">${['Board', 'QMK matrix', 'Controller'].map(v =>
+  `<button class="${state.view === v ? 'on' : ''}" data-view="${v}">${v}</button>`).join('')}</span>`;
+// Off from the section's opening to its leaving, in every mode, as the tool keeps it off while connected (Rico, 2026-10-17).
+const outLine = () => `<span class="out">Key output off: the keyboard types nothing while Diagnostics shows</span>`;
+function panelHtml() {
+  if (state.gone) return `<div class="mline"><span class="title">${state.gone}</span></div>`;
+  const msg = state.msg ? `<span class="msg"><span class="${state.msg[0]}">${state.msg[1]}</span></span>` : '';
+  const st = setup();
+  if (state.mode === 'Key presses') {
+    const total = KEYS.length, seen = KEYS.filter(k => simAt(k.cell[0], k.cell[1]).seen).length;
+    return `<div class="mline"><span class="title">Key presses</span><span class="desc">press keys on the keyboard: each lights while it is down</span>`
+      + `<span class="right">${state.viewAt === 'In the panel' ? viewSeg() : ''}</span></div>`
+      + `<div class="mline">${outLine()}${state.presses === 'Now and seen' ? `<span class="right"><span class="desc">seen ${seen} of ${total} keys</span>`
+        + `${state.clear === 'Clear button' ? '<button data-act="clear">Clear</button>' : ''}</span>` : ''}</div>`;
+  }
+  if (state.mode === 'Signal levels') {
+    const dir = st.beam ? 'falls to' : 'rises to';
+    const key = state.levels === 'Max, now, min + bin'
+      ? `<span class="legendkey"><span>${st.beam ? 'highest released' : 'highest pressed'}</span><span></span><span><b>now</b></span><span></span><span>${st.beam ? 'lowest pressed' : 'lowest released'}</span><span class="b">${st.thresholds.length > 1 ? 'bin' : ''}</span></span>`
+      : `<span class="desc">the level now${st.thresholds.length > 1 ? ', its bin bottom right' : ''}; the extremes under the pointer</span>`;
+    const bins = st.thresholds.map((t, i) => `${st.thresholds.length > 1 ? `bin ${i}: ` : ''}threshold ${t}, at rest ${st.refs[i]}`).join(' · ');
+    return `<div class="mline"><span class="title">Signal levels</span><span class="desc">${st.beam ? 'Beam Spring' : 'Model F'}: a key is pressed when its level ${dir} its threshold</span>`
+      + `<span class="right">${state.viewAt === 'In the panel' ? viewSeg() : ''}</span></div>`
+      + `<div class="mline">${key}<span class="desc">${bins}</span><span class="right">${state.clear === 'Clear button' ? '<button data-act="clear">Clear extremes</button>' : ''}</span></div>`
+      + `<div class="mline">${outLine()}</div>`;
+  }
+  // Device.
+  const facts = [
+    ['Protocol', st.beam ? '0.9.1' : '0.9.1'], ['Switches', st.beam ? 'Beam Spring' : 'Model F'], ['Wiring', "the Leyden Jar's own"],
+    ['QMK matrix', `${ROWS} rows × ${COLS} columns`], ['Controller', `${ROWS} rows × ${COLS} columns`],
+    ['Calibration', st.thresholds.map((t, i) => `${st.thresholds.length > 1 ? `bin ${i}: ` : ''}threshold ${t}, at rest ${st.refs[i]}`).join('<br>')]];
+  const grid = rows => `<div class="grid">${rows.map(([l, v]) => `<div class="lab">${l}</div><div class="val">${v}</div>`).join('')}</div>`;
+  let info;
+  if (state.device === 'The controller only') info = grid(facts);
+  else info = `<div class="cols"><div><h4>Leyden Jar</h4>${grid(facts)}</div><div><h4>Vial</h4>${grid([['Protocol', '6'], ['Keyboard UID', 'B92DC7607307B9E5'], ['VIA protocol', '9'], ['Definition', '704 bytes, from the board']])}</div>`
+    + `<div><h4>USB</h4>${grid([['Vendor : product', '1209 : 4704'], ['Manufacturer', 'MODEL F LABS LLC'], ['Release', '2026.05.17'], ['Interface', 'usage page FF60, usage 61']])}</div></div>`;
+  const boot = state.confirming === 'boot'
+    ? `<span class="confirm"><span class="q">Enter the bootloader?</span><button class="dangerfill" data-act="boot-yes">Enter</button><button data-act="no">Cancel</button></span>`
+    : `<button data-act="boot">Enter bootloader</button>`;
+  const erase = state.confirming === 'erase' && state.erase === 'Inline: Erase? Yes / No'
+    ? `<span class="confirm"><span class="q">Erase everything the board stores?</span><button class="dangerfill" data-act="erase-yes">Erase</button><button data-act="no">Cancel</button></span>`
+    : `<button class="danger" data-act="erase">Erase EEPROM</button>`;
+  return `<div class="mline"><span class="title">Leyden Jar controller</span><span class="desc">its firmware's own commands, beside Vial's</span><span class="right">${msg}</span></div>`
+    + `<div class="mline">${outLine()}</div>`
+    + info
+    + `<div class="mline" style="border-top:1px solid var(--border)"><span class="title">Actions</span></div>`
+    + `<div class="actions"><div>${boot}</div><div class="desc">to flash a new firmware: the board leaves Nazg and shows as a drive</div>`
+    + `<div>${erase}</div><div class="desc">every layer, macro, tap dance, combo, override and setting back to the firmware's own -- the board restarts</div></div>`;
+}
+
+function columnHtml() {
+  const vial = ['Keymap', 'Layout', 'Macros', 'Tap Dance', 'Combos', 'Key Overrides', 'QMK Settings'];
+  let html = `<div class="hdr">Vial</div>` + vial.map(e => `<div class="entry">${e}</div>`).join('');
+  html += `<div class="sep"></div><div class="hdr">Tools</div><div class="entry on">Diagnostics</div>`;
+  if (state.advanced === 'On') html += `<div class="entry">Matrix</div>`;
+  return `<div class="col">${html}</div>`;
+}
+function stripHtml() {
+  return `<div class="strip">${MODES.map(m => `<button class="${state.mode === m ? 'on' : ''}" data-mode="${m}">${m}</button>`).join('')}`
+    + `${state.viewAt === 'At the strip\'s end' && state.mode !== 'Device' ? `<span class="end">${viewSeg()}</span>` : ''}</div>`;
+}
+function boardHtml() {
+  if (state.gone) return '';
+  if (state.mode === 'Device' && state.deviceBoard === 'Folded away') return '';
+  const view = state.mode === 'Device' ? 'Board' : state.view;
+  return view === 'Board' ? boardSvg() : gridSvg(view === 'Controller');
+}
+function render() {
+  document.documentElement.dataset.theme = state.theme.toLowerCase();
+  if (!state.mode) state.mode = state.opens;
+  renderControls();
+  const modal = state.confirming === 'erase' && state.erase === 'A dialog'
+    ? `<div class="modal"><div class="dialog"><h3>Erase the EEPROM of the B104?</h3>Every layer, macro, tap dance, combo, key override and QMK setting goes back to the firmware's own. It cannot be undone. The board restarts and comes back in the list.`
+      + `<div class="btns"><button data-act="no">Cancel</button><button class="dangerfill" data-act="erase-yes">Erase</button></div></div></div>` : '';
+  document.getElementById('frame').innerHTML =
+    `<div class="menubar"><span class="board">Model F Labs B104 ▾</span><span class="muted">Vial 6</span><span class="right">Settings</span></div>`
+  + `<div class="body">${columnHtml()}<div class="main">${state.gone ? '' : stripHtml()}<div class="boardarea" id="boardarea">${boardHtml()}</div>`
+  + `<div class="panel" id="panel">${panelHtml()}</div></div></div>${modal}`;
+}
+// Only the board and the panel's counts move with the readings.
+function refresh() {
+  if (!live()) return;
+  const b = document.getElementById('boardarea'); if (b) b.innerHTML = boardHtml();
+  if (state.presses === 'Now and seen' && state.mode === 'Key presses') { const p = document.getElementById('panel'); if (p) p.innerHTML = panelHtml(); }
+}
+function renderControls() {
+  const c = document.getElementById('controls');
+  c.innerHTML = '';
+  [['setup', 'Board', Object.keys(SETUPS)],
+   ['opens', 'Opens on', MODES],
+   ['viewAt', 'The view choice', ['In the panel', "At the strip's end"]],
+   ['presses', 'Key presses', ['Now only', 'Now and seen']],
+   ['levels', 'Levels on the keys', ['Max, now, min + bin', 'Now only, the rest on hover']],
+   ['colour', 'Level colours', ['Pressed / barely', 'Margin as a heat map']],
+   ['clear', 'Clearing', ['None', 'Clear button']],
+   ['device', 'Device information', ['The controller only', 'With Vial and USB']],
+   ['deviceBoard', 'Board in Device', ['Shown', 'Folded away']],
+   ['boot', 'Bootloader', ['At once', 'Asks first']],
+   ['erase', 'Erase asks', ['A dialog', 'Inline: Erase? Yes / No']],
+   ['advanced', 'Advanced tools', ['Off', 'On']],
+   ['theme', 'Theme', ['Light', 'Dark']]].forEach(([k, name, values]) => {
+    const g = document.createElement('div'); g.className = 'group';
+    g.innerHTML = `<span class="name">${name}</span>`;
+    values.forEach(v => {
+      const bt = document.createElement('button'); bt.textContent = v;
+      if (state[k] === v) bt.className = 'on';
+      bt.onclick = () => {
+        state[k] = v; state.msg = null; state.confirming = null; state.gone = null;
+        if (k === 'opens') state.mode = v;
+        if (k === 'setup') resetSim();
+        render();
+      };
+      g.appendChild(bt);
+    });
+    c.appendChild(g);
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
+const frame = document.getElementById('frame');
+frame.addEventListener('click', e => {
+  const t = e.target.closest('[data-mode], [data-view], [data-act]');
+  if (!t) return;
+  const d = t.dataset;
+  if (d.mode) { state.mode = d.mode; state.confirming = null; state.msg = null; }
+  if (d.view) state.view = d.view;
+  if (d.act === 'clear') SIM.forEach(s => { s.max = null; s.min = null; s.seen = false; s.last = []; });
+  if (d.act === 'no') state.confirming = null;
+  if (d.act === 'boot') { if (state.boot === 'Asks first') state.confirming = 'boot'; else state.gone = 'The B104 left for its bootloader -- it shows as a drive, RPI-RP2. Flash it, and it comes back in the list.'; }
+  if (d.act === 'boot-yes') { state.confirming = null; state.gone = 'The B104 left for its bootloader -- it shows as a drive, RPI-RP2. Flash it, and it comes back in the list.'; }
+  if (d.act === 'erase') state.confirming = 'erase';
+  if (d.act === 'erase-yes') { state.confirming = null; state.gone = 'The B104 was erased and is restarting -- it comes back in the list.'; }
+  render();
+});
+// Holding a key down with the mouse is a finger on it.
+let held = null;
+frame.addEventListener('mousedown', e => {
+  const g = e.target.closest('[data-cell]');
+  if (!g || !live()) return;
+  const [r, c] = g.dataset.cell.split(',').map(Number);
+  held = simAt(r, c); held.held = true; e.preventDefault();
+});
+addEventListener('mouseup', () => { if (held) held.held = false; held = null; });
+const tip = document.getElementById('tip');
+frame.addEventListener('mousemove', e => {
+  const r = e.target.closest('rect');
+  const t = r && r.querySelector('title');
+  if (t) { tip.textContent = t.textContent; tip.style.whiteSpace = 'pre-line'; tip.style.display = 'block'; }
+  else tip.style.display = 'none';
+  tip.style.left = Math.min(e.clientX + 14, innerWidth - 360) + 'px'; tip.style.top = (e.clientY + 18) + 'px';
+});
+frame.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+// The poll: the next reading asked as soon as the last is back, as the tool does -- no fixed rate.
+// Measured on the B104 (2026-10-17, round trips not paced by frames): a level reading 172 ms (the
+// measurement 136, the 18 columns 37), a logical scan and its 8 rows 19 ms. Paced the same here.
+const PACE_MS = { 'Signal levels': 172, 'Key presses': 19 };
+(function poll() {
+  if (live()) { tick(); refresh(); }
+  setTimeout(poll, PACE_MS[state.mode] || 100);
+})();
+
+document.getElementById('notes').innerHTML = `
+<p><b>Hold a key down with the mouse</b> to press it; the levels move as the firmware's would. Two keys are made weak: <b>Caps Lock</b>
+only just passes the threshold -- on the Model F, the tool's lighter colour; on the Beam Spring it reads 0 as any pressed key, below
+the sweep's window -- and <b>Right Ctrl</b> stops short of it: the case the monitor exists for, a key that stopped working after
+shipping. Hover a key for its numbers and its connectors.</p>
+<p><b>The numbers</b> come from a sweep of the DAC, 350 to 499, as at start-up: a level below it reads 0, above it 499. So a
+pressed Beam Spring key reads 0 and a pressed Model F 499 -- the window shows a key at rest and how close it comes, not how deep it
+goes.</p>
+<p><b>The strip</b> is the three modes, as decided. <b>Opens on</b>: which mode the section shows first -- Key presses is what an
+owner with a dead key wants; Device holds what is asked most (bootloader, erase).</p>
+<p><b>The view choice</b>: the board, QMK's matrix or the controller's connectors -- the tool's combo box. In the panel's first
+line, or at the strip's end, beside the modes. Device has no view: it draws the board, or folds it away.</p>
+<p><b>Key presses</b>: <b>now only</b>, the tool's; or <b>now and seen</b>, the matrix view's live test checklist -- every key
+pressed since the mode opened stays green, with a count. On a Leyden Jar the scan needs no VIA_INSECURE and no unlock.</p>
+<p><b>Levels on the keys</b>: <b>max, now, min + bin</b>, the slots decided -- top, middle and bottom left, the bin bottom right
+(only with more than one bin); or <b>now only</b>, the rest under the pointer, for less to read. <b>Level colours</b>: the
+tool's <b>pressed / barely</b> (within 3 of the threshold), or the <b>margin as a heat map</b> -- how far each key is from
+its threshold, outlined once past it. <b>Clearing</b>: the tool has none (the extremes start again on reconnect); or a
+button.</p>
+<p><b>The pace</b> is the B104's, measured: a level reading takes 172 ms -- the firmware measures every key (136 ms), then
+eighteen column reads -- so the levels move about six times a second, and an extreme, the median of three readings in a row,
+shows half a second after the key settles. Asked again as soon as the last is back, as the tool does. Key presses are a
+scan, 19 ms. Measured with key output on; with it off, as here, the firmware skips its own matrix scan, so the commands answer
+faster still and only the sweep is long -- whatever the number of bins.</p>
+<p><b>Key output</b> is off for as long as Diagnostics shows, in every mode, Device included -- as the tool keeps it off from
+connecting to leaving, so that the keys pressed while testing send nothing to the computer (Rico, 2026-10-17). Said on a line of
+the panel. On again on leaving the section, switching board, reloading, quitting. RAM only on the controller: an unplug turns it
+on too.</p>
+<p><b>Device</b>: <b>the controller only</b>, what Nazg shows nowhere else; or <b>with Vial and USB</b>, the tool's other
+groups. <b>Enter bootloader</b> at once, as the tool, or asking first; <b>Erase EEPROM</b> always asks -- in a <b>dialog</b> or
+<b>inline</b>. Both commands are never answered: the board leaves and hotplug says so.</p>
+<p><b>Advanced tools</b> on adds the matrix view below Diagnostics in the Tools group: the two never show together.</p>`;
+
+resetSim();
+render();
+</script>
+</body>
+</html>

@@ -292,6 +292,64 @@ answered. Decided with Rico before the mockup:
   device list and layout choices are Nazg's keyboard list and Layout section.
 - Tested on a complete Model F (Rico's), beside the B104 controller.
 
+The mockup, first round (2026-10-17): [ui-design/diagnostics-section.html](ui-design/diagnostics-section.html)
+-- open it in a browser. The B104's real definition and its controller's real answers, the levels
+simulated (hold a key with the mouse), two keys made weak. Its toggles hold what is still open:
+which mode the section opens on; where the view choice sits; key presses now only or with those
+seen; three levels and the bin on each key or the current one only; the tool's colours or a heat
+map of the margin; a button clearing the extremes; the device information with Vial's and USB's
+or not; the board in Device or folded away; how the bootloader and the erase ask first.
+
+*Settled 2026-10-17 (Rico), from the mockup:*
+
+- **Opens on Key presses** -- what an owner hunting a dead key needs first.
+- **The view choice** -- the board, QMK's matrix, the controller's -- **in the panel**, on its first
+  line.
+- **Key presses: now and seen** -- as the matrix view's live test, every key pressed since the mode
+  opened stays marked, with a count of those seen.
+- **Max, now and min on each key, the bin bottom right** when there is more than one -- the slots
+  decided earlier. With the sweep's window one extreme reads 0 (Beam Spring) or 499 (Model F) once
+  a key is pressed.
+- **A Clear button**: the extremes in Signal levels, the keys seen in Key presses. The tool has none.
+- **The board shown in Device**, as the tool draws it.
+- **Enter bootloader at once**, as the tool; **Erase EEPROM asks in a dialog**, naming what is lost.
+- **Device shows Vial's and USB's information** beside the controller's, as the tool: Vial's
+  protocol, keyboard UID, VIA protocol and definition size; VID:PID, manufacturer, release and
+  usage -- the one place Nazg shows the board's identity, which a bug report needs.
+
+Still open: **the level colours** -- the tool's pressed and barely pressed, or the margin to the
+threshold as a heat map -- to be discussed.
+
+**The pace, measured on the B104** (2026-10-17, a scratch probe pumping without frames): one round
+trip 2 ms; a level reading 172 ms -- the firmware measures every key, 136 ms, then eighteen column
+reads, 37 ms -- so about six readings a second, never the matrix tester's 20 ms (Rico); a logical
+scan and its eight rows 19 ms; the controller's scan and its read 5 ms. Each mode asks again as
+soon as its last reading is back, as the tool does. **Inside Nazg it is slower**: `Pump()` resumes
+only what has completed, and the next request completes after it returns, so the frame loop runs
+one round trip per frame -- at 60 Hz the eighteen column reads alone would take some 300 ms. The
+build must keep a reading off the frame's pace.
+
+**The firmware's pace, with key output on and off** (Rico, 2026-10-17; `keyboards/leyden_jar/` in
+his vial-qmk fork). With key output on, the firmware scans the matrix for QMK once per calibration
+bin, and QMK runs its tasks one after the other, so every VIA, Vial or Leyden Jar command waits
+longer on a board with many bins -- a whole load with them. The figures above were measured so, on
+a B104 reporting one bin, the fast case. With key output off -- all the while Diagnostics shows --
+`matrix_scan_custom()` skips that scan, so commands answer at USB pace whatever the bins. What stays
+long is the level reading itself: a sweep of the DAC from 350 to 499, as at start-up, 150 steps of
+a 100 us settle and a scan -- the 136 ms, the same for any bin count. Where a load's time goes,
+firmware or frames, is to be measured, not assumed.
+
+**The levels' window** (`leyden_jar_detect_levels()`): a key's level is the last DAC value it trips
+at in that sweep, so it reads 0 below 350 -- every pressed Beam Spring key -- and 499 above it --
+a pressed Model F. A threshold is a bin's resting median plus its activation offset, -30 on a Beam
+Spring, +7 or +10 on a Model F; a controller wired to no matrix gets 300 on a Beam Spring, 1023 on
+a Model F, so nothing is ever pressed -- the bare B104 answers 300. The level view shows a key at
+rest and how near it comes to its threshold, not how far past it goes.
+
+**Key output stays off for as long as the section shows** (Rico, 2026-10-17), every mode, Device
+included: the tool turns it off on connecting and on again only on leaving, so that the keys
+pressed while testing send nothing to the computer -- Rico added the firmware's command for that.
+
 **Open: how third-party plugins are delivered.**
 
 | | For | Against |
