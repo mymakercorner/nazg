@@ -1383,12 +1383,21 @@ namespace nazg
     // histograms, whose bars said neither what they counted nor which keys they held).
     void DiagnosticsSection::DrawWholeBoard()
     {
-        const float  u  = Unit();
-        const float  w  = 500 * u;
-        const float  x0 = 175 * u;
-        const float  rowH = 46 * u;
-        const ImVec2 at = ImGui::GetCursorScreenPos();
+        const float  u        = Unit();
+        const float  w        = std::max(300 * u, std::min(500 * u, ImGui::GetContentRegionAvail().x));
+        const float  rowH     = 46 * u;
+        const float  lineH    = ImGui::GetTextLineHeight();
+        const ImVec2 at       = ImGui::GetCursorScreenPos();
         ImDrawList*  drawList = ImGui::GetWindowDrawList();
+
+        // The rows' names in a gutter of their own, the hints on a line above the rows: no dot ever
+        // lands on a word.
+        const char* restName  = "at rest";
+        const char* pressName = "pressed";
+        const float gutter    = std::max(ImGui::CalcTextSize(restName).x, ImGui::CalcTextSize(pressName).x) + 12 * u;
+        const float left      = at.x + gutter;   // the dots' area
+        const float right     = at.x + w;
+        const float x0        = left + (right - left) * 0.4f;   // the threshold, absolute
 
         float restMax  = m_Scale.offset * 1.6f;
         float pressMax = m_Health.typical * 1.6f;
@@ -1399,24 +1408,38 @@ namespace nazg
         }
         pressMax = std::max(pressMax, 1.0f);
 
-        const auto xr = [&](float margin) { return at.x + x0 - std::clamp(margin / restMax, -40.0f, 1.0f) * (x0 - 20 * u); };
-        const auto xp = [&](float margin) { return at.x + x0 + std::clamp(margin / pressMax, -1.0f, 1.0f) * (w - x0 - 20 * u); };
-        const float yRest  = at.y + 18 * u + rowH / 2;
-        const float yPress = at.y + 18 * u + rowH + 10 * u + rowH / 2;
+        // Each side on its own scale, kept inside the dots' area -- a key past its threshold untouched
+        // stops at the right edge.
+        const float inset = 8 * u;
+        const auto  xr    = [&](float margin)
+        {
+            return std::clamp(x0 - margin / restMax * (x0 - left - inset), left + inset, right - inset);
+        };
+        const auto xp = [&](float margin)
+        {
+            return std::clamp(x0 + std::clamp(margin / pressMax, -1.0f, 1.0f) * (right - x0 - inset), left + inset,
+                              right - inset);
+        };
+        const float top    = at.y + lineH + 4 * u;   // under the hints
+        const float yRest  = top + rowH / 2;
+        const float yPress = top + rowH + 10 * u + rowH / 2;
+        const float bottom = yPress + rowH / 2;
         const ImU32 zone   = BoardColours::ConditionTint(KeyCondition::AtRisk);
+        const ImU32 red    = VerdictColour(KeyVerdict::Failing);
 
-        drawList->AddRectFilled(ImVec2(xr(m_Scale.offset * 0.5f), yRest - rowH / 2), ImVec2(at.x + x0, yRest + rowH / 2), zone);
-        drawList->AddRectFilled(ImVec2(at.x + x0, yPress - rowH / 2), ImVec2(xp(static_cast<float>(c_PressSafe)), yPress + rowH / 2), zone);
-        drawList->AddLine(ImVec2(at.x + x0, at.y + 8 * u), ImVec2(at.x + x0, yPress + rowH / 2 + 4 * u),
-                          VerdictColour(KeyVerdict::Failing), 1.5f * u);
+        drawList->AddRectFilled(ImVec2(xr(m_Scale.offset * 0.5f), yRest - rowH / 2), ImVec2(x0, yRest + rowH / 2), zone);
+        drawList->AddRectFilled(ImVec2(x0, yPress - rowH / 2), ImVec2(xp(static_cast<float>(c_PressSafe)), bottom), zone);
+        drawList->AddLine(ImVec2(x0, top), ImVec2(x0, bottom + 4 * u), red, 1.5f * u);
+
         const char* threshold = "threshold";
-        drawList->AddText(ImVec2(at.x + x0 - ImGui::CalcTextSize(threshold).x / 2, yPress + rowH / 2 + 6 * u),
-                          VerdictColour(KeyVerdict::Failing), threshold);
-        drawList->AddText(ImVec2(at.x + 8 * u, yRest - 7 * u), RestColour(), "at rest");
-        drawList->AddText(ImVec2(at.x + 8 * u, yPress - 7 * u), RestColour(), "pressed");
-        const char* safer = "<- further from it is safer";
-        drawList->AddText(ImVec2(at.x + x0 - 8 * u - ImGui::CalcTextSize(safer).x, yRest - rowH / 2 + 1 * u), RestColour(), safer);
-        drawList->AddText(ImVec2(at.x + x0 + 8 * u, yPress - rowH / 2 + 1 * u), RestColour(), "further past it is safer ->");
+        drawList->AddText(ImVec2(x0 - ImGui::CalcTextSize(threshold).x / 2, bottom + 6 * u), red, threshold);
+        drawList->AddText(ImVec2(at.x, yRest - lineH / 2), RestColour(), restName);
+        drawList->AddText(ImVec2(at.x, yPress - lineH / 2), RestColour(), pressName);
+
+        const char* restSafer  = "<- further from it is safer";
+        const char* pressSafer = "further past it is safer ->";
+        drawList->AddText(ImVec2(std::max(left, x0 - 8 * u - ImGui::CalcTextSize(restSafer).x), at.y), RestColour(), restSafer);
+        drawList->AddText(ImVec2(x0 + 8 * u, at.y), RestColour(), pressSafer);
 
         const ImVec2              mouse = ImGui::GetIO().MousePos;
         std::optional<size_t>     under;
@@ -1446,7 +1469,7 @@ namespace nazg
             const KeyStats& st = judged.stats;
             if (st.stuck)
             {
-                dot(at.x + x0 + 30 * u, yRest, false);
+                dot(std::min(x0 + 30 * u, right - inset), yRest, false);
                 continue;
             }
             if (st.medianMargin)
@@ -1457,7 +1480,7 @@ namespace nazg
                 dot(xp(-static_cast<float>(std::max(0, *st.closest))) - (*st.closest <= 0 ? 6 * u : 0.0f), yPress, true);
         }
 
-        ImGui::InvisibleButton("##dots", ImVec2(w, 2 * rowH + 40 * u));
+        ImGui::InvisibleButton("##dots", ImVec2(w, bottom + 8 * u + lineH - at.y));
         if (under && ImGui::IsItemHovered())
         {
             const JudgedKey& judged = m_Health.keys[*under];
