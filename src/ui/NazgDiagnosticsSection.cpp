@@ -832,9 +832,10 @@ namespace nazg
         text += "\n" + std::string(WordOf(judged.verdict));
         if (!judged.reasons.empty())
             text += ": " + ReasonsOf(judged, "; ");
+        // Three levels, as the firmware reads them (Rico, 2026-10-17: "firmest hold 11 past" was unclear).
         text += "\nthreshold " + std::to_string(k.threshold) + "  ·  at rest " +
                 (st.restMedian ? std::to_string(*st.restMedian) : "-") + "  ·  firmest hold " +
-                (st.pressMargin ? std::to_string(*st.pressMargin) + " past" : "-");
+                (st.pressMargin ? std::to_string(k.threshold + m_Scale.direction * *st.pressMargin) : "-");
         return text;
     }
 
