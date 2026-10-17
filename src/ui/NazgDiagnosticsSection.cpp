@@ -1629,6 +1629,8 @@ namespace nazg
             (void)text;
         };
 
+        // Unwrapped: in a column sized to fit, wrapping would fit it to one character.
+        ImGui::PushTextWrapPos(-1.0f);
         if (ImGui::BeginTable("device", 3, ImGuiTableFlags_BordersInnerV))
         {
             ImGui::TableNextColumn();
@@ -1698,14 +1700,18 @@ namespace nazg
             }
             ImGui::EndTable();
         }
+        ImGui::PopTextWrapPos();
 
         ImGui::Separator();
         ImGui::TextUnformatted("Actions");
 
         // Enter bootloader at once, as the tool; Erase EEPROM asks first (Rico, 2026-10-17).
         const bool canAct = m_Link == Link::Open && !IsRequesting();
-        if (ImGui::BeginTable("actions", 2, ImGuiTableFlags_SizingFixedFit))
+        if (ImGui::BeginTable("actions", 2))
         {
+            // The buttons as wide as they are, what they do wrapping in the rest.
+            ImGui::TableSetupColumn("action", ImGuiTableColumnFlags_WidthFixed);
+            ImGui::TableSetupColumn("what", ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             ImGui::BeginDisabled(!canAct);
