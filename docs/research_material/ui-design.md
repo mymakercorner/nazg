@@ -474,6 +474,10 @@ decisions above:
   "Threshold margin, rest [3], press [3]", set apart from Levels by a divider, judged again at once
   -- kept for the session only, back to 3 when Nazg starts (Rico, 2026-10-17; "Safe at rest" was
   unclear).
+- **One reading at rest touching the threshold is enough to warn** (Rico, 2026-10-17, his F77's C,
+  at rest 385-397 against a threshold of 397): "went past its threshold untouched" -- a key that once
+  reached its threshold untouched may type by itself. A single reading less than 3 past is not a
+  press, so it counts as rest; Clear starts over. Kept rather than asking for two readings.
 - **Not in the mockups, chosen in the build** -- for Rico to check: a reading is kept until Clear or
   another load, across modes; Clear in Signal levels forgets every reading, a new pass; Key presses
   on a controller wired to no matrix says "There are no key presses to show"; a key to check is
