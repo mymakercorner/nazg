@@ -731,8 +731,8 @@ namespace nazg
         }
     }
 
-    // Coloured by verdict -- good keys and those to test plain, so only the problems stand out (Rico,
-    // 2026-10-17: the dashed keys to test were dropped) -- a key down lit, the
+    // Coloured by verdict -- only the problems, the keys to test plain (Rico, 2026-10-17: the dashed
+    // keys to test were dropped), those pressed ticked -- a key down lit, the
     // selected one outlined; with Advanced tools and Levels, the tool's numbers instead of legends.
     void DiagnosticsSection::DescribeLevels(BoardDescription& board)
     {
@@ -748,6 +748,11 @@ namespace nazg
             if (key && *key < m_Health.keys.size())
             {
                 described.condition = ConditionOf(m_Health.keys[*key].verdict);
+
+                // A key with a press registered is ticked, as in Key presses -- the board answers
+                // "pressed or not" (Rico, 2026-10-17); a problem keeps its own colour.
+                if (described.condition == KeyCondition::None && m_Health.keys[*key].stats.seen)
+                    described.marks |= Mark::Checked;
                 if (IsPressedNow(*key))
                     described.marks |= Mark::Pressed;
                 if (m_Selected == key)

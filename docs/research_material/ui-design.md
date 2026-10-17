@@ -463,7 +463,9 @@ decisions above:
   All keyboards, the lock and quitting stop it first and act once its last reading is back.
 - **Keys to test drawn plain** (Rico, 2026-10-17, seeing it on his F77): the dashed outline of the
   mockup's "Room" is dropped -- only problems are coloured on the board, and the list's to-do lines
-  name the keys to press or hold.
+  name the keys to press or hold. **A key with a press registered is ticked**, the light green of
+  Key presses' keys seen, so the board answers "pressed or not"; a problem keeps its own colour
+  (Rico, 2026-10-17).
 - **QMK's matrix ruled R0... and C0...**, as the controller's (Rico, 2026-10-17).
 - **Not in the mockups, chosen in the build** -- for Rico to check: a reading is kept until Clear or
   another load, across modes; Clear in Signal levels forgets every reading, a new pass; Key presses
