@@ -181,6 +181,8 @@ one board to unlock).
   the picker says an import is for another keyboard and why it must not be used (a tester's K10 HE
   reports `3434:0EA7`, which no published file carries; via-registry.md).
 - **Deferred**: library export / import (a web-build need).
+- **Deferred, very low priority**: the HID console (ui-design.md, "The console") -- QMK Toolbox's
+  job, not to be taken from it (Rico, 2026-10-18).
 
 **Next**: the testers' reports on the second test build, `0.1.0-test.2` (2026-10-13) -- knobs, the
 transport fix for Keychron's double replies, and the community definitions v2026.10.13 (737 boards,

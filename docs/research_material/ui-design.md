@@ -2665,6 +2665,9 @@ a definition with a mistyped `"r,c"`.
 
 ## The console
 
+**Deferred, very low priority** (Rico, 2026-10-18): it is QMK Toolbox's job, and Nazg need not take
+it over. The design below stays for if that changes.
+
 The text a QMK firmware prints — `print`, `uprintf`, `dprintf` — shown in Nazg, so debugging
 a firmware needs no second app. Today that app is QMK Toolbox, whose output cannot be selected
 or copied, or PJRC's `hid_listen`.
