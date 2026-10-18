@@ -101,7 +101,7 @@ Vial does the same: its AppImage is built in an Ubuntu 18.04 container
 | Format | For | Against |
 |---|---|---|
 | **tar.gz** (a `tools/package_linux.py` beside `package_windows.py`) | The Windows zip's twin; nothing installed; enough for testers | The udev rule is the user's to install (see below) |
-| **AppImage** | One file; what VIA and Vial ship | Needs FUSE -- the older runtime wants `libfuse2`, which Ubuntu 22.04+ no longer installs, so the current static runtime; cannot install a udev rule |
+| **AppImage** | One file; what VIA and Vial ship -- VIA a .deb beside it, no .rpm (its releases 2.0.5-3.0.0, the last desktop one, 2023); Vial only that (0.7.5) | Needs FUSE -- the older runtime wants `libfuse2`, which Ubuntu 22.04+ no longer installs, so the current static runtime; cannot install a udev rule |
 | **.deb and .rpm** (fpm or nfpm, from the same binary) | Install a desktop entry, an icon -- and could install a udev rule | Two more assets per release |
 | **Flatpak / Flathub** | Found in software centres; its runtime removes the glibc question | Flathub builds from source on its own manifest and review; `--device=all`; the rule is still needed on the host |
 
