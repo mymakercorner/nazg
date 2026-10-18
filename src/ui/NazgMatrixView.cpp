@@ -4,7 +4,7 @@
 #include "NazgMatrixView.h"
 
 #include <exception>
-#include <utility>
+#include <utility>   // std::exchange, std::move
 
 #include "imgui.h"
 
@@ -40,24 +40,17 @@ namespace nazg
     {
         Strip strip;
         strip.label   = "Matrix";
-        strip.entries = { "Wiring", "Live test" };
-        strip.chosen  = m_Live == Live::Off || m_WantsWiring ? 0 : 1;
+        strip.entries = { "Live test", "Wiring" };
+        strip.chosen  = m_ShowWiring ? 1 : 0;
         return strip;
     }
 
+    // The live test starts in DescribeBoard(), once nothing is in flight; Wiring stops it there.
     void MatrixView::OnStripChosen(size_t entry)
     {
-        if (entry == 0)
-        {
-            m_WantsWiring = true;   // done once no request is in flight, in DescribeBoard()
-        }
-        else if (!IsBusy())
-        {
-            m_WantsWiring = false;
-            m_Readings    = {};
-            m_LiveMessage.clear();
-            m_Request = StartLive();
-        }
+        m_ShowWiring = entry == 1;
+        if (!m_ShowWiring && m_Live == Live::Failed)
+            m_Live = Live::Off;   // chosen again: tried again
     }
 
     bool MatrixView::IsBusy() const
@@ -65,41 +58,50 @@ namespace nazg
         return m_Request.IsValid() && !m_Request.IsDone();
     }
 
+    // Stopped, a failure included -- tried again when shown: a locked board may be unlocked by then.
     void MatrixView::WhileHidden()
     {
-        if (m_Live != Live::Off && !IsBusy())
-            StopLiveTest();
+        m_HiddenThisFrame = true;
+        StopLiveTest();
     }
 
     void MatrixView::StopLiveTest()
     {
-        if (IsBusy())
+        if (IsBusy() || m_Live == Live::Off)
             return;
 
         m_Channel.reset();
-        m_Live        = Live::Off;
-        m_WantsWiring = false;
+        m_Live = Live::Off;
     }
 
     void MatrixView::DescribeBoard(BoardDescription& board)
     {
-        if (m_WantsWiring && !IsBusy())
+        if (m_ShowWiring)
             StopLiveTest();
 
-        // Paced here, as the Vial unlock is: a reading goes out once the last one has come
-        // back and the interval has passed since it was asked for.
-        if (m_Live == Live::Running && !m_WantsWiring && !IsBusy() &&
-            ImGui::GetTime() - m_LastPoll >= c_PollInterval)
+        // Nothing starts in a frame Nazg told the view to stop in. Otherwise the live test starts
+        // as soon as it shows, and is paced here, as the Vial unlock is: a reading goes out once
+        // the last one has come back and the interval has passed since it was asked for.
+        if (!std::exchange(m_HiddenThisFrame, false) && !m_ShowWiring && !IsBusy())
         {
-            m_LastPoll = ImGui::GetTime();
-            m_Request  = Poll();
+            if (m_Live == Live::Off)
+            {
+                m_Readings = {};
+                m_LiveMessage.clear();
+                m_Request = StartLive();
+            }
+            else if (m_Live == Live::Running && ImGui::GetTime() - m_LastPoll >= c_PollInterval)
+            {
+                m_LastPoll = ImGui::GetTime();
+                m_Request  = Poll();
+            }
         }
 
         // Layer 0's legends, so each key is recognised; the keymap itself is not the point here.
         DescribeLegends(board, m_Keyboard, 0, m_Legends);
 
         // The live test is a view of its own: only what the board reports, no wiring.
-        const bool isLive = m_Live == Live::Running && !m_WantsWiring;
+        const bool isLive = IsLiveTestRunning();
         m_Counts = DescribeMatrix(board, m_Keyboard.definition.matrixRows, m_Keyboard.definition.matrixColumns,
                                   IsLiveShown() ? MatrixFocus{} : Focus(), isLive ? &m_Readings : nullptr);
         m_KeyAt  = m_Counts.keysAt.empty()
@@ -212,9 +214,7 @@ namespace nazg
     {
         switch (m_Live)
         {
-        case Live::Off:
-            return;
-
+        case Live::Off:   // for a frame, until DescribeBoard() starts it
         case Live::Starting:
             ImGui::TextUnformatted("Opening the board...");
             return;
@@ -295,7 +295,7 @@ namespace nazg
                 if (!status.unlocked)
                 {
                     Fail("The board is locked, and Vial sends the matrix only once unlocked. Click Locked in the "
-                         "header, then choose Live test again.");
+                         "header: the test starts once it is.");
                     co_return;
                 }
 

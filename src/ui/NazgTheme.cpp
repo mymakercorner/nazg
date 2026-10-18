@@ -172,6 +172,8 @@ namespace nazg
         colour[ImGuiCol_TabSelected]          = ToFloat(t.accent, 0.60f);
         colour[ImGuiCol_TextSelectedBg]       = ToFloat(t.accent, 0.35f);
         colour[ImGuiCol_NavCursor]            = ToFloat(t.accent);
+        colour[ImGuiCol_PlotHistogram]        = ToFloat(t.accent);   // progress bars: ImGui's is yellow
+        colour[ImGuiCol_PlotHistogramHovered] = ToFloat(t.accent);
         colour[ImGuiCol_Separator]            = ToFloat(t.border);
         colour[ImGuiCol_ResizeGrip]           = ToFloat(t.accent, 0.20f);
         colour[ImGuiCol_ResizeGripHovered]    = ToFloat(t.accent, 0.67f);

@@ -2328,7 +2328,9 @@ gains an *Advanced* submenu (see "Getting back to the keyboard list"). VIA does 
 its Design pane, hidden until enabled in its settings.
 
 **The Vial unlock**, from the header's *Locked*: it takes the board screen's place, the keys to
-hold outlined on the board and a bar filling while they are held (`ui/NazgVialUnlock.*`). Once
+hold outlined on the board and a bar filling while they are held (`ui/NazgVialUnlock.*`) -- thin,
+in the theme's accent, as every progress bar now is: a frame's height in ImGui's yellow was too
+heavy (Rico, 2026-10-18). Once
 started the firmware cannot be told to stop -- the board answers nothing else until it is
 unlocked or restarted, `vial_lock` included (via-vial-commands.md, "What the lock gates") -- so
 (Rico, 2026-10-18, on the F77):
@@ -2498,6 +2500,8 @@ As built (2026-10-18), where it differs from the mockup or adds to it:
   stores as nothing (via-vial-commands.md, "What the lock gates"); then Apply reads "Unlock and
   apply" and the unlock screen comes first. The mockup also named Tap Dance and QMK Settings: wrong.
 - **Back to the board loads the board again**, so every section reads what it now holds.
+- **"Saved to B104.vil" goes after 4 seconds** (Rico, 2026-10-18: it stayed in the header);
+  "Not saved: ..." stays until the next Save or Load.
 - **Left out and said**: a keymap of another matrix size (and the knobs and layout options with
   it), layers and slots past the board's, macros longer than its buffer, settings its firmware
   lacks, knobs on a firmware with no encoder map; a value Nazg cannot read stays as the board
@@ -2578,7 +2582,8 @@ in a browser; GitHub and Markdown previews show only its source.
   line up with the keys; on a board whose wiring does not follow its
   layout — split halves numbered 5 to 9, a Model F's matrix — they cannot, the ruler is then
   an ordered list, and the drawn line shows where the row really runs.
-- **Live test** (the strip: *Wiring | Live test*): keys turn green as they are seen, with a
+- **Live test** (the strip: *Live test | Wiring* -- first, and what the view opens on, starting by
+  itself whenever the view shows; Rico, 2026-10-18): keys turn green as they are seen, with a
   count — a checklist for a freshly soldered board. A ruler label turns green when its whole
   row or column was seen; one that stays grey points at that trace, and a key lighting
   unpressed points at ghosting from a missing diode. **A view of its own** (2026-09-29): no

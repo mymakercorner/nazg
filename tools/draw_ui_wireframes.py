@@ -338,8 +338,8 @@ def list_table(s, y, columns, rows, visible=None, scrolled=False):
 
 def list_keyboards(s, y):
     boards = [("Model F Labs B104", "Vial"), ("Aquanaut", "VIA"), ("Phoenix Project No 1", "VIA")]
-    s.e += [list_text(LIST_X0, y + 16, f"Keyboards: {len(boards)}", 14, C["text"], weight=700),
-            list_button(LIST_X0 + LIST_COL - 72, y, "Refresh", 72)]
+    # No Refresh: hotplug keeps the list current (2026-10-16).
+    s.e.append(list_text(LIST_X0, y + 16, f"Keyboards: {len(boards)}", 14, C["text"], weight=700))
     rows = [[(n, 12, "start", "ink"), (p, LIST_COL - 150, "start", "muted"), ("Open", LIST_COL - 66, "start", "button")]
             for n, p in boards]
     return list_table(s, y + 34, [("Product", 12, "start"), ("Protocol", LIST_COL - 150, "start")], rows)
@@ -574,7 +574,7 @@ def matrix_view(selected, name):
     s = Svg(W, h)
     frame(s, 0, 0, W, h)
     header(s, 0, 0, W, "Aquanaut", "VIA")
-    strip(s, 12, 46, ["Wiring", "Live test"], 0, "Matrix")
+    strip(s, 12, 46, ["Live test", "Wiring"], 1, "Matrix")
     x0, y0 = (W - (m + 15 * u)) / 2, 75
     sr, sc = selected if selected else (None, None)
 

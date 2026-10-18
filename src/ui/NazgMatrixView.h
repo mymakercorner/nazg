@@ -6,18 +6,20 @@
 // board has the data, so with the setting off it would bring the column back on every
 // keymap-only board.
 //
-// Two modes in its strip. Wiring: hover a key and its row and its column light, with their
-// keys joined; hover a ruler label and that whole row or column does. Click pins what is in
-// focus, to move the mouse away; clicking it again lets go. What the board shows is
-// ui/NazgMatrixDescription.h's.
+// Two modes in its strip, Live test first and shown first (Rico, 2026-10-18).
 //
 // Live test: keys turn green as the board reports them pressed, a checklist for a freshly
-// built board -- a view of its own, with no hover, no wiring and no dimming. The board is opened once and kept open while the test runs, polled every
+// built board -- a view of its own, with no hover, no wiring and no dimming. It starts as soon
+// as it shows. The board is opened once and kept open while the test runs, polled every
 // 20 ms as VIA and Vial poll it, and closed when the test stops -- so while it runs nothing
 // else may talk to the board: HID hands every open handle a copy of each reply, and one left
 // idle would read a stale one next. The test stops once another section is shown, or when Nazg
-// needs the board -- WhileHidden(); its polling holds the header's board menu back meanwhile no
-// more than the diagnostics' does (IsPolling()).
+// needs the board -- WhileHidden() -- and starts again when the view shows again; its polling
+// holds the header's board menu back no more than the diagnostics' does (IsPolling()).
+//
+// Wiring: hover a key and its row and its column light, with their keys joined; hover a ruler
+// label and that whole row or column does. Click pins what is in focus, to move the mouse
+// away; clicking it again lets go. What the board shows is ui/NazgMatrixDescription.h's.
 //
 // The firmware must consent (via-vial-commands.md): a Vial board only while unlocked, which
 // the test checks first; a mainline VIA board only when built with VIA_INSECURE, or with
@@ -76,12 +78,12 @@ namespace nazg
         [[nodiscard]] bool IsPolling() const override { return IsBusy(); }
 
         // Stops the live test once its request is back: the next section, or whatever Nazg does with
-        // the board next, must have it.
+        // the board next, must have it. Nothing starts in the frame it is called in.
         void WhileHidden() override;
 
         // The live test is reading the board. Its keys then type into Nazg, so none of them
         // may drive the UI -- the caller turns keyboard navigation off.
-        [[nodiscard]] bool IsLiveTestRunning() const noexcept { return m_Live == Live::Running && !m_WantsWiring; }
+        [[nodiscard]] bool IsLiveTestRunning() const noexcept { return m_Live == Live::Running && !m_ShowWiring; }
 
     private:
         enum class Live
@@ -95,10 +97,10 @@ namespace nazg
         [[nodiscard]] MatrixFocus Focus() const { return m_Pinned ? *m_Pinned : m_Hovered; }
 
         // The strip is on Live test: the board and the panel show the test, not the wiring.
-        [[nodiscard]] bool IsLiveShown() const noexcept { return m_Live != Live::Off && !m_WantsWiring; }
+        [[nodiscard]] bool IsLiveShown() const noexcept { return !m_ShowWiring; }
 
-        // Ends the live test and closes the board, for another request to use it. Only when
-        // not IsBusy(); does nothing when no test runs.
+        // Ends the live test and closes the board, for another request to use it; a failed one is
+        // forgotten, to be tried again. Only when not IsBusy(); does nothing when no test runs.
         void StopLiveTest();
 
         Task<void> StartLive();
@@ -122,9 +124,10 @@ namespace nazg
 
         Live                            m_Live = Live::Off;
         std::string                     m_LiveMessage;
-        bool                            m_WantsWiring = false;   // chosen while a request was in flight
-        std::optional<HidDeviceChannel> m_Channel;               // the board, open while the live test runs
-        via::SwitchMatrixFormat         m_Format      = via::SwitchMatrixFormat::Paged;
+        bool                            m_ShowWiring      = false;   // the strip's choice: Live test unless Wiring
+        bool                            m_HiddenThisFrame = false;   // WhileHidden() was called: start nothing
+        std::optional<HidDeviceChannel> m_Channel;                   // the board, open while the live test runs
+        via::SwitchMatrixFormat         m_Format          = via::SwitchMatrixFormat::Paged;
         MatrixLive                      m_Readings;
         Task<void>                      m_Request;
         double                          m_LastPoll = 0.0;   // ImGui::GetTime() of the last poll sent

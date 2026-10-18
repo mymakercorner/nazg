@@ -5,10 +5,10 @@
 <text x="666.0" y="22.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" fill="#5F5E5A" text-anchor="end" font-weight="400">⚙</text>
 <line x1="0" y1="34" x2="680" y2="34" stroke="#E2E0D8" stroke-width="1"/>
 <text x="12.0" y="61.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#888780" text-anchor="start" font-weight="400">Matrix</text>
-<rect x="59.6" y="46.0" width="59.6" height="21.0" rx="6" fill="#E6F1FB" stroke="#378ADD" stroke-width="1"/>
-<text x="89.4" y="61.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#0C447C" text-anchor="middle" font-weight="400">Wiring</text>
-<rect x="123.2" y="46.0" width="79.4" height="21.0" rx="6" fill="#FFFFFF" stroke="#E2E0D8" stroke-width="1"/>
-<text x="162.9" y="61.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#5F5E5A" text-anchor="middle" font-weight="400">Live test</text>
+<rect x="59.6" y="46.0" width="79.4" height="21.0" rx="6" fill="#FFFFFF" stroke="#E2E0D8" stroke-width="1"/>
+<text x="99.3" y="61.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#5F5E5A" text-anchor="middle" font-weight="400">Live test</text>
+<rect x="143.0" y="46.0" width="59.6" height="21.0" rx="6" fill="#E6F1FB" stroke="#378ADD" stroke-width="1"/>
+<text x="172.8" y="61.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#0C447C" text-anchor="middle" font-weight="400">Wiring</text>
 <rect x="101.0" y="106.0" width="32.0" height="32.0" rx="4" fill="#F4F3EF" stroke="#C9C7BF" stroke-width="1"/>
 <rect x="135.0" y="106.0" width="32.0" height="32.0" rx="4" fill="#F4F3EF" stroke="#C9C7BF" stroke-width="1"/>
 <rect x="169.0" y="106.0" width="32.0" height="32.0" rx="4" fill="#F4F3EF" stroke="#C9C7BF" stroke-width="1"/>

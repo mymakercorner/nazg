@@ -55,7 +55,8 @@ namespace nazg
 
         const float done = static_cast<float>(vial::c_UnlockSteps - std::min(m_Countdown, vial::c_UnlockSteps)) /
                            static_cast<float>(vial::c_UnlockSteps);
-        ImGui::ProgressBar(done, ImVec2(-1.0f, 0.0f), m_Stage == Stage::Starting ? "starting..." : "");
+        // Thin, with no words in it (Rico, 2026-10-18): a frame's height was too heavy.
+        ImGui::ProgressBar(done, ImVec2(-1.0f, ImGui::GetFontSize() * 0.4f), "");
 
         // Quitting waits for the unlock, not leaving the board mid-unlock, where it would answer
         // nothing until unplugged (Rico, 2026-10-18).

@@ -100,7 +100,8 @@ exists, where, and how far it has been proven.
     while audio is off, Play a sound (device indication: the board's song on its own speaker); the
     board lighting the keys that change it; written at once, read each time the section is shown
     (`ui/NazgAudioSection.*`, `adapters/via/NazgViaAudio.*`).
-  - **Matrix view** (Tools, with *Advanced tools* on) -- wiring and a live test.
+  - **Matrix view** (Tools, with *Advanced tools* on) -- a live test, first and started when shown,
+    and wiring.
   - **Diagnostics** (Tools, every board answering the Leyden Jar's probe; `ui/NazgDiagnosticsSection.*`)
     -- Key presses (now and seen; the board, QMK's matrix or the controller's), Signal levels (the
     keys at risk judged by `model/NazgKeyHealth.*`: verdicts on the board, bars, the whole board as

@@ -182,9 +182,11 @@ namespace nazg
             // stored copy is read from the library when exported.
             std::vector<uint8_t> exportable;
             std::string          exportMessage;
-            // What Save to file... did, in the header (ui-design.md, "Saved layouts").
+            // What Save to file... did, in the header (ui-design.md, "Saved layouts"). A save that
+            // worked is said for a few seconds from `layoutNoteAt`; a failure stays.
             std::string layoutNote;
             bool        isLayoutNoteWarning = false;
+            double      layoutNoteAt        = 0.0;   // ImGui::GetTime() of the save; 0 while saving
 
             // What the board screen shows, Keymap first (ui/NazgSection.h), and the one chosen.
             // Made for the keyboard above once it has loaded, and dropped when a load starts.

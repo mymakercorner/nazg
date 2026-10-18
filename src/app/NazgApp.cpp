@@ -46,6 +46,9 @@ namespace nazg
         // notifications, and its HID interfaces appear one by one.
         constexpr double c_DevicesSettleDelay = 0.5;
 
+        // How long the header says a saved layout was saved.
+        constexpr double c_SavedNoteSeconds = 4.0;
+
         // Where an earlier build's imgui.ini may be: the data folder, then where Nazg was started,
         // which is where builds before the data folder kept it.
         std::vector<std::filesystem::path> LegacyIniFiles(const std::optional<std::filesystem::path>& dataFolder)
@@ -316,6 +319,7 @@ namespace nazg
     {
         m_Board.layoutNote          = "Saving...";
         m_Board.isLayoutNoteWarning = false;
+        m_Board.layoutNoteAt        = 0.0;
         try
         {
             HidDeviceChannel    channel = co_await HidDeviceChannel::Open(m_Transport, m_Board.path);
@@ -329,6 +333,7 @@ namespace nazg
             stream.close();
             m_Board.layoutNote          = stream ? "Saved to " + FileName(path) : "Not saved: cannot write " + FileName(path);
             m_Board.isLayoutNoteWarning = !stream;
+            m_Board.layoutNoteAt        = ImGui::GetTime();
         }
         catch (const std::exception& failure)
         {
@@ -788,6 +793,10 @@ namespace nazg
                                    m_Library.library->FindChoice(m_Board.identity) != nullptr;
                 header.canExport = !m_Board.exportable.empty() || UserEntryInUse() != nullptr;
                 header.hasKeyboard = !m_Board.isLoading;
+                // "Saved to B104.vil" goes after a few seconds (Rico, 2026-10-18); "Not saved" stays.
+                if (!m_Board.isLayoutNoteWarning && m_Board.layoutNoteAt > 0.0 &&
+                    ImGui::GetTime() - m_Board.layoutNoteAt > c_SavedNoteSeconds)
+                    m_Board.layoutNote.clear();
                 header.note          = m_Board.layoutNote;
                 header.isNoteWarning = m_Board.isLayoutNoteWarning;
 

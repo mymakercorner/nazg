@@ -46,7 +46,7 @@ svg.ov{position:absolute;left:0;top:0;pointer-events:none;z-index:2}
 <p class="intro">Hover a key, or a row or column label; click to pin. In Live test, click keys to stand in
 for pressing them. The board is a 60% with an illustrative matrix: row 3 has no key at C1 (the ISO key's
 position) nor at C12.</p>
-<div class="bar"><span>Matrix</span><button class="tb on" id="m1">Wiring</button><button class="tb" id="m2">Live test</button><span style="flex:1"></span><span id="cnt"></span></div>
+<div class="bar"><span>Matrix</span><button class="tb on" id="m2">Live test</button><button class="tb" id="m1">Wiring</button><span style="flex:1"></span><span id="cnt"></span></div>
 <div id="wrap"></div>
 <div id="st"></div>
 <div class="lg"><span><span class="sw" style="background:var(--abg);border:1px solid var(--abd)"></span>row</span><span><span class="sw" style="background:var(--pbg);border:1px solid var(--pbd)"></span>column</span><span><span style="text-decoration:line-through">C1</span> no key at this position in the selected row or column</span><span><span class="sw" style="background:var(--sbg);border:1px solid var(--sbd)"></span>seen in live test</span></div>
@@ -67,7 +67,7 @@ const RL=[],CL=[];
 rowPos.forEach((p,r)=>{const d=document.createElement('div');d.className='lb';Object.assign(d.style,{left:'0px',top:M+p-11+'px',width:M-4+'px',height:'22px'});d.textContent='R'+r;d.dataset.r=r;RL.push(d);wrap.appendChild(d);});
 colPos.forEach((p,c)=>{const d=document.createElement('div');d.className='lb';Object.assign(d.style,{left:M+p-15+'px',top:'2px',width:'30px',height:'22px'});d.textContent='C'+c;d.dataset.c=c;CL.push(d);wrap.appendChild(d);});
 wrap.appendChild(ov);
-let mode='wiring',seen=new Set(),pin=null;const st=document.getElementById('st'),cnt=document.getElementById('cnt');
+let mode='live',seen=new Set(),pin=null;const st=document.getElementById('st'),cnt=document.getElementById('cnt');
 function line(ks,color){if(ks.length<2)return;const p=document.createElementNS(svgNS,'polyline');p.setAttribute('points',ks.map(k=>(M+cx(k))+','+(M+cy(k))).join(' '));p.setAttribute('fill','none');p.setAttribute('stroke',color);p.setAttribute('stroke-width','2.5');p.setAttribute('stroke-linejoin','round');p.setAttribute('opacity','0.7');ov.appendChild(p);}
 function show(r,c){ov.innerHTML='';wrap.classList.toggle('dim',r!==null||c!==null);
 K.forEach(k=>{k.el.classList.toggle('r',k.r===r);k.el.classList.toggle('c',k.c===c);});
