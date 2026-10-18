@@ -342,6 +342,29 @@ namespace
 
     // Writing one key: encode, set, read back, decode. What comes back is what the board
     // stored, which is not always what was sent.
+    // 0x06 and 0x10 on every firmware; 0x0B only on a secure Vial build, unlocked -- elsewhere 0xFF.
+    void TestBoardActions()
+    {
+        std::printf("the board's actions\n");
+
+        FakeDeviceChannel channel;
+        via::Protocol     via(channel);
+
+        channel.Reply({ 0x06 });
+        Run(via.ResetKeymap());
+        channel.Reply({ 0x10 });
+        Run(via.ResetMacros());
+        channel.Reply({ 0x0B });
+        Run(via.JumpToBootloader());
+        Check(channel.RequestCount() == 3 && channel.RequestAt(0)[0] == 0x06 && channel.RequestAt(1)[0] == 0x10 &&
+                  channel.RequestAt(2)[0] == 0x0B,
+              "keymap reset 0x06, macro reset 0x10, bootloader jump 0x0B");
+        Check(channel.RequestAt(0)[1] == 0x00 && channel.RequestAt(2)[31] == 0x00, "nothing after the command id");
+
+        channel.ReplyUnhandled();
+        Check(Throws([&] { Run(via.JumpToBootloader()); }), "a firmware without the jump answers 0xFF: thrown");
+    }
+
     void TestWriteKeycode()
     {
         std::printf("write one keycode\n");
@@ -423,6 +446,7 @@ int main()
     TestMacroQueries();
     TestSupportsProbe();
     TestWriteKeycode();
+    TestBoardActions();
 
     return TestResult();
 }

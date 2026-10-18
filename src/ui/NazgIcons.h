@@ -30,6 +30,7 @@ namespace nazg
         ChartGridDots         = 0xF4C2,
         CircleDot             = 0xEFB1,
         Components            = 0xEFA5,
+        Cpu                   = 0xEF8E,
         DeviceDesktop         = 0xEA89,
         DeviceGamepad2        = 0xF1D2,
         DeviceMobileVibration = 0xEB86,

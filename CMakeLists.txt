@@ -234,6 +234,8 @@ set(NAZG_SOURCES
   src/ui/NazgCustomMenuSection.cpp
   src/ui/NazgLayoutSection.h
   src/ui/NazgLayoutSection.cpp
+  src/ui/NazgDeviceSection.h
+  src/ui/NazgDeviceSection.cpp
   src/ui/NazgDiagnosticsSection.h
   src/ui/NazgDiagnosticsSection.cpp
   src/ui/NazgMatrixView.h

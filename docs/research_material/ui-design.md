@@ -2280,6 +2280,47 @@ Decided by Rico 2026-10-11:
 strip's need the DKS switch, the column's the firmware version, read once with the board), and
 again each time the section is shown -- the board's keys may change them.
 
+## The Device section
+
+What is done to the board as a whole, on every VIA and Vial board: enter its bootloader, put back
+the keymap its firmware was built with, empty its macros. VIA has them in its Debug pane, Vial its
+bootloader in the Security menu; Nazg had them only on Leyden Jar boards, in Diagnostics. Mockup:
+[ui-design/board-actions.html](ui-design/board-actions.html).
+
+**What the firmware allows** (via-vial-commands.md; vial-qmk's `via.c` and QMK's
+`dynamic_keymap.c`, read 2026-10-18):
+
+| | VIA | Vial, secure | Vial, `VIAL_INSECURE` |
+|---|---|---|---|
+| Enter bootloader (`0x0B`) | no command: `0xFF` | once unlocked | no command: `0xFF` |
+| Reset keymap (`0x06`) -- every layer's keys **and knobs**, as built | yes | yes, no unlock | yes |
+| Empty macros (`0x10`) | yes | yes, even locked | yes |
+
+VIA's *Reset EEPROM* (`0x0A`) is not offered: it needs `VIA_EEPROM_ALLOW_RESET`, which most
+firmware lacks, and does only the two resets and the layout options.
+
+Chosen on the mockup (Rico, 2026-10-18):
+
+- **A Device section in Tools, on every board** -- the board menu and each action in its own
+  section were the alternatives. A keymap-only board shows the section column with it, Keymap and
+  Device.
+- **A board without the command says how** rather than hiding it: the key holding `QK_BOOT`, lit
+  on the board, and its layer; or the reset button, or `QK_BOOT` to put on a key in Keymap.
+- **The resets ask, Cancel or the action**, the line still saying Save to file... keeps what the
+  board holds; the dialog offering Save to file... itself was declined.
+- **A Leyden Jar board keeps both**: the Device section, and Diagnostics' Device view with the
+  Leyden Jar's own bootloader and erase -- which work on an insecure build too, so the Device
+  section's line points there.
+
+As built (2026-10-18), where it differs from the mockup or adds to it:
+
+- **A locked board's bootloader button is greyed**, the line saying to click Locked in the header --
+  not "Unlock and enter" running the unlock first, as the mockup drew. The bootloader asks too,
+  Cancel or Enter bootloader.
+- **After a reset Nazg loads the board again** (`Section::TakeBoardChanged()`), asking first about
+  changes not written in other sections; **after the bootloader** the list says where it went, as
+  Diagnostics does.
+
 ## The common screens
 
 **1. No board open.** The keyboards found, each with its protocol and *Open*. No section
@@ -2289,7 +2330,8 @@ people never see this screen.
 ![No board open](ui-design/screen-no-board.svg)
 
 **2. A board with a keymap only** — the most common case and the simplest screen: header,
-layer strip, board, keycode picker. No column, since there is one section. Click a key, it is
+layer strip, board, keycode picker, and the column with Keymap and Device -- every board has the
+Device section (2026-10-18; until then a keymap-only board had no column). Click a key, it is
 outlined; click a keycode, it is written.
 
 ![Keymap, board with a keymap only](ui-design/screen-keymap-only.svg)
@@ -2818,7 +2860,8 @@ look is built** (Rico, 2026-10-03): they are judged on the real thing, not on a 
   | | Haptic Feedback (2) | `device-mobile-vibration` |
   | | Knob (1); the keywords encoder, dial | `rotate-clockwise` |
   | | Display (no label yet; the keywords display, OLED, LCD, screen) | `device-desktop` |
-  | Tools | Diagnostics (the Leyden Jar's) | `activity` |
+  | Tools | Device (every board's; 2026-10-18, proposed with the section, not reviewed) | `cpu` |
+  | | Diagnostics (the Leyden Jar's) | `activity` |
   | | Matrix -- if the matrix view joins Tools, still open | `chart-grid-dots` |
   | | A plugin bringing no icon of its own | `puzzle` |
 

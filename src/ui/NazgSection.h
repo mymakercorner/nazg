@@ -113,6 +113,11 @@ namespace nazg
         // board then, as when it is unplugged -- a restart can be too quick for hotplug to see.
         [[nodiscard]] virtual std::string BoardLeft() const { return {}; }
 
+        // The board was changed under the other sections -- its keymap put back, its macros emptied
+        // (the Device section): true once, and Nazg loads the board again, asking first about
+        // changes not written yet.
+        [[nodiscard]] virtual bool TakeBoardChanged() { return false; }
+
         // Changes not written to the board yet -- Macros writes by Save (ui-design.md, "The Macros
         // section"). Kept while the user moves between sections; before the board is closed or
         // Nazg quits, the user is asked: Save, which starts the write -- wait for IsBusy() to end --

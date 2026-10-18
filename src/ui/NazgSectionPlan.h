@@ -33,6 +33,7 @@ namespace nazg
         AltRepeatKey,
         QmkSettings,
         CustomMenu,     // one of a VIA V3 definition's own menus
+        Device,         // every board's: its bootloader, its keymap and macros reset, in the Tools group
         Diagnostics,    // the Leyden Jar controller's, in the Tools group
     };
 

@@ -178,6 +178,18 @@ namespace nazg::via
         [[nodiscard]] Task<void> WriteMacros(const std::vector<uint8_t>& stored, const std::vector<uint8_t>& bytes,
                                              uint16_t bufferSize);
 
+        // 0x06: every layer's keys and knobs back to the keymap the firmware was built with (QMK's
+        // dynamic_keymap_reset()). 0x10: every macro emptied. Every VIA and Vial firmware has both,
+        // and vial-qmk's lock gates neither (via-vial-commands.md).
+        [[nodiscard]] Task<void> ResetKeymap();
+        [[nodiscard]] Task<void> ResetMacros();
+
+        // 0x0B: the board restarts in its bootloader. Only vial-qmk's secure builds have it, and only
+        // unlocked: mainline VIA dropped it and an insecure Vial build lacks it -- both answer 0xFF,
+        // thrown -- and a locked board echoes it and stays, so ask the lock first. The answer comes
+        // before the jump; then the board is gone.
+        [[nodiscard]] Task<void> JumpToBootloader();
+
         // 0x08 / 0x07 / 0x09: a custom value -- the lighting systems' among them (model/NazgLighting.h).
         // With a channel, VIA V3's format: [channel][value id][value]. Without, the format before
         // it, which VIA 9 and 10 and every vial-qmk speak: [value id][value] -- VialRGB's commands

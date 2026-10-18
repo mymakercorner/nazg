@@ -119,7 +119,7 @@ def header(s, x, y, w, name, proto="", lock=None, open_menu=False):
     return 34
 
 
-NAV = ["Keymap", "Layout", "Macros", "Tap dance", "Combos", "QMK settings", "Diagnostics"]
+NAV = ["Keymap", "Layout", "Macros", "Tap dance", "Combos", "QMK settings", "Device", "Diagnostics"]
 
 
 def nav(s, x, y, h, on, items=NAV, w=150):
@@ -365,16 +365,19 @@ def screen_no_board():
 
 
 def screen_keymap_only():
-    h = 34 + 12 + 21 + 8 + 130 + 8 + 64 + 12
+    # Keymap and Device: every board has the Device section, so the column too (2026-10-18).
+    h = 34 + 12 + 21 + 8 + 120 + 8 + 64 + 12 + 10
     s = Svg(W, h)
     frame(s, 0, 0, W, h)
     header(s, 0, 0, W, "Aquanaut", "VIA")
+    nav(s, 0.5, 34.5, h - 35, "Keymap", ["Keymap", "Device"])
+    x, mw = 162, W - 174
     y = 46
-    strip(s, 12, y, ["0", "1", "2", "3"], 0, "Layer")
+    strip(s, x, y, ["0", "1", "2", "3"], 0, "Layer")
     y += 29
-    board(s, (W - 390) / 2, y, 26, sel=17)
-    y += 138
-    picker(s, 12, y, W - 24)
+    board(s, x + (mw - 360) / 2, y, 24, sel=17)
+    y += 130
+    picker(s, x, y, mw)
     s.save("screen-keymap-only.svg")
 
 

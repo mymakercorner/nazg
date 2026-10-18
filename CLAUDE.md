@@ -112,6 +112,10 @@ exists, where, and how far it has been proven.
     channel's farewell, written whenever the board closes, the transport's shutdown included. Each
     reading is one request series on the transport's worker, not a frame per round trip. A polling
     section holds nothing back (`Section::IsPolling()`): App's `WhenBoardIdle()` stops it first.
+  - **Device** (Tools, every board; `ui/NazgDeviceSection.*`) -- enter the bootloader where the
+    firmware has the command (a secure Vial build, unlocked) and say how elsewhere, the key holding
+    `QK_BOOT` lit; reset the keymap (keys and knobs, as built); empty the macros. Each asks; a
+    reset loads the board again. A Leyden Jar board keeps Diagnostics' own too.
   - **A board's own menus** (VIA V3 custom menus, Board group) -- submenus in the strip, lines in two
     columns, showIf, sliders tied by constraints, Keymap's picker under the lines, written at once
     (`ui/NazgCustomMenuSection.*`, `adapters/via/NazgViaCustomMenu.*`). Read per submenu when shown.
@@ -150,6 +154,7 @@ one board to unlock).
 | Hotplug: boards plugged and unplugged, the list and the open board following (Rico, 2026-10-16) | |
 | Key health on Rico's F77 recordings: nothing accused, 26 good and 49 to hold, as the mockup (test) | |
 | Diagnostics on Rico's F77: key output off and on again, Key presses, Signal levels, Device; Enter bootloader and Erase EEPROM, the board closed and the list saying where it went (2026-10-17); Key presses and Enter bootloader on the F77 locked, past Vial's lock (2026-10-18) | |
+| The Device section on Rico's boards (2026-10-18): the bootloader, said how where the firmware lacks it, keymap reset, macros emptied | |
 
 ## Traps already found
 

@@ -324,6 +324,21 @@ namespace nazg::via
         co_await SendFrame(CustomFrame(Command::CustomSetValue, channel, valueId, value), true, channel ? 3 : 2);
     }
 
+    Task<void> Protocol::ResetKeymap()
+    {
+        co_await Send(Command::DynamicKeymapReset, {});
+    }
+
+    Task<void> Protocol::ResetMacros()
+    {
+        co_await Send(Command::MacroReset, {});
+    }
+
+    Task<void> Protocol::JumpToBootloader()
+    {
+        co_await Send(Command::BootloaderJump, {});
+    }
+
     Task<void> Protocol::SaveCustomValues(std::optional<uint8_t> channel)
     {
         std::vector<uint8_t> frame(c_ReportSize, 0x00);

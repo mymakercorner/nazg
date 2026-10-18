@@ -441,6 +441,23 @@ namespace nazg
             }
     }
 
+    // Once: the request that changed it is back, and the leaving asks about what is not written.
+    void App::ReloadChangedBoard()
+    {
+        if (IsAwaitingBoard())
+            return;
+        for (const auto& section : m_Board.sections)
+            if (section->TakeBoardChanged())
+            {
+                LeaveBoard([this]
+                {
+                    if (m_Board.keyboard)
+                        StartLoad(m_Board.path, m_Board.identity, m_Board.inUse);
+                });
+                return;
+            }
+    }
+
     // The list comes back saying `said` until the board is listed again.
     void App::CloseBoard(std::string said)
     {
@@ -664,6 +681,7 @@ namespace nazg
         }
         CloseUnpluggedBoard();
         CloseLeftBoard();
+        ReloadChangedBoard();
 
         // The matrix live test asks for every key of the board to be pressed, and they all type
         // into Nazg: with keyboard navigation on, an arrow then Space would click whatever has

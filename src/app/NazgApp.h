@@ -240,6 +240,9 @@ namespace nazg
         void CloseLeftBoard();
         void CloseBoard(std::string said);
 
+        // A section changed the board under the others (Section::TakeBoardChanged()): loaded again.
+        void ReloadChangedBoard();
+
         // Leaving the board -- for another, the list, another definition, or quitting.
         [[nodiscard]] bool HasUnsaved() const;
         void               LeaveBoard(std::function<void()> leave);

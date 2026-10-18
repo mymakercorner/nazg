@@ -37,8 +37,11 @@ namespace
         std::printf("a board with nothing but its keymap\n");
 
         const std::vector<PlannedSection> sections = nazg::PlanSections(Keyboard{});
-        Check(sections.size() == 1 && sections[0].kind == SectionKind::Keymap && sections[0].icon == Icon::Keyboard,
-              "Keymap alone -- the column is hidden");
+        Check(sections.size() == 2 && sections[0].kind == SectionKind::Keymap && sections[0].icon == Icon::Keyboard,
+              "Keymap, and Device: the column shows on every board (Rico, 2026-10-18)");
+        Check(sections.size() == 2 && sections[1].kind == SectionKind::Device && sections[1].group == SectionGroup::Tools &&
+                  sections[1].icon == Icon::Cpu,
+              "Device in the Tools group, with Tabler's cpu");
     }
 
     // The Model F as Vial reports it: every feature compiled in, lighting declared.
@@ -59,15 +62,15 @@ namespace
 
         const std::vector<PlannedSection> sections = nazg::PlanSections(keyboard);
         Check(NamesOf(sections) == std::vector<std::string>{ "Keymap", "Layout", "Macros", "Lighting", "Tap Dance", "Combos",
-                                                             "Key Overrides", "Alt Repeat Key", "QMK Settings" },
-              "Keymap, Layout, Macros, Lighting, then Vial's features, in ui-design.md's order");
-        Check(sections.size() == 9 && sections[4].icon == Icon::HandClick && sections[7].icon == Icon::Repeat,
+                                                             "Key Overrides", "Alt Repeat Key", "QMK Settings", "Device" },
+              "Keymap, Layout, Macros, Lighting, then Vial's features, in ui-design.md's order, then Device");
+        Check(sections.size() == 10 && sections[4].icon == Icon::HandClick && sections[7].icon == Icon::Repeat,
               "with the icons Rico chose");
 
         bool allNazg = true;
-        for (const PlannedSection& section : sections)
-            allNazg = allNazg && section.group == SectionGroup::Protocol;
-        Check(allNazg, "all in Nazg's group");
+        for (size_t index = 0; index + 1 < sections.size(); ++index)
+            allNazg = allNazg && sections[index].group == SectionGroup::Protocol;
+        Check(allNazg && sections.back().group == SectionGroup::Tools, "all in Nazg's group, Device in Tools");
 
         keyboard.definition.lighting = "none";
         keyboard.report.comboCount   = 0;
@@ -76,7 +79,7 @@ namespace
         Check(std::find(fewer.begin(), fewer.end(), "Combos") == fewer.end(), "a feature with no entries is no section");
     }
 
-    // A Leyden Jar board: Diagnostics in the Tools group, after everything else.
+    // A Leyden Jar board: Diagnostics in the Tools group, after everything else -- Device too.
     void TestLeydenJarBoard()
     {
         std::printf("a Leyden Jar board\n");
@@ -87,13 +90,14 @@ namespace
         keyboard.report.isLeydenJar = true;
 
         const std::vector<PlannedSection> sections = nazg::PlanSections(keyboard);
-        Check(NamesOf(sections) == std::vector<std::string>{ "Keymap", "Macros", "Diagnostics" }, "Diagnostics last");
+        Check(NamesOf(sections) == std::vector<std::string>{ "Keymap", "Macros", "Device", "Diagnostics" },
+              "Diagnostics last, after Device -- both kept (Rico, 2026-10-18)");
         Check(sections.back().kind == SectionKind::Diagnostics && sections.back().group == SectionGroup::Tools &&
                   sections.back().icon == Icon::Activity,
               "in the Tools group, with Tabler's activity");
 
         keyboard.report.isLeydenJar = false;
-        Check(NamesOf(nazg::PlanSections(keyboard)).size() == 2, "no Leyden Jar, no Diagnostics");
+        Check(NamesOf(nazg::PlanSections(keyboard)).size() == 3, "no Leyden Jar, no Diagnostics");
     }
 
     // NEVEREST 60: VIA's sections, then cipulot's eight menus in the definition's order.
@@ -116,16 +120,16 @@ namespace
 
         const std::vector<PlannedSection> sections = nazg::PlanSections(keyboard);
         Check(NamesOf(sections) == std::vector<std::string>{ "Keymap", "Macros", "Lighting", "Audio", "Switch Configuration",
-                                                             "Tap Dance", "SOCD", "Mystery" },
-              "Nazg's first, VIA's built-in lighting and audio among them, then the menus in order");
-        Check(sections.size() == 8 && sections[4].group == SectionGroup::Board && sections[3].group == SectionGroup::Protocol,
+                                                             "Tap Dance", "SOCD", "Mystery", "Device" },
+              "Nazg's first, VIA's built-in lighting and audio among them, then the menus in order, then Device");
+        Check(sections.size() == 9 && sections[4].group == SectionGroup::Board && sections[3].group == SectionGroup::Protocol,
               "the menus in the Board group");
-        Check(sections.size() == 8 && sections[4].icon == Icon::ArrowBarToDown && sections[5].icon == Icon::HandClick &&
+        Check(sections.size() == 9 && sections[4].icon == Icon::ArrowBarToDown && sections[5].icon == Icon::HandClick &&
                   sections[7].icon == Icon::None,
               "each menu's icon from its label; an unknown one gets a monogram");
-        Check(sections.size() == 8 && sections[5].customMenu == 1 && sections[7].customMenu == 3,
+        Check(sections.size() == 9 && sections[5].customMenu == 1 && sections[7].customMenu == 3,
               "each knows its menu in the definition");
-        Check(sections.size() == 8 && sections[5].name == "Tap Dance" && sections[7].name == "Mystery",
+        Check(sections.size() == 9 && sections[5].name == "Tap Dance" && sections[7].name == "Mystery",
               "a menu the firmware version allows is shown, as is one whose condition names another value -- the "
               "section judges that one; DKS, which wants version 6, is left out");
 

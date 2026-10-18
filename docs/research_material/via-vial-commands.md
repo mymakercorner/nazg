@@ -41,7 +41,14 @@ watching for `0xFF`.
 
 `id_bootloader_jump` (0x0B) deserves a note: it is still in mainline's enum but **mainline
 VIA no longer implements it** — there is no case for it in `via.c`, so it returns `0xFF`.
-Vial kept it, gated behind unlock and excluded from `VIAL_INSECURE` builds.
+Vial kept it, gated behind unlock and excluded from `VIAL_INSECURE` builds: it answers, waits
+100 ms, then jumps; a locked board echoes it and stays (vial-qmk's `via.c`, read 2026-10-18).
+
+`id_eeprom_reset` (0x0A) is less than its name: `eeconfig_init_via()` puts back the layout options'
+default, then calls `dynamic_keymap_reset()` and `dynamic_keymap_macro_reset()` -- what `0x06` and
+`0x10` do on every firmware, without the build flag. `dynamic_keymap_reset()` puts back every
+layer's keys **and**, with `ENCODER_MAP_ENABLE`, its knobs (QMK's `dynamic_keymap.c`, 2026-10-18).
+Neither reset reboots the board, and vial-qmk's lock gates neither.
 
 ### Vial commands do NOT use the 0xFF marker
 

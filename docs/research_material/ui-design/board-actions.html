@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- Mockup of the board's own actions: entering the bootloader, putting back the firmware's keymap,
+     emptying the macros (ui-design.md, "The board's actions").
+
+     First round (2026-10-18), after the parity review: VIA and Vial both offer these, Nazg only on
+     Leyden Jar boards (Diagnostics). What the firmware does (via-vial-commands.md, vial-qmk's via.c,
+     QMK's dynamic_keymap.c, read 2026-10-18):
+     - id_bootloader_jump (0x0B): mainline VIA has no handler -- 0xFF. vial-qmk handles it only in a
+       secure build, only unlocked (echoed while locked); VIAL_INSECURE builds have none. It answers,
+       waits 100 ms, then jumps.
+     - id_dynamic_keymap_reset (0x06): every firmware, no unlock: every layer's keys AND knobs back
+       to the keymap the firmware was built with.
+     - id_dynamic_keymap_macro_reset (0x10): every firmware, no unlock, even a locked Vial board: every
+       macro emptied.
+     - id_eeprom_reset (0x0A), VIA's "Reset EEPROM": only with VIA_EEPROM_ALLOW_RESET, and it is
+       only the two above plus layout options -- not offered; the two cover it everywhere.
+
+     The variants: where the actions go; what a board without a bootloader command shows.
+
+     Settled 2026-10-18 (Rico): a Device section in Tools, on every board; a board without the
+     command says how; the resets ask Cancel or Reset, no Save to file... button; a Leyden Jar board
+     keeps Diagnostics' Device view too. Built the same day: a locked board's button is greyed, the
+     line saying to unlock in the header -- not "Unlock and enter". The toggles keep the alternatives. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Board actions mockup</title>
+<style>
+:root{--window:#f3f3f5;--menubar:#e3e4e9;--text:#1d1e22;--muted:#6b6e78;--control:#ffffff;--border:#c8cad2;--accent:#3b82f6;--accent-text:#fff;--panel:#f8f8fa;--column:#ebecf0;--selected:rgba(59,130,246,.16);
+--plate:#d3d4d8;--key:#ffffff;--keyline:#b4b7c2;--ok:#15803d;--warn:#c2410c;--err:#dc2626;--chg:#2563eb;--chgface:#e3edfd;--shade:rgba(20,22,30,.35)}
+:root[data-theme="dark"]{--window:#0f0f11;--menubar:#24252b;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--accent:#4296fa;--accent-text:#fff;--panel:#16171b;--column:#16171b;--selected:rgba(66,150,250,.22);
+--plate:#1c1d23;--key:#3a3c48;--keyline:#4b4e5c;--ok:#4ade80;--warn:#fb923c;--err:#f87171;--chg:#60a5fa;--chgface:#1b2a44;--shade:rgba(0,0,0,.55)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--window);color:var(--text);font-family:Arimo,"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+.controls{display:flex;flex-wrap:wrap;gap:8px 22px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.group .name{color:var(--muted);margin-right:4px}
+button{font:inherit;padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--control);color:var(--text);cursor:pointer}
+button.on,button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+button.danger{background:var(--err);border-color:var(--err);color:#fff}
+button:disabled{opacity:.45;cursor:default}
+code{font-family:Consolas,monospace;font-size:12px}
+.stage{padding:16px;overflow-x:auto}
+.frame{position:relative;margin:0 auto;width:1000px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--window);box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.menubar{display:flex;gap:18px;align-items:center;background:var(--menubar);padding:5px 14px}
+.menubar .board{font-weight:600;padding:1px 6px;margin-left:-6px;border-radius:5px}
+.menubar .board.open{background:var(--selected)}
+.muted{color:var(--muted)}
+.menubar .right{margin-left:auto;color:var(--muted)}
+.menu{position:absolute;top:27px;left:8px;z-index:5;min-width:250px;padding:4px;border:1px solid var(--border);border-radius:6px;background:var(--control);box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.menu .it{display:flex;justify-content:space-between;gap:20px;padding:4px 10px;border-radius:4px}
+.menu .it.new{background:var(--chgface)}
+.menu .it .sub{color:var(--muted)}
+.menu .sep{border-top:1px solid var(--border);margin:4px 2px}
+.body{display:flex;min-height:430px}
+.col{flex:none;width:180px;background:var(--column);border-right:1px solid var(--border);padding:6px 5px;display:flex;flex-direction:column;gap:2px}
+.col .hdr{font-weight:700;font-size:12px;padding:6px 10px 2px}
+.col .sep{border-top:1px solid var(--border);margin:5px 4px}
+.entry{padding:7px 10px;border-radius:6px;color:var(--muted)}
+.entry.on{background:var(--selected);color:var(--text);box-shadow:inset 3px 0 0 var(--accent)}
+.entry.new{outline:1px dashed var(--chg)}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;padding:10px 14px 14px;gap:10px}
+.strip{display:flex;gap:4px}
+.strip .tab{padding:4px 12px;border:1px solid var(--border);border-radius:6px;background:var(--control)}
+.strip .tab.on{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+svg.board{display:block;margin:0 auto}
+.panel{border:1px solid var(--border);border-radius:6px;background:var(--panel)}
+.head{display:flex;align-items:center;gap:6px 14px;padding:7px 12px;flex-wrap:wrap;min-height:41px}
+.head .right{margin-left:auto;display:flex;gap:8px}
+.head .new{outline:1px dashed var(--chg);outline-offset:2px}
+.lines{display:grid;grid-template-columns:150px 1fr;gap:6px 14px;padding:4px 12px 12px}
+.shade{position:absolute;inset:0;background:var(--shade);display:flex;align-items:center;justify-content:center;z-index:6}
+.dialog{width:520px;max-width:92%;border:1px solid var(--border);border-radius:8px;background:var(--window);box-shadow:0 8px 30px rgba(0,0,0,.3)}
+.dialog .dt{padding:8px 14px;font-weight:700;border-bottom:1px solid var(--border);background:var(--menubar);border-radius:8px 8px 0 0}
+.dialog .db{padding:12px 14px;line-height:1.55}
+.dialog .df{display:flex;gap:8px;justify-content:flex-end;align-items:center;padding:8px 14px 12px}
+.list{max-width:560px;margin:60px auto;padding:0 20px}
+.list .msg{color:var(--muted);margin-bottom:10px}
+.list table{width:100%;border:1px solid var(--border);border-radius:8px;border-collapse:separate;border-spacing:0;background:var(--control)}
+.list td,.list th{padding:7px 12px;text-align:left}
+.list th{color:var(--muted);font-weight:700;border-bottom:1px solid var(--border)}
+.notes{max-width:1000px;margin:0 auto;padding:4px 16px 30px;color:var(--muted);line-height:1.55}
+.notes b{color:var(--text);font-weight:600}
+.notes p{margin:0 0 8px}
+</style>
+</head>
+<body>
+<div class="controls" id="controls"></div>
+<div class="stage"><div class="frame" id="frame"></div></div>
+<div class="notes" id="notes"></div>
+<script>
+"use strict";
+// The boards at hand, as Nazg sees them. Where QMK's QK_BOOT sits is from each keymap (made up for
+// the Phoenix and the Concordia, the F77's and the B104's from Rico's vial-qmk fork).
+const BOARDS = {
+  'VIA (Phoenix)': { name: 'Phoenix Project No 1', proto: 'VIA 12', vial: false, macros: 16, boot: 'Fn + Esc (layer 1)' },
+  'Vial secure, locked (F77)': { name: 'F77 Model F Keyboard', proto: 'Vial 6', vial: true, secure: true, locked: true, macros: 64, boot: 'layer 2, the Q key' },
+  'Vial secure, unlocked (F77)': { name: 'F77 Model F Keyboard', proto: 'Vial 6', vial: true, secure: true, locked: false, macros: 64, boot: 'layer 2, the Q key' },
+  'Vial insecure (B104)': { name: 'Model F Labs B104', proto: 'Vial 6', vial: true, secure: false, macros: 64, boot: null },
+};
+const state = { board: 'VIA (Phoenix)', where: 'Board menu', noBoot: 'Says how', step: 'Menu open', theme: 'Light' };
+const STEPS = ['Menu open', 'Ask: bootloader', 'Ask: reset keymap', 'Ask: empty macros', 'Bootloader entered', 'Keymap reset'];
+const b = () => BOARDS[state.board];
+const canJump = () => b().vial && b().secure;
+const bootShown = () => canJump() || state.noBoot === 'Says how';
+
+function boardSvg() {
+  const u = 34, rows = [[1, 0.5, 4, 0.5, 4, 0.5, 4], [15], [1.5, 13, 1.5], [1.75, 12, 2.25], [2.25, 11, 2.75], [1.25, 1.25, 1.25, 6.25, 1.25, 1.25, 1.25, 1.25]];
+  let svg = `<svg class="board" width="${15 * u + 20}" height="${6 * u + 20}"><rect x="2" y="2" width="${15 * u + 16}" height="${6 * u + 16}" rx="8" fill="var(--plate)"/>`;
+  rows.forEach((r, y) => {
+    let x = 0;
+    r.forEach((w, i) => {
+      const gap = (y === 0 && i % 2 === 1);
+      const n = (w > 2 && y > 0 && y < 5) ? Math.round(w) : (y === 0 && !gap ? Math.round(w) : 1);
+      const kw = w / n;
+      for (let k = 0; k < n && !gap; k++)
+        svg += `<rect x="${10 + (x + k * kw) * u + 2}" y="${10 + y * u + 2}" width="${kw * u - 4}" height="${u - 4}" rx="5" fill="var(--key)" stroke="var(--keyline)"/>`;
+      x += w;
+    });
+  });
+  return svg + `</svg>`;
+}
+
+function menubarHtml(open) {
+  const lock = b().vial && b().secure ? `<span class="muted">${b().locked ? 'Locked' : 'Unlocked'}</span>` : '';
+  let html = `<div class="menubar"><span class="board${open ? ' open' : ''}">${b().name} ▾</span><span class="muted">${b().proto}</span>${lock}<span class="right">Settings</span></div>`;
+  if (!open) return html;
+  html += `<div class="menu"><div class="it">Switch to<span class="sub">Concordia Type C · VIA ▸</span></div><div class="sep"></div>`
+    + `<div class="it">Save to file...</div><div class="it">Load from file...</div><div class="sep"></div>`;
+  if (state.where === 'Board menu') {
+    html += `<div class="it new">Reset keymap...</div><div class="it new">Empty macros...</div>`;
+    if (bootShown()) html += `<div class="it new">Enter bootloader...</div>`;
+    html += `<div class="sep"></div>`;
+  } else if (state.where === 'Each in its place' && bootShown()) {
+    html += `<div class="it new">Enter bootloader...</div><div class="sep"></div>`;
+  }
+  return html + `<div class="it">All keyboards</div></div>`;
+}
+
+function columnHtml() {
+  const proto = b().vial ? ['Keymap', 'Layout', 'Macros', 'Tap Dance', 'Combos', 'Key Overrides', 'QMK Settings'] : ['Keymap', 'Layout', 'Macros', 'Lighting'];
+  const device = state.where === 'A Device section';
+  const on = device && state.step !== 'Menu open' ? 'Device' : state.where === 'Each in its place' && state.step === 'Ask: empty macros' ? 'Macros' : 'Keymap';
+  let html = `<div class="col"><div class="hdr">${b().vial ? 'Vial' : 'VIA'}</div>` + proto.map(e => `<div class="entry${e === on ? ' on' : ''}">${e}</div>`).join('');
+  html += `<div class="sep"></div><div class="hdr">Tools</div>`;
+  if (b().name.startsWith('F77')) html += `<div class="entry">Diagnostics</div>`;
+  if (device) html += `<div class="entry new${on === 'Device' ? ' on' : ''}">Device</div>`;
+  return html + `</div>`;
+}
+
+function panelHtml() {
+  const where = state.where, step = state.step;
+  if (where === 'A Device section' && step !== 'Menu open') {
+    const boot = canJump() ? `<button>${b().locked ? 'Unlock and enter bootloader' : 'Enter bootloader'}</button>`
+      : state.noBoot === 'Says how' ? `<span class="muted">No bootloader command: ${b().boot ? `press QK_BOOT -- ${b().boot}` : 'press the board\'s reset button'}.</span>` : '';
+    return `<div class="panel"><div class="head"><b>${b().name}</b><span class="muted">${b().proto} · keycodes 0.0.7</span></div><div class="lines">`
+      + `<div>Firmware</div><div>${boot}</div>`
+      + `<div>Keymap</div><div><button>Reset keymap...</button> <span class="muted">every layer's keys and knobs, as the firmware was built</span></div>`
+      + `<div>Macros</div><div><button>Empty macros...</button> <span class="muted">all ${b().macros}</span></div></div></div>`;
+  }
+  if (where === 'Each in its place' && step === 'Ask: empty macros')
+    return `<div class="panel"><div class="head"><span>M0 -- empty</span><span class="right"><span class="new"><button>Empty all...</button></span><button disabled>Revert</button><button class="primary" disabled>Save</button></span></div></div>`;
+  const reset = where === 'Each in its place' ? `<span class="right"><span class="new"><button>Reset keymap...</button></span></span>` : '';
+  return `<div class="panel"><div class="head"><span class="muted">Click a key to change what it sends.</span>${reset}</div></div>`;
+}
+
+function askHtml() {
+  const step = state.step, board = b();
+  let title, body, buttons;
+  if (step === 'Ask: bootloader') {
+    title = 'Enter the bootloader';
+    if (canJump()) {
+      body = `The ${board.name} restarts in its bootloader, to take a new firmware: it leaves Nazg, and shows as a drive -- RPI-RP2. Flash it, and it comes back in the list.`
+        + (board.locked ? `<br><br><span class="muted">Vial lets only an unlocked board do this: its unlock keys come first.</span>` : '');
+      buttons = `<button>Cancel</button><button class="primary">${board.locked ? 'Unlock and enter' : 'Enter bootloader'}</button>`;
+    } else {
+      body = (board.vial ? `This Vial firmware was built insecure, without the command that restarts it in its bootloader.`
+        : `VIA's firmware has no command that restarts the board in its bootloader.`)
+        + `<br><br>${board.boot ? `Press the key holding QK_BOOT: <b>${board.boot}</b>.` : `No key holds QK_BOOT: put one on a layer in Keymap, or press the board's reset button.`}`;
+      buttons = `<button class="primary">OK</button>`;
+    }
+  } else if (step === 'Ask: reset keymap') {
+    title = 'Reset the keymap';
+    body = `Every layer's keys and knobs go back to the keymap the ${board.name}'s firmware was built with. Macros, ${board.vial ? 'tap dances, combos, ' : ''}lighting and layout options stay.`
+      + `<br><br><span class="muted">To keep this keymap, Save to file... first: Load from file... brings it back.</span>`;
+    buttons = `<button>Cancel</button><button>Save to file...</button><button class="danger">Reset keymap</button>`;
+  } else {
+    title = 'Empty the macros';
+    body = `All ${board.macros} macros are emptied. Keys that play one stay, and play nothing.`
+      + `<br><br><span class="muted">To keep them, Save to file... first: Load from file... brings them back.</span>`;
+    buttons = `<button>Cancel</button><button>Save to file...</button><button class="danger">Empty macros</button>`;
+  }
+  return `<div class="shade"><div class="dialog"><div class="dt">${title}</div><div class="db">${body}</div><div class="df">${buttons}</div></div></div>`;
+}
+
+function frameHtml() {
+  const step = state.step;
+  if (step === 'Bootloader entered')
+    return menubarHtml(false).replace(/<span class="board">.*?<\/span><span class="muted">.*?<\/span>(<span class="muted">.*?<\/span>)?/, '<span class="muted">No board open</span>')
+      + `<div class="list"><div class="msg">The ${b().name} left for its bootloader -- it shows as a drive, RPI-RP2. Flash it, and it comes back in the list.</div>`
+      + `<table><tr><th>Product</th><th>Protocol</th><th></th></tr><tr><td>The Concordia Type C</td><td class="muted">VIA</td><td><button class="primary">Open</button></td></tr></table></div>`;
+  let html = menubarHtml(step === 'Menu open');
+  if (step === 'Keymap reset') html = html.replace('<span class="right">', '<span class="right"><span style="color:var(--ok);margin-right:18px">Keymap reset -- read again</span>');
+  html += `<div class="body">${columnHtml()}<div class="main"><div class="strip"><span class="tab on">Layer 0</span><span class="tab">Layer 1</span><span class="tab">Layer 2</span></div>${boardSvg()}${panelHtml()}</div></div>`;
+  if (step.startsWith('Ask')) html += askHtml();
+  return html;
+}
+
+const CONTROLS = [
+  ['Step', 'step', STEPS],
+  ['Board', 'board', Object.keys(BOARDS)],
+  ['Where', 'where', ['Board menu', 'A Device section', 'Each in its place']],
+  ['No bootloader command', 'noBoot', ['Says how', 'Hidden']],
+  ['Theme', 'theme', ['Light', 'Dark']],
+];
+function disabled(key, v) {
+  if (key === 'step' && (v === 'Ask: bootloader') && !bootShown()) return true;
+  if (key === 'step' && v === 'Bootloader entered' && !canJump()) return true;
+  return false;
+}
+function render() {
+  document.documentElement.dataset.theme = state.theme.toLowerCase();
+  if (disabled('step', state.step)) state.step = 'Menu open';
+  document.getElementById('controls').innerHTML = CONTROLS.map(([name, key, vals]) =>
+    `<div class="group"><span class="name">${name}</span>` + vals.map(v =>
+      `<button data-key="${key}" data-val="${v}"${state[key] === v ? ' class="on"' : ''}${disabled(key, v) ? ' disabled' : ''}>${v}</button>`).join('') + `</div>`).join('');
+  document.getElementById('frame').innerHTML = frameHtml();
+  document.getElementById('notes').innerHTML = NOTES;
+}
+document.getElementById('controls').addEventListener('click', e => {
+  const t = e.target.closest('button[data-key]');
+  if (!t || t.disabled) return;
+  state[t.dataset.key] = t.dataset.val;
+  render();
+});
+
+const NOTES = `
+<p><b>What, and why only these.</b> VIA and Vial both offer them; Nazg did only on Leyden Jar boards (Diagnostics). The firmware
+decides what can be done: <b>Enter bootloader</b> exists only in a secure Vial build, unlocked -- mainline VIA dropped the
+command, a <code>VIAL_INSECURE</code> build has none. <b>Reset keymap</b> (every layer's keys and knobs, as the firmware was built)
+and <b>Empty macros</b> work on every VIA and Vial board, no unlock. VIA's "Reset EEPROM" is not offered: it needs a build flag
+most firmware lacks, and does only these two plus the layout options.</p>
+<p><b>Where.</b> <i>Board menu</i>: three items, under Save and Load -- nothing new at first glance, the menu is already there.
+<i>A Device section</i>: a row in Tools for every board, with room to say more -- but it brings the section column to keymap-only
+boards, which have none today. <i>Each in its place</i>: Reset keymap in Keymap's panel, Empty all in Macros', the bootloader in
+the board menu -- found where one looks, but three places to know. Dashed: what is new.</p>
+<p><b>A board without the command.</b> <i>Says how</i>: the item stays and explains -- Nazg knows where QK_BOOT sits in the keymap,
+so it names the key to press. <i>Hidden</i>: the item is absent where it cannot work.</p>
+<p><b>Asking.</b> The two resets lose what the board holds, so each asks, and offers Save to file... first (a .vil brings it back).
+The bootloader asks too: the board leaves Nazg. A locked Vial board unlocks first, as Unlock and apply does. After a reset Nazg
+reads the board again; after the bootloader the list says where the board went, as Diagnostics does.</p>`;
+render();
+</script>
+</body>
+</html>
