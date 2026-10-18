@@ -22,8 +22,9 @@ number of whole pixels, centred, so it stays sharp. 64 px and up are the vector 
 
 ## Where each platform takes it
 
-Windows uses it today. The rest is prepared for those builds and their packages, none built yet
-(build-and-release.md), and unchecked on a real system:
+Windows uses it today, Linux's AppImage too (`tools/package_linux.py`, 2026-10-18). The rest is
+prepared for those builds and their packages, not built yet (build-and-release.md), and all of it
+unchecked on a real system:
 
 - **macOS** -- a bundle, `Nazg.app/Contents/`: `Info.plist` from `resources/package/macos/`, its
   `@NAZG_VERSION@` and `@CMAKE_OSX_DEPLOYMENT_TARGET@` filled by CMake's `configure_file`;
@@ -37,8 +38,8 @@ Windows uses it today. The rest is prepared for those builds and their packages,
   `share/applications/nazg.desktop`. SDL names the window after the executable -- Wayland's app
   id and X11's class are both `nazg` -- which is how the desktop matches the window to the entry
   and its icon; a reverse-DNS name (`com.mymakercorner.nazg.desktop`, `SDL_SetAppMetadata`) is
-  needed only for Flathub. The tar.gz for testers carries no desktop entry; AppImage, .deb and
-  .rpm do.
+  needed only for Flathub. The AppImage carries the entry and the icons both at its root and in
+  `usr/share/`; .deb and .rpm would install them.
 - **The web** (Emscripten) -- `resources/package/web/nazg.webmanifest` beside the page, the icons
   in `icon/` beside it, and in the page's `<head>`:
 

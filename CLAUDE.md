@@ -164,6 +164,7 @@ one board to unlock).
 | The Device section on Rico's boards (2026-10-18): the bootloader, said how where the firmware lacks it, keymap reset, macros emptied | |
 | The key test (2026-10-18): the Concordia on the computer's keys, hatched keys and the shared-key marks; the F77 on its switches unlocked, on the computer's keys locked; Win and Alt+Tab taken while it reads them | |
 | Linux in WSL (2026-10-18): GCC 13 build, all tests; the F77 lent by usbipd, refused until a udev rule, then Vial, unlock, keymap and Diagnostics (Rico) | Linux on a real desktop: uaccess, X11, the window icon, a locked board's key test (WSLg gets no keys from a board lent to Linux) |
+| The AppImage (2026-10-18): built in the container, 49 tests passing there, glibc 2.27 and libudev only; started in WSL, the F77 shown "not allowed" with Allow... (Rico) | The AppImage on a real desktop and on an old distribution; Wayland with libdecor (GNOME) |
 | A board Linux does not allow, in WSL on the F77 (Rico, 2026-10-18): "not allowed", Allow... with the commands pasted (no pkexec there), Nazg's rule file written; Allowed, Stop allowing, the file deleted -- a group rule standing in for uaccess | pkexec's password window; uaccess giving the board; whether Stop allowing acts before a replug |
 
 ## Traps already found
@@ -325,6 +326,12 @@ a bundle built locally by that repository's `tools/build_bundle.py`.
 app-local, fonts, both bundles, `resources/package/README.txt` and the licences. The version is
 `NAZG_VERSION` in `CMakeLists.txt` (first: `0.1.0-test.1`, a GitHub pre-release); a release is
 tagged `v<NAZG_VERSION>` on the commit it is built from.
+
+**A Linux AppImage for testers**: in WSL's Ubuntu, `python3 tools/package_linux.py` builds Release
+in an AlmaLinux 8 container (`tools/package_linux.Containerfile`: glibc 2.28, GCC 13, libdecor from
+source; podman) into `build_manylinux/`, everything but glibc and libudev linked in, checks that,
+and writes `dist/nazg-<NAZG_VERSION>-linux-x86_64.AppImage` with the static runtime -- no libfuse2.
+`--test` runs the tests in the container too. Pins and layout: build-and-release.md, "The AppImage".
 
 On Windows, Ninja and VS2026 were both evaluated on
 2026-09-21 and **deliberately deferred** — nothing in the project needs the v145 toolset, and

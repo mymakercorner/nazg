@@ -1,7 +1,8 @@
 # Building on GitHub and releasing
 
 *Written 2026-10-05. Nothing of it is set up yet: Nazg has only been built by hand, on Windows
-with Visual Studio 2022, and on Linux with GCC in WSL (2026-10-18, "Linux: first build, in WSL").*
+with Visual Studio 2022, and on Linux with GCC in WSL (2026-10-18, "Linux: first build, in WSL"),
+its AppImage in an AlmaLinux 8 container ("The AppImage").*
 
 ## Automatic builds: GitHub Actions
 
@@ -100,13 +101,15 @@ Vial does the same: its AppImage is built in an Ubuntu 18.04 container
 
 | Format | For | Against |
 |---|---|---|
-| **tar.gz** (a `tools/package_linux.py` beside `package_windows.py`) | The Windows zip's twin; nothing installed; enough for testers | The udev rule is the user's to install (see below) |
+| **tar.gz** | The Windows zip's twin; nothing installed; enough for testers | The udev rule is the user's to install (see below) |
 | **AppImage** | One file; what VIA and Vial ship -- VIA a .deb beside it, no .rpm (its releases 2.0.5-3.0.0, the last desktop one, 2023); Vial only that (0.7.5) | Needs FUSE -- the older runtime wants `libfuse2`, which Ubuntu 22.04+ no longer installs, so the current static runtime; cannot install a udev rule |
 | **.deb and .rpm** (fpm or nfpm, from the same binary) | Install a desktop entry, an icon -- and could install a udev rule | Two more assets per release |
 | **Flatpak / Flathub** | Found in software centres; its runtime removes the glibc question | Flathub builds from source on its own manifest and review; `--device=all`; the rule is still needed on the host |
 
-Snap fits badly: its hidraw access is connected device by device. A likely order: tar.gz for
-testers first; AppImage and .deb / .rpm with the public release; Flathub later, if asked for.
+Snap fits badly: its hidraw access is connected device by device. **The order** -- *decided
+2026-10-18 (Rico)*: the **AppImage first, for testers** -- the format VIA and Vial users already
+know -- built ("The AppImage" below); .deb / .rpm later, once wanted, when they can also install
+the polkit action giving pkexec's window Nazg's own sentence; Flathub later still, if asked for.
 
 ### Permissions: the udev rule
 
@@ -228,6 +231,46 @@ administrator). While attached the board is gone from Windows; a detach, a replu
   Linux. A WSL limit; a real desktop reads the board's input devices, which Linux creates
   (`event0-4` for the F77).
 
+### The AppImage (2026-10-18)
+
+**`python3 tools/package_linux.py`**, run in WSL's Ubuntu from the Windows checkout, writes
+`dist/nazg-<NAZG_VERSION>-linux-x86_64.AppImage`; `--test` builds the tests too and runs them in
+the container. It needs **podman** in Ubuntu -- installed once, `sudo apt-get install podman`;
+rootless, so the build's files are Rico's -- and both bundles in `build_resources/`. The first run
+pulls the image and makes the container (a few minutes), and a clean build takes about three;
+after that podman's cache answers, and a run with little changed takes seconds.
+
+- **The build machine** is `tools/package_linux.Containerfile`: `manylinux_2_28`, pinned by tag
+  and digest, plus `gcc-toolset-13`, `ninja-build` and SDL's headers -- X11, Wayland, EGL, Vulkan,
+  D-Bus, libudev; no audio. **libdecor is built from source there** (0.2.5, pinned by commit):
+  AlmaLinux 8 and EPEL 8 lack it, and without it SDL has no window frame on a Wayland desktop that
+  draws none for its programs -- GNOME. SDL loads the system's libdecor when it runs, and SDL 3.4
+  chooses Wayland only where the compositor has `fifo-v1` (recent GNOME and KDE), XWayland
+  elsewhere -- WSLg among them.
+- **The build**: `build_manylinux/`, single-config Ninja, Release, `-DBUILD_SHARED_LIBS=OFF` --
+  SDL3 and hidapi linked in, nothing beside the binary to find -- `-DHIDAPI_WITH_LIBUSB=OFF`,
+  `-static-libstdc++ -static-libgcc -s`. The script then reads the binary: it may ask only for
+  glibc (no newer than 2.28) and libudev, and stops otherwise. The first build: **glibc 2.27**,
+  needing `libc libm libdl libpthread ld-linux libudev`, **all 49 tests passing** in the container.
+  GCC 13 at `-O3` warns once, `-Wstringop-overflow` on a `push_back` in `NazgLighting.cpp`: its
+  known false positive, the code left as it is.
+- **The package**: appimagetool 1.9.1 and the static runtime of `type2-runtime` 20251108, pinned
+  by URL and SHA-256 in the script and cached in `build_resources/cache/appimage/`; appimagetool
+  runs extracted (`--appimage-extract-and-run`), so it needs no FUSE either. Inside: the program
+  folder as in the Windows zip -- `nazg`, `fonts/`, `icon/`, both bundles -- in `usr/lib/nazg/`,
+  `AppRun` a symbolic link to it (SDL's base path follows `/proc/self/exe`, the real file);
+  `nazg.desktop` and the icons at the root and in `usr/share/` (resources/icon/README.md);
+  `LICENSE` and the libraries' licences in `usr/share/doc/nazg/`. **6.9 MB** -- the definitions
+  compress well in its zstd squashfs. No README beside it: the release page says what
+  `resources/package/README.txt` says for Windows.
+- **Seen working in WSL**: the AppImage starts from `/mnt/c` -- WSL's Ubuntu has `fuse3` and
+  `/dev/fuse` -- through XWayland, SDL_GPU on Vulkan (llvmpipe); the F77 lent by usbipd, refused,
+  shown **"not allowed" with Allow...** (Rico). Not yet on a real desktop, nor on an old
+  distribution (glibc 2.28) -- a tester's job.
+- `Main.cpp` asks SDL_GPU for its debug mode in every build, so Vulkan says "Validation layers
+  not found"; where they are installed (a Vulkan developer's machine), the release would run
+  them.
+
 ## Signing
 
 Unsigned builds work, with warnings: **Windows SmartScreen** warns on an unsigned
@@ -240,7 +283,8 @@ repository. It matters for public releases only, not for CI builds.
 
 1. The workflow: build and test on the three runners, artifacts only. Fix what Linux and
    macOS find.
-2. Releases from tags: zips per platform, VIA's bundle included; for Linux, a tar.gz built in
-   the AlmaLinux 8 container ("Linux: one build for most distributions").
-3. Signing, when releases are public; with them, Linux's AppImage and .deb / .rpm.
+2. Releases from tags: a package per platform, both bundles included; for Linux, the AppImage
+   built in the AlmaLinux 8 container -- `tools/package_linux.py` runs as it is in a job, podman
+   being on GitHub's Ubuntu runners ("The AppImage").
+3. Signing, when releases are public; with them, Linux's .deb / .rpm if wanted.
 4. The community repository's own workflow and release, when it exists.
