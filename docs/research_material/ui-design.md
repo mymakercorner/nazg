@@ -486,6 +486,10 @@ decisions above:
   on a controller wired to no matrix says "There are no key presses to show"; a key to check is
   outlined in the second highlight's colour (the theme has no purple); the USB release is printed
   as BCD.
+- **Vial's lock does not reach it**, seen on the F77 in secure mode, locked (Rico, 2026-10-18): Key
+  presses read and Enter bootloader works. Both are the Leyden Jar's own commands, riding VIA's
+  get and set keyboard value with ids from 0x81; vial-qmk gates only VIA's matrix state, macro
+  buffer and bootloader jump.
 
 **Open: how third-party plugins are delivered.**
 

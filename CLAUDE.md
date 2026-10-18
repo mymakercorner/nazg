@@ -146,7 +146,7 @@ one board to unlock).
 | A board's own menus: a few EC features (Concordia Type C); all 35909 registry controls parse (test) | |
 | Hotplug: boards plugged and unplugged, the list and the open board following (Rico, 2026-10-16) | |
 | Key health on Rico's F77 recordings: nothing accused, 26 good and 49 to hold, as the mockup (test) | |
-| Diagnostics on Rico's F77: key output off and on again, Key presses, Signal levels, Device; Enter bootloader and Erase EEPROM, the board closed and the list saying where it went (2026-10-17) | |
+| Diagnostics on Rico's F77: key output off and on again, Key presses, Signal levels, Device; Enter bootloader and Erase EEPROM, the board closed and the list saying where it went (2026-10-17); Key presses and Enter bootloader on the F77 locked, past Vial's lock (2026-10-18) | |
 
 ## Traps already found
 
