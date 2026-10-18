@@ -56,6 +56,11 @@ exists, where, and how far it has been proven.
   only new paths their protocol (`board/NazgDeviceList.*`), and closes the open board once its
   path is gone and no reply from it is awaited, the list saying which one went. Nothing opens by
   itself after start -- a board coming back is only listed (Rico, 2026-10-16).
+- **A board Linux does not allow** (ui-design.md, the section of that name; Rico, 2026-10-18): the
+  transport tells a refused open (`HidAccessDenied`), the list says "not allowed" with Allow...,
+  a board Nazg allowed shows Allowed, which stops it (`ui/NazgPermissionDialog.*`). One udev rule
+  file per board, written or deleted through pkexec, or as commands to paste
+  (`permission/NazgBoardPermission.*`; build-and-release.md, "Nazg allowing the boards itself").
 - **Icon.** The rune ᚾ in a blue ring on a keycap (ui-design.md, "The application icon"):
   `resources/icon/`, exported from its mockup -- the `.ico` in the exe (`src/Nazg.rc`), PNGs for
   the window elsewhere (`SDL_SetWindowIcon` in `Main.cpp`); macOS's `Info.plist`, Linux's desktop entry and the web
@@ -158,7 +163,8 @@ one board to unlock).
 | Diagnostics on Rico's F77: key output off and on again, Key presses, Signal levels, Device; Enter bootloader and Erase EEPROM, the board closed and the list saying where it went (2026-10-17); Key presses and Enter bootloader on the F77 locked, past Vial's lock (2026-10-18) | |
 | The Device section on Rico's boards (2026-10-18): the bootloader, said how where the firmware lacks it, keymap reset, macros emptied | |
 | The key test (2026-10-18): the Concordia on the computer's keys, hatched keys and the shared-key marks; the F77 on its switches unlocked, on the computer's keys locked; Win and Alt+Tab taken while it reads them | |
-| Linux in WSL (2026-10-18): GCC 13 build, all tests; the F77 lent by usbipd, refused as "no answer" until a udev rule, then Vial, unlock, keymap and Diagnostics (Rico) | Linux on a real desktop: uaccess, X11, the window icon, a locked board's key test (WSLg gets no keys from a board lent to Linux) |
+| Linux in WSL (2026-10-18): GCC 13 build, all tests; the F77 lent by usbipd, refused until a udev rule, then Vial, unlock, keymap and Diagnostics (Rico) | Linux on a real desktop: uaccess, X11, the window icon, a locked board's key test (WSLg gets no keys from a board lent to Linux) |
+| A board Linux does not allow, in WSL on the F77 (Rico, 2026-10-18): "not allowed", Allow... with the commands pasted (no pkexec there), Nazg's rule file written; Allowed, Stop allowing, the file deleted -- a group rule standing in for uaccess | pkexec's password window; uaccess giving the board; whether Stop allowing acts before a replug |
 
 ## Traps already found
 
@@ -180,10 +186,6 @@ one board to unlock).
 
 - **Under review**: the user library's one-version backup ("Restore previous") -- Rico weighs its
   value against its complexity. "Export definition..." is for debugging only.
-- **Designed, not built**: Linux permissions (Rico, 2026-10-18; ui-design.md, "A board Linux does
-  not allow") -- Allow... and Stop allowing on the board's row, one udev rule file per board,
-  written through `pkexec` (build-and-release.md, "Nazg allowing the boards itself"). Until then
-  a Linux board refused for permission is listed as "no answer" -- seen in WSL on the F77.
 - **Not to be done**: using a definition whose VID:PID differs from the board's (Rico, 2026-10-12) --
   the picker says an import is for another keyboard and why it must not be used (a tester's K10 HE
   reports `3434:0EA7`, which no published file carries; via-registry.md).

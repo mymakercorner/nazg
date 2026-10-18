@@ -437,6 +437,11 @@ namespace nazg
         g_IconFont = font;
     }
 
+    ImFont* IconFont()
+    {
+        return g_IconFont;
+    }
+
     HeaderAction DrawHeader(const HeaderView& view)
     {
         HeaderAction action;

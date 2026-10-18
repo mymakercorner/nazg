@@ -128,6 +128,8 @@ set(NAZG_CORE_SOURCES
   src/board/NazgBoardLoad.cpp
   src/board/NazgDeviceList.h
   src/board/NazgDeviceList.cpp
+  src/permission/NazgBoardPermission.h
+  src/permission/NazgBoardPermission.cpp
   src/board/NazgSavedLayoutTransfer.h
   src/board/NazgSavedLayoutTransfer.cpp
   src/settings/NazgSettings.h
@@ -244,6 +246,8 @@ set(NAZG_SOURCES
   src/ui/NazgMatrixView.cpp
   src/ui/NazgKeyboardList.h
   src/ui/NazgKeyboardList.cpp
+  src/ui/NazgPermissionDialog.h
+  src/ui/NazgPermissionDialog.cpp
   src/ui/NazgSettingsScreen.h
   src/ui/NazgSettingsScreen.cpp
   src/ui/NazgVialUnlock.h
@@ -404,6 +408,7 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(via_loader         tests/ViaLoaderTest.cpp)
     nazg_add_test(board_load         tests/BoardLoadTest.cpp)
     nazg_add_test(device_list        tests/DeviceListTest.cpp)
+    nazg_add_test(board_permission   tests/BoardPermissionTest.cpp)
     nazg_add_test(via_bundle         tests/ViaBundleTest.cpp)
     nazg_add_test(definition_library tests/DefinitionLibraryTest.cpp)
     nazg_add_test(definition_choice  tests/DefinitionChoiceTest.cpp)

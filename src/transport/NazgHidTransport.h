@@ -85,6 +85,15 @@ namespace nazg
         explicit HidTransportError(const std::string& message) : std::runtime_error(message) {}
     };
 
+    // The device is there, but the system does not let Nazg open it: on Linux, a /dev/hidraw*
+    // entry no udev rule gives the user (build-and-release.md, "Permissions: the udev rule").
+    // Elsewhere never thrown.
+    class HidAccessDenied : public HidTransportError
+    {
+    public:
+        using HidTransportError::HidTransportError;
+    };
+
     // An open device, as seen from the main thread. The hidapi pointer it stands for
     // never leaves the worker thread, and ids are never reused, so an id kept past a
     // Close() is reliably rejected rather than aliasing some later device.
@@ -123,8 +132,8 @@ namespace nazg
         [[nodiscard]] EnumerateAwaitable Enumerate(uint16_t usagePage = 0, uint16_t usage = 0);
 
         // Open one device by the path from HidDeviceInfo, yielding the id every later
-        // call uses. Throws HidTransportError if the device cannot be opened -- on
-        // Linux that is usually a udev permissions problem, not a missing device.
+        // call uses. Throws HidTransportError if the device cannot be opened, and
+        // HidAccessDenied when that is because Linux refuses it.
         [[nodiscard]] OpenAwaitable Open(std::string path);
 
         // Write one report and wait for one back. The payload is sent as given; the
@@ -216,6 +225,7 @@ namespace nazg
             DeviceId                   opened = c_InvalidDevice;      // Open
             std::vector<uint8_t>       reply;                         // Request
             std::string                error;                         // empty means success
+            bool                       isDenied = false;              // Open: refused by the system
 
             std::coroutine_handle<> continuation;   // none for Close
         };
@@ -279,6 +289,8 @@ namespace nazg
         protected:
             void ThrowIfFailed() const
             {
+                if (m_Operation->isDenied)
+                    throw HidAccessDenied(m_Operation->error);
                 if (!m_Operation->error.empty())
                     throw HidTransportError(m_Operation->error);
             }

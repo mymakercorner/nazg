@@ -10,6 +10,11 @@
 
 #include "hidapi.h"
 
+#if defined(__linux__)
+#include <cerrno>
+#include <unistd.h>   // access()
+#endif
+
 namespace nazg
 {
     namespace
@@ -368,6 +373,10 @@ namespace nazg
         if (device == nullptr)
         {
             operation.error = "could not open " + operation.path + ": " + LastError(nullptr);
+#if defined(__linux__)
+            // hidraw's path is the /dev entry itself: refused, it is there and not ours to open.
+            operation.isDenied = access(operation.path.c_str(), R_OK | W_OK) != 0 && errno == EACCES;
+#endif
             return;
         }
 

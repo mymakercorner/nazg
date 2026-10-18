@@ -4,12 +4,15 @@
 #include "NazgKeyboardList.h"
 
 #include <algorithm>
+#include <cfloat>
 #include <cmath>
 
 #include "imgui.h"
 #include "imgui_internal.h"   // ImGuiTable, for the height its rows took
 
+#include "ui/NazgIcons.h"
 #include "ui/NazgTheme.h"
+#include "ui/NazgWorkspace.h"
 
 namespace nazg
 {
@@ -30,6 +33,38 @@ namespace nazg
         const char* NameOf(const HidDeviceInfo& device)
         {
             return device.product.empty() ? "(unnamed)" : device.product.c_str();
+        }
+
+        // A board Nazg allowed: "Allowed" after a shield, quiet -- muted, no frame until hovered --
+        // so the row still reads as its name and Open. Without the icon font, the word alone.
+        bool AllowedButton()
+        {
+            const char*       word   = "Allowed";
+            const std::string shield = Utf8Of(Icon::ShieldCheck);
+            ImFont* const     icons  = IconFont();
+            const float       size   = ImGui::GetFontSize();
+            const ImVec2      pad    = ImGui::GetStyle().FramePadding;
+            const float       gap    = ImGui::GetStyle().ItemInnerSpacing.x;
+            const float       icon   = icons != nullptr ? icons->CalcTextSizeA(size, FLT_MAX, 0.0f, shield.c_str()).x : 0.0f;
+            const float       text   = ImGui::CalcTextSize(word).x;
+            const float       width  = pad.x * 2.0f + (icon > 0.0f ? icon + gap : 0.0f) + text;
+
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+            const bool clicked = ImGui::Button("##allowed", ImVec2(width, ImGui::GetFrameHeight()));
+            ImGui::PopStyleColor();
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Click to stop allowing it");
+
+            ImDrawList* const list   = ImGui::GetWindowDrawList();
+            const ImU32       colour = ImGui::GetColorU32(ColourOf(PanelColour::Muted));
+            ImVec2            at(ImGui::GetItemRectMin().x + pad.x, ImGui::GetItemRectMin().y + pad.y);
+            if (icon > 0.0f)
+            {
+                list->AddText(icons, size, at, colour, shield.c_str());
+                at.x += icon + gap;
+            }
+            list->AddText(at, colour, word);
+            return clicked;
         }
 
         // A list's frame: rounded and outlined like the panels, so it has a visible top and
@@ -113,6 +148,7 @@ namespace nazg
 
     KeyboardListAction DrawKeyboardList(const std::vector<HidDeviceInfo>& devices,
                                         const std::vector<std::string>&   protocols,
+                                        const std::vector<bool>&          allowedByNazg,
                                         bool&                             showAllHidDevices,
                                         bool                              isListing,
                                         bool                              canOpen)
@@ -175,14 +211,39 @@ namespace nazg
 
                         ImGui::TableNextColumn();
                         ImGui::AlignTextToFramePadding();
-                        const std::string& protocol = index < protocols.size() ? protocols[index] : std::string();
-                        ColouredText(PanelColour::Muted, "%s", protocol.empty() ? "..." : protocol.c_str());
+                        const std::string& protocol   = index < protocols.size() ? protocols[index] : std::string();
+                        const bool         notAllowed = protocol == c_NotAllowed;
+                        if (notAllowed)
+                        {
+                            ColouredText(PanelColour::Warning, "%s", protocol.c_str());
+                            if (ImGui::IsItemHovered())
+                                ImGui::SetTooltip("Linux does not let Nazg use this keyboard yet.");
+                        }
+                        else
+                        {
+                            ColouredText(PanelColour::Muted, "%s", protocol.empty() ? "..." : protocol.c_str());
+                        }
 
+                        // Allow... in Open's place; or Allowed before Open, on a board Nazg allowed.
                         ImGui::TableNextColumn();
-                        ImGui::BeginDisabled(!canOpen);
-                        if (ImGui::Button("Open"))
-                            action.open = index;
-                        ImGui::EndDisabled();
+                        if (notAllowed)
+                        {
+                            if (ImGui::Button("Allow..."))
+                                action.allow = index;
+                        }
+                        else
+                        {
+                            if (index < allowedByNazg.size() && allowedByNazg[index])
+                            {
+                                if (AllowedButton())
+                                    action.stopAllowing = index;
+                                ImGui::SameLine();
+                            }
+                            ImGui::BeginDisabled(!canOpen);
+                            if (ImGui::Button("Open"))
+                                action.open = index;
+                            ImGui::EndDisabled();
+                        }
 
                         ImGui::PopID();
                     }

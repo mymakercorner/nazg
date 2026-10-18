@@ -138,9 +138,9 @@ and one udev rule matches `ATTRS` of a single parent.
 
 ### Nazg allowing the boards itself
 
-*Proposed 2026-10-13; designed 2026-10-18 in the mockup
-[linux-permission.html](ui-design/linux-permission.html), Rico's choices in ui-design.md, "A
-board Linux does not allow"; not built.* On Windows and macOS, and on a Linux whose rules
+*Proposed 2026-10-13; designed and built 2026-10-18 from the mockup
+[linux-permission.html](ui-design/linux-permission.html), Rico's choices and what was tried in
+ui-design.md, "A board Linux does not allow".* On Windows and macOS, and on a Linux whose rules
 already allow the boards, nothing of this appears.
 
 1. **Noticing.** Listing needs no permission -- hidapi reads each interface's usage page from
@@ -160,9 +160,13 @@ already allow the boards, nothing of this appears.
    it back in" -- a board that did not answer is asked again once it is back (ui-design.md,
    "Hotplug"). Window closed by the user (exit code 126): nothing changes. No `pkexec`, or no
    agent running (a bare window manager, a Flatpak, WSL) -- which Nazg cannot tell beforehand,
-   so it tries: the dialog shows the commands instead. pkexec waits on the user, so it runs off
-   the frame loop like a board request. The code is POSIX (`posix_spawn`, `access`), Linux
-   only, no SDL -- `Main.cpp` keeps its role.
+   so it tries: the dialog shows the commands instead. `--disable-internal-agent`, or pkexec
+   would ask in the terminal Nazg was started from, where nobody looks. pkexec waits on the
+   user, so it never blocks the frame loop: started with `posix_spawnp`, asked each frame with
+   `waitpid(WNOHANG)`, ended if Nazg quits first (`permission/NazgBoardPermission.*`). The code
+   is POSIX, Linux only, no SDL -- `Main.cpp` keeps its role. A missing pkexec can come back as
+   `EACCES`, not `ENOENT`, when a folder on the PATH refuses to be searched -- WSL puts
+   Windows' folders there -- so both say "pkexec is not installed".
 4. **What it writes: one file per board** (Rico, 2026-10-18 -- one shared file, "delete its
    two lines" to take a board back, confused him: "what lines?"). Nazg knows the VID:PID of each
    board it was refused, which a package installed beforehand cannot. Allowing creates
@@ -186,8 +190,8 @@ already allow the boards, nothing of this appears.
 This works from the tar.gz, the AppImage and the .deb / .rpm alike, so the packages need not
 install a rule of their own; a Flatpak gets the commands only.
 
-**Open**: when it is built -- the "not allowed" of step 1 can be tried in WSL (below);
-whether *Stop allowing* takes effect at once or only after a replug, to check there too.
+**Open**: whether *Stop allowing* takes effect at once or only after a replug -- uaccess's
+access list may stay on the entry until it is made again; WSL cannot tell, having no seat.
 **Testing** the happy path of uaccess and pkexec needs a real Linux desktop with a board at
 hand -- a live USB stick -- which WSL is not.
 

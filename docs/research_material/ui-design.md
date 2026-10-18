@@ -2491,8 +2491,13 @@ menu's *Switch to* follows too.
 
 ### A board Linux does not allow
 
-**Designed** 2026-10-18 in the mockup [linux-permission.html](ui-design/linux-permission.html),
-**not built**. Linux gives a keyboard's `/dev/hidraw*` to root only: Nazg lists the board but
+**Built** 2026-10-18 from the mockup [linux-permission.html](ui-design/linux-permission.html)
+(`ui/NazgPermissionDialog.*`, `permission/NazgBoardPermission.*`). **Tried in WSL on the F77 by
+Rico** the same day, the way without a password window -- WSL has no pkexec: "not allowed",
+Allow..., the commands pasted, the rule file written; Allowed and Stop allowing, the file deleted,
+with a hand-written group rule standing in for uaccess, which a WSL session has no seat for. The
+password window and uaccess wait for a real Linux desktop. Linux gives a keyboard's
+`/dev/hidraw*` to root only: Nazg lists the board but
 cannot open it, and today says "no answer" (seen on the F77 in WSL, build-and-release.md,
 "First build, in WSL"). What Nazg does underneath -- pkexec, the udev rule, the polkit
 action -- is in build-and-release.md, "Nazg allowing the boards itself". Only on Linux, only
@@ -2517,6 +2522,10 @@ for a board refused for that reason. Rico's choices, from his take as a Linux ne
 - **"Allow" and "Stop allowing", never "lock"**: the header's *Locked* is Vial's.
 - **The password window is the desktop's**, never Nazg's. With none (no polkit agent: a bare
   window manager, a Flatpak, WSL), the dialog shows the commands and *Try again*.
+- **Still refused though Nazg allowed it** -- its rule not applied yet, or no seat to give the
+  board to: an orange line over the list, "unplug it and plug it back in".
+- **Not opened by itself**: the lone board opened at start is not one Linux refuses, and *Switch
+  to* leaves those out.
 
 ## Saved layouts
 

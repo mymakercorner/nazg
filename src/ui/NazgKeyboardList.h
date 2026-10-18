@@ -28,16 +28,24 @@ namespace nazg
     // a QMK build with raw HID and no VIA has it too, and does not answer.
     [[nodiscard]] bool IsViaInterface(const HidDeviceInfo& device) noexcept;
 
+    // A board's protocol when Linux did not let Nazg open it (ui-design.md, "A board Linux does not
+    // allow"): its row offers Allow... in place of Open.
+    inline constexpr const char* c_NotAllowed = "not allowed";
+
     struct KeyboardListAction
     {
-        std::optional<size_t> open;   // index into the devices
+        std::optional<size_t> open;           // index into the devices
+        std::optional<size_t> allow;          // a board not allowed: Allow...
+        std::optional<size_t> stopAllowing;   // a board Nazg allowed: Allowed, to stop it
     };
 
-    // `protocols` runs parallel to `devices`: "Vial", "VIA", "no answer", or empty while the
-    // board has not been asked yet. `isListing` until the first list is in; `canOpen` is false
+    // `protocols` runs parallel to `devices`: "Vial", "VIA", "no answer", c_NotAllowed, or empty
+    // while the board has not been asked yet. `allowedByNazg`, parallel too, marks the boards whose
+    // rule Nazg wrote -- only on Linux. `isListing` until the first list is in; `canOpen` is false
     // while something still works on a board, or a board is being asked.
     [[nodiscard]] KeyboardListAction DrawKeyboardList(const std::vector<HidDeviceInfo>& devices,
                                                       const std::vector<std::string>&   protocols,
+                                                      const std::vector<bool>&          allowedByNazg,
                                                       bool&                             showAllHidDevices,
                                                       bool                              isListing,
                                                       bool                              canOpen);

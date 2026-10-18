@@ -32,6 +32,9 @@ namespace nazg
     // missing, sections are drawn with their monograms.
     void SetIconFont(ImFont* font);
 
+    // The same, for another screen drawing an icon; null when missing.
+    [[nodiscard]] ImFont* IconFont();
+
     // A keyboard plugged in besides the open one, for the board menu's "Switch to".
     struct OtherKeyboard
     {

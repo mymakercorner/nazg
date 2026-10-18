@@ -43,6 +43,7 @@ namespace nazg
         Replace               = 0xEBC7,
         RotateClockwise       = 0xEB15,
         Settings              = 0xEB20,
+        ShieldCheck           = 0xEB22,   // a board Linux lets Nazg open, because Nazg allowed it
         Sparkles              = 0xF6D7,
         Volume                = 0xEB51,
     };

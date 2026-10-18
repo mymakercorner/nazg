@@ -32,6 +32,7 @@
 #include "transport/NazgHidTransport.h"
 #include "ui/NazgKeycapLegend.h"
 #include "ui/NazgMatrixView.h"
+#include "ui/NazgPermissionDialog.h"
 #include "ui/NazgSavedLayoutReview.h"
 #include "ui/NazgSection.h"
 #include "ui/NazgTheme.h"
@@ -139,8 +140,14 @@ namespace nazg
         struct DeviceListState
         {
             std::vector<HidDeviceInfo> devices;
-            std::vector<std::string>   protocols;   // parallel to devices, see DrawKeyboardList()
+            std::vector<std::string>   protocols;       // parallel to devices, see DrawKeyboardList()
+            std::vector<bool>          allowedByNazg;   // likewise: its udev rule is Nazg's, Linux only
             std::string                error;
+
+            // What Allow... or Stop allowing did, until another board opens or is asked about -- or
+            // that Linux still refuses a board Nazg allowed, a warning.
+            std::string permissionNote;
+            bool        isPermissionWarning = false;
             bool                       isLoading = false;   // enumerating for the first time
             bool                       isProbing = false;   // asking new keyboards their protocol
 
@@ -276,6 +283,7 @@ namespace nazg
         void        DrawSettingsScreen(const BoardStyle& look, bool hasBoard);
         bool        DrawBoardScreen(const std::string& name, bool isBusy);   // true when the sections show
         void        DrawKeyboardListScreen(bool isBusy);
+        void        DrawPermissionDialog();
 
         // Declared in the order they must be made in; destroyed the other way round, the tasks
         // and the board -- which refer to the transport -- before it.
@@ -317,6 +325,10 @@ namespace nazg
         // A saved layout's dialog is open: one at a time. And Apply waits for the unlock it asked for.
         bool m_IsLayoutDialogOpen = false;
         bool m_ApplyAfterUnlock   = false;
+
+        // Allow... and Stop allowing, on Linux (ui-design.md, "A board Linux does not allow"). It may
+        // be waiting on pkexec, which it ends if Nazg quits first.
+        PermissionDialog m_Permission;
 
         bool                   m_ShowAllHidDevices = false;   // the keyboard list shows only keyboards unless asked
         bool                   m_ShowSettings      = false;   // Settings in place of the main area

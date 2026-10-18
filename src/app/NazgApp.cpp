@@ -18,6 +18,7 @@
 #include "board/NazgDeviceList.h"
 #include "board/NazgSavedLayoutTransfer.h"
 #include "files/NazgFiles.h"
+#include "permission/NazgBoardPermission.h"
 #include "transport/NazgDeviceChannel.h"
 #include "ui/NazgDefinitionPicker.h"
 #include "ui/NazgKeyboardList.h"
@@ -200,6 +201,12 @@ namespace nazg
         m_DeviceList.protocols = KeptProtocols(m_DeviceList.devices, m_DeviceList.protocols, devices);
         m_DeviceList.devices   = std::move(devices);
         m_DeviceList.error     = std::move(error);
+        m_DeviceList.allowedByNazg.assign(m_DeviceList.devices.size(), false);
+        for (size_t index = 0; index < m_DeviceList.devices.size(); ++index)
+        {
+            const HidDeviceInfo& device          = m_DeviceList.devices[index];
+            m_DeviceList.allowedByNazg[index] = IsViaInterface(device) && IsAllowedByNazg(device.vendorId, device.productId);
+        }
         m_DeviceList.isLoading = false;
         m_DeviceList.isProbing = true;
 
@@ -225,12 +232,33 @@ namespace nazg
                 vial::Protocol protocol(channel);
                 m_DeviceList.protocols[index] = (co_await protocol.Detect()) ? "Vial" : "VIA";
             }
+            catch (const HidAccessDenied&)
+            {
+                // Linux keeps it closed: there, but not ours to open until allowed.
+                m_DeviceList.protocols[index] = c_NotAllowed;
+            }
             catch (const std::exception&)
             {
                 // Raw HID without VIA behind it, or a board that went: it does not answer.
                 m_DeviceList.protocols[index] = "no answer";
             }
         }
+
+        // Allowed by Nazg's rule, yet refused: the rule was not applied to it -- a replug does -- or the
+        // system hands no device to the user at the screen (no logind seat: WSL, some servers).
+        if (m_DeviceList.isPermissionWarning)
+        {
+            m_DeviceList.permissionNote.clear();
+            m_DeviceList.isPermissionWarning = false;
+        }
+        for (size_t index = 0; index < m_DeviceList.devices.size(); ++index)
+            if (m_DeviceList.protocols[index] == c_NotAllowed && m_DeviceList.allowedByNazg[index])
+            {
+                const std::string& product      = m_DeviceList.devices[index].product;
+                m_DeviceList.permissionNote      = "Linux still refuses the " + (product.empty() ? "keyboard" : product) +
+                                                  ", though Nazg allowed it: unplug it and plug it back in.";
+                m_DeviceList.isPermissionWarning = true;
+            }
 
         m_DeviceList.isProbing = false;
     }
@@ -374,6 +402,7 @@ namespace nazg
 
         m_DeviceList.unplugged.clear();
         m_DeviceList.unpluggedPath.clear();
+        m_DeviceList.permissionNote.clear();
         m_LoadTask = LoadBoard(path, identity, std::move(candidates), std::move(chosen));
     }
 
@@ -727,8 +756,11 @@ namespace nazg
             const auto keyboards = std::count_if(m_DeviceList.devices.begin(), m_DeviceList.devices.end(), IsViaInterface);
             if (keyboards == 1 && !IsBoardBusy())
             {
-                const auto lone = std::find_if(m_DeviceList.devices.begin(), m_DeviceList.devices.end(), IsViaInterface);
-                StartLoad(lone->path, IdentityOf(*lone), std::nullopt);
+                // Not one Linux refuses: its row offers Allow... instead.
+                const auto lone  = std::find_if(m_DeviceList.devices.begin(), m_DeviceList.devices.end(), IsViaInterface);
+                const auto index = static_cast<size_t>(lone - m_DeviceList.devices.begin());
+                if (index >= m_DeviceList.protocols.size() || m_DeviceList.protocols[index] != c_NotAllowed)
+                    StartLoad(lone->path, IdentityOf(*lone), std::nullopt);
             }
         }
 
@@ -769,6 +801,7 @@ namespace nazg
 
             DrawLeaveQuestion();
             DrawReplaceQuestion();
+            DrawPermissionDialog();
 
             if (m_ShowSettings)
                 DrawSettingsScreen(look, hasBoard);
@@ -845,7 +878,8 @@ namespace nazg
                 const HidDeviceInfo& device = m_DeviceList.devices[index];
                 // Offered once it has said which protocol it speaks: never opened while it is asked.
                 const bool isAsked = index < m_DeviceList.protocols.size() && !m_DeviceList.protocols[index].empty();
-                if (!IsViaInterface(device) || device.path == m_Board.path || !isAsked)
+                if (!IsViaInterface(device) || device.path == m_Board.path || !isAsked ||
+                    m_DeviceList.protocols[index] == c_NotAllowed)
                     continue;
                 others.push_back(index);
                 header.others.push_back({ device.product.empty() ? "(unnamed)" : device.product,
@@ -1294,15 +1328,46 @@ namespace nazg
             ColouredText(PanelColour::Error, "%s", m_Board.error.c_str());
         if (!m_DeviceList.unplugged.empty())
             ColouredText(PanelColour::Muted, "%s", m_DeviceList.unplugged.c_str());
+        if (!m_DeviceList.permissionNote.empty())
+            ColouredText(m_DeviceList.isPermissionWarning ? PanelColour::Warning : PanelColour::Success, "%s",
+                         m_DeviceList.permissionNote.c_str());
 
         const KeyboardListAction action = DrawKeyboardList(m_DeviceList.devices, m_DeviceList.protocols,
-                                                           m_ShowAllHidDevices, m_DeviceList.isLoading,
-                                                           !isBusy && m_RefreshTask.IsDone());
+                                                           m_DeviceList.allowedByNazg, m_ShowAllHidDevices,
+                                                           m_DeviceList.isLoading, !isBusy && m_RefreshTask.IsDone());
 
         if (action.open && !isBusy)
         {
             const HidDeviceInfo& device = m_DeviceList.devices[*action.open];
             StartLoad(device.path, IdentityOf(device), std::nullopt);
         }
+        if (action.allow || action.stopAllowing)
+        {
+            m_DeviceList.permissionNote.clear();
+            if (action.allow)
+                m_Permission.AskAllow(m_DeviceList.devices[*action.allow]);
+            else
+                m_Permission.AskStop(m_DeviceList.devices[*action.stopAllowing]);
+        }
+    }
+
+    // Allowed, stopped, or run in a terminal: every board with that USB id is asked again -- its
+    // answer forgotten, the list read again at once -- and the list says what happened.
+    void App::DrawPermissionDialog()
+    {
+        const std::optional<PermissionDialog::Outcome> outcome = m_Permission.Draw();
+        if (!outcome)
+            return;
+
+        for (size_t index = 0; index < m_DeviceList.devices.size(); ++index)
+        {
+            const HidDeviceInfo& device = m_DeviceList.devices[index];
+            if (device.vendorId == outcome->vendorId && device.productId == outcome->productId &&
+                index < m_DeviceList.protocols.size() && device.path != m_Board.path)
+                m_DeviceList.protocols[index].clear();
+        }
+        m_DeviceList.permissionNote      = outcome->said;
+        m_DeviceList.isPermissionWarning = false;
+        m_DeviceList.changedAt           = ImGui::GetTime() - c_DevicesSettleDelay;
     }
 }
