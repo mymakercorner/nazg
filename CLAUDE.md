@@ -418,6 +418,9 @@ factored together.
 - **Vial's firmware updater (vibl)** (Rico, 2026-10-18) — vibl runs on the STM32F103 only, is
   installed with an ST-Link by the maker, and no keyboard in vial-qmk uses it but Vial's own
   example (`VIBL = yes`); last pushed 2022. Flashing, if ever, would be UF2 and DFU
+- **Macro recording** -- typing the computer's keyboard into a macro (Rico, 2026-10-10, dropped
+  2026-10-18): no sign users want it (ui-design.md, "The Macros section"). Not QMK's Dynamic
+  Macros, whose keys the picker offers
 
 **Not** ruled out, despite being far down the list: **ZMK Studio** is a legitimate future
 backend, blocked mainly on having no hardware to dogfood against.

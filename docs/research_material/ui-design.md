@@ -1655,7 +1655,8 @@ system-wide hook on Windows, and its one open issue is the US-layout bug the rul
 (vial-gui#218); VIA's records only in full screen on Chromium, and the-via/app has no issue about
 it at all. For Nazg it would be cheap -- SDL's key events while its window has focus, no hook,
 positions as a macro stores them, the host-layout rule for free; Win and Alt+Tab need SDL's
-keyboard grab -- so it can come later as **one Record button on the macro's line**.
+keyboard grab -- so it could have come later as one Record button on the macro's line. **Dropped**
+(Rico, 2026-10-18), after a second look found no more sign of use.
 
 Not to be confused with QMK's **Dynamic Macros**, recorded on the keyboard into RAM, which no
 client sees: used little -- 71 of 7660 keymaps in QMK's tree of April 2023, the last with users'
