@@ -233,6 +233,8 @@ administrator). While attached the board is gone from Windows; a detach, a replu
 
 ### The AppImage (2026-10-18)
 
+*First released with `0.1.0-test.3`, beside the Windows zip (GitHub pre-release, 2026-10-18).*
+
 **`python3 tools/package_linux.py`**, run in WSL's Ubuntu from the Windows checkout, writes
 `dist/nazg-<NAZG_VERSION>-linux-x86_64.AppImage`; `--test` builds the tests too and runs them in
 the container. It needs **podman** in Ubuntu -- installed once, `sudo apt-get install podman`;
