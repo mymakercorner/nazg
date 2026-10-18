@@ -229,10 +229,12 @@ namespace nazg::leydenjar
     {
         CheckFits(columns, 1, c_Payload, "controller columns");
 
-        const std::vector<std::vector<uint8_t>> replies = co_await SendFrames(
-            { MakeRequest(via::Command::SetKeyboardValue, Value::ScanControllerMatrix),
-              MakeRequest(via::Command::GetKeyboardValue, Value::ControllerMatrix) },
-            c_Echoed);
+        // Named, not braced inside the co_await: GCC 13 crashes keeping an initializer_list
+        // alive across a suspension.
+        std::vector<std::vector<uint8_t>> frames{ MakeRequest(via::Command::SetKeyboardValue, Value::ScanControllerMatrix),
+                                                  MakeRequest(via::Command::GetKeyboardValue, Value::ControllerMatrix) };
+
+        const std::vector<std::vector<uint8_t>> replies = co_await SendFrames(std::move(frames), c_Echoed);
         co_return std::vector<uint8_t>(replies[1].begin() + c_Payload, replies[1].begin() + c_Payload + columns);
     }
 

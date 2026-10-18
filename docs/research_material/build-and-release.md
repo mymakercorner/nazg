@@ -1,7 +1,7 @@
 # Building on GitHub and releasing
 
 *Written 2026-10-05. Nothing of it is set up yet: Nazg has only been built by hand, on Windows
-with Visual Studio 2022.*
+with Visual Studio 2022, and on Linux with GCC in WSL (2026-10-18, "Linux: first build, in WSL").*
 
 ## Automatic builds: GitHub Actions
 
@@ -179,10 +179,42 @@ already allow the boards, nothing of this appears.
 This works from the tar.gz, the AppImage and the .deb / .rpm alike, so the packages need not
 install a rule of their own; a Flatpak gets the commands only.
 
-**Open** -- *Rico's decisions*: the rule's width; whether the "not allowed" fix of step 1 goes
-in before any Linux build exists (small, but it cannot be tried on Windows). **Testing** needs
-Linux with a board at hand: a live USB stick, or a VM with the Model F or the Phoenix passed
-through.
+**Open** -- *Rico's decisions*: the rule's width; when the "not allowed" fix of step 1 goes in
+(it can now be tried in WSL, below). **Testing** the happy path of uaccess and pkexec needs a
+real Linux desktop with a board at hand -- a live USB stick -- which WSL is not.
+
+### First build, in WSL (2026-10-18)
+
+WSL 2 with Ubuntu 24.04 on Rico's PC, a board lent to it with **usbipd-win** (`usbipd bind`
+once, from an administrator *Windows* terminal; `usbipd attach --wsl --busid <id>`, no
+administrator). While attached the board is gone from Windows; a detach, a replug or
+`wsl --shutdown` gives it back -- so never the board being typed on.
+
+- **`GenerateBuildForLinux.sh`**: `Ninja Multi-Config` into `build_Linux/`, so Debug and Release
+  sit side by side as in Visual Studio and the same `--config Debug` / `-C Debug` commands work;
+  `-DHIDAPI_WITH_LIBUSB=OFF`. Built from the Windows checkout through `/mnt/c`: slow -- the
+  configure 3 minutes, nearly all waiting on files -- but one checkout. The packages: SDL's
+  `docs/README-linux.md` list without audio, plus `libudev-dev`, `libdecor-0-dev`,
+  `vulkan-tools` and `zenity`.
+- **GCC 13 needed two changes**: it crashed (an internal compiler error) on a braced
+  `initializer_list` written inside a `co_await` -- now a named variable first -- and warned on
+  `std::filesystem::u8path`, deprecated in C++20 and replaced by `PathFromUtf8`. The other files
+  compiled clean. **All 48 tests pass**, both bundles' included.
+- **It runs under WSLg** on Wayland, SDL_GPU on Vulkan -- **llvmpipe only** in this WSL (software,
+  no GPU ICD), slower but enough. The data folder is `~/.local/share/mymakercorner/Nazg/`. The
+  window frame and its generic icon are WSLg's (Remote Desktop draws it), so the icon can only be
+  judged on a real desktop.
+- **The F77**: its four interfaces appear as `hidraw0-3`, all `root` only. Nazg lists it, the
+  open fails with `EACCES` -- hidapi's error reads "Permission denied" -- and the list says
+  **"no answer"**, the gap of step 1 above, seen for real. A rule for its VID:PID
+  (`60-nazg.rules`, `TAG+="uaccess", GROUP="plugdev", MODE="0660"`), reloaded and triggered,
+  made them `root plugdev 0660`; Vial, the unlock, the keymap and Diagnostics then work (Rico).
+  **uaccess does nothing in WSL** -- the session has no seat -- so the group did the work there.
+- **The key test of a locked board gets no keys in WSL**, unlocked it does: locked, it shows the
+  keys the computer receives, and WSLg's display takes its input from Windows over Remote
+  Desktop, never from Linux's input devices -- while Windows no longer sees the board lent to
+  Linux. A WSL limit; a real desktop reads the board's input devices, which Linux creates
+  (`event0-4` for the F77).
 
 ## Signing
 

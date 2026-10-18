@@ -67,7 +67,7 @@ int main(int argc, char** argv)
             return Usage();
         else
         {
-            const fs::path  path = fs::u8path(argument);
+            const fs::path  path = nazg::PathFromUtf8(argument);
             std::error_code error;
             if (fs::is_directory(path, error))
             {

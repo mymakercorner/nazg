@@ -158,6 +158,7 @@ one board to unlock).
 | Diagnostics on Rico's F77: key output off and on again, Key presses, Signal levels, Device; Enter bootloader and Erase EEPROM, the board closed and the list saying where it went (2026-10-17); Key presses and Enter bootloader on the F77 locked, past Vial's lock (2026-10-18) | |
 | The Device section on Rico's boards (2026-10-18): the bootloader, said how where the firmware lacks it, keymap reset, macros emptied | |
 | The key test (2026-10-18): the Concordia on the computer's keys, hatched keys and the shared-key marks; the F77 on its switches unlocked, on the computer's keys locked; Win and Alt+Tab taken while it reads them | |
+| Linux in WSL (2026-10-18): GCC 13 build, all tests; the F77 lent by usbipd, refused as "no answer" until a udev rule, then Vial, unlock, keymap and Diagnostics (Rico) | Linux on a real desktop: uaccess, X11, the window icon, a locked board's key test (WSLg gets no keys from a board lent to Linux) |
 
 ## Traps already found
 
@@ -170,6 +171,8 @@ one board to unlock).
   (`adapters/via/NazgViaLoader.*`, keycodes.md).
 - Vial replies overwrite the buffer and echo unsupported commands: see via-vial-commands.md.
   A QMK setting must be read at its own width -- past it the reply still holds the request.
+- **GCC 13 crashes** (an internal compiler error) on a braced list written inside a `co_await`
+  -- `co_await f({ a, b })`: put it in a named variable first.
 - QMK numbers lighting effects among those built in, so VIA's effect names can be wrong; underglow's
   speed does nothing; Vial's lighting is the format before VIA V3 (via-vial-commands.md, "Lighting").
 
@@ -179,7 +182,7 @@ one board to unlock).
   value against its complexity. "Export definition..." is for debugging only.
 - **Under review**: Linux permissions -- the udev rule's width, and Nazg installing it itself
   through `pkexec` (build-and-release.md, "Linux"). Until then a Linux board refused for
-  permission is listed as "no answer".
+  permission is listed as "no answer" -- seen in WSL on the F77, 2026-10-18.
 - **Not to be done**: using a definition whose VID:PID differs from the board's (Rico, 2026-10-12) --
   the picker says an import is for another keyboard and why it must not be used (a tester's K10 HE
   reports `3434:0EA7`, which no published file carries; via-registry.md).
@@ -190,7 +193,8 @@ one board to unlock).
 **Next**: the testers' reports on the second test build, `0.1.0-test.2` (2026-10-13) -- knobs, the
 transport fix for Keychron's double replies, and the community definitions v2026.10.13 (737 boards,
 the GeonWorks recrawl). The tester's Keychron Q6 knob works fully (2026-10-15); the K10 HE
-retest -- the transport fix -- is due the week of 2026-10-19. Then CI: Windows, Linux and macOS building and running the tests.
+retest -- the transport fix -- is due the week of 2026-10-19. Then CI: Windows, Linux and macOS building and running the tests --
+Linux already builds and passes them in WSL (2026-10-18).
 
 **In progress** (Rico, 2026-10-17, ahead of CI): the Leyden Jar diagnostics, built from the two
 mockups (ui-design.md, "Plugins", "Built"), seen working on Rico's F77 (2026-10-17) -- never tested
@@ -293,6 +297,11 @@ Generate with `GenerateBuildForVS2022.bat`, which writes to `build_VS2022/`.
 sibling `GenerateBuildFor<name>` script targeting its own `build_<name>/` directory, so they
 coexist without clobbering each other. `.gitignore` covers `build*/`.
 
+**Linux: `GenerateBuildForLinux.sh`**, run in WSL's Ubuntu from this same checkout (`/mnt/c/...`):
+GCC, `Ninja Multi-Config` into `build_Linux/`, so the commands are Windows' own --
+`cmake --build build_Linux --config Debug`, `ctest --test-dir build_Linux -C Debug`. The packages
+it needs, usbipd and the udev rule: build-and-release.md, "First build, in WSL".
+
 **VIA's official definitions are built, not committed**: run
 `python tools/update_via_bundle.py` once per checkout (Python 3.8+, standard library only;
 it downloads the pinned commit of `the-via/keyboards` once and caches it). It writes
@@ -314,7 +323,7 @@ app-local, fonts, both bundles, `resources/package/README.txt` and the licences.
 `NAZG_VERSION` in `CMakeLists.txt` (first: `0.1.0-test.1`, a GitHub pre-release); a release is
 tagged `v<NAZG_VERSION>` on the commit it is built from.
 
-Ninja and VS2026 were both evaluated on
+On Windows, Ninja and VS2026 were both evaluated on
 2026-09-21 and **deliberately deferred** — nothing in the project needs the v145 toolset, and
 the current setup is verified working. Revisit later if desired; no known blockers (the
 dependency tree looks CMake 4 clean, and VS CMake folder mode keeps full IDE debugging).
