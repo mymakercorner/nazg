@@ -413,6 +413,9 @@ factored together.
   (Python firmware)
 - **AGPL** — its network clause cannot fire for a USB HID desktop client, and AGPL bans at many
   companies would block installs on work machines
+- **Vial's firmware updater (vibl)** (Rico, 2026-10-18) — vibl runs on the STM32F103 only, is
+  installed with an ST-Link by the maker, and no keyboard in vial-qmk uses it but Vial's own
+  example (`VIBL = yes`); last pushed 2022. Flashing, if ever, would be UF2 and DFU
 
 **Not** ruled out, despite being far down the list: **ZMK Studio** is a legitimate future
 backend, blocked mainly on having no hardware to dogfood against.
