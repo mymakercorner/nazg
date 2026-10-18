@@ -129,7 +129,7 @@ namespace nazg
                     sections.push_back({ SectionKind::CustomMenu, SectionGroup::Board, menu.label, IconOfMenu(menu.label), index });
             }
 
-        // The tools, last -- the matrix view joins them after these, while Advanced tools is on. Device
+        // The tools, last -- the matrix view joins them after these, on every board. Device
         // on every board (Rico, 2026-10-18), a keymap-only board's column with it. The Leyden Jar's
         // shows whatever the setting (Rico, 2026-10-17): only its boards answer for it.
         sections.push_back({ SectionKind::Device, SectionGroup::Tools, "Device", Icon::Cpu });

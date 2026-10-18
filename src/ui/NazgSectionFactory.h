@@ -3,7 +3,7 @@
 //
 // SectionFactory - a planned section (ui/NazgSectionPlan.h) made into the section that draws
 // it, from what every section is made with. A kind with no section built yet gets a
-// placeholder. The matrix view is not planned: Main.cpp adds it while Advanced tools is on.
+// placeholder. The matrix view is not planned: App adds it last, on every board.
 //
 // ImGui only, no SDL: compiled into the application, not into nazg_core.
 

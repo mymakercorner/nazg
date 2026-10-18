@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- Mockup of the key test that works on every board (ui-design.md, "The key test").
+
+     First round (2026-10-18). The live test reads the board's switch matrix (id_switch_matrix_state),
+     which most VIA firmware refuses: it answers all released unless built with VIA_INSECURE
+     (Keychron builds every board so) or SECURE_ENABLE and unlocked. VIA's own Key Tester falls back
+     on the computer's key events -- and draws a generic 108-key keyboard, not the board.
+
+     Rico's idea (2026-10-18): on a VIA board, test with the keys the computer receives. Settled with
+     him before the mockup: keep both and let Nazg choose -- a key the computer receives while the
+     matrix says nothing is pressed means the firmware refuses the matrix: Nazg switches to the
+     computer's keys and says so; a press the matrix shows means it works, and Nazg stays on it.
+     And the panel always says which method is in use (Rico).
+
+     Where (Rico, 2026-10-18, during the first round): the Matrix view for everyone, its live test AND
+     its row/column wiring -- no longer behind Advanced tools.
+
+     The variants: how it says which method; the marks of the computer's keys.
+
+     Settled 2026-10-18 (Rico): a tag at the strip's end as well as the panel's line; shared keys amber
+     with a ?, keys that send nothing hatched. The toggles keep the alternatives.
+     The board is made up: a 60% with a split space bar (both halves Space), Fn on MO(1), an empty
+     position, and a knob. Click keys to press them; the knob's arrows turn it. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Key test mockup</title>
+<style>
+:root{--window:#f3f3f5;--menubar:#e3e4e9;--text:#1d1e22;--muted:#6b6e78;--control:#ffffff;--border:#c8cad2;--accent:#3b82f6;--accent-text:#fff;--panel:#f8f8fa;--column:#ebecf0;--selected:rgba(59,130,246,.16);
+--plate:#d3d4d8;--key:#ffffff;--keyline:#b4b7c2;--ok:#15803d;--warn:#c2410c;--chg:#2563eb;
+--seen:#e6f4dc;--seenline:#6aa84f;--maybe:#fff1d6;--maybeline:#d08a1c;--none:#ececef}
+:root[data-theme="dark"]{--window:#0f0f11;--menubar:#24252b;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--accent:#4296fa;--accent-text:#fff;--panel:#16171b;--column:#16171b;--selected:rgba(66,150,250,.22);
+--plate:#1c1d23;--key:#3a3c48;--keyline:#4b4e5c;--ok:#4ade80;--warn:#fb923c;--chg:#60a5fa;
+--seen:#24401a;--seenline:#6aa84f;--maybe:#47340f;--maybeline:#e0a43a;--none:#25262c}
+*{box-sizing:border-box}
+body{margin:0;background:var(--window);color:var(--text);font-family:Arimo,"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+.controls{display:flex;flex-wrap:wrap;gap:8px 22px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.group .name{color:var(--muted);margin-right:4px}
+button{font:inherit;padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--control);color:var(--text);cursor:pointer}
+button.on,button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+.stage{padding:16px;overflow-x:auto}
+.frame{position:relative;margin:0 auto;width:1000px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--window);box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.menubar{display:flex;gap:18px;align-items:center;background:var(--menubar);padding:5px 14px}
+.menubar .board{font-weight:600}
+.muted{color:var(--muted)}
+.menubar .right{margin-left:auto;color:var(--muted)}
+.body{display:flex;min-height:470px}
+.col{flex:none;width:180px;background:var(--column);border-right:1px solid var(--border);padding:6px 5px;display:flex;flex-direction:column;gap:2px}
+.col .hdr{font-weight:700;font-size:12px;padding:6px 10px 2px}
+.col .sep{border-top:1px solid var(--border);margin:5px 4px}
+.entry{padding:7px 10px;border-radius:6px;color:var(--muted)}
+.entry.on{background:var(--selected);color:var(--text);box-shadow:inset 3px 0 0 var(--accent)}
+.entry.new{outline:1px dashed var(--chg)}
+.entry .adv{font-size:11px;margin-left:6px}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;padding:10px 14px 14px;gap:10px}
+.strip{display:flex;gap:4px;align-items:center}
+.strip .tab{padding:4px 12px;border:1px solid var(--border);border-radius:6px;background:var(--control)}
+.strip .tab.on{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+.strip .tag{margin-left:auto;padding:3px 9px;border-radius:10px;font-size:12px;border:1px solid var(--border);color:var(--muted)}
+.strip .tag.sw{border-color:var(--seenline);color:var(--ok)}
+.strip .tag.host{border-color:var(--maybeline);color:var(--warn)}
+svg.board{display:block;margin:0 auto;user-select:none}
+svg.board .k{cursor:pointer}
+.panel{border:1px solid var(--border);border-radius:6px;background:var(--panel);padding:8px 12px;line-height:1.6}
+.panel .how{font-weight:600}
+.panel .how.sw{color:var(--ok)}
+.panel .how.host{color:var(--warn)}
+.panel .row{display:flex;gap:10px;align-items:center}
+.panel .row .right{margin-left:auto}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:4px}
+.legend i{display:inline-block;width:14px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-2px;border:1px solid var(--keyline)}
+.notes{max-width:1000px;margin:0 auto;padding:4px 16px 30px;color:var(--muted);line-height:1.55}
+.notes b{color:var(--text);font-weight:600}
+.notes p{margin:0 0 8px}
+</style>
+</head>
+<body>
+<div class="controls" id="controls"></div>
+<div class="stage"><div class="frame" id="frame"></div></div>
+<div class="notes" id="notes"></div>
+<script>
+"use strict";
+// A 60% with a split space bar: [width, legend, keycode]. MO(1) and KC_NO send nothing.
+const ROWS = [
+  [[1,'Esc','ESC'],[1,'1','1'],[1,'2','2'],[1,'3','3'],[1,'4','4'],[1,'5','5'],[1,'6','6'],[1,'7','7'],[1,'8','8'],[1,'9','9'],[1,'0','0'],[1,'-','MINS'],[1,'=','EQL'],[2,'Bksp','BSPC']],
+  [[1.5,'Tab','TAB'],[1,'Q','Q'],[1,'W','W'],[1,'E','E'],[1,'R','R'],[1,'T','T'],[1,'Y','Y'],[1,'U','U'],[1,'I','I'],[1,'O','O'],[1,'P','P'],[1,'[','LBRC'],[1,']','RBRC'],[1.5,'\\','BSLS']],
+  [[1.75,'Caps','CAPS'],[1,'A','A'],[1,'S','S'],[1,'D','D'],[1,'F','F'],[1,'G','G'],[1,'H','H'],[1,'J','J'],[1,'K','K'],[1,'L','L'],[1,';','SCLN'],[1,"'",'QUOT'],[2.25,'Enter','ENT']],
+  [[2.25,'Shift','LSFT'],[1,'Z','Z'],[1,'X','X'],[1,'C','C'],[1,'V','V'],[1,'B','B'],[1,'N','N'],[1,'M','M'],[1,',','COMM'],[1,'.','DOT'],[1,'/','SLSH'],[1.75,'Shift','RSFT'],[1,'','NO']],
+  [[1.25,'Ctrl','LCTL'],[1.25,'Win','LGUI'],[1.25,'Alt','LALT'],[3,'Space','SPC'],[3.25,'Space','SPC'],[1.25,'Alt','RALT'],[1.25,'Fn','MO1'],[1.25,'Ctrl','RCTL']],
+];
+const SENDS_NOTHING = new Set(['MO1', 'NO']);
+const KEYS = [];
+ROWS.forEach((r, y) => { let x = 0; r.forEach(([w, l, kc], i) => { KEYS.push({ x, y, w, l, kc, id: y + ':' + i }); x += w; }); });
+const KNOB = { x: 15.6, y: 0, l: 'Vol', ccw: 'VOLD', cw: 'VOLU' };
+
+const FIRMWARE = {
+  'Stock VIA (matrix refused)': { matrix: false, name: 'Phoenix Project No 1', proto: 'VIA 12' },
+  'VIA_INSECURE (Keychron)': { matrix: true, name: 'Keychron Q6', proto: 'VIA 12' },
+  'Vial, unlocked': { matrix: true, name: 'F77 Model F Keyboard', proto: 'Vial 6' },
+};
+const state = { fw: 'Stock VIA (matrix refused)', says: 'A tag in the strip, the line too', marks: 'Shared keys amber, mute keys hatched', theme: 'Light',
+  pressed: new Set(), seen: new Set(), knob: new Set(), method: null };
+
+const fw = () => FIRMWARE[state.fw];
+function press(key) {
+  // The first press decides: the matrix shows it, or only the computer receives it.
+  if (!state.method) state.method = fw().matrix ? 'switches' : (SENDS_NOTHING.has(key.kc) ? null : 'computer');
+  if (state.method === 'switches') state.seen.add(key.id);
+  else if (state.method === 'computer' && !SENDS_NOTHING.has(key.kc))
+    KEYS.filter(k => k.kc === key.kc).forEach(k => state.seen.add(k.id));
+}
+function shared(kc) { return KEYS.filter(k => k.kc === kc).length > 1; }
+function markOf(key) {
+  const host = state.method === 'computer';
+  if (host && SENDS_NOTHING.has(key.kc)) return 'mute';
+  if (state.seen.has(key.id)) return host && shared(key.kc) ? 'maybe' : 'seen';
+  return '';
+}
+
+function boardSvg() {
+  const u = 40, W = 17 * u, H = 5 * u + 20;
+  let s = `<svg class="board" width="${W + 20}" height="${H + 10}"><defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="var(--keyline)" stroke-width="2"/></pattern></defs>`;
+  s += `<rect x="4" y="4" width="${15 * u + 12}" height="${5 * u + 12}" rx="8" fill="var(--plate)"/>`;
+  for (const k of KEYS) {
+    const m = markOf(k), x = 10 + k.x * u + 2, y = 10 + k.y * u + 2, w = k.w * u - 4, h = u - 4;
+    let fill = 'var(--key)', stroke = 'var(--keyline)', sw = 1, op = 1, dash = '';
+    if (m === 'seen') { fill = 'var(--seen)'; stroke = 'var(--seenline)'; sw = 2; }
+    if (m === 'maybe') { fill = state.marks.startsWith('Shared keys amber') ? 'var(--maybe)' : 'var(--seen)'; stroke = state.marks.startsWith('Shared keys amber') ? 'var(--maybeline)' : 'var(--seenline)'; sw = 2; }
+    if (m === 'mute') { op = .55; dash = state.marks.endsWith('hatched') ? '' : '4 3'; }
+    s += `<g class="k" data-id="${k.id}" opacity="${op}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"${dash ? ` stroke-dasharray="${dash}"` : ''}/>`;
+    if (m === 'mute' && state.marks.endsWith('hatched')) s += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="url(#hatch)" opacity=".5"/>`;
+    s += `<text x="${x + w / 2}" y="${y + h / 2 + 4}" text-anchor="middle" font-size="12" fill="var(--text)">${k.l || (k.kc === 'NO' ? '✕' : '')}</text>`;
+    if (m === 'maybe' && state.marks.startsWith('Shared keys amber')) s += `<text x="${x + w - 9}" y="${y + 13}" font-size="11" fill="var(--maybeline)">?</text>`;
+    s += `</g>`;
+  }
+  // The knob: no matrix position -- only the computer's keys test it.
+  const cx = 10 + KNOB.x * u + u / 2, cy = 10 + u / 2 + 6, knobSeen = state.method === 'computer' && state.knob.size === 2;
+  const knobPart = state.method === 'computer' && state.knob.size === 1;
+  s += `<circle cx="${cx}" cy="${cy}" r="${u / 2 - 2}" fill="${knobSeen ? 'var(--seen)' : 'var(--key)'}" stroke="${knobSeen || knobPart ? 'var(--seenline)' : 'var(--keyline)'}" stroke-width="${knobSeen || knobPart ? 2 : 1}" opacity="${state.method === 'switches' ? .45 : 1}"/>`;
+  s += `<text x="${cx}" y="${cy + 4}" text-anchor="middle" font-size="11" fill="var(--text)">${KNOB.l}</text>`;
+  s += `<text class="k" data-knob="ccw" x="${cx - u / 2 - 8}" y="${cy + u / 2 + 18}" font-size="13" fill="var(--muted)" style="cursor:pointer">↺</text>`;
+  s += `<text class="k" data-knob="cw" x="${cx + u / 2 - 2}" y="${cy + u / 2 + 18}" font-size="13" fill="var(--muted)" style="cursor:pointer">↻</text>`;
+  return s + `</svg>`;
+}
+
+function methodWords() {
+  if (!state.method)
+    return { cls: '', head: 'Press any key.', more: 'Nazg reads the board\'s switches if it reports them, else the keys the computer receives -- it tells which once a key is pressed.' };
+  if (state.method === 'switches')
+    return { cls: 'sw', head: 'Testing the switches', more: `The board reports which of its switches are pressed, whatever they send. The knob has no switch: turn it in Keymap to try it.` };
+  return { cls: 'host', head: 'Testing what the computer receives',
+    more: `This firmware does not report its switches (built without VIA_INSECURE), so a key lights when the computer receives what it sends. `
+      + `Fn and the empty key send nothing: they cannot be tested this way. Both halves of the space bar send Space: either lights both. `
+      + `Keys the system keeps -- Win, Alt+Tab, Print Screen -- may not arrive.` };
+}
+
+function columnHtml() {
+  let html = `<div class="col"><div class="hdr">${fw().proto.startsWith('Vial') ? 'Vial' : 'VIA'}</div><div class="entry">Keymap</div><div class="entry">Layout</div><div class="entry">Macros</div>`
+    + `<div class="sep"></div><div class="hdr">Tools</div><div class="entry">Device</div>`;
+  html += `<div class="entry on new">Matrix</div>`;
+  return html + `</div>`;
+}
+
+function stripHtml() {
+  const tabs = `<span class="tab on">Live test</span><span class="tab">Wiring</span>`;
+  let tag = '';
+  if (state.says === 'A tag in the strip, the line too' && state.method)
+    tag = state.method === 'switches' ? `<span class="tag sw">Switches</span>` : `<span class="tag host">Computer's keys</span>`;
+  return tabs || tag ? `<div class="strip">${tabs}${tag}</div>` : '';
+}
+
+function panelHtml() {
+  const w = methodWords(), keys = KEYS.filter(k => !(state.method === 'computer' && SENDS_NOTHING.has(k.kc)));
+  const seen = keys.filter(k => state.seen.has(k.id)).length;
+  const count = state.method ? `Seen ${seen} of ${keys.length} keys.` : '';
+  let html = `<div class="panel"><div class="row"><span class="how ${w.cls}">${w.head}</span><span>${count}</span><span class="right"><button id="over">Start over</button></span></div>`
+    + `<div class="muted">${w.more}</div>`;
+  if (state.method === 'computer')
+    html += `<div class="legend"><span><i style="background:var(--seen);border-color:var(--seenline)"></i>received</span>`
+      + (state.marks.startsWith('Shared keys amber') ? `<span><i style="background:var(--maybe);border-color:var(--maybeline)"></i>received, one of several sending it</span>` : '')
+      + `<span><i style="background:${state.marks.endsWith('hatched') ? 'repeating-linear-gradient(45deg,var(--keyline) 0 2px,transparent 2px 6px)' : 'var(--key)'};${state.marks.endsWith('hatched') ? '' : 'border-style:dashed;'}opacity:.6"></i>sends nothing: not testable</span></div>`;
+  return html + `</div>`;
+}
+
+function frameHtml() {
+  return `<div class="menubar"><span class="board">${fw().name} ▾</span><span class="muted">${fw().proto}</span><span class="right">Settings</span></div>`
+    + `<div class="body">${columnHtml()}<div class="main">${stripHtml()}${boardSvg()}${panelHtml()}</div></div>`;
+}
+
+const CONTROLS = [
+  ['Firmware', 'fw', Object.keys(FIRMWARE)],
+  ['Says', 'says', ['A line in the panel', 'A tag in the strip, the line too']],
+  ['Marks', 'marks', ['Shared keys amber, mute keys hatched', 'Shared keys green, mute keys dashed']],
+  ['Theme', 'theme', ['Light', 'Dark']],
+];
+function reset() { state.pressed.clear(); state.seen.clear(); state.knob.clear(); state.method = null; }
+function render() {
+  document.documentElement.dataset.theme = state.theme.toLowerCase();
+  document.getElementById('controls').innerHTML = CONTROLS.map(([name, key, vals]) =>
+    `<div class="group"><span class="name">${name}</span>` + vals.map(v =>
+      `<button data-key="${key}" data-val="${v}"${state[key] === v ? ' class="on"' : ''}>${v}</button>`).join('') + `</div>`).join('');
+  document.getElementById('frame').innerHTML = frameHtml();
+  document.getElementById('notes').innerHTML = NOTES;
+}
+document.getElementById('controls').addEventListener('click', e => {
+  const b = e.target.closest('button[data-key]');
+  if (!b) return;
+  state[b.dataset.key] = b.dataset.val;
+  if (b.dataset.key === 'fw') reset();
+  render();
+});
+document.getElementById('frame').addEventListener('click', e => {
+  if (e.target.id === 'over') { reset(); render(); return; }
+  const knob = e.target.closest('[data-knob]');
+  if (knob) { if (!state.method && !fw().matrix) state.method = 'computer'; if (state.method === 'computer') state.knob.add(knob.dataset.knob); render(); return; }
+  const g = e.target.closest('[data-id]');
+  if (g) { press(KEYS.find(k => k.id === g.dataset.id)); render(); }
+});
+
+const NOTES = `
+<p><b>Two methods, chosen by the board.</b> Nazg reads the switch matrix, as the live test does today, and listens to the keys the
+computer receives. Until a key is pressed it cannot tell a firmware that refuses the matrix from a board at rest -- both read all
+released. The first press decides: shown by the matrix, the switches are tested (a Keychron board, an unlocked Vial board); received
+by the computer while the matrix shows nothing, the firmware refuses it, and Nazg tests what the computer receives (most VIA boards).
+<i>Firmware</i> switches the board; click keys to press them. A press of Fn alone decides nothing: it sends nothing.</p>
+<p><b>Testing what the computer receives</b> tests the keymap and the system as much as the switches. A key that sends nothing -- a
+layer key, an empty position, QK_BOOT -- cannot be tested, and says so. Two keys sending the same keycode cannot be told apart:
+either lights both, marked. The knob, which has no switch, can be tested only this way. Win, Alt+Tab or Print Screen may never reach
+Nazg; Alt+F4 would close it -- Nazg ignores what it can. VIA's own tester draws a generic 108-key keyboard; Nazg draws the board.</p>
+<p><b>Where</b> (Rico, 2026-10-18): the Matrix view, in Tools, for everyone -- the live test with both methods, and the
+row/column wiring, no longer behind Advanced tools. A separate Key test section, and the wiring kept Advanced, were drawn first. Dashed: what changes.</p>
+<p><b>Saying which</b> (Rico): always, in the panel's first line, and what the method cannot see; or a tag at the strip's end too.</p>`;
+render();
+</script>
+</body>
+</html>

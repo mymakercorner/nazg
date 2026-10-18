@@ -35,6 +35,22 @@ namespace
     constexpr int   c_DefaultWindowHeight = 800;
     constexpr char  c_WindowTitle[]       = "Nazg";
 
+    // A key as USB numbers it, the page above the usage (model/NazgHostKeys.h): SDL's scancodes up to
+    // 0xFF are the keyboard page's own usages; its media keys, past them, are the consumer page's.
+    std::optional<uint32_t> HidUsageOf(SDL_Scancode scancode)
+    {
+        if (scancode > SDL_SCANCODE_UNKNOWN && scancode <= 0xFF)
+            return (0x07u << 16) | static_cast<uint32_t>(scancode);
+        switch (scancode)
+        {
+        case SDL_SCANCODE_MEDIA_NEXT_TRACK:     return (0x0Cu << 16) | 0xB5;
+        case SDL_SCANCODE_MEDIA_PREVIOUS_TRACK: return (0x0Cu << 16) | 0xB6;
+        case SDL_SCANCODE_MEDIA_STOP:           return (0x0Cu << 16) | 0xB7;
+        case SDL_SCANCODE_MEDIA_PLAY_PAUSE:     return (0x0Cu << 16) | 0xCD;
+        default:                                return std::nullopt;
+        }
+    }
+
     // The window where it was left, if that is still on a display -- its top-left corner, where
     // the title bar is, in some display's usable area -- and no bigger than that area. Otherwise,
     // and on the first run, centred on the main display and as large as most of it: a full-size
@@ -345,6 +361,14 @@ int main(int, char**)
         static const SDL_DialogFileFilter c_Filters[] = { { "Vial or VIA layout", "vil;json" } };
         SDL_ShowOpenFileDialog(OnLayoutOpenChosen, &answers, pWindow, c_Filters, 1, nullptr, false);
     };
+    platform.takeKeyboard = [pWindow](bool take)
+    {
+        if (take)
+            SDL_SetHint(SDL_HINT_WINDOWS_CLOSE_ON_ALT_F4, "0");
+        else
+            SDL_ResetHint(SDL_HINT_WINDOWS_CLOSE_ON_ALT_F4);
+        SDL_SetWindowKeyboardGrab(pWindow, take);
+    };
     platform.showLayoutSaveDialog = [&answers, pWindow](const std::string& suggested)
     {
         answers.layoutSuggested = suggested;   // App opens one at a time
@@ -501,6 +525,11 @@ int main(int, char**)
                     app.RequestQuit();
                 if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED && event.window.windowID == SDL_GetWindowID(pWindow))
                     app.RequestQuit();
+
+                // The computer's keys, for the live test: repeats are not presses.
+                if ((event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP) && !event.key.repeat)
+                    if (const std::optional<uint32_t> usage = HidUsageOf(event.key.scancode))
+                        app.OnHostKey(*usage, event.type == SDL_EVENT_KEY_DOWN);
             }
             TrackWindowPlace(pWindow, app.Settings().window);
 

@@ -102,6 +102,10 @@ namespace nazg
         Failing,
         AtRisk,
         ToCheck,
+
+        // Not a diagnosis: the live test heard what this key sends, and another key sends it too --
+        // either was pressed (ui-design.md, "The key test"). The warning's colours, a ? in the corner.
+        Ambiguous,
     };
 
     // Rule 1 too: whose keycode a key's legends are (ui-design.md, "Transparent keys"). QMK takes
@@ -153,6 +157,10 @@ namespace nazg
         float        heat      = 0.0f;   // with KeyFill::Heat
         uint8_t      marks     = 0;
         KeyCondition condition = KeyCondition::None;
+
+        // Hatched across its face: the live test cannot test it -- it sends nothing the computer
+        // reports (ui-design.md, "The key test").
+        bool hatched = false;
 
         // One slot -- turning the key's legends into slot legends, all empty, if they were not.
         Legend& operator[](LegendSlot slot);

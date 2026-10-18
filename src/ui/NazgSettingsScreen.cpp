@@ -221,7 +221,7 @@ namespace nazg
         SeparatorHeader("Advanced");
         action.advancedToolsChanged = ImGui::Checkbox("Advanced tools", &advancedTools);
         ImGui::SetItemTooltip("For keyboard designers and debugging: adds an Advanced submenu to the\n"
-                              "board menu, with the matrix view and Export definition.");
+                              "board menu, with Export definition, and every lighting key to the picker.");
 
         SeparatorHeader("About");
         ImGui::TextUnformatted("Nazg -- one keyboard configurator to rule them all.");

@@ -1,16 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com>
 //
-// MatrixView - how the board is wired (ui-design.md, "The matrix view"): a section in the
-// column's Tools group, last, while the Advanced tools setting is on (Rico, 2026-10-09) -- every
-// board has the data, so with the setting off it would bring the column back on every
-// keymap-only board.
+// MatrixView - how the board is wired and whether its keys work (ui-design.md, "The matrix view",
+// "The key test"): a section in the column's Tools group, last, on every board (Rico, 2026-10-18;
+// from 2026-10-09 it showed only with Advanced tools on).
 //
 // Two modes in its strip, Live test first and shown first (Rico, 2026-10-18).
 //
-// Live test: keys turn green as the board reports them pressed, a checklist for a freshly
-// built board -- a view of its own, with no hover, no wiring and no dimming. It starts as soon
-// as it shows. The board is opened once and kept open while the test runs, polled every
+// Live test: keys turn green as they are found working, a checklist for a freshly built board --
+// a view of its own, with no hover, no wiring and no dimming. It starts as soon as it shows, and
+// reads the board one of two ways, said in the panel and tagged at the strip's end (Rico,
+// 2026-10-18): the switches, when the board reports its matrix; else the keys the computer
+// receives. Until a key is pressed the two cannot be told apart -- a firmware refusing its matrix
+// answers all released, as a board at rest does -- so the first press decides: shown by the
+// matrix, the switches are tested; received by the computer while the matrix shows nothing for two
+// readings, the firmware refuses it. A board known not to report -- locked, too old, too wide --
+// starts on the computer's keys. Those test the keymap and the system as much as the switches:
+// a key sending nothing cannot be tested, hatched; keys sending the same thing light together,
+// marked ? (model/NazgHostKeys.h). The board is opened once and kept open while the test runs, polled every
 // 20 ms as VIA and Vial poll it, and closed when the test stops -- so while it runs nothing
 // else may talk to the board: HID hands every open handle a copy of each reply, and one left
 // idle would read a stale one next. The test stops once another section is shown, or when Nazg
@@ -30,8 +37,11 @@
 
 #pragma once
 
+#include <cstdint>
 #include <optional>
+#include <set>
 #include <string>
+#include <string_view>
 
 #include "adapters/via/NazgViaProtocol.h"
 #include "async/NazgTask.h"
@@ -85,6 +95,15 @@ namespace nazg
         // may drive the UI -- the caller turns keyboard navigation off.
         [[nodiscard]] bool IsLiveTestRunning() const noexcept { return m_Live == Live::Running && !m_ShowWiring; }
 
+        // A key of the computer's, pressed or released, as USB numbers it (model/NazgHostKeys.h): every
+        // one, while the live test runs -- it tells a firmware refusing its matrix from a board at
+        // rest, and tests the keys on such a firmware.
+        void OnHostKey(uint32_t usage, bool down);
+
+        // The live test reads the computer's keys, or waits to know whether it must: the window takes
+        // the keyboard meanwhile, so Win and Alt+Tab reach it and Alt+F4 does not close Nazg.
+        [[nodiscard]] bool WantsComputerKeys() const noexcept { return IsLiveTestRunning() && m_Method != Method::Switches; }
+
     private:
         enum class Live
         {
@@ -93,6 +112,22 @@ namespace nazg
             Running,
             Failed,     // m_LiveMessage says why; the board is closed
         };
+
+        // How the live test reads the board: not known until a key is pressed.
+        enum class Method
+        {
+            Unknown,
+            Switches,   // the board's switch matrix
+            Computer,   // the keys the computer receives; m_Why says why
+        };
+
+        // The live test on the computer's keys from now on: the board closed once nothing is in flight.
+        void UseComputerKeys(std::string why);
+
+        // The board as the computer's keys test it: what each key sends, received or held.
+        void DescribeComputerKeys(BoardDescription& board);
+
+        void DrawMethodLine();
 
         [[nodiscard]] MatrixFocus Focus() const { return m_Pinned ? *m_Pinned : m_Hovered; }
 
@@ -131,5 +166,17 @@ namespace nazg
         MatrixLive                      m_Readings;
         Task<void>                      m_Request;
         double                          m_LastPoll = 0.0;   // ImGui::GetTime() of the last poll sent
+
+        Method      m_Method = Method::Unknown;
+        std::string m_Why;   // why the computer's keys: "This firmware does not report its switches"
+
+        // Telling a refusal from rest: since when a key of the computer's is down, and how many
+        // readings sent after it came back with nothing pressed.
+        std::optional<double> m_HostDownAt;
+        int                   m_QuietReadings = 0;
+
+        // The computer's keys, by the keycode names they come from: held now, and seen since the test began.
+        std::set<std::string_view> m_HostHeld;
+        std::set<std::string_view> m_HostSeen;
     };
 }

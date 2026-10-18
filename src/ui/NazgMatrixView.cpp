@@ -3,12 +3,15 @@
 
 #include "NazgMatrixView.h"
 
+#include <algorithm>
 #include <exception>
+#include <map>
 #include <utility>   // std::exchange, std::move
 
 #include "imgui.h"
 
 #include "adapters/vial/NazgVialProtocol.h"
+#include "model/NazgHostKeys.h"
 #include "transport/NazgDeviceChannel.h"
 #include "ui/NazgKeycapLegend.h"
 #include "ui/NazgTheme.h"
@@ -22,6 +25,34 @@ namespace nazg
 
         // The first Vial protocol with the matrix tester (via-vial-commands.md).
         constexpr uint32_t c_VialMatrixTesterProtocol = 3;
+
+        // Readings, sent while a key of the computer's is down, that show nothing pressed: enough to
+        // say the firmware refuses its matrix. More than one: a reading may land just after a release
+        // the computer has not reported yet.
+        constexpr int c_QuietReadings = 2;
+
+        bool AnyPressed(const via::SwitchMatrixState& state)
+        {
+            for (uint8_t row = 0; row < state.rows; ++row)
+                for (uint8_t column = 0; column < state.columns; ++column)
+                    if (state.IsPressed(row, column))
+                        return true;
+            return false;
+        }
+
+        // As IsPressed() reads it: rows of ceil(columns / 8) bytes, column 0 the last byte's bit 0.
+        void SetPressed(via::SwitchMatrixState& state, uint8_t row, uint8_t column)
+        {
+            if (row >= state.rows || column >= state.columns)
+                return;
+            const size_t rowBytes = (state.columns + 7u) / 8u;
+            state.bytes[row * rowBytes + (rowBytes - 1 - column / 8u)] |= static_cast<uint8_t>(1u << (column % 8u));
+        }
+
+        via::SwitchMatrixState Empty(uint8_t rows, uint8_t columns)
+        {
+            return { rows, columns, std::vector<uint8_t>(rows * ((columns + 7u) / 8u), 0) };
+        }
 
         // "R4 C10", as the rulers say it.
         std::string PositionOf(const via::DefinitionKey& key)
@@ -42,6 +73,13 @@ namespace nazg
         strip.label   = "Matrix";
         strip.entries = { "Live test", "Wiring" };
         strip.chosen  = m_ShowWiring ? 1 : 0;
+        if (IsLiveShown() && m_Live == Live::Running && m_Method == Method::Switches)
+            strip.tag = "Switches";
+        else if (IsLiveShown() && m_Live == Live::Running && m_Method == Method::Computer)
+        {
+            strip.tag        = "Computer's keys";
+            strip.tagWarning = true;
+        }
         return strip;
     }
 
@@ -90,7 +128,11 @@ namespace nazg
                 m_LiveMessage.clear();
                 m_Request = StartLive();
             }
-            else if (m_Live == Live::Running && ImGui::GetTime() - m_LastPoll >= c_PollInterval)
+            else if (m_Live == Live::Running && m_Method == Method::Computer)
+            {
+                m_Channel.reset();   // nothing more to read from the board
+            }
+            else if (m_Live == Live::Running && m_Channel && ImGui::GetTime() - m_LastPoll >= c_PollInterval)
             {
                 m_LastPoll = ImGui::GetTime();
                 m_Request  = Poll();
@@ -102,8 +144,13 @@ namespace nazg
 
         // The live test is a view of its own: only what the board reports, no wiring.
         const bool isLive = IsLiveTestRunning();
-        m_Counts = DescribeMatrix(board, m_Keyboard.definition.matrixRows, m_Keyboard.definition.matrixColumns,
-                                  IsLiveShown() ? MatrixFocus{} : Focus(), isLive ? &m_Readings : nullptr);
+        // Before the first press too, the keys the computer could not hear hatched (Rico, 2026-10-18):
+        // the board most likely does not report its switches; if it does, the hatching goes.
+        if (isLive && m_Method != Method::Switches)
+            DescribeComputerKeys(board);
+        else
+            m_Counts = DescribeMatrix(board, m_Keyboard.definition.matrixRows, m_Keyboard.definition.matrixColumns,
+                                      IsLiveShown() ? MatrixFocus{} : Focus(), isLive ? &m_Readings : nullptr);
         m_KeyAt  = m_Counts.keysAt.empty()
                        ? std::string()
                        : FormatKeycode(m_Keyboard.KeycodeFor(board.keys[m_Counts.keysAt.front()].geometry, 0));
@@ -227,13 +274,22 @@ namespace nazg
             break;
         }
 
+        DrawMethodLine();
+        if (m_Method == Method::Unknown)
+            return;
+        ImGui::Spacing();
+
         ImGui::Text("Seen %zu of %zu keys. Press every key once.", m_Counts.seenKeys, m_Counts.keys);
         ImGui::SameLine();
         if (ImGui::SmallButton("Start over"))
+        {
             m_Readings = {};
+            m_HostSeen.clear();
+        }
 
         if (m_Counts.seenKeys == m_Counts.keys && m_Counts.keys > 0)
-            ColouredText(PanelColour::Success, "Every key works.");
+            ColouredText(PanelColour::Success, m_Method == Method::Switches ? "Every key works."
+                                                                              : "Every key the computer can hear works.");
         else
             ColouredText(PanelColour::Muted, "A row or column label stays grey until all its keys are seen: one "
                                              "that never turns green points at that trace.");
@@ -253,10 +309,163 @@ namespace nazg
                          positions.c_str());
         }
 
-        if (m_Counts.seenKeys == 0 && !m_IsVial)
-            ColouredText(PanelColour::Muted, "Nothing lights? A VIA firmware sends the matrix only when built with "
-                                             "VIA_INSECURE, or with SECURE_ENABLE and unlocked; otherwise every key "
-                                             "reads as released.");
+    }
+
+    // Always said (Rico, 2026-10-18): which way the board is read, and what that way cannot see.
+    void MatrixView::DrawMethodLine()
+    {
+        switch (m_Method)
+        {
+        case Method::Unknown:
+            ImGui::TextUnformatted("Press any key.");
+            ColouredText(PanelColour::Muted, "Nazg reads the board's switches if it reports them, else the keys the "
+                                             "computer receives -- it says which once a key is pressed. Hatched: keys "
+                                             "sending nothing the computer hears, which only the switches can test.");
+            return;
+        case Method::Switches:
+            ColouredText(PanelColour::Success, "Testing the switches");
+            ColouredText(PanelColour::Muted, "The board reports which of its switches are pressed, whatever they send.");
+            return;
+        case Method::Computer:
+            ColouredText(PanelColour::Warning, "Testing what the computer receives");
+            ColouredText(PanelColour::Muted, "%s, so a key lights when the computer receives what it sends. A key sending "
+                                             "nothing -- a layer key, an empty one -- cannot be tested this way, and is "
+                                             "hatched; keys sending the same thing light together, marked ?. Keys the "
+                                             "system keeps may never arrive.",
+                         m_Why.c_str());
+            return;
+        }
+    }
+
+    void MatrixView::UseComputerKeys(std::string why)
+    {
+        m_Method = Method::Computer;
+        m_Why    = std::move(why);
+        m_Live   = Live::Running;
+    }
+
+    void MatrixView::OnHostKey(uint32_t usage, bool down)
+    {
+        if (!IsLiveTestRunning() || m_Method == Method::Switches)
+            return;
+
+        // Any key, tested or not, tells a refusal from rest.
+        if (m_Method == Method::Unknown)
+        {
+            if (down && !m_HostDownAt)
+            {
+                m_HostDownAt    = ImGui::GetTime();
+                m_QuietReadings = 0;
+            }
+            else if (!down)
+                m_HostDownAt.reset();
+        }
+
+        for (const std::string_view name : KeycodesSending(usage, m_Keyboard.keycodeVersion))
+        {
+            if (down)
+            {
+                m_HostHeld.insert(name);
+                m_HostSeen.insert(name);
+            }
+            else
+                m_HostHeld.erase(name);
+        }
+    }
+
+    void MatrixView::DescribeComputerKeys(BoardDescription& board)
+    {
+        const uint8_t             rows    = m_Keyboard.definition.matrixRows;
+        const uint8_t             columns = m_Keyboard.definition.matrixColumns;
+        const qmk::KeycodeVersion version = m_Keyboard.keycodeVersion;
+
+        // What each key is tested by, and how many keys share it: a switch by its keycode on the base
+        // layer, a Vial knob's direction key by its turn.
+        const auto turnOf = [&](const via::DefinitionKey& key, bool clockwise) -> std::optional<std::string_view>
+        {
+            if (m_Keyboard.encoderMap.empty() || key.encoderIndex < 0 ||
+                static_cast<size_t>(key.encoderIndex) >= m_Keyboard.encoderMap[0].size())
+                return std::nullopt;
+            const KnobTurns& turns = m_Keyboard.encoderMap[0][static_cast<size_t>(key.encoderIndex)];
+            return TestedName(clockwise ? turns.clockwise : turns.counterClockwise, version);
+        };
+
+        std::vector<std::optional<std::string_view>> tested(board.keys.size());
+        std::map<std::string_view, int>              sharing;
+        for (size_t index = 0; index < board.keys.size(); ++index)
+        {
+            const via::DefinitionKey& key = board.keys[index].geometry;
+            if (key.IsSwitch())
+                tested[index] = TestedName(m_Keyboard.KeycodeFor(key, 0), version);
+            else if (key.encoderIndex >= 0 && key.encoderDirection >= 0)
+                tested[index] = turnOf(key, key.encoderDirection == 1);
+            if (tested[index])
+                ++sharing[*tested[index]];
+        }
+
+        // Readings as the switches would give them: a key received is seen, one held is pressed. A key
+        // that cannot be tested counts as seen, so its row and its column can still be complete.
+        MatrixLive live{ Empty(rows, columns), Empty(rows, columns) };
+        for (size_t index = 0; index < board.keys.size(); ++index)
+        {
+            const via::DefinitionKey& key = board.keys[index].geometry;
+            if (!key.IsSwitch())
+                continue;
+            if (!tested[index] || m_HostSeen.count(*tested[index]) > 0)
+                SetPressed(live.seen, key.row, key.column);
+            if (tested[index] && m_HostHeld.count(*tested[index]) > 0)
+                SetPressed(live.pressed, key.row, key.column);
+        }
+        m_Counts = DescribeMatrix(board, rows, columns, MatrixFocus{}, &live);
+
+        // The keys counted are those that can be tested; the marks say which cannot, and which were
+        // heard but share what they send.
+        size_t keys = 0, seen = 0;
+        for (size_t index = 0; index < board.keys.size(); ++index)
+        {
+            BoardKey&                 described = board.keys[index];
+            const via::DefinitionKey& key       = described.geometry;
+
+            if (key.encoderIndex >= 0 && key.encoderDirection < 0)
+            {
+                // A VIA knob turned both ways: lit once both turns are heard, outlined after one.
+                const auto ccw   = turnOf(key, false), cw = turnOf(key, true);
+                const int  heard = (ccw && m_HostSeen.count(*ccw) ? 1 : 0) + (cw && m_HostSeen.count(*cw) ? 1 : 0);
+                if (heard == 2)
+                    described.marks |= Mark::Checked;
+                else if (heard == 1)
+                    described.marks |= Mark::Highlighted;
+                if (!key.IsSwitch())
+                    continue;
+            }
+
+            if (!tested[index])
+            {
+                if (key.IsSwitch())
+                {
+                    described.marks = static_cast<uint8_t>((described.marks & ~Mark::Checked) | Mark::Dimmed);
+                    described.hatched = true;
+                }
+                continue;
+            }
+
+            const bool heard = m_HostSeen.count(*tested[index]) > 0;
+            if (key.IsSwitch() && key.row < rows && key.column < columns)
+            {
+                ++keys;
+                seen += heard ? 1 : 0;
+            }
+            else if (heard)
+                described.marks |= Mark::Checked;   // a Vial knob's direction key
+
+            if (heard && sharing[*tested[index]] > 1)
+            {
+                described.marks     = static_cast<uint8_t>(described.marks & ~Mark::Checked);
+                described.condition = KeyCondition::Ambiguous;
+            }
+        }
+        m_Counts.keys     = keys;
+        m_Counts.seenKeys = seen;
     }
 
     void MatrixView::Fail(std::string message)
@@ -269,7 +478,13 @@ namespace nazg
     // Opens the board, keeps it open, and finds out whether and how it will answer.
     Task<void> MatrixView::StartLive()
     {
-        m_Live = Live::Starting;
+        m_Live          = Live::Starting;
+        m_Method        = Method::Unknown;
+        m_Why.clear();
+        m_HostDownAt.reset();
+        m_QuietReadings = 0;
+        m_HostHeld.clear();
+        m_HostSeen.clear();
 
         const uint8_t rows    = m_Keyboard.definition.matrixRows;
         const uint8_t columns = m_Keyboard.definition.matrixColumns;
@@ -286,16 +501,16 @@ namespace nazg
                 const std::optional<vial::Identity> identity = co_await vial.Detect();
                 if (identity && identity->protocolVersion < c_VialMatrixTesterProtocol)
                 {
-                    Fail("This firmware speaks Vial protocol " + std::to_string(identity->protocolVersion) +
-                         "; the matrix tester came with protocol 3.");
+                    UseComputerKeys("This firmware speaks Vial protocol " + std::to_string(identity->protocolVersion) +
+                                    ", older than Vial's matrix test");
                     co_return;
                 }
 
                 const vial::UnlockStatus status = co_await vial.GetUnlockStatus();
                 if (!status.unlocked)
                 {
-                    Fail("The board is locked, and Vial sends the matrix only once unlocked. Click Locked in the "
-                         "header: the test starts once it is.");
+                    UseComputerKeys("The board is locked, and Vial reports its switches only once unlocked -- click "
+                                    "Locked in the header to test them");
                     co_return;
                 }
 
@@ -308,8 +523,8 @@ namespace nazg
 
             if (m_Format == via::SwitchMatrixFormat::Whole && !via::WholeMatrixFits(rows, columns))
             {
-                Fail("This firmware sends the matrix only when all of it fits in one reply, and " +
-                     std::to_string(rows) + " rows of " + std::to_string(columns) + " columns do not.");
+                UseComputerKeys("This firmware reports its switches only when all of them fit in one reply, and " +
+                                std::to_string(rows) + " rows of " + std::to_string(columns) + " columns do not");
                 co_return;
             }
 
@@ -327,10 +542,23 @@ namespace nazg
         try
         {
             via::Protocol via(*m_Channel);
+            const double  sent = ImGui::GetTime();
 
             const via::SwitchMatrixState reading = co_await via.GetSwitchMatrixState(
                 m_Format, m_Keyboard.definition.matrixRows, m_Keyboard.definition.matrixColumns);
             AddReading(m_Readings, reading);
+
+            // The first press decides: shown by the matrix, the switches; heard by the computer alone
+            // through readings sent while it was down, the firmware refuses its matrix.
+            if (m_Method == Method::Unknown)
+            {
+                if (AnyPressed(reading))
+                    m_Method = Method::Switches;
+                else if (m_HostDownAt && sent > *m_HostDownAt && ++m_QuietReadings >= c_QuietReadings)
+                    UseComputerKeys(m_IsVial ? "This firmware does not report its switches"
+                                             : "This firmware does not report its switches -- it was built without "
+                                               "VIA_INSECURE");
+            }
         }
         catch (const std::exception& failure)
         {

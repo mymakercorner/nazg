@@ -160,6 +160,8 @@ set(NAZG_CORE_SOURCES
   src/model/NazgKeyHealth.cpp
   src/model/NazgSavedLayout.h
   src/model/NazgSavedLayout.cpp
+  src/model/NazgHostKeys.h
+  src/model/NazgHostKeys.cpp
   src/ui/NazgKeycapLegend.h
   src/ui/NazgKeycapLegend.cpp
   src/ui/NazgHostLayoutTable.cpp
@@ -398,6 +400,7 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(board_description  tests/BoardDescriptionTest.cpp)
     nazg_add_test(key_shape          tests/KeyShapeTest.cpp)
     nazg_add_test(matrix_description tests/MatrixDescriptionTest.cpp)
+    nazg_add_test(host_keys          tests/HostKeysTest.cpp)
     nazg_add_test(via_loader         tests/ViaLoaderTest.cpp)
     nazg_add_test(board_load         tests/BoardLoadTest.cpp)
     nazg_add_test(device_list        tests/DeviceListTest.cpp)

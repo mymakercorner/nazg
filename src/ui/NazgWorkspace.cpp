@@ -295,7 +295,11 @@ namespace nazg
             const float dotRoom = 4.0f * style.FontScaleDpi;
             total += dotRoom;
 
-            const float available = ImGui::GetContentRegionAvail().x;
+            // The tag keeps its room at the right end; the entries have the rest.
+            const float tagWidth  = strip.tag.empty() ? 0.0f
+                                                      : ImGui::CalcTextSize(strip.tag.c_str()).x + 3 * style.FramePadding.x;
+            const float right     = ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x;
+            const float available = ImGui::GetContentRegionAvail().x - (strip.tag.empty() ? 0.0f : tagWidth + style.ItemSpacing.x);
             const bool  overflows = total > available;
             const float arrow     = ImGui::GetFrameHeight();
             const float inside    = overflows ? std::max(arrow, available - 2 * (arrow + style.ItemSpacing.x)) : available;
@@ -403,6 +407,26 @@ namespace nazg
                 if (ImGui::ArrowButton("##later", ImGuiDir_Right))
                     storage->SetFloat(pendingId, inside - 3 * minWidth);
                 ImGui::EndDisabled();
+            }
+
+            // A word at the right end, in a rounded outline: how the Matrix view's live test reads
+            // the board -- green, or in the warning's colour.
+            if (!strip.tag.empty())
+            {
+                ImGui::SameLine();
+                if (!overflows)
+                    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + dotRoom);
+                ImGui::SetCursorPosX(right - tagWidth);
+                const ImVec2 min = ImGui::GetCursorScreenPos();
+                const ImVec2 max(min.x + tagWidth, min.y + ImGui::GetFrameHeight());
+                const ImU32  colour =
+                    ImGui::ColorConvertFloat4ToU32(ColourOf(strip.tagWarning ? PanelColour::Warning : PanelColour::Success));
+                ImDrawList*  list = ImGui::GetWindowDrawList();
+                list->AddRect(min, max, colour, ImGui::GetFrameHeight() / 2, 0, std::max(1.0f, style.FontScaleDpi));
+                const ImVec2 text = ImGui::CalcTextSize(strip.tag.c_str());
+                list->AddText(ImVec2(min.x + (tagWidth - text.x) / 2, min.y + (max.y - min.y - text.y) / 2), colour,
+                              strip.tag.c_str());
+                ImGui::Dummy(ImVec2(tagWidth, ImGui::GetFrameHeight()));
             }
             section.OnStripHovered(hovered);
         }

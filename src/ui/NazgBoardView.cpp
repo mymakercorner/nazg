@@ -306,6 +306,57 @@ namespace nazg
         // host layouts print in that corner; on a filled square it reads as a mark. No line across
         // a KC_NO key: it ran through the legends, at an angle that changed with the key's shape
         // (Rico, 2026-10-04).
+        // Diagonal lines across the face, inside its contour -- an L-shaped key's too: each line kept
+        // only between the contour's crossings, inside by the even-odd rule.
+        void HatchContour(ImDrawList* drawList, const std::vector<ContourPoint>& contour, float spacing, float thickness,
+                          ImU32 colour)
+        {
+            if (contour.size() < 3)
+                return;
+            float minX = contour[0].x, maxX = contour[0].x, minY = contour[0].y, maxY = contour[0].y;
+            for (const ContourPoint& point : contour)
+            {
+                minX = std::min(minX, point.x);
+                maxX = std::max(maxX, point.x);
+                minY = std::min(minY, point.y);
+                maxY = std::max(maxY, point.y);
+            }
+
+            // Lines of slope -1 on screen: x + y = c, from the top-left corner to the bottom-right.
+            std::vector<float> crossings;
+            for (float c = minX + minY + spacing / 2; c < maxX + maxY; c += spacing)
+            {
+                crossings.clear();
+                for (size_t index = 0; index < contour.size(); ++index)
+                {
+                    const ContourPoint& a = contour[index];
+                    const ContourPoint& b = contour[(index + 1) % contour.size()];
+                    const float         sa = a.x + a.y - c, sb = b.x + b.y - c;
+                    if ((sa < 0.0f) == (sb < 0.0f))
+                        continue;
+                    const float t = sa / (sa - sb);
+                    crossings.push_back(a.x + (b.x - a.x) * t);
+                }
+                std::sort(crossings.begin(), crossings.end());
+                for (size_t pair = 0; pair + 1 < crossings.size(); pair += 2)
+                    drawList->AddLine(ImVec2(crossings[pair], c - crossings[pair]),
+                                      ImVec2(crossings[pair + 1], c - crossings[pair + 1]), colour, thickness);
+            }
+        }
+
+        // The live test's "either was pressed": a ? in the face's top-right corner, in the warning's colour.
+        void DrawAmbiguousMark(ImDrawList* drawList, ImVec2 p0, ImVec2 p1, float unit, bool dimmed)
+        {
+            ImFont*     font = ImGui::GetFont();
+            const float size = std::max(10.0f * ImGui::GetStyle().FontScaleDpi, 0.28f * unit);
+            const float inset = c_BadgeInset * unit;
+            ImU32       ink  = BoardColours::Condition(KeyCondition::Ambiguous);
+            if (dimmed)
+                ink = Over(ink, BoardColours::Dimmed());
+            const ImVec2 extent = font->CalcTextSizeA(size, FLT_MAX, 0.0f, "?");
+            drawList->AddText(font, size, ImVec2(p1.x - inset - extent.x, p0.y + inset), ink, "?");
+        }
+
         void DrawFallthroughMark(ImDrawList* drawList, Fallthrough fallthrough, KeyFill fill, float heat, ImVec2 p1,
                                  float unit, bool dimmed)
         {
@@ -531,6 +582,8 @@ namespace nazg
             {
                 DrawLegends(drawList, described, p0, p1, unit, isDimmed);
                 DrawFallthroughMark(drawList, described.fallthrough, described.fill, described.heat, p1, unit, isDimmed);
+                if (described.condition == KeyCondition::Ambiguous)
+                    DrawAmbiguousMark(drawList, p0, p1, unit, isDimmed);
                 if (key.encoderIndex >= 0)
                     DrawTurnBadge(drawList, key.encoderDirection == 1, described.fill, described.heat, p0, p1, unit, isDimmed);
             }
@@ -550,6 +603,12 @@ namespace nazg
                 if (described.condition != KeyCondition::None)
                     faceColour = Over(faceColour, BoardColours::ConditionTint(described.condition));
                 FillContour(drawList, face, rounding, WithStates(faceColour, described.marks, hovered));
+                if (described.hatched)
+                {
+                    const float hatch = std::max(1.0f, scale);
+                    HatchContour(drawList, InsetContour(face, std::max(rounding.outer * 0.4f, 2 * hatch)),
+                                 std::max(5.0f * scale, unit * 0.14f), hatch, Faded(BoardColours::Outline(), 0.7f));
+                }
 
                 if (CurrentBoardStyle().keycaps == KeycapStyle::Outlined)
                 {

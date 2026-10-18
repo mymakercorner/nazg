@@ -349,7 +349,8 @@ namespace nazg
             switch (condition)
             {
             case KeyCondition::Failing: return t.error;
-            case KeyCondition::AtRisk:  return t.warningText;
+            case KeyCondition::AtRisk:
+            case KeyCondition::Ambiguous: return t.warningText;
             case KeyCondition::ToCheck: return t.second;
             case KeyCondition::None:    break;
             }

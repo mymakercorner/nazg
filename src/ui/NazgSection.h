@@ -52,12 +52,17 @@ namespace nazg
         // Entries kept but unused -- a key override switched off: their words struck through.
         // Shorter than `entries`: the rest are not.
         std::vector<bool> struck;
+
+        // A word at the strip's right end, in a rounded outline -- how the Matrix view's live test
+        // reads the board (Rico, 2026-10-18). Green, or the warning's colour with `tagWarning`.
+        std::string tag;
+        bool        tagWarning = false;
     };
 
     // The column's groups (ui-design.md, "Nazg's sections, then the board's menus"): the sections
     // Nazg provides for the protocol, headed by its name -- VIA or Vial -- then the board's own
-    // menus from its definition, headed "Board", then the tools, headed "Tools": the matrix view
-    // while Advanced tools is on, the Leyden Jar diagnostics later.
+    // menus from its definition, headed "Board", then the tools, headed "Tools": Device, the Leyden
+    // Jar diagnostics, the matrix view.
     enum class SectionGroup
     {
         Protocol,

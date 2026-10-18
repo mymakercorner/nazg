@@ -102,7 +102,9 @@ exists, where, and how far it has been proven.
     while audio is off, Play a sound (device indication: the board's song on its own speaker); the
     board lighting the keys that change it; written at once, read each time the section is shown
     (`ui/NazgAudioSection.*`, `adapters/via/NazgViaAudio.*`).
-  - **Matrix view** (Tools, with *Advanced tools* on) -- a live test, first and started when shown,
+  - **Matrix view** (Tools, every board since 2026-10-18) -- a live test reading the switches, or the
+    keys the computer receives when the firmware refuses its matrix, said in the panel and the strip's
+    tag (ui-design.md, "The key test"; `model/NazgHostKeys.*`); first and started when shown,
     and wiring.
   - **Diagnostics** (Tools, every board answering the Leyden Jar's probe; `ui/NazgDiagnosticsSection.*`)
     -- Key presses (now and seen; the board, QMK's matrix or the controller's), Signal levels (the
@@ -155,6 +157,7 @@ one board to unlock).
 | Key health on Rico's F77 recordings: nothing accused, 26 good and 49 to hold, as the mockup (test) | |
 | Diagnostics on Rico's F77: key output off and on again, Key presses, Signal levels, Device; Enter bootloader and Erase EEPROM, the board closed and the list saying where it went (2026-10-17); Key presses and Enter bootloader on the F77 locked, past Vial's lock (2026-10-18) | |
 | The Device section on Rico's boards (2026-10-18): the bootloader, said how where the firmware lacks it, keymap reset, macros emptied | |
+| The key test (2026-10-18): the Concordia on the computer's keys, hatched keys and the shared-key marks; the F77 on its switches unlocked, on the computer's keys locked; Win and Alt+Tab taken while it reads them | |
 
 ## Traps already found
 

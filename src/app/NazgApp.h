@@ -72,6 +72,11 @@ namespace nazg
         // Likewise for saved layouts (.vil): OnLayoutOpenChosen() and OnLayoutSaveChosen().
         std::function<void()>                             showLayoutOpenDialog;
         std::function<void(const std::string& suggested)> showLayoutSaveDialog;
+
+        // While the live test reads the computer's keys (ui-design.md, "The key test"): the window
+        // takes the keyboard -- Win and Alt+Tab reach Nazg, Alt+F4 no longer closes it -- and gives
+        // it back after.
+        std::function<void(bool take)> takeKeyboard;
     };
 
     class App
@@ -120,6 +125,10 @@ namespace nazg
         // A HID device came or went, as the shell heard it: the list is read again once they stop
         // changing (ui-design.md, "Hotplug").
         void OnDevicesChanged();
+
+        // A key of the computer's, pressed or released, as USB numbers it -- the page above the
+        // usage (model/NazgHostKeys.h). The Matrix view's live test reads them.
+        void OnHostKey(uint32_t usage, bool down);
 
         // The window asked to close: unsaved changes are asked about first.
         void               RequestQuit() noexcept { m_QuitRequested = true; }
@@ -193,7 +202,7 @@ namespace nazg
             std::vector<std::unique_ptr<Section>> sections;
             size_t                                activeSection = 0;
 
-            // The matrix view among the sections, last, while Advanced tools is on -- or null. Its
+            // The matrix view among the sections, last, on every board -- null until it is added. Its
             // live test keeps the board open: anything else that talks to the board stops the test
             // first.
             MatrixView* matrix = nullptr;
@@ -295,6 +304,7 @@ namespace nazg
         bool                  m_QuitRequested         = false;   // the window's close, heard by the shell
         bool                  m_QuitConfirmed         = false;   // and allowed
         bool                  m_QuitWaiting           = false;   // asked, waiting for the board to be left
+        bool                  m_KeyboardTaken         = false;   // PlatformServices::takeKeyboard, last said
 
         // "Export definition...": the bytes are taken when Export is clicked -- a user
         // definition's stored file, the official one out of the bundle, or what a Vial board

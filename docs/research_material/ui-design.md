@@ -2561,12 +2561,12 @@ As built (2026-10-18), where it differs from the mockup or adds to it:
 
 ## The matrix view
 
-How the board is wired: which row and which column of the switch matrix each key sits on.
-Mostly for designers and anyone debugging a build, so it is **a section in the column's Tools
-group, only with *Advanced tools* on** (Rico, 2026-10-09) -- with the setting off, a section would
-bring the column back on every keymap-only board, since every board has the data. Until then it
-was opened from the board menu's Advanced submenu ("Show matrix…") and took the sections' place
-until closed. Its live test keeps the board open, so it stops as soon as another section is
+How the board is wired: which row and which column of the switch matrix each key sits on, and
+whether every key works. **A section in the column's Tools group, last, on every board** (Rico,
+2026-10-18): its live test -- below, "The key test" -- and its wiring are anyone's. From
+2026-10-09 it showed only with *Advanced tools* on, so as not to bring the column to keymap-only
+boards; the Device section brings it to every board now anyway. Before that it was opened from
+the board menu's Advanced submenu ("Show matrix…") and took the sections' place until closed. Its live test keeps the board open, so it stops as soon as another section is
 shown (`Section::WhileHidden()`). Seen on a Vial board, the F77 in secure mode (2026-10-18):
 refused while locked, as the firmware means it to be; the keys pressed once unlocked.
 
@@ -2644,6 +2644,46 @@ in a browser; GitHub and Markdown previews show only its source.
   navigation is off while it runs.
 - **The panel**: the status line, the seen count, what the definition says about its matrix
   (below), and *Close*, back to the keymap.
+
+### The key test
+
+The live test reads the switch matrix, which most VIA firmware refuses -- all released unless built
+with `VIA_INSECURE` (Keychron builds every board so) or `SECURE_ENABLE` and unlocked, and the VIA
+app has no unlock for QMK's secure mode. VIA's own Key Tester falls back on the browser's key events,
+and draws a generic 108-key keyboard (`test-keyboard-definition.json`), not the board. Rico's idea
+(2026-10-18): test with the keys the computer receives on a VIA board. Mockup:
+[ui-design/key-test.html](ui-design/key-test.html).
+
+Settled with Rico (2026-10-18):
+
+- **Both ways, Nazg choosing.** Until a key is pressed, a firmware refusing its matrix cannot be
+  told from a board at rest. The first press decides: shown by the matrix, the **switches** are
+  tested; heard by the computer while two readings sent during the press show nothing, the firmware
+  refuses its matrix and the **computer's keys** are tested. Replacing the matrix test outright was
+  weighed and declined: on a board that answers it -- every Keychron -- the matrix is the better
+  test, by position, whatever the keymap, ghosting and rollover included.
+- **Which way, always said** (Rico): the panel's first line -- "Testing the switches", or "Testing
+  what the computer receives" with why and what it cannot see -- and a tag at the strip's end,
+  *Switches* in green or *Computer's keys* in the warning's colour.
+- **The computer's keys test the keymap and the system as much as the switches**: a key sending
+  nothing the computer reports -- a layer key, `KC_NO`, Boot, a macro, a mouse or system key -- cannot
+  be tested, and is **hatched**; keys sending the same thing light together, **amber with a ?**. A
+  mod-tap or a layer-tap is tested by its tap, a shifted key by its key (`model/NazgHostKeys.h`). A
+  knob, which has no switch, can be tested only this way.
+
+As built (2026-10-18):
+
+- **Hatched from the start** (Rico, 2026-10-18, seeing it in the app): before the first press the
+  keys the computer could not hear are hatched already, the line saying so; a board that turns out
+  to report its switches loses the hatching at that press.
+- **A board known not to report starts on the computer's keys**, the reason said: a locked Vial
+  board ("click Locked in the header to test them"), a Vial protocol older than its matrix test, a
+  matrix too wide for the one reply a firmware gives. Before, each was a failure message.
+- **The window takes the keyboard** while the computer's keys are read, or awaited: Win and Alt+Tab
+  reach Nazg as keys to test, Alt+F4 no longer closes it (`PlatformServices::takeKeyboard`, SDL's
+  keyboard grab).
+- **What arrives**: SDL's scancodes are the keyboard page's usages; the volume arrives on the
+  keyboard page whichever page QMK sent it on, Play, Next, Previous and Stop on the consumer page.
 
 ### What the definition says about its matrix
 

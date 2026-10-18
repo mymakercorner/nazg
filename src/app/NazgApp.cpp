@@ -476,6 +476,12 @@ namespace nazg
             m_QuitConfirmed = true;
     }
 
+    void App::OnHostKey(uint32_t usage, bool down)
+    {
+        if (m_Board.matrix)
+            m_Board.matrix->OnHostKey(usage, down);
+    }
+
     void App::OnDevicesChanged()
     {
         m_DeviceList.changedAt = ImGui::GetTime();
@@ -687,6 +693,14 @@ namespace nazg
         // into Nazg: with keyboard navigation on, an arrow then Space would click whatever has
         // focus, and Alt would open the menu bar. Off while the test runs.
         ImGuiIO& io = ImGui::GetIO();
+        // On the computer's keys, the window takes the keyboard too: Win and Alt+Tab are keys to test.
+        const bool takeKeyboard = m_Board.matrix && m_Board.matrix->WantsComputerKeys();
+        if (takeKeyboard != m_KeyboardTaken && m_Platform.takeKeyboard)
+        {
+            m_Platform.takeKeyboard(takeKeyboard);
+            m_KeyboardTaken = takeKeyboard;
+        }
+
         if (m_Board.matrix && m_Board.matrix->IsLiveTestRunning())
             io.ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard;
         else
@@ -1255,19 +1269,14 @@ namespace nazg
         if (!m_Board.exportMessage.empty())
             ColouredText(PanelColour::Muted, "%s", m_Board.exportMessage.c_str());
 
-        // The matrix view joins the Tools group, last, while Advanced tools is on (Rico,
-        // 2026-10-09) -- and leaves it, once idle, when the setting is turned off.
-        if (m_Settings.advancedTools && m_Board.matrix == nullptr)
+        // The matrix view ends the Tools group, on every board (Rico, 2026-10-18; from 2026-10-09
+        // only while Advanced tools was on): its live test and its wiring are anyone's.
+        if (m_Board.matrix == nullptr)
         {
             auto view = std::make_unique<MatrixView>(m_Transport, m_Board.path, !m_Board.isVia, *m_Board.keyboard,
                                                      m_Settings.legends);
             m_Board.matrix = view.get();
             m_Board.sections.push_back(std::move(view));
-        }
-        else if (!m_Settings.advancedTools && m_Board.matrix != nullptr && !m_Board.matrix->IsBusy())
-        {
-            m_Board.sections.pop_back();
-            m_Board.matrix = nullptr;
         }
 
         DrawSections(m_Board.sections, m_Board.activeSection, *m_Board.keyboard,
