@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com>
 //
-// SavedLayoutTransfer - a saved layout (.vil, adapters/vial/NazgVialSavedLayout.h) and the open
+// SavedLayoutTransfer - a saved layout (model/NazgSavedLayout.h: a .vil, or VIA's .layout.json) and the open
 // board: what the board holds, what a file would change on it, and the writing of it. ui-design.md,
 // "Saved layouts".
 //
@@ -19,6 +19,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "adapters/vial/NazgVialProtocol.h"
@@ -31,10 +32,14 @@ namespace nazg
     // What the board holds, as a saved layout, and what writing macros back needs.
     struct BoardContents
     {
-        vial::SavedLayout    layout;
+        SavedLayout          layout;
         std::vector<uint8_t> macroBytes;   // the buffer as read, up to the last macro's end
         uint16_t             macroBufferSize = 0;
     };
+
+    // A saved layout's text, Vial's or VIA's -- told apart by their content -- read for `keyboard`.
+    // Throws std::runtime_error when it is no saved layout.
+    [[nodiscard]] SavedLayout ReadSavedLayoutFile(std::string_view text, const Keyboard& keyboard);
 
     // `vendorId` and `productId`: the board's, written into the file Nazg saves.
     [[nodiscard]] Task<BoardContents> ReadBoardContents(vial::Protocol& protocol, const Keyboard& keyboard,
@@ -82,22 +87,25 @@ namespace nazg
 
         // A locked Vial board refuses the macro buffer, and stores QK_BOOT as nothing: the writes need
         // it unlocked (via-vial-commands.md, "What the lock gates").
-        [[nodiscard]] bool NeedsUnlock(const vial::SavedLayout& file) const;
+        [[nodiscard]] bool NeedsUnlock(const SavedLayout& file) const;
     };
 
-    [[nodiscard]] LayoutChanges CompareWithBoard(const BoardContents& board, const vial::SavedLayout& file,
+    [[nodiscard]] LayoutChanges CompareWithBoard(const BoardContents& board, const SavedLayout& file,
                                                  const Keyboard& keyboard);
 
-    // How a write goes: done of total, and what the board did not keep.
+    // How a write goes: done of total, what the board did not keep, and what still differs -- every
+    // change at the start, each gone once written and kept, so a write stopped half way leaves the
+    // rest in it.
     struct WriteProgress
     {
         size_t                   done  = 0;
         size_t                   total = 0;
         std::vector<std::string> notKept;
+        LayoutChanges            left;
     };
 
     // Writes every change, each read back. Throws when the board goes away; what was written stays.
     [[nodiscard]] Task<void> WriteChanges(vial::Protocol& protocol, const Keyboard& keyboard, const BoardContents& board,
-                                          const vial::SavedLayout& file, const LayoutChanges& changes,
+                                          const SavedLayout& file, const LayoutChanges& changes,
                                           WriteProgress& progress);
 }

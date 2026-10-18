@@ -41,7 +41,7 @@ namespace nazg
         // transport, the keyboard, the settings and the lock outlive this object.
         SavedLayoutReview(HidTransport& transport, std::string path, const Keyboard& keyboard, uint16_t vendorId,
                           uint16_t productId, const LegendSettings& legends,
-                          const std::optional<vial::UnlockStatus>& lock, std::string fileName, vial::SavedLayout file);
+                          const std::optional<vial::UnlockStatus>& lock, std::string fileName, SavedLayout file);
 
         std::string_view Name() const override { return "Load from file"; }
         Strip            DescribeStrip() const override;
@@ -85,6 +85,9 @@ namespace nazg
         [[nodiscard]] bool IsOtherKeyboard() const;
         [[nodiscard]] bool IsLocked() const;
 
+        // What the board and the strip mark: the changes, then what still differs once writing starts.
+        [[nodiscard]] const LayoutChanges& Marked() const;
+
         void DrawHead();
         void DrawLines();
         void DrawSays();
@@ -98,7 +101,7 @@ namespace nazg
         const LegendSettings&                    m_Legends;
         const std::optional<vial::UnlockStatus>& m_Lock;
         std::string                              m_FileName;
-        vial::SavedLayout                        m_File;
+        SavedLayout                              m_File;
 
         Stage         m_Stage = Stage::Reading;
         BoardContents m_Board;

@@ -112,6 +112,11 @@ set(NAZG_CORE_SOURCES
   src/adapters/vial/NazgVialLoader.cpp
   src/adapters/vial/NazgEncoderMap.h
   src/adapters/vial/NazgEncoderMap.cpp
+  src/adapters/via/NazgViaKeycodeNames.h
+  src/adapters/via/NazgViaKeycodeNames.cpp
+  src/adapters/via/NazgViaKeycodeNameTable.cpp
+  src/adapters/via/NazgViaSavedLayout.h
+  src/adapters/via/NazgViaSavedLayout.cpp
   src/adapters/vial/NazgVialKeycodeNames.h
   src/adapters/vial/NazgVialKeycodeNames.cpp
   src/adapters/vial/NazgVialKeycodeNameTable.cpp
@@ -153,6 +158,8 @@ set(NAZG_CORE_SOURCES
   src/model/NazgLighting.cpp
   src/model/NazgKeyHealth.h
   src/model/NazgKeyHealth.cpp
+  src/model/NazgSavedLayout.h
+  src/model/NazgSavedLayout.cpp
   src/ui/NazgKeycapLegend.h
   src/ui/NazgKeycapLegend.cpp
   src/ui/NazgHostLayoutTable.cpp
@@ -381,6 +388,7 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(alt_repeat_key     tests/AltRepeatKeyTest.cpp)
     nazg_add_test(qmk_settings       tests/QmkSettingsTest.cpp)
     nazg_add_test(saved_layout       tests/SavedLayoutTest.cpp)
+    nazg_add_test(via_saved_layout   tests/ViaSavedLayoutTest.cpp)
     nazg_add_test(lighting           tests/LightingTest.cpp)
     nazg_add_test(audio              tests/AudioTest.cpp)
     nazg_add_test(keycap_layout      tests/KeycapLayoutTest.cpp)

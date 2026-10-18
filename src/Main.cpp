@@ -153,7 +153,7 @@ namespace
         std::optional<std::string> exportPath;             // ...with a place chosen, or none
         std::string                suggested;              // the file name offered; SDL may read it until it closes
 
-        // The saved layouts' dialogs (.vil), one at a time: closed, with a file chosen or none.
+        // The saved layouts' dialogs (.vil; VIA's .layout.json opened too), one at a time: closed, with a file chosen or none.
         bool                       isLayoutOpenClosed = false;
         std::optional<std::string> layoutOpenPath;
         bool                       isLayoutSaveClosed = false;
@@ -341,7 +341,8 @@ int main(int, char**)
     };
     platform.showLayoutOpenDialog = [&answers, pWindow]
     {
-        static const SDL_DialogFileFilter c_Filters[] = { { "Vial layout", "vil" } };
+        // Vial's .vil and VIA's .layout.json: App tells them apart by their content.
+        static const SDL_DialogFileFilter c_Filters[] = { { "Vial or VIA layout", "vil;json" } };
         SDL_ShowOpenFileDialog(OnLayoutOpenChosen, &answers, pWindow, c_Filters, 1, nullptr, false);
     };
     platform.showLayoutSaveDialog = [&answers, pWindow](const std::string& suggested)

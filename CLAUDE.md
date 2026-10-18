@@ -47,6 +47,8 @@ exists, where, and how far it has been proven.
 - **Saved layouts** (ui-design.md, "Saved layouts"; Rico, 2026-10-18): the board menu's Save to file... and
   Load from file..., Vial's `.vil` for every board (vil-files.md). `adapters/vial/NazgVialSavedLayout.*` reads
   and writes the file in vial-gui's own keycode names (`NazgVialKeycodeNames.*`, its v5 and v6 tables);
+  Load also reads the VIA app's `.layout.json` (via-layout-files.md) -- `adapters/via/NazgViaSavedLayout.*`,
+  VIA's own names (`NazgViaKeycodeNames.*`, its four tables) -- into the same `model/NazgSavedLayout.h`;
   `board/NazgSavedLayoutTransfer.*` reads the board, compares and writes what differs, read back;
   `ui/NazgSavedLayoutReview.*` shows what would change before Apply.
 - **Hotplug** (ui-design.md, "Hotplug"): no Refresh. `Main.cpp` polls SDL's
@@ -143,7 +145,7 @@ one board to unlock).
 | Key overrides, read and written (Model F) | |
 | | Alt repeat keys -- no board at hand has them |
 | Audio planned from a definition, and a firmware without audio said (Concordia, a test definition) | Audio and Clicky read or written, Play a sound -- no board at hand has audio built in |
-| Saved layouts on the Model F (Rico, 2026-10-18): Save; its own file loaded back as "the same"; a changed key found and written back; a .vil from Vial loaded; Nazg's file loaded in Vial; the Concordia's file asked about, its keymap left out. Save on the Concordia (probe). Unlock and apply, a macro and Boot written once unlocked; an ordinary key applied locked (F77 in secure mode) | Load on a VIA board |
+| Saved layouts on the Model F (Rico, 2026-10-18): Save; its own file loaded back as "the same"; a changed key found and written back; a .vil from Vial loaded; Nazg's file loaded in Vial; the Concordia's file asked about, its keymap left out. Save on the Concordia (probe). Unlock and apply, a macro and Boot written once unlocked; an ordinary key applied locked (F77 in secure mode). A file the VIA app wrote, loaded and applied on a VIA board (Rico) | |
 | A board's own menus: a few EC features (Concordia Type C); all 35909 registry controls parse (test) | |
 | Hotplug: boards plugged and unplugged, the list and the open board following (Rico, 2026-10-16) | |
 | Key health on Rico's F77 recordings: nothing accused, 26 good and 49 to hold, as the mockup (test) | |

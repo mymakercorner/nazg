@@ -10,6 +10,7 @@
 #include "adapters/qmk/NazgQmkKeycodeCodec.h"
 #include "adapters/via/NazgViaKeymap.h"
 #include "adapters/via/NazgViaMacro.h"
+#include "adapters/via/NazgViaSavedLayout.h"
 #include "adapters/vial/NazgEncoderMap.h"
 #include "adapters/vial/NazgVialLoader.h"
 #include "model/NazgQmkSettings.h"
@@ -71,7 +72,7 @@ namespace nazg
                combos.size() + keyOverrides.size() + altRepeatKeys.size() + qmkSettings.size();
     }
 
-    bool LayoutChanges::NeedsUnlock(const vial::SavedLayout& file) const
+    bool LayoutChanges::NeedsUnlock(const SavedLayout& file) const
     {
         if (!macros.empty())
             return true;
@@ -97,11 +98,23 @@ namespace nazg
         return false;
     }
 
+    // VIA's names read with the table VIA would use: its VIA protocol's on a VIA board, the keycode
+    // version's on a Vial board, which always says VIA 9 (via-layout-files.md, "For Nazg").
+    SavedLayout ReadSavedLayoutFile(std::string_view text, const Keyboard& keyboard)
+    {
+        if (!via::IsSavedLayout(text))
+            return vial::ReadSavedLayout(text, keyboard.keycodeVersion);
+        const via::NameTable table = keyboard.report.isVial ? via::NameTableFor(keyboard.keycodeVersion)
+                                                            : via::NameTableFor(keyboard.report.viaProtocol);
+        return via::ReadSavedLayout(text, table, keyboard.keycodeVersion, keyboard.definition.matrixRows,
+                                    keyboard.definition.matrixColumns);
+    }
+
     Task<BoardContents> ReadBoardContents(vial::Protocol& protocol, const Keyboard& keyboard, uint16_t vendorId,
                                           uint16_t productId)
     {
         BoardContents      board;
-        vial::SavedLayout& layout = board.layout;
+        SavedLayout& layout = board.layout;
         const BoardReport& report = keyboard.report;
 
         layout.vialProtocol   = report.isVial ? static_cast<int32_t>(report.vialProtocol) : -1;
@@ -165,10 +178,10 @@ namespace nazg
         co_return board;
     }
 
-    LayoutChanges CompareWithBoard(const BoardContents& board, const vial::SavedLayout& file, const Keyboard& keyboard)
+    LayoutChanges CompareWithBoard(const BoardContents& board, const SavedLayout& file, const Keyboard& keyboard)
     {
-        LayoutChanges            changes;
-        const vial::SavedLayout& now     = board.layout;
+        LayoutChanges             changes;
+        const SavedLayout&        now     = board.layout;
         std::vector<std::string>& leftOut = changes.leftOut;
 
         // The keymap, by cell: the same matrix, or nothing -- another one would put its keys on others.
@@ -213,13 +226,13 @@ namespace nazg
             for (size_t layer = 0; layer < file.knobs.size(); ++layer)
                 for (size_t knob = 0; knob < file.knobs[layer].size(); ++knob)
                 {
-                    const vial::SavedKnob& saved = file.knobs[layer][knob];
+                    const SavedKnob& saved = file.knobs[layer][knob];
                     if (!saved.clockwise && !saved.counterClockwise)
                         continue;
                     anyTurn = true;
                     if (layer >= now.knobs.size() || knob >= now.knobs[layer].size())
                         continue;
-                    const vial::SavedKnob& held = now.knobs[layer][knob];
+                    const SavedKnob& held = now.knobs[layer][knob];
                     for (const bool clockwise : { false, true })
                     {
                         const std::optional<Keycode>& then = clockwise ? saved.clockwise : saved.counterClockwise;
@@ -295,11 +308,12 @@ namespace nazg
     }
 
     Task<void> WriteChanges(vial::Protocol& protocol, const Keyboard& keyboard, const BoardContents& board,
-                            const vial::SavedLayout& file, const LayoutChanges& changes, WriteProgress& progress)
+                            const SavedLayout& file, const LayoutChanges& changes, WriteProgress& progress)
     {
         const qmk::KeycodeVersion version = keyboard.keycodeVersion;
         const BoardReport&        report  = keyboard.report;
-        progress = WriteProgress{ 0, changes.Count(), {} };
+        progress = WriteProgress{ 0, changes.Count(), {}, changes };
+        LayoutChanges& left = progress.left;
 
         for (const KeyChange& key : changes.keys)
         {
@@ -307,6 +321,9 @@ namespace nazg
             if (stored != key.then)
                 progress.notKept.push_back("layer " + std::to_string(key.layer) + ", row " + std::to_string(key.row) +
                                            ", column " + std::to_string(key.column));
+            else
+                std::erase_if(left.keys, [&](const KeyChange& other)
+                              { return other.layer == key.layer && other.row == key.row && other.column == key.column; });
             ++progress.done;
         }
 
@@ -316,6 +333,9 @@ namespace nazg
                 co_await vial::WriteKnobTurn(protocol, report.isVial, knob.layer, knob.knob, knob.clockwise, knob.then, version);
             if (stored != knob.then)
                 progress.notKept.push_back("knob " + std::to_string(knob.knob) + " on layer " + std::to_string(knob.layer));
+            else
+                std::erase_if(left.knobs, [&](const KnobChange& other)
+                              { return other.layer == knob.layer && other.knob == knob.knob && other.clockwise == knob.clockwise; });
             ++progress.done;
         }
 
@@ -324,6 +344,8 @@ namespace nazg
             co_await protocol.SetKeyboardValue(via::KeyboardValue::LayoutOptions, *changes.layoutOptions);
             if (co_await protocol.GetKeyboardValue(via::KeyboardValue::LayoutOptions) != *changes.layoutOptions)
                 progress.notKept.push_back("the layout options");
+            else
+                left.layoutOptions.reset();
             ++progress.done;
         }
 
@@ -341,6 +363,8 @@ namespace nazg
             const std::vector<uint8_t> stored = co_await protocol.ReadMacros(report.macroCount, board.macroBufferSize);
             if (via::DecodeMacros(stored, report.macroCount, format) != all)
                 progress.notKept.push_back("the macros");
+            else
+                left.macros.clear();
             ++progress.done;
         }
 
@@ -350,6 +374,8 @@ namespace nazg
             co_await protocol.SetTapDance(static_cast<uint8_t>(slot), entry);
             if (co_await protocol.GetTapDance(static_cast<uint8_t>(slot)) != entry)
                 progress.notKept.push_back("tap dance " + std::to_string(slot));
+            else
+                std::erase(left.tapDances, slot);
             ++progress.done;
         }
         for (size_t slot : changes.combos)
@@ -358,6 +384,8 @@ namespace nazg
             co_await protocol.SetCombo(static_cast<uint8_t>(slot), entry);
             if (co_await protocol.GetCombo(static_cast<uint8_t>(slot)) != entry)
                 progress.notKept.push_back("combo " + std::to_string(slot));
+            else
+                std::erase(left.combos, slot);
             ++progress.done;
         }
         for (size_t slot : changes.keyOverrides)
@@ -366,6 +394,8 @@ namespace nazg
             co_await protocol.SetKeyOverride(static_cast<uint8_t>(slot), entry);
             if (co_await protocol.GetKeyOverride(static_cast<uint8_t>(slot)) != entry)
                 progress.notKept.push_back("key override " + std::to_string(slot));
+            else
+                std::erase(left.keyOverrides, slot);
             ++progress.done;
         }
         for (size_t slot : changes.altRepeatKeys)
@@ -374,6 +404,8 @@ namespace nazg
             co_await protocol.SetAltRepeatKey(static_cast<uint8_t>(slot), entry);
             if (co_await protocol.GetAltRepeatKey(static_cast<uint8_t>(slot)) != entry)
                 progress.notKept.push_back("alt repeat key " + std::to_string(slot));
+            else
+                std::erase(left.altRepeatKeys, slot);
             ++progress.done;
         }
 
@@ -383,6 +415,8 @@ namespace nazg
             co_await protocol.SetQmkSetting(qsid, value);
             if (co_await protocol.GetQmkSetting(qsid, QmkSettingWidth(qsid)) != value)
                 progress.notKept.push_back("QMK setting " + std::to_string(qsid));
+            else
+                std::erase(left.qmkSettings, qsid);
             ++progress.done;
         }
     }

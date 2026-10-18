@@ -340,20 +340,6 @@ namespace nazg::vial
         }
     }
 
-    size_t SavedLayout::Rows() const noexcept
-    {
-        return keymap.empty() ? 0 : keymap.front().size();
-    }
-
-    size_t SavedLayout::Columns() const noexcept
-    {
-        size_t columns = 0;
-        if (!keymap.empty())
-            for (const auto& row : keymap.front())
-                columns = std::max(columns, row.size());
-        return columns;
-    }
-
     SavedLayout ReadSavedLayout(std::string_view text, qmk::KeycodeVersion boardVersion)
     {
         const Json file = Json::parse(text.begin(), text.end(), nullptr, false);

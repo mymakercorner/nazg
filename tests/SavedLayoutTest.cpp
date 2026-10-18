@@ -80,7 +80,7 @@ namespace
     {
         std::printf("a file vial-gui wrote, for a Vial 6 board\n");
 
-        const vial::SavedLayout layout = vial::ReadSavedLayout(c_VialFile, qmk::KeycodeVersion::V0_0_7);
+        const nazg::SavedLayout layout = vial::ReadSavedLayout(c_VialFile, qmk::KeycodeVersion::V0_0_7);
         Check(layout.uid == 0x9C2E41B07D3A5F18ull, "the UID, past 2^63");
         Check(layout.vialProtocol == 6 && layout.viaProtocol == 9, "the protocols");
         Check(!layout.vendorId, "no VID:PID: vial-gui does not write it");
@@ -127,7 +127,7 @@ namespace
         const char* file = R"vil({"version": 1, "uid": 5, "vial_protocol": 5, "via_protocol": 9,
             "layout": [[["RGB_TOG", "0x5cc2"], ["MO(1)", "0x5f40"]]],
             "macro": [[["tap", "0x5f40"]]]})vil";
-        const vial::SavedLayout layout = vial::ReadSavedLayout(file, qmk::KeycodeVersion::V0_0_7);
+        const nazg::SavedLayout layout = vial::ReadSavedLayout(file, qmk::KeycodeVersion::V0_0_7);
 
         Check(layout.keymap[0][0][0] == Keycode{ NamedKey{ "UG_TOGG" } }, "v5's RGB_TOG is the lighting toggle");
         Check(layout.keymap[0][0][1] == Keycode{ NamedKey{ "UG_TOGG" } }, "so is its old raw value");
@@ -148,7 +148,7 @@ namespace
         // table: Boot was 0x5c00 then.
         const char* file = R"vil({"version": 1, "uid": -1, "vial_protocol": -1, "via_protocol": 9,
             "layout": [[["KC_ENTER", "QK_BOOT", "0x5c00"]]], "layout_options": -1})vil";
-        const vial::SavedLayout layout = vial::ReadSavedLayout(file, qmk::KeycodeVersion::V0_0_9);
+        const nazg::SavedLayout layout = vial::ReadSavedLayout(file, qmk::KeycodeVersion::V0_0_9);
 
         Check(!layout.uid, "uid -1: no UID");
         Check(layout.keymap[0][0][0] == Keycode{ NamedKey{ "KC_ENT" } }, "a name");
@@ -162,7 +162,7 @@ namespace
     {
         std::printf("Nazg's own files read back\n");
 
-        vial::SavedLayout vialBoard = vial::ReadSavedLayout(c_VialFile, qmk::KeycodeVersion::V0_0_7);
+        nazg::SavedLayout vialBoard = vial::ReadSavedLayout(c_VialFile, qmk::KeycodeVersion::V0_0_7);
         vialBoard.vendorId  = 0x1209;
         vialBoard.productId = 0x4704;
         const std::string text = vial::WriteSavedLayout(vialBoard);
@@ -170,7 +170,7 @@ namespace
               "written with vial-gui's names");
         Check(text.find("\"nazg\"") != std::string::npos, "and Nazg's key");
 
-        const vial::SavedLayout back = vial::ReadSavedLayout(text, qmk::KeycodeVersion::V0_0_7);
+        const nazg::SavedLayout back = vial::ReadSavedLayout(text, qmk::KeycodeVersion::V0_0_7);
         Check(back.uid == vialBoard.uid && back.vendorId == 0x1209 && back.productId == 0x4704, "the board said again");
         Check(back.keymap == vialBoard.keymap, "the keymap");
         Check(back.knobs[0][0].clockwise == vialBoard.knobs[0][0].clockwise &&
@@ -183,7 +183,7 @@ namespace
               "key overrides and alt repeat keys");
         Check(back.qmkSettings == vialBoard.qmkSettings, "the QMK settings");
 
-        vial::SavedLayout viaBoard;
+        nazg::SavedLayout viaBoard;
         viaBoard.viaProtocol    = 12;
         viaBoard.keycodeVersion = qmk::KeycodeVersion::V0_0_9;
         viaBoard.keymap         = { { { Keycode{ NamedKey{ "KC_ENT" } }, Keycode{ NamedKey{ "QK_GESC" } } } } };
@@ -191,7 +191,7 @@ namespace
         Check(viaText.find("KC_") == std::string::npos && viaText.find("\"0x28\"") != std::string::npos,
               "a VIA board's keys as raw values: vial-gui would read names with the wrong table");
         Check(viaText.find("\"uid\":-1") != std::string::npos, "and uid -1");
-        const vial::SavedLayout viaBack = vial::ReadSavedLayout(viaText, qmk::KeycodeVersion::V0_0_9);
+        const nazg::SavedLayout viaBack = vial::ReadSavedLayout(viaText, qmk::KeycodeVersion::V0_0_9);
         Check(viaBack.keymap == viaBoard.keymap, "read back");
     }
 
@@ -256,7 +256,7 @@ namespace
         fixture.keyboard.report.macroCount    = 2;
         fixture.keyboard.report.tapDanceCount = 1;
 
-        vial::SavedLayout& layout = fixture.board.layout;
+        nazg::SavedLayout& layout = fixture.board.layout;
         layout.vialProtocol       = 6;
         layout.keycodeVersion     = qmk::KeycodeVersion::V0_0_7;
         layout.keymap.assign(2, std::vector<std::vector<std::optional<Keycode>>>(2, std::vector<std::optional<Keycode>>(2)));
@@ -278,7 +278,7 @@ namespace
         Check(nazg::CompareWithBoard(fixture.board, fixture.board.layout, fixture.keyboard).IsEmpty(),
               "the board's own contents change nothing");
 
-        vial::SavedLayout file = fixture.board.layout;
+        nazg::SavedLayout file = fixture.board.layout;
         file.keymap[1][0][1]   = Keycode{ NamedKey{ "KC_B" } };
         file.keymap.push_back(file.keymap[0]);
         nazg::LayoutChanges changes = nazg::CompareWithBoard(fixture.board, file, fixture.keyboard);

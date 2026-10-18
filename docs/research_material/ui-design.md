@@ -2500,8 +2500,17 @@ As built (2026-10-18), where it differs from the mockup or adds to it:
   stores as nothing (via-vial-commands.md, "What the lock gates"); then Apply reads "Unlock and
   apply" and the unlock screen comes first. The mockup also named Tap Dance and QMK Settings: wrong.
 - **Back to the board loads the board again**, so every section reads what it now holds.
+- **Once written, only what still differs is marked** (Rico, 2026-10-18: the strip's dots stayed
+  after Apply): the dots and the lit keys go as each change is written and read back, so a board
+  that kept everything shows none; a change not kept, or not reached when a write stopped, stays
+  marked. The panel's lines still say what the file changed.
 - **"Saved to B104.vil" goes after 4 seconds** (Rico, 2026-10-18: it stayed in the header);
   "Not saved: ..." stays until the next Save or Load.
+- **VIA's own files load too** (Rico, 2026-10-18; via-layout-files.md): the same *Load from
+  file…*, which offers `.vil` and `.json` and tells them apart by their content; the same review.
+  A VIA file holds the keymap, knobs and macros only, and the review says so. Another keyboard's is
+  asked about by its `vendorProductId`, on a Vial board too -- VIA's files have no UID. Loading
+  only: Nazg saves `.vil`.
 - **Left out and said**: a keymap of another matrix size (and the knobs and layout options with
   it), layers and slots past the board's, macros longer than its buffer, settings its firmware
   lacks, knobs on a firmware with no encoder map; a value Nazg cannot read stays as the board

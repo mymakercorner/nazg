@@ -607,14 +607,14 @@ namespace nazg
         if (!path || !m_Board.keyboard)
             return;
 
-        vial::SavedLayout file;
+        SavedLayout file;
         try
         {
             const std::optional<std::vector<uint8_t>> bytes = ReadWholeFile(PathFromUtf8(*path));
             if (!bytes)
                 throw std::runtime_error("cannot read " + *path);
-            file = vial::ReadSavedLayout(std::string_view(reinterpret_cast<const char*>(bytes->data()), bytes->size()),
-                                         m_Board.keyboard->keycodeVersion);
+            file = ReadSavedLayoutFile(std::string_view(reinterpret_cast<const char*>(bytes->data()), bytes->size()),
+                                       *m_Board.keyboard);
         }
         catch (const std::exception& failure)
         {

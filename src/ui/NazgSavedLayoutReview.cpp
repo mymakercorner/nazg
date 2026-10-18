@@ -54,7 +54,7 @@ namespace nazg
     SavedLayoutReview::SavedLayoutReview(HidTransport& transport, std::string path, const Keyboard& keyboard,
                                          uint16_t vendorId, uint16_t productId, const LegendSettings& legends,
                                          const std::optional<vial::UnlockStatus>& lock, std::string fileName,
-                                         vial::SavedLayout file)
+                                         SavedLayout file)
         : m_Transport(transport),
           m_Path(std::move(path)),
           m_Keyboard(keyboard),
@@ -129,9 +129,13 @@ namespace nazg
     }
 
     // A Vial board tells by its UID; a VIA board by the VID:PID Nazg writes. Neither said: Vial's
-    // own VIA files say nothing, and are not asked about.
+    // own VIA files say nothing, and are not asked about. VIA's files have no UID, on any board:
+    // their vendorProductId alone.
     bool SavedLayoutReview::IsOtherKeyboard() const
     {
+        if (m_File.format == SavedLayoutFormat::Via)
+            return m_File.vendorId && m_File.productId && (*m_File.vendorId != m_VendorId || *m_File.productId != m_ProductId);
+
         const std::optional<uint64_t>& board = m_Board.layout.uid;
         if (board)
             return m_File.uid != board;
@@ -164,6 +168,13 @@ namespace nazg
 
     // --- The strip and the board ---------------------------------------------------------------
 
+    // Once writing starts, what still differs: the strip's dots and the lit keys go as the board keeps
+    // them (Rico, 2026-10-18); the panel's lines still say what the file changes.
+    const LayoutChanges& SavedLayoutReview::Marked() const
+    {
+        return m_Stage == Stage::Writing || m_Stage == Stage::Written ? m_Progress.left : m_Changes;
+    }
+
     Strip SavedLayoutReview::DescribeStrip() const
     {
         Strip strip;
@@ -171,7 +182,7 @@ namespace nazg
         for (int layer = 0; layer < m_Keyboard.keymap.Layers(); ++layer)
         {
             strip.entries.push_back(std::to_string(layer));
-            strip.changed.push_back(std::any_of(m_Changes.keys.begin(), m_Changes.keys.end(),
+            strip.changed.push_back(std::any_of(Marked().keys.begin(), Marked().keys.end(),
                                                 [&](const KeyChange& key) { return key.layer == layer; }));
         }
         strip.chosen = m_Layer;
@@ -202,6 +213,7 @@ namespace nazg
         }
 
         // Lit: what changes -- or, a line under the pointer, what it concerns.
+        const LayoutChanges& marked = Marked();
         for (BoardKey& key : board.keys)
         {
             const via::DefinitionKey& geometry = key.geometry;
@@ -209,7 +221,7 @@ namespace nazg
             bool                      warning  = false;
 
             if (geometry.encoderIndex >= 0 && m_Hovered == Line::None)
-                lit = std::any_of(m_Changes.knobs.begin(), m_Changes.knobs.end(), [&](const KnobChange& knob)
+                lit = std::any_of(marked.knobs.begin(), marked.knobs.end(), [&](const KnobChange& knob)
                                   { return knob.layer == layer && knob.knob == geometry.encoderIndex; });
 
             if (geometry.IsSwitch())
@@ -222,21 +234,21 @@ namespace nazg
                 {
                 case Line::None:
                 case Line::Keymap:
-                    lit = lit || std::any_of(m_Changes.keys.begin(), m_Changes.keys.end(), changed);
+                    lit = lit || std::any_of(marked.keys.begin(), marked.keys.end(), changed);
                     break;
                 case Line::Macros:
                     if (const auto* macro = std::get_if<MacroKey>(&sent))
-                        lit = std::find(m_Changes.macros.begin(), m_Changes.macros.end(), macro->index) != m_Changes.macros.end();
+                        lit = std::find(marked.macros.begin(), marked.macros.end(), macro->index) != marked.macros.end();
                     break;
                 case Line::TapDance:
                     if (const auto* dance = std::get_if<TapDanceKey>(&sent))
-                        lit = std::find(m_Changes.tapDances.begin(), m_Changes.tapDances.end(), dance->index) !=
-                              m_Changes.tapDances.end();
+                        lit = std::find(marked.tapDances.begin(), marked.tapDances.end(), dance->index) !=
+                              marked.tapDances.end();
                     break;
                 }
 
                 warning = std::any_of(m_File.unreadableKeys.begin(), m_File.unreadableKeys.end(),
-                                      [&](const vial::UnreadableKey& unreadable)
+                                      [&](const UnreadableKey& unreadable)
                                       {
                                           return unreadable.layer == layer && unreadable.row == geometry.row &&
                                                  unreadable.column == geometry.column;
@@ -490,6 +502,9 @@ namespace nazg
                 ColouredText(PanelColour::Warning, "Not kept by the board: %s.", part.c_str());
         else if (m_Stage == Stage::Review && m_Changes.IsEmpty())
             ColouredText(PanelColour::Muted, "Nothing to write: the board already holds what this file can load.");
+        else if (m_Stage != Stage::Written && m_File.format == SavedLayoutFormat::Via)
+            ColouredText(PanelColour::Muted, "Nothing is written before Apply, and only what differs is. A file saved by "
+                                             "VIA holds the keymap, knobs and macros only.");
         else if (m_Stage != Stage::Written)
             ColouredText(PanelColour::Muted, "Nothing is written before Apply, and only what differs is. Lighting, Audio "
                                              "and the board's own menus are not in a .vil file.");
@@ -508,7 +523,10 @@ namespace nazg
             return;
 
         ImGui::PushTextWrapPos(0.0f);
-        if (m_File.uid && m_Board.layout.uid)
+        if (m_File.format == SavedLayoutFormat::Via)
+            ImGui::Text("%s was saved by VIA from another keyboard: %04X:%04X, this one is %04X:%04X.", m_FileName.c_str(),
+                        m_File.vendorId.value_or(0), m_File.productId.value_or(0), m_VendorId, m_ProductId);
+        else if (m_File.uid && m_Board.layout.uid)
             ImGui::Text("%s was saved from another keyboard: its Vial ID is %s, this one's %s. The ID names a keyboard "
                         "model, so this is most likely a different model.",
                         m_FileName.c_str(), Uid(*m_File.uid).c_str(), Uid(*m_Board.layout.uid).c_str());
