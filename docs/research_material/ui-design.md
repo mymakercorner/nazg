@@ -2489,6 +2489,32 @@ menu's *Switch to* follows too.
   replugged, or a reflash done -- is only listed, not reopened; and a first board plugged in
   while the empty list shows is not opened either -- the lone board is opened at start only.
 
+### A board Linux does not allow
+
+**Designed** 2026-10-18 in the mockup [linux-permission.html](ui-design/linux-permission.html),
+**not built**. Linux gives a keyboard's `/dev/hidraw*` to root only: Nazg lists the board but
+cannot open it, and today says "no answer" (seen on the F77 in WSL, build-and-release.md,
+"First build, in WSL"). What Nazg does underneath -- pkexec, the udev rule, the polkit
+action -- is in build-and-release.md, "Nazg allowing the boards itself". Only on Linux, only
+for a board refused for that reason. Rico's choices, from his take as a Linux newcomer:
+
+- **On the board's own row**: "not allowed", and **Allow...** in place of *Open*. A notice above
+  the list for every refused board, and a dialog only once Open is clicked, were the first
+  round's variants, dropped.
+- **Allow...** opens a dialog for that board alone: what Linux does, that Linux remembers it,
+  and that **Allowed**, next to its *Open*, stops it later -- named with its icon, because "here
+  on its row" pointed at a button not yet there and was not understood. The computer's
+  password, once; the terminal commands folded under it.
+- **A board Nazg allowed shows Allowed, word and shield icon**, quiet, beside *Open* (the icon
+  alone with a tooltip rejected); it opens **Stop allowing**, for that board alone: Nazg can no
+  longer configure it, it still types. Boards sharing its VID:PID go with it, and it says so.
+- **One rule file per board**, so allowing creates a file and stopping deletes it: a shared
+  file and "delete its two lines" left Rico asking "what lines?". The every-HID-device rule was
+  dropped with it.
+- **"Allow" and "Stop allowing", never "lock"**: the header's *Locked* is Vial's.
+- **The password window is the desktop's**, never Nazg's. With none (no polkit agent: a bare
+  window manager, a Flatpak, WSL), the dialog shows the commands and *Try again*.
+
 ## Saved layouts
 
 **Built** 2026-10-18 from the mockup [saved-layouts.html](ui-design/saved-layouts.html). **Tried by

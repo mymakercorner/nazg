@@ -180,9 +180,10 @@ one board to unlock).
 
 - **Under review**: the user library's one-version backup ("Restore previous") -- Rico weighs its
   value against its complexity. "Export definition..." is for debugging only.
-- **Under review**: Linux permissions -- the udev rule's width, and Nazg installing it itself
-  through `pkexec` (build-and-release.md, "Linux"). Until then a Linux board refused for
-  permission is listed as "no answer" -- seen in WSL on the F77, 2026-10-18.
+- **Designed, not built**: Linux permissions (Rico, 2026-10-18; ui-design.md, "A board Linux does
+  not allow") -- Allow... and Stop allowing on the board's row, one udev rule file per board,
+  written through `pkexec` (build-and-release.md, "Nazg allowing the boards itself"). Until then
+  a Linux board refused for permission is listed as "no answer" -- seen in WSL on the F77.
 - **Not to be done**: using a definition whose VID:PID differs from the board's (Rico, 2026-10-12) --
   the picker says an import is for another keyboard and why it must not be used (a tester's K10 HE
   reports `3434:0EA7`, which no published file carries; via-registry.md).

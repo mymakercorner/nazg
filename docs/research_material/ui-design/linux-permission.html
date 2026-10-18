@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- Mockup of a Linux board Nazg is not allowed to open, and Nazg allowing it -- or no longer
+     (build-and-release.md, "Proposed: Nazg allowing the boards itself").
+
+     First round (2026-10-18), after the first Linux build in WSL: the F77, lent by usbipd, was
+     listed but refused -- /dev/hidraw1 root only, hidapi's open failing with "Permission denied" --
+     and the list said "no answer". A udev rule for its VID:PID, written by hand with sudo, made it
+     work; Rico: "let's find a way for Linux users to have this process easy".
+
+     Second round, the same day, from Rico's take as a Linux newcomer: one shared rule file with
+     "delete its two lines" confused him -- "what lines?". So: a button on the board's own row; a
+     board not allowed gets the steps to allow it alone, an allowed one the steps to stop allowing it
+     alone. Underneath, one file per board: allowing creates it, stopping deletes it -- nothing to
+     edit. "Allow" / "Stop allowing", never "lock": Nazg's header already says Vial's Locked.
+     Dropped with it: the notice above the list, the dialog on Open, and the every-HID-device rule.
+
+     Settled 2026-10-18 (Rico): this second round -- Allow... on a refused board's row, the word
+     Allowed with its icon on a board Nazg allowed (the icon alone rejected), Stop allowing behind it,
+     one file per board. pkexec in every package: its own sentence from an AppImage or a tar.gz,
+     Nazg's from a .deb or .rpm, which install the polkit action; the commands when it cannot ask.
+     Not built. The toggles keep the alternatives. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Linux permission mockup</title>
+<style>
+:root{--window:#f3f3f5;--menubar:#e3e4e9;--text:#1d1e22;--muted:#6b6e78;--control:#ffffff;--border:#c8cad2;--accent:#3b82f6;--accent-text:#fff;--panel:#f8f8fa;--selected:rgba(59,130,246,.16);
+--ok:#15803d;--warn:#c2410c;--err:#dc2626;--chg:#2563eb;--chgface:#e3edfd;--shade:rgba(20,22,30,.35);--code:#eceef3;--gnome:#fafafa;--gnometext:#2e3436}
+:root[data-theme="dark"]{--window:#0f0f11;--menubar:#24252b;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--accent:#4296fa;--accent-text:#fff;--panel:#16171b;--selected:rgba(66,150,250,.22);
+--ok:#4ade80;--warn:#fb923c;--err:#f87171;--chg:#60a5fa;--chgface:#1b2a44;--shade:rgba(0,0,0,.55);--code:#1c1e25;--gnome:#303030;--gnometext:#ffffff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--window);color:var(--text);font-family:Arimo,"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+.controls{display:flex;flex-wrap:wrap;gap:8px 22px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.group .name{color:var(--muted);margin-right:4px}
+button{font:inherit;padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--control);color:var(--text);cursor:pointer}
+button.on,button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+button.quiet{border-color:transparent;background:transparent;color:var(--muted);padding:3px 6px}
+button.danger{background:var(--err);border-color:var(--err);color:#fff}
+button:disabled{opacity:.45;cursor:default}
+code,pre{font-family:Consolas,"DejaVu Sans Mono",monospace;font-size:12px}
+.stage{padding:16px;overflow-x:auto}
+.frame{position:relative;margin:0 auto;width:1000px;min-height:470px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--window);box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.menubar{display:flex;gap:18px;align-items:center;background:var(--menubar);padding:5px 14px}
+.muted{color:var(--muted)}
+.menubar .right{margin-left:auto;color:var(--muted)}
+.list{max-width:800px;margin:28px auto;padding:0 20px}
+.count{font-weight:700;margin:0 0 6px}
+table{width:100%;border:1px solid var(--border);border-radius:8px;border-collapse:separate;border-spacing:0;background:var(--control)}
+td,th{padding:6px 12px;text-align:left}
+th{color:var(--muted);font-weight:700;border-bottom:1px solid var(--border);background:var(--menubar)}
+th:first-child{border-radius:8px 0 0 0}th:last-child{border-radius:0 8px 0 0}
+td.proto{width:120px}td.act{width:210px;text-align:right;white-space:nowrap}
+.refused{color:var(--warn)}
+.new{outline:1px dashed var(--chg);outline-offset:2px;border-radius:6px}
+.check{display:flex;align-items:center;gap:8px;margin-top:12px}
+.check i{display:inline-block;width:20px;height:20px;border:1px solid var(--border);border-radius:5px;background:var(--control)}
+.hint{color:var(--muted);margin-top:6px}
+.said{margin-bottom:10px;line-height:1.5}
+.said.ok{color:var(--ok)}.said.warn{color:var(--warn)}
+.shield{display:inline-block;vertical-align:-3px}
+.cmds{margin-top:10px}
+.cmds pre{margin:4px 0 0;padding:8px 10px;background:var(--code);border:1px solid var(--border);border-radius:6px;white-space:pre-wrap;word-break:break-all;line-height:1.45}
+.cmds .bar{display:flex;align-items:center;gap:8px}
+.cmds .bar .right{margin-left:auto}
+.shade{position:absolute;inset:0;background:var(--shade);display:flex;align-items:center;justify-content:center;z-index:6;flex-direction:column;gap:8px}
+.dialog{width:600px;max-width:92%;border:1px solid var(--border);border-radius:8px;background:var(--window);box-shadow:0 8px 30px rgba(0,0,0,.3)}
+.dialog .dt{padding:8px 14px;font-weight:700;border-bottom:1px solid var(--border);background:var(--menubar);border-radius:8px 8px 0 0}
+.dialog .db{padding:12px 14px;line-height:1.55}
+.dialog .db p{margin:0 0 8px}
+.dialog .df{display:flex;gap:8px;justify-content:flex-end;align-items:center;padding:8px 14px 12px}
+.fold{color:var(--muted);cursor:default;user-select:none}
+.gnome{width:420px;border-radius:14px;background:var(--gnome);color:var(--gnometext);font-family:Cantarell,"Segoe UI",sans-serif;box-shadow:0 10px 40px rgba(0,0,0,.45);text-align:center;overflow:hidden}
+.gnome .gb{padding:22px 26px 14px}
+.gnome h3{margin:0 0 10px;font-size:16px}
+.gnome p{margin:0 0 14px;font-size:13px;line-height:1.45}
+.gnome .who{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px}
+.gnome .who b{display:inline-flex;width:28px;height:28px;border-radius:50%;background:#3584e4;color:#fff;align-items:center;justify-content:center}
+.gnome .pw{border:2px solid #3584e4;border-radius:8px;padding:7px 10px;text-align:left;color:#888;background:transparent}
+.gnome .gf{display:flex;border-top:1px solid rgba(128,128,128,.3)}
+.gnome .gf div{flex:1;padding:11px;font-weight:700}
+.gnome .gf div+div{border-left:1px solid rgba(128,128,128,.3)}
+.tag{color:#fff;background:rgba(0,0,0,.55);padding:3px 10px;border-radius:10px;font-size:12px}
+.tip{position:absolute;z-index:4;padding:5px 9px;border:1px solid var(--border);border-radius:6px;background:var(--control);box-shadow:0 3px 10px rgba(0,0,0,.15);white-space:nowrap}
+.notes{max-width:1000px;margin:0 auto;padding:4px 16px 30px;color:var(--muted);line-height:1.55}
+.notes b{color:var(--text);font-weight:600}
+.notes p{margin:0 0 8px}
+</style>
+</head>
+<body>
+<div class="controls" id="controls"></div>
+<div class="stage"><div class="frame" id="frame"></div></div>
+<div class="notes" id="notes"></div>
+<script>
+"use strict";
+// The F77 seen in WSL on 2026-10-18 (1209:4704); the Concordia (made-up id) already allowed, by Nazg,
+// so the list shows both kinds of row.
+const F77 = { name: 'F77 Model F Keyboard by Model F Labs', short: 'F77 Model F Keyboard', vid: '1209', pid: '4704', proto: 'Vial' };
+const CONCORDIA = { name: 'The Concordia Type C', short: 'Concordia Type C', vid: '21c0', pid: '6173', proto: 'VIA' };
+const STEPS = ['Not allowed', 'Allow: asked', 'Allow: password', 'Allowed', 'Stop: asked', 'Stop: password', 'Stopped'];
+const state = { step: 'Not allowed', control: 'Words: Allowed', cmds: 'Folded', desktop: 'Password window', words: "pkexec's own", theme: 'Light' };
+
+const canAsk = () => state.desktop === 'Password window';
+const f77Allowed = () => ['Allowed', 'Stop: asked', 'Stop: password'].includes(state.step);
+const fileOf = b => `/etc/udev/rules.d/60-nazg-${b.vid}-${b.pid}.rules`;
+
+function allowCommands(b) {
+  return `echo '# Written by Nazg: lets whoever is logged in configure the ${b.short} (${b.vid}:${b.pid}).\n`
+    + `KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="${b.vid}", ATTRS{idProduct}=="${b.pid}", TAG+="uaccess"' | sudo tee ${fileOf(b)}\n`
+    + `sudo udevadm control --reload-rules\nsudo udevadm trigger --subsystem-match=hidraw`;
+}
+function stopCommands(b) {
+  return `sudo rm ${fileOf(b)}\nsudo udevadm control --reload-rules\nsudo udevadm trigger --subsystem-match=hidraw`;
+}
+
+const SHIELD = `<svg class="shield" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.46 20.846a12 12 0 0 1 -7.96 -14.846a12 12 0 0 0 8.5 -3a12 12 0 0 0 8.5 3a12 12 0 0 1 -.09 7.06"/><path d="M15 19l2 2l4 -4"/></svg>`;
+
+function allowedControl() {
+  // On a board Nazg's own file allows; boards allowed any other way show nothing.
+  if (state.control === 'Words: Allowed') return `<span class="new"><button class="quiet" title="Click to stop allowing it">${SHIELD} Allowed</button></span>`;
+  return `<span class="new"><button class="quiet" title="Allowed by Nazg">${SHIELD}</button></span>`;
+}
+
+function rowHtml(b, allowed) {
+  if (allowed) return `<tr><td>${b.name}</td><td class="proto">${b.proto}</td><td class="act">${allowedControl()} <button class="primary">Open</button></td></tr>`;
+  const allow = `<span class="new"><button class="primary">Allow...</button></span>`;
+  return `<tr><td>${b.name}</td><td class="proto"><span class="refused new">not allowed</span></td><td class="act">${allow}</td></tr>`;
+}
+
+function cmdsHtml(text) {
+  if (state.cmds === 'Folded') return `<p class="fold">▸ Or in a terminal, if you prefer</p>`;
+  return `<p class="fold">▾ Or in a terminal, if you prefer -- it asks for your password:</p>`
+    + `<div class="cmds"><div class="bar"><span class="muted">Then click Try again.</span><span class="right"><button>Copy</button></span></div><pre>${text.replace(/</g, '&lt;')}</pre></div>`;
+}
+
+function allowDialog() {
+  const b = F77;
+  const body = `<p>Linux keeps a keyboard closed to programs until you allow it. Allowed, Nazg can configure the <b>${b.short}</b>,`
+    + ` and Linux remembers it.</p><p>To stop allowing it later, click <b>${SHIELD} Allowed</b>, which appears next to its <i>Open</i> button.</p>`
+    + (canAsk() ? `<p class="muted">Your computer asks for your password, once.</p>` + cmdsHtml(allowCommands(b))
+      : `<p>Run these in a terminal -- it asks for your password:</p><div class="cmds"><div class="bar"><span class="right"><button>Copy</button></span></div><pre>${allowCommands(b).replace(/</g, '&lt;')}</pre></div>`);
+  const buttons = canAsk() ? `<button>Cancel</button><button class="primary">Allow</button>` : `<button>Cancel</button><button class="primary">Try again</button>`;
+  return `<div class="shade"><div class="dialog new"><div class="dt">Allow the ${b.short}</div><div class="db">${body}</div><div class="df">${buttons}</div></div></div>`;
+}
+
+function stopDialog() {
+  const b = F77;
+  const body = `<p>Nazg will no longer be able to configure the <b>${b.short}</b>. It still types as ever: only its settings are closed again.</p>`
+    + `<p class="muted">Every board with the same USB id, ${b.vid}:${b.pid}, is affected together -- the Model F Labs B104 shares it.</p>`
+    + (canAsk() ? `<p class="muted">Your computer asks for your password, once.</p>` + cmdsHtml(stopCommands(b))
+      : `<p>Run these in a terminal -- it asks for your password:</p><div class="cmds"><div class="bar"><span class="right"><button>Copy</button></span></div><pre>${stopCommands(b).replace(/</g, '&lt;')}</pre></div>`);
+  const buttons = canAsk() ? `<button>Cancel</button><button class="primary">Stop allowing</button>` : `<button>Cancel</button><button class="primary">Done</button>`;
+  return `<div class="shade"><div class="dialog new"><div class="dt">Stop allowing the ${b.short}</div><div class="db">${body}</div><div class="df">${buttons}</div></div></div>`;
+}
+
+function passwordHtml() {
+  const text = state.words === "pkexec's own" ? "Authentication is needed to run `/bin/sh' as the super user"
+    : (state.step.startsWith('Stop') ? 'Nazg needs your permission to stop allowing a keyboard.' : 'Nazg needs your permission to allow a keyboard to be configured.');
+  return `<div class="shade"><span class="tag">The desktop's own window (GNOME's here) -- not Nazg's: Nazg never sees the password</span>`
+    + `<div class="gnome"><div class="gb"><h3>Authentication Required</h3><p>${text}</p>`
+    + `<div class="who"><b>R</b> Rico</div><div class="pw">Password</div></div>`
+    + `<div class="gf"><div>Cancel</div><div>Authenticate</div></div></div></div>`;
+}
+
+function frameHtml() {
+  const s = state.step;
+  let html = `<div class="menubar"><span class="muted">No board open</span><span class="right">Settings</span></div><div class="list">`;
+  if (s === 'Allowed') html += `<div class="said ok">The ${F77.short} is allowed -- Linux remembers it.</div>`;
+  if (s === 'Stopped') html += `<div class="said">The ${F77.short} is no longer allowed.</div>`;
+  html += `<div class="count">Keyboards: 2</div><table><tr><th>Product</th><th>Protocol</th><th></th></tr>`
+    + rowHtml(F77, f77Allowed()) + rowHtml(CONCORDIA, true) + `</table>`;
+  html += `<div class="check"><i></i>Show all HID devices</div><div class="hint">Not listed? Turn on Show all HID devices.</div></div>`;
+  if (state.control === 'Icon only' && s === 'Not allowed')
+    html += `<div class="tip" style="left:736px;top:178px">Allowed by Nazg -- click to stop allowing it</div>`;
+  if (s === 'Allow: asked') html += allowDialog();
+  if (s === 'Stop: asked') html += stopDialog();
+  if (s === 'Allow: password' || s === 'Stop: password') html += passwordHtml();
+  return html;
+}
+
+const CONTROLS = [
+  ['Step', 'step', STEPS],
+  ['An allowed board shows', 'control', ['Words: Allowed', 'Icon only']],
+  ['Terminal commands', 'cmds', ['Folded', 'Unfolded']],
+  ['The desktop\'s password window', 'desktop', ['Password window', 'No password window']],
+  ['Its sentence', 'words', ["pkexec's own", "Nazg's (a package only)"]],
+  ['Theme', 'theme', ['Light', 'Dark']],
+];
+function disabled(key, v) {
+  return key === 'step' && v.endsWith('password') && !canAsk();
+}
+function render() {
+  document.documentElement.dataset.theme = state.theme.toLowerCase();
+  if (disabled('step', state.step)) state.step = 'Not allowed';
+  document.getElementById('controls').innerHTML = CONTROLS.map(([name, key, vals]) =>
+    `<div class="group"><span class="name">${name}</span>` + vals.map(v =>
+      `<button data-key="${key}" data-val="${v}"${state[key] === v ? ' class="on"' : ''}${disabled(key, v) ? ' disabled' : ''}>${v}</button>`).join('') + `</div>`).join('');
+  document.getElementById('frame').innerHTML = frameHtml();
+  document.getElementById('notes').innerHTML = NOTES;
+}
+document.getElementById('controls').addEventListener('click', e => {
+  const t = e.target.closest('button[data-key]');
+  if (!t || t.disabled) return;
+  state[t.dataset.key] = t.dataset.val;
+  render();
+});
+
+const NOTES = `
+<p><b>Why it happens.</b> Linux gives a keyboard's <code>/dev/hidraw</code> entries to root only, so Nazg can list a board
+-- listing needs no permission -- but not open it. Today the list then says "no answer", as if the firmware had no VIA; it
+becomes <b>not allowed</b>, with <b>Allow...</b> in place of Open. Only on Linux, only for a board refused for that reason;
+on Windows and macOS none of this appears. Dashed: what is new.</p>
+<p><b>Each board, its own button.</b> <i>Allow...</i> explains, then asks the computer's password once and allows that board
+alone. An allowed board shows a quiet <i>Allowed</i> beside Open -- or only the icon, with a tooltip -- and it opens
+<i>Stop allowing</i> for that board alone. Only on the boards Nazg itself allowed: one allowed another way (a rule of the
+user's, or a distribution's) shows nothing, since Nazg cannot take back what it did not write.</p>
+<p><b>Underneath: one file per board.</b> Allowing the F77 creates <code>/etc/udev/rules.d/60-nazg-1209-4704.rules</code>,
+one comment and one rule; stopping deletes it. Nothing is ever edited, and Nazg knows a board is its own by the file being
+there. A file names a USB id, so boards sharing one -- the F77 and the B104, both 1209:4704 -- go together, and the dialog
+says so.</p>
+<p><b>The password.</b> One <code>pkexec</code> command does the whole step -- the file, then udev told to read its rules
+again and apply them to the boards plugged in -- in the desktop's own window: Nazg never sees the password. Then Nazg asks the
+board again, and the row changes. Cancelled: nothing changes. <i>Password window says</i>: pkexec's generic sentence is all an
+AppImage or a tar.gz can get; a sentence of Nazg's own needs a small file in <code>/usr/share/polkit-1/actions/</code>, which
+only a .deb or .rpm can install.</p>
+<p><b>The terminal commands</b>, folded under each dialog: the same step, for whoever prefers to see it -- and the only way on a
+desktop with no password window (a bare window manager, a Flatpak), where the dialog shows them directly and Try again asks the
+board again once they have run. The window is drawn by a <b>polkit agent</b> the desktop runs (GNOME's, KDE's...), not by
+pkexec: none runs in a bare window manager, a Flatpak or WSL. Nazg cannot tell beforehand, so it tries, and shows the
+commands when pkexec is missing or finds no agent -- a window closed by the user is an answer, and changes nothing.
+<b>To check in WSL:</b> whether stopping takes effect at once, or only once the board is
+unplugged and plugged back in.</p>`;
+render();
+</script>
+</body>
+</html>

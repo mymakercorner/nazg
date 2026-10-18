@@ -115,14 +115,15 @@ keyboard -- VIA, Vial and Chrome's WebHID all ask their users for a udev rule. V
 keyboard list links to its manual page (`main_window.py`); VIA's desktop wrapper carries a
 udev prompt (via-registry.md, "The native application").
 
-What every such rule needs: a name sorting **before `73-seat-late.rules`** (`60-nazg.rules`),
+What every such rule needs: a name sorting **before `73-seat-late.rules`** (`60-nazg-...`),
 so that `TAG+="uaccess"` hands the device to whoever is logged in at the screen -- no group,
 no logging out -- then `udevadm control --reload-rules` and
 `udevadm trigger --subsystem-match=hidraw` for the boards already plugged in. uaccess needs
 systemd-logind or elogind, which nearly every desktop distribution has; the others need a
 group-based rule (`MODE="0660", GROUP=...`, the group differing by distribution).
 
-**How wide** -- *Rico's decision, open*:
+**How wide** -- *decided 2026-10-18 (Rico): one board at a time*, by its VID:PID, written by
+Nazg itself (below):
 
 | Rule | For | Against |
 |---|---|---|
@@ -135,10 +136,11 @@ Narrowing one board's line to its raw HID interface alone is possible, but takes
 rules: the vendor and product sit on the USB device, the interface number on its interface,
 and one udev rule matches `ATTRS` of a single parent.
 
-### Proposed: Nazg allowing the boards itself
+### Nazg allowing the boards itself
 
-*Proposed 2026-10-13; not decided, not drawn. The notice is UI, so a mockup comes first and
-the screen then goes into ui-design.md.* On Windows and macOS, and on a Linux whose rules
+*Proposed 2026-10-13; designed 2026-10-18 in the mockup
+[linux-permission.html](ui-design/linux-permission.html), Rico's choices in ui-design.md, "A
+board Linux does not allow"; not built.* On Windows and macOS, and on a Linux whose rules
 already allow the boards, nothing of this appears.
 
 1. **Noticing.** Listing needs no permission -- hidapi reads each interface's usage page from
@@ -147,41 +149,47 @@ already allow the boards, nothing of this appears.
    the probing loop), which reads as "no VIA in this firmware". The fix stands alone: when
    `hid_open_path` fails on Linux, `ExecuteOpen` checks `access(path, R_OK | W_OK)`, raises a
    permission error of its own, and the list says **"not allowed"**.
-2. **Saying it.** With at least one board not allowed, one notice above the list: Linux does
-   not let Nazg open these keyboards yet; Nazg can add the rule, and the system will ask for
-   the password. *Allow these keyboards...*, and *Show the commands instead* -- the rule and
-   the `sudo` lines with Copy, for those who prefer it and for systems where step 3 cannot run.
-3. **Installing it** with **`pkexec`**, the desktop's way to run one command as root: the
-   password dialog is the desktop's (GNOME, KDE...), and **Nazg never sees the password**.
-   One `pkexec /bin/sh -c '...'`, so one prompt: the rule written with its text inside the
-   command (no temporary file to swap), then the reload and the trigger. Then Nazg asks the
-   refused boards again itself. Still refused: "unplug the keyboard and plug it back in" --
-   a board that did not answer is asked again once it is back (ui-design.md, "Hotplug").
-   Dialog dismissed (exit code 126): nothing changes. No
-   `pkexec`, or no polkit agent running (a bare window manager, a Flatpak): *Show the
-   commands*. pkexec waits on the user, so it runs off the frame loop like a board request.
-   The code is POSIX (`posix_spawn`, `access`), Linux only, no SDL -- `Main.cpp` keeps its
-   role.
-4. **What it writes**, if one line per board is chosen: Nazg knows the VID:PID of each board
-   it was refused, which a package installed beforehand cannot. A new board is one more
-   password and one more line; Nazg reads the file (anyone can) and writes it back with the
-   line added:
+2. **Saying it, on the board's row.** "not allowed", and **Allow...** in place of *Open*: a
+   dialog for that board alone, its terminal commands folded under it. A board Nazg allowed
+   shows **Allowed** beside *Open*, which opens **Stop allowing** for that board alone.
+3. **Doing it** with **`pkexec`**, the desktop's way to run one command as root: the password
+   window is drawn by the desktop's **polkit agent** (GNOME's, KDE's...), and **Nazg never sees
+   the password**. One `pkexec /bin/sh -c '...'`, so one prompt: the file written with its
+   text inside the command (no temporary file to swap), or deleted, then the reload and the
+   trigger. Then Nazg asks the board again itself. Still refused: "unplug the keyboard and plug
+   it back in" -- a board that did not answer is asked again once it is back (ui-design.md,
+   "Hotplug"). Window closed by the user (exit code 126): nothing changes. No `pkexec`, or no
+   agent running (a bare window manager, a Flatpak, WSL) -- which Nazg cannot tell beforehand,
+   so it tries: the dialog shows the commands instead. pkexec waits on the user, so it runs off
+   the frame loop like a board request. The code is POSIX (`posix_spawn`, `access`), Linux
+   only, no SDL -- `Main.cpp` keeps its role.
+4. **What it writes: one file per board** (Rico, 2026-10-18 -- one shared file, "delete its
+   two lines" to take a board back, confused him: "what lines?"). Nazg knows the VID:PID of each
+   board it was refused, which a package installed beforehand cannot. Allowing creates
+   `/etc/udev/rules.d/60-nazg-<vid>-<pid>.rules`, stopping deletes it: nothing is ever edited,
+   and the file being there is how Nazg knows the board is its own -- a board allowed any other
+   way shows no *Allowed*, since Nazg cannot take back what it did not write:
 
    ```
-   # Written by Nazg. One line per keyboard allowed; delete a line to take the permission back.
-   # Keychron K10 HE, added 2026-10-13
+   # Written by Nazg: lets whoever is logged in configure the Keychron K10 HE (3434:0ea7).
    KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3434", ATTRS{idProduct}=="0ea7", TAG+="uaccess"
    ```
 
-   Taking a permission back is deleting its line, as the header says; a Settings list of the
-   boards allowed could come later, if someone asks.
+   Boards sharing a VID:PID -- the F77 and the B104, both `1209:4704` -- are allowed and stopped
+   together, and the dialogs say so.
+5. **The window's sentence.** pkexec alone says "Authentication is needed to run `/bin/sh' as
+   the super user", all an AppImage or a tar.gz can get. A .deb or .rpm installs a **polkit
+   action** in `/usr/share/polkit-1/actions/` -- root only, so only an installer can -- which
+   gives the window Nazg's own sentence and names the one program it may run, tighter than any
+   `/bin/sh` command.
 
 This works from the tar.gz, the AppImage and the .deb / .rpm alike, so the packages need not
 install a rule of their own; a Flatpak gets the commands only.
 
-**Open** -- *Rico's decisions*: the rule's width; when the "not allowed" fix of step 1 goes in
-(it can now be tried in WSL, below). **Testing** the happy path of uaccess and pkexec needs a
-real Linux desktop with a board at hand -- a live USB stick -- which WSL is not.
+**Open**: when it is built -- the "not allowed" of step 1 can be tried in WSL (below);
+whether *Stop allowing* takes effect at once or only after a replug, to check there too.
+**Testing** the happy path of uaccess and pkexec needs a real Linux desktop with a board at
+hand -- a live USB stick -- which WSL is not.
 
 ### First build, in WSL (2026-10-18)
 
