@@ -150,7 +150,7 @@ already allow the boards, nothing of this appears.
    `hid_open_path` fails on Linux, `ExecuteOpen` checks `access(path, R_OK | W_OK)`, raises a
    permission error of its own, and the list says **"not allowed"**.
 2. **Saying it, on the board's row.** "not allowed", and **Allow...** in place of *Open*: a
-   dialog for that board alone, its terminal commands folded under it. A board Nazg allowed
+   dialog for that board alone, with **Show the commands** -- exactly what it runs. A board Nazg allowed
    shows **Allowed** beside *Open*, which opens **Stop allowing** for that board alone.
 3. **Doing it** with **`pkexec`**, the desktop's way to run one command as root: the password
    window is drawn by the desktop's **polkit agent** (GNOME's, KDE's...), and **Nazg never sees

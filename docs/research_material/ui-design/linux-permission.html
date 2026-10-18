@@ -18,7 +18,7 @@
 
      Settled 2026-10-18 (Rico): this second round -- Allow... on a refused board's row, the word
      Allowed with its icon on a board Nazg allowed (the icon alone rejected), Stop allowing behind it,
-     one file per board. pkexec in every package: its own sentence from an AppImage or a tar.gz,
+     one file per board, Show the commands in both dialogs. pkexec in every package: its own sentence from an AppImage or a tar.gz,
      Nazg's from a .deb or .rpm, which install the polkit action; the commands when it cannot ask.
      Not built. The toggles keep the alternatives. -->
 <html lang="en">
@@ -101,7 +101,7 @@ td.proto{width:120px}td.act{width:210px;text-align:right;white-space:nowrap}
 const F77 = { name: 'F77 Model F Keyboard by Model F Labs', short: 'F77 Model F Keyboard', vid: '1209', pid: '4704', proto: 'Vial' };
 const CONCORDIA = { name: 'The Concordia Type C', short: 'Concordia Type C', vid: '21c0', pid: '6173', proto: 'VIA' };
 const STEPS = ['Not allowed', 'Allow: asked', 'Allow: password', 'Allowed', 'Stop: asked', 'Stop: password', 'Stopped'];
-const state = { step: 'Not allowed', control: 'Words: Allowed', cmds: 'Folded', desktop: 'Password window', words: "pkexec's own", theme: 'Light' };
+const state = { step: 'Not allowed', control: 'Words: Allowed', cmds: 'Hidden', desktop: 'Password window', words: "pkexec's own", theme: 'Light' };
 
 const canAsk = () => state.desktop === 'Password window';
 const f77Allowed = () => ['Allowed', 'Stop: asked', 'Stop: password'].includes(state.step);
@@ -130,19 +130,21 @@ function rowHtml(b, allowed) {
   return `<tr><td>${b.name}</td><td class="proto"><span class="refused new">not allowed</span></td><td class="act">${allow}</td></tr>`;
 }
 
-function cmdsHtml(text) {
-  if (state.cmds === 'Folded') return `<p class="fold">▸ Or in a terminal, if you prefer</p>`;
-  return `<p class="fold">▾ Or in a terminal, if you prefer -- it asks for your password:</p>`
-    + `<div class="cmds"><div class="bar"><span class="muted">Then click Try again.</span><span class="right"><button>Copy</button></span></div><pre>${text.replace(/</g, '&lt;')}</pre></div>`;
+function cmdsHtml(text, verb) {
+  // Shown by the dialog's Show the commands button: exactly what the main button runs.
+  if (state.cmds === 'Hidden') return '';
+  return `<div class="cmds new"><div class="bar"><span class="muted">${verb} runs these, as administrator (<code>sudo</code>), once you give your password.`
+    + ` You may also paste them into a terminal yourself.</span><span class="right"><button>Copy</button></span></div><pre>${text.replace(/</g, '&lt;')}</pre></div>`;
 }
+const showButton = () => `<span class="new"><button${state.cmds === 'Shown' ? ' class="on"' : ''}>Show the commands</button></span>`;
 
 function allowDialog() {
   const b = F77;
   const body = `<p>Linux keeps a keyboard closed to programs until you allow it. Allowed, Nazg can configure the <b>${b.short}</b>,`
     + ` and Linux remembers it.</p><p>To stop allowing it later, click <b>${SHIELD} Allowed</b>, which appears next to its <i>Open</i> button.</p>`
-    + (canAsk() ? `<p class="muted">Your computer asks for your password, once.</p>` + cmdsHtml(allowCommands(b))
-      : `<p>Run these in a terminal -- it asks for your password:</p><div class="cmds"><div class="bar"><span class="right"><button>Copy</button></span></div><pre>${allowCommands(b).replace(/</g, '&lt;')}</pre></div>`);
-  const buttons = canAsk() ? `<button>Cancel</button><button class="primary">Allow</button>` : `<button>Cancel</button><button class="primary">Try again</button>`;
+    + (canAsk() ? `<p class="muted">Your computer asks for your password, once.</p>` + cmdsHtml(allowCommands(b), 'Allow')
+      : `<p>Run these in a terminal -- it asks for your password -- then click Try again:</p><div class="cmds"><div class="bar"><span class="right"><button>Copy</button></span></div><pre>${allowCommands(b).replace(/</g, '&lt;')}</pre></div>`);
+  const buttons = canAsk() ? `${showButton()}<span style="flex:1"></span><button>Cancel</button><button class="primary">Allow</button>` : `<button>Cancel</button><button class="primary">Try again</button>`;
   return `<div class="shade"><div class="dialog new"><div class="dt">Allow the ${b.short}</div><div class="db">${body}</div><div class="df">${buttons}</div></div></div>`;
 }
 
@@ -150,9 +152,9 @@ function stopDialog() {
   const b = F77;
   const body = `<p>Nazg will no longer be able to configure the <b>${b.short}</b>. It still types as ever: only its settings are closed again.</p>`
     + `<p class="muted">Every board with the same USB id, ${b.vid}:${b.pid}, is affected together -- the Model F Labs B104 shares it.</p>`
-    + (canAsk() ? `<p class="muted">Your computer asks for your password, once.</p>` + cmdsHtml(stopCommands(b))
+    + (canAsk() ? `<p class="muted">Your computer asks for your password, once.</p>` + cmdsHtml(stopCommands(b), 'Stop allowing')
       : `<p>Run these in a terminal -- it asks for your password:</p><div class="cmds"><div class="bar"><span class="right"><button>Copy</button></span></div><pre>${stopCommands(b).replace(/</g, '&lt;')}</pre></div>`);
-  const buttons = canAsk() ? `<button>Cancel</button><button class="primary">Stop allowing</button>` : `<button>Cancel</button><button class="primary">Done</button>`;
+  const buttons = canAsk() ? `${showButton()}<span style="flex:1"></span><button>Cancel</button><button class="primary">Stop allowing</button>` : `<button>Cancel</button><button class="primary">Done</button>`;
   return `<div class="shade"><div class="dialog new"><div class="dt">Stop allowing the ${b.short}</div><div class="db">${body}</div><div class="df">${buttons}</div></div></div>`;
 }
 
@@ -184,7 +186,7 @@ function frameHtml() {
 const CONTROLS = [
   ['Step', 'step', STEPS],
   ['An allowed board shows', 'control', ['Words: Allowed', 'Icon only']],
-  ['Terminal commands', 'cmds', ['Folded', 'Unfolded']],
+  ['Show the commands', 'cmds', ['Hidden', 'Shown']],
   ['The desktop\'s password window', 'desktop', ['Password window', 'No password window']],
   ['Its sentence', 'words', ["pkexec's own", "Nazg's (a package only)"]],
   ['Theme', 'theme', ['Light', 'Dark']],
@@ -226,8 +228,9 @@ again and apply them to the boards plugged in -- in the desktop's own window: Na
 board again, and the row changes. Cancelled: nothing changes. <i>Password window says</i>: pkexec's generic sentence is all an
 AppImage or a tar.gz can get; a sentence of Nazg's own needs a small file in <code>/usr/share/polkit-1/actions/</code>, which
 only a .deb or .rpm can install.</p>
-<p><b>The terminal commands</b>, folded under each dialog: the same step, for whoever prefers to see it -- and the only way on a
-desktop with no password window (a bare window manager, a Flatpak), where the dialog shows them directly and Try again asks the
+<p><b>Show the commands</b>, a button in each dialog (Rico, 2026-10-18 -- a fold "Or in a terminal, if you prefer" read as
+another way, not as what the button does): exactly what Allow or Stop allowing runs, to read, or to copy into a terminal -- and
+the only way on a desktop with no password window (a bare window manager, a Flatpak), where the dialog shows them directly and Try again asks the
 board again once they have run. The window is drawn by a <b>polkit agent</b> the desktop runs (GNOME's, KDE's...), not by
 pkexec: none runs in a bare window manager, a Flatpak or WSL. Nazg cannot tell beforehand, so it tries, and shows the
 commands when pkexec is missing or finds no agent -- a window closed by the user is an answer, and changes nothing.

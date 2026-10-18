@@ -2504,7 +2504,10 @@ for a board refused for that reason. Rico's choices, from his take as a Linux ne
 - **Allow...** opens a dialog for that board alone: what Linux does, that Linux remembers it,
   and that **Allowed**, next to its *Open*, stops it later -- named with its icon, because "here
   on its row" pointed at a button not yet there and was not understood. The computer's
-  password, once; the terminal commands folded under it.
+  password, once.
+- **Show the commands**, a button in both dialogs: exactly what *Allow* or *Stop allowing*
+  runs, as administrator, with Copy for a terminal (Rico) -- folded under "Or in a terminal, if
+  you prefer", they read as another way, not as what the button does.
 - **A board Nazg allowed shows Allowed, word and shield icon**, quiet, beside *Open* (the icon
   alone with a tooltip rejected); it opens **Stop allowing**, for that board alone: Nazg can no
   longer configure it, it still types. Boards sharing its VID:PID go with it, and it says so.
