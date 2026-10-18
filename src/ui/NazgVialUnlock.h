@@ -10,8 +10,10 @@
 // -- and an unlock takes some 7.5 s of holding. Each poll opens the board, asks and closes,
 // as a keymap write does.
 //
-// Once started it cannot be cancelled: the board answers nothing else until it is unlocked
-// or restarted, so the screen offers no way out but unplugging.
+// Once started the firmware cannot be told to stop: the board answers nothing else until it is
+// unlocked or restarted, vial_lock included. So Cancel does not take the screen back to the
+// board: it ends the unlock here and App closes the board, until it is unplugged (Rico,
+// 2026-10-18).
 //
 // ImGui only, no SDL: compiled into the application, not into nazg_core.
 
@@ -42,12 +44,15 @@ namespace nazg
                    std::vector<std::pair<uint8_t, uint8_t>> combo,
                    const LegendSettings&                    legends);
 
-        // Into the current window, every frame: draws, and polls when it is time.
-        void Draw();
+        // Into the current window, every frame: draws, and polls when it is time. `quitting`: Nazg
+        // was asked to close and waits for the unlock to end, which the screen says.
+        void Draw(bool quitting);
 
-        // Ended: unlocked, or failed with Failure() saying why. Nothing is in flight then.
+        // Ended: unlocked, cancelled, or failed with Failure() saying why. Nothing is in flight
+        // then. Unlocked wins over cancelled: a poll answered after Cancel may have finished it.
         [[nodiscard]] bool               IsDone() const noexcept;
         [[nodiscard]] bool               IsUnlocked() const noexcept { return m_Stage == Stage::Unlocked; }
+        [[nodiscard]] bool               IsCancelled() const noexcept { return m_Cancelled; }
         [[nodiscard]] const std::string& Failure() const noexcept { return m_Failure; }
 
         // A request in flight -- between two polls there is none.
@@ -72,6 +77,7 @@ namespace nazg
         const LegendSettings&                    m_Legends;
 
         Stage       m_Stage     = Stage::Starting;
+        bool        m_Cancelled = false;   // no poll after Cancel
         uint8_t     m_Countdown = vial::c_UnlockSteps;
         std::string m_Failure;
 

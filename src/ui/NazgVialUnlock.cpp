@@ -35,14 +35,15 @@ namespace nazg
 
     bool VialUnlock::IsDone() const noexcept
     {
-        return (m_Stage == Stage::Unlocked || m_Stage == Stage::Failed) && !IsRequesting();
+        return (m_Stage == Stage::Unlocked || m_Stage == Stage::Failed || m_Cancelled) && !IsRequesting();
     }
 
-    void VialUnlock::Draw()
+    void VialUnlock::Draw(bool quitting)
     {
         // Paced here, not in a coroutine: a poll goes out once the last one has answered and
         // the interval has passed since it was sent.
-        if (m_Stage == Stage::Holding && !IsRequesting() && ImGui::GetTime() - m_LastPoll >= c_PollInterval)
+        if (m_Stage == Stage::Holding && !m_Cancelled && !IsRequesting() &&
+            ImGui::GetTime() - m_LastPoll >= c_PollInterval)
         {
             m_LastPoll = ImGui::GetTime();
             m_Request  = Poll();
@@ -56,8 +57,17 @@ namespace nazg
                            static_cast<float>(vial::c_UnlockSteps);
         ImGui::ProgressBar(done, ImVec2(-1.0f, 0.0f), m_Stage == Stage::Starting ? "starting..." : "");
 
-        ColouredText(PanelColour::Muted, "The board takes no other change until it is unlocked. To give up, "
-                                         "unplug it.");
+        // Quitting waits for the unlock, not leaving the board mid-unlock, where it would answer
+        // nothing until unplugged (Rico, 2026-10-18).
+        ColouredText(PanelColour::Muted, "The board takes no other change until it is unlocked or unplugged: "
+                                         "Cancel closes it.");
+        if (quitting)
+            ColouredText(PanelColour::Warning, "Nazg closes once the board is unlocked -- or unplug it.");
+
+        ImGui::BeginDisabled(m_Cancelled);
+        if (ImGui::Button("Cancel"))
+            m_Cancelled = true;
+        ImGui::EndDisabled();
 
         // The board as the definition draws it: layer 0's legends, to find the keys by, the
         // combo outlined and everything else dimmed.

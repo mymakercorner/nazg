@@ -2323,6 +2323,22 @@ Designer and debugging tools stay out of an ordinary user's way: turned on, the 
 gains an *Advanced* submenu (see "Getting back to the keyboard list"). VIA does the same with
 its Design pane, hidden until enabled in its settings.
 
+**The Vial unlock**, from the header's *Locked*: it takes the board screen's place, the keys to
+hold outlined on the board and a bar filling while they are held (`ui/NazgVialUnlock.*`). Once
+started the firmware cannot be told to stop -- the board answers nothing else until it is
+unlocked or restarted, `vial_lock` included (via-vial-commands.md, "What the lock gates") -- so
+(Rico, 2026-10-18, on the F77):
+- **Cancel closes the board**, back to the list, which says it "is still waiting for its unlock
+  keys -- unplug it, and it answers again"; opened before then, it is refused. Going back to the
+  board, locked, was what Rico asked first; a two-step screen that would allow it -- the keys
+  shown, then *Unlock* starting the firmware's countdown -- was declined as too complicated.
+- **Quitting waits for the unlock**, the screen saying "Nazg closes once the board is unlocked
+  -- or unplug it"; Cancel or unplugging closes Nazg at once.
+
+Seen working on the F77 in secure mode (2026-10-18): Locked after a plug-in, the combo outlined,
+the bar restarting when a key is let go, Unlocked, locked again; Cancel, the refusal, a quit
+waiting then closing on unlock or on unplug.
+
 ## Choosing among many definitions
 
 VIA's registry allows one official definition per VID:PID, so many candidates are always the
@@ -2430,7 +2446,10 @@ menu's *Switch to* follows too.
 Rico on the Model F the same day, and it works**: Save; the file loaded back says "the same"; a key
 changed in Keymap found and written back by Apply; a .vil saved by Vial loaded; Nazg's file loaded
 in Vial; the Concordia's file asked about as another keyboard's, its keymap left out. Save on the
-Concordia Type C (VIA) seen through a probe. Not yet seen: Unlock and apply, Load on a VIA board.
+Concordia Type C (VIA) seen through a probe. **On the F77 in secure mode** (Rico, 2026-10-18): a
+file changing an ordinary key applied while locked, plain Apply; one adding a macro and Boot read
+"Unlock and apply" under the locked warning, unlocked first, then written and read back, Boot
+kept. Not yet seen: Load on a VIA board.
 Saving a board to a Vial `.vil` file and loading one back, to be feature complete with Vial: the
 file's format, and how vial-gui restores one, are in [vil-files.md](vil-files.md).
 
@@ -2458,7 +2477,7 @@ Chosen on the mockup (Rico, 2026-10-18):
 
 With them, as the mockup proposed: Nazg writes Vial's own spellings (`M0`, `LT1(KC_A)`, `USER00`)
 so Vial loads its files, and reads a file's raw values with the keycodes of the firmware that saved
-it. A locked Vial board asks for its unlock keys before Apply -- that unlock is untested on hardware.
+it. A locked Vial board asks for its unlock keys before Apply.
 
 As built (2026-10-18), where it differs from the mockup or adds to it:
 
@@ -2488,7 +2507,8 @@ group, only with *Advanced tools* on** (Rico, 2026-10-09) -- with the setting of
 bring the column back on every keymap-only board, since every board has the data. Until then it
 was opened from the board menu's Advanced submenu ("Show matrix…") and took the sections' place
 until closed. Its live test keeps the board open, so it stops as soon as another section is
-shown (`Section::WhileHidden()`).
+shown (`Section::WhileHidden()`). Seen on a Vial board, the F77 in secure mode (2026-10-18):
+refused while locked, as the firmware means it to be; the keys pressed once unlocked.
 
 ### What VIA and Vial do
 

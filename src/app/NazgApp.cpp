@@ -448,6 +448,10 @@ namespace nazg
         m_DiscardingBeforeLeave = false;
         m_WhenIdle              = nullptr;
         m_Board                 = BoardState{};
+
+        // A quit waiting for this board -- an unlock unplugged to give up -- has nothing left to wait for.
+        if (m_QuitWaiting)
+            m_QuitConfirmed = true;
     }
 
     void App::OnDevicesChanged()
@@ -895,6 +899,7 @@ namespace nazg
         if (m_QuitRequested)
         {
             m_QuitRequested = false;
+            m_QuitWaiting   = true;
             LeaveBoard([this] { m_QuitConfirmed = true; });
         }
 
@@ -962,6 +967,7 @@ namespace nazg
         else if (cancel)
         {
             m_PendingLeave = nullptr;
+            m_QuitWaiting  = false;
         }
     }
 
@@ -1139,7 +1145,7 @@ namespace nazg
 
         if (m_Board.unlock)
         {
-            m_Board.unlock->Draw();
+            m_Board.unlock->Draw(m_QuitWaiting);
 
             if (m_Board.unlock->IsDone())
             {
@@ -1149,6 +1155,15 @@ namespace nazg
                     // Unlocked for a saved layout's Apply: written now.
                     if (m_ApplyAfterUnlock && m_Board.review)
                         m_Board.review->StartWriting();
+                }
+                else if (m_Board.unlock->IsCancelled())
+                {
+                    // Left mid-unlock, it answers nothing else: closed, a saved layout's review with
+                    // it, until it is unplugged. Opening it before then is refused (NazgBoardLoad).
+                    m_ApplyAfterUnlock = false;
+                    CloseBoard(m_Board.keyboard->Name() + " is still waiting for its unlock keys -- unplug it, and "
+                                                          "it answers again.");
+                    return false;
                 }
                 else
                     m_Board.error = m_Board.unlock->Failure();

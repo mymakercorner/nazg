@@ -120,17 +120,20 @@ exists, where, and how far it has been proven.
 
 Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make the writes),
 **Aquanaut** (VIA 12, definition in Rico's QMK fork), **Phoenix Project No 1** (VIA registry),
-**Concordia** (VIA).
+**Concordia** (VIA), **F77** (Vial 6, Leyden Jar controller; secure mode since 2026-10-18 -- the
+one board to unlock).
 
 | Seen working | Never met real hardware |
 |---|---|
-| Vial and VIA loads, keymap decode, one-key edit (Model F, Aquanaut; a tester's Keychron Q6, 0.1.0-test.1) | Vial unlock and lock -- the Model F is `VIAL_INSECURE` |
-| All 2029 VIA V3 definitions parse and draw as VIA does (test) | The matrix live test on a Vial board, unlocked |
+| Vial and VIA loads, keymap decode, one-key edit (Model F, Aquanaut; a tester's Keychron Q6, 0.1.0-test.1) | |
+| Vial unlock and lock, Cancel closing the board, a quit waiting for the unlock (F77 in secure mode, 2026-10-18) | |
+| The matrix live test on a Vial board: refused locked, keys unlocked (F77 in secure mode) | |
+| All 2029 VIA V3 definitions parse and draw as VIA does (test) | |
 | The matrix live test reading keys (a tester's Keychron Q6: Keychron builds every board with `VIA_INSECURE`; stock QMK answers zeroes) |  |
 | Official bundle, user library, choice (Phoenix) | Rotated keys on a real board (a forged definition only) |
 | Knobs fully working: turns read and written through the encoder map (a tester's Keychron Q6, 0.1.0-test.2); "no encoder map" said (Phoenix, Concordia: forged definitions) | Vial's direction keys on a board |
 | Picker, board look, matrix wiring (Model F, Concordia) | Pre-renumbering keycodes (`Legacy`) |
-| Macros: save and read-back (Concordia), creation on a Leyden Jar board | A Vial board playing a macro; locked-board writes |
+| Macros: save and read-back (Concordia), creation on a Leyden Jar board | A Vial board playing a macro |
 | Tap Dance (Model F) | Lighting hover notes on two systems (`UG_*` driving the matrix) and `RM_*` |
 | Lighting keys by firmware: picker, faint `RGB_M_*` tiles and their notes with Advanced tools, a mode key's note on the board (Phoenix, firmware older than the overhaul, judged unknown) | |
 | QMK settings listed, read at their widths, written and reset from the section (Model F) | |
@@ -139,7 +142,7 @@ Boards at hand: **Model F B104** (Vial 6, Rico's daily keyboard -- let him make 
 | Key overrides, read and written (Model F) | |
 | | Alt repeat keys -- no board at hand has them |
 | Audio planned from a definition, and a firmware without audio said (Concordia, a test definition) | Audio and Clicky read or written, Play a sound -- no board at hand has audio built in |
-| Saved layouts on the Model F (Rico, 2026-10-18): Save; its own file loaded back as "the same"; a changed key found and written back; a .vil from Vial loaded; Nazg's file loaded in Vial; the Concordia's file asked about, its keymap left out. Save on the Concordia (probe) | Unlock and apply (the Model F is `VIAL_INSECURE`); Load on a VIA board |
+| Saved layouts on the Model F (Rico, 2026-10-18): Save; its own file loaded back as "the same"; a changed key found and written back; a .vil from Vial loaded; Nazg's file loaded in Vial; the Concordia's file asked about, its keymap left out. Save on the Concordia (probe). Unlock and apply, a macro and Boot written once unlocked; an ordinary key applied locked (F77 in secure mode) | Load on a VIA board |
 | A board's own menus: a few EC features (Concordia Type C); all 35909 registry controls parse (test) | |
 | Hotplug: boards plugged and unplugged, the list and the open board following (Rico, 2026-10-16) | |
 | Key health on Rico's F77 recordings: nothing accused, 26 good and 49 to hold, as the mockup (test) | |

@@ -289,6 +289,7 @@ namespace nazg
         std::function<void()> m_WhenIdle;   // WhenBoardIdle()'s, waiting for the sections to stop
         bool                  m_QuitRequested         = false;   // the window's close, heard by the shell
         bool                  m_QuitConfirmed         = false;   // and allowed
+        bool                  m_QuitWaiting           = false;   // asked, waiting for the board to be left
 
         // "Export definition...": the bytes are taken when Export is clicked -- a user
         // definition's stored file, the official one out of the bundle, or what a Vial board
