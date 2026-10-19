@@ -35,6 +35,9 @@ Nazg keeps imported definitions and its settings in %APPDATA%\mymakercorner\Nazg
 Changes are written to the keyboard as you make them, as in VIA and Vial. Your keyboard keeps
 them when unplugged.
 
+How to use it, section by section: nazg-manual.html, beside this file -- it opens in your
+browser. Also online: https://github.com/mymakercorner/nazg/blob/main/docs/user-manual.md
+
 
 Reporting
 ---------

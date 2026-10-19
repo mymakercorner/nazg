@@ -8,8 +8,9 @@ application handles boards that today need three different tools.
 
 *One keyboard configurator to rule them all.*
 
-> **Status: early development.** The protocol survey that informs the design is complete; the
-> application itself is just starting. There is nothing to install yet.
+> **Status: test builds.** VIA and Vial boards load and edit end to end; test builds for Windows
+> and Linux are on the [releases page](https://github.com/mymakercorner/nazg/releases). How to
+> use it: the [user manual](docs/user-manual.md).
 
 ## Why
 

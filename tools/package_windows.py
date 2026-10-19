@@ -8,15 +8,17 @@ hidapi's DLLs (minlzma is linked in), fonts/, both definition bundles -- plus th
 runtime DLLs the build links (MSVCP140, VCRUNTIME140, VCRUNTIME140_1; the rest of the C
 runtime ships with Windows 10 and later), Microsoft's app-local deployment, so nothing has to
 be installed: started from the package, nazg.exe loads them from its own folder (checked
-2026-10-11). Then a README for testers (resources/package/README.txt), Nazg's LICENSE, and
-the licences of the libraries it links.
+2026-10-11). Then a README for testers (resources/package/README.txt), Nazg's LICENSE, the
+licences of the libraries it links, and the user manual as one HTML page (tools/build_manual.py),
+which it also writes beside the zip for the release.
 
     cmake --build build_VS2022 --config Release --target nazg
     python tools/package_windows.py
 
-writes dist/nazg-<version>-windows-x64.zip, the version being NAZG_VERSION in CMakeLists.txt.
-Both bundles must be there: tools/update_via_bundle.py and tools/update_community_bundle.py
-fetch them. Python 3.8 or later, standard library only.
+writes dist/nazg-<version>-windows-x64.zip and dist/nazg-<version>-manual.html, the version
+being NAZG_VERSION in CMakeLists.txt. Both bundles must be there: tools/update_via_bundle.py and
+tools/update_community_bundle.py fetch them. Python 3.8 or later, with the `markdown` package
+(pip install markdown) for the manual.
 """
 
 import argparse
@@ -29,6 +31,8 @@ import sys
 import tarfile
 import zipfile
 from pathlib import Path
+
+import build_manual
 
 ROOT = Path(__file__).resolve().parent.parent
 BUILD = ROOT / "build_VS2022" / "Release"
@@ -94,6 +98,8 @@ def main():
     DIST.mkdir(exist_ok=True)
     output = DIST / f"{top}-windows-x64.zip"
     runtime = runtime_folder()
+    manual = build_manual.build(label)
+    (DIST / f"{top}-manual.html").write_text(manual, encoding="utf-8")
     with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for name in BESIDE:
             archive.write(BUILD / name, f"{top}/{name}")
@@ -106,6 +112,7 @@ def main():
         archive.write(ROOT / "LICENSE", f"{top}/LICENSE.txt")
         # CRLF, so Notepad on an old Windows shows the lines.
         archive.writestr(f"{top}/README.txt", readme.replace("\r\n", "\n").replace("\n", "\r\n"))
+        archive.writestr(f"{top}/nazg-manual.html", manual)
 
     print(f"{output}: {output.stat().st_size / 1024 / 1024:.1f} MB -- VIA {official['commit'][:7]}, "
           f"community {community['release']}, runtime from {runtime.parent.parent.name}")

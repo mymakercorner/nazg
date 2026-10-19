@@ -273,6 +273,25 @@ after that podman's cache answers, and a run with little changed takes seconds.
   not found"; where they are installed (a Vulkan developer's machine), the release would run
   them.
 
+### The user manual (2026-10-19)
+
+`docs/user-manual.md` is the manual's source, read on GitHub as it is; its screenshots are in
+`docs/user-manual/`, taken from Rico's boards (Concordia, F77, Phoenix). A release carries it as
+**one HTML page** (Rico, 2026-10-19): it opens in any browser, the screenshots embedded, the
+contents' links working, light or dark as the system is, a click on a screenshot showing it at full
+size. Plain Markdown opens in Notepad on Windows, its images as text; a PDF needs pandoc and
+LaTeX or a headless browser, and its page width shrinks the 1600 px screenshots.
+
+- **`python tools/build_manual.py`** writes `dist/nazg-<NAZG_VERSION>-manual.html` (4.3 MB);
+  `tools/package_windows.py` calls it and puts the page in the zip as `nazg-manual.html`. It needs
+  Python's **`markdown`** package (`pip install markdown`; 3.11.1 the first) -- the one tool that is
+  not standard library only.
+- **The release attaches the page as an asset**: the AppImage is one file and carries nothing
+  beside it.
+- **Python-Markdown is stricter than GitHub**: a list needs a blank line before it, and an image
+  inside a list item four spaces of indent -- the manual is written so both read it alike. The
+  build stops on an in-page link that reaches no heading.
+
 ## Signing
 
 Unsigned builds work, with warnings: **Windows SmartScreen** warns on an unsigned

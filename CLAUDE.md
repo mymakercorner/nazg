@@ -324,7 +324,10 @@ a bundle built locally by that repository's `tools/build_bundle.py`.
 
 **A Windows package for testers**: build Release, then `python tools/package_windows.py` writes
 `dist/nazg-<NAZG_VERSION>-windows-x64.zip` -- the app, its DLLs, the Visual C++ runtime
-app-local, fonts, both bundles, `resources/package/README.txt` and the licences. The version is
+app-local, fonts, both bundles, `resources/package/README.txt`, the licences and the user manual
+as one HTML page, `nazg-manual.html` -- `docs/user-manual.md` and its screenshots, built by
+`tools/build_manual.py` (Python's `markdown` package, `pip install markdown`), which also writes
+`dist/nazg-<NAZG_VERSION>-manual.html`, a release asset beside the AppImage. The version is
 `NAZG_VERSION` in `CMakeLists.txt` (first: `0.1.0-test.1`, a GitHub pre-release); a release is
 tagged `v<NAZG_VERSION>` on the commit it is built from.
 
