@@ -381,8 +381,8 @@ Concordia (Rico). GitHub
 Pages, https://mymakercorner.github.io/nazg/, is put online by `.github/workflows/pages.yml` when
 Rico publishes a release; CI's `web` job builds and tests it on every push; every file is asked
 for with the version (build-and-release.md, "On GitHub Pages"). Served as
-`https://mymakercorner.com/nazg/`, the account's custom domain -- **which has no HTTPS certificate
-yet** (2026-10-24): Rico's to fix in `mymakercorner.github.io`'s Pages settings.
+`https://mymakercorner.com/nazg/`, the account's custom domain, its certificate fixed 2026-10-24;
+online from the first release published after that, `0.1.0-test.5`.
 
 It is a dedicated `#ifdef __EMSCRIPTEN__` path in `Main.cpp` plus a branch in
 `CMakeLists.txt` — **not** a renderer abstraction layer, and not a second codebase: the same

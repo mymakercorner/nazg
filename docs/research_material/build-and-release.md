@@ -486,14 +486,14 @@ three systems -- the `web` job of `build.yml` -- so a change breaking the browse
   branch only, refuses. Both set with `gh api` on 2026-10-24 (Rico's go-ahead).
 - **The address is `https://mymakercorner.com/nazg/`**: the user site `mymakercorner.github.io`
   has the custom domain `mymakercorner.com`, which every project page inherits --
-  `mymakercorner.github.io/nazg/` redirects there. **Blocked on 2026-10-24: the domain has no
-  certificate.** It points to GitHub's servers (185.199.108-111.153) with HTTPS enforced, but
-  GitHub never issued one (`https_certificate: null`): HTTPS answers with GitHub's `*.github.io`
-  certificate, which browsers refuse for `mymakercorner.com`, and plain HTTP redirects to it. The
-  whole site fails that way, and WebHID needs a working HTTPS page. The usual cure, Rico's to do:
-  in `mymakercorner.github.io`'s Settings, Pages, remove the custom domain, save, enter it again
-  and save -- GitHub checks the DNS again and asks Let's Encrypt for a certificate, minutes to a
-  day -- with no CAA record refusing `letsencrypt.org`.
+  `mymakercorner.github.io/nazg/` redirects there. **Its certificate was missing until
+  2026-10-24**: GitHub had never issued one, so the whole site failed over HTTPS -- and WebHID needs
+  HTTPS. The cause: `www` was a CNAME to `mymakercorner.github.com`, GitHub's retired name, which
+  no longer resolves, and the certificate covers `www` too. Fixed by Rico the same day: at OVH,
+  the DNS zone's `www` CNAME changed to `mymakercorner.github.io.` (the final dot, or OVH appends
+  the domain); in the user site's Pages settings the custom domain removed and entered again,
+  "Check again" once GitHub's cached answer had expired (the record's TTL, an hour), then Enforce
+  HTTPS. The certificate covers both names, GitHub renewing it (first until 2027-01-22).
 - **Every file is asked for with the version** -- `nazg.js?v=0.1.0-test.5` -- so a browser never
   runs one release's page with another's files from its cache: Pages lets them be cached ten
   minutes, and Chrome kept a stale `nazg.js` locally. `Module.locateFile()` in the page template
