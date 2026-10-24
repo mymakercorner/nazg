@@ -194,18 +194,17 @@ one board to unlock).
 - **Deferred, very low priority**: the HID console (ui-design.md, "The console") -- QMK Toolbox's
   job, not to be taken from it (Rico, 2026-10-18).
 
-**Next**: the testers' reports on the third test build, `0.1.0-test.3` (2026-10-18), the first
-for Linux too -- the Windows zip and the AppImage, a GitHub pre-release: Linux on real desktops
-(the first tester's, KDE and a Keychron, 2026-10-24: the AppImage, keys and the key test work; his board needed no
-Allow..., so the permission path waits for another tester), hotplug, saved layouts, the Device section, the key test for every board. From test.2: the
-tester's Keychron Q6 knob works fully (2026-10-15); the K10 HE retest -- the transport fix -- is
-due the week of 2026-10-19. Then CI: Windows, Linux and macOS building and running the tests --
-done (2026-10-24, `.github/workflows/build.yml`: Debug and Release on all three, 49 tests each,
-the Windows testers' zip kept; build-and-release.md, "Windows on GitHub, first run"). macOS
-compiles and passes its tests, AppleClang's first time, but the app has never run on a Mac.
-Releases are now built from tags, the macOS app among them (2026-10-24, rehearsed, no release
-made yet): next, the app on a colleague's Apple Silicon Mac -- does it open, draw, see a board,
-and does macOS ask for Input Monitoring.
+**Next**: the testers' reports on the fourth test build, `0.1.0-test.4` (2026-10-24), the first
+for macOS and the first built by GitHub from its tag -- the Windows zip, the AppImage, the macOS
+app and the manual page, a GitHub pre-release. Above all the app on a colleague's Apple Silicon
+Mac: does it open past Gatekeeper, draw, see a board, and does macOS ask for Input Monitoring.
+Still open from test.3 (2026-10-18): Linux's Allow... on a real desktop -- the first Linux
+tester's (KDE and a Keychron, 2026-10-24: the AppImage, keys and the key test work) needed none;
+hotplug, saved layouts, the Device section and the key test on testers' boards. From test.2: the
+tester's Keychron Q6 knob works fully (2026-10-15); the K10 HE retest -- the transport fix -- was
+due the week of 2026-10-19. CI is done (2026-10-24, `.github/workflows/build.yml`: Debug and
+Release on all three systems, 49 tests each; build-and-release.md, "Windows on GitHub, first
+run" and "Making one").
 
 **In progress** (Rico, 2026-10-17, ahead of CI): the Leyden Jar diagnostics, built from the two
 mockups (ui-design.md, "Plugins", "Built"), seen working on Rico's F77 (2026-10-17) -- never tested
@@ -348,7 +347,8 @@ and writes `dist/nazg-<NAZG_VERSION>-linux-x86_64.AppImage` with the static runt
 `Nazg.app`, SDL3 and hidapi in its `Contents/Frameworks/` (static, their hidapi copies clash),
 signed ad hoc. Only the CI runs it -- Rico has no Mac.
 
-**Releases are built by GitHub from a tag** (build-and-release.md, "Making one"): set
+**Releases are built by GitHub from a tag** (build-and-release.md, "Making one"; first
+`0.1.0-test.4`, 2026-10-24): set
 `NAZG_VERSION`, commit and push, then push the tag `v<NAZG_VERSION>`. The workflow builds,
 tests and packages all three systems and makes a **draft** release with the zip, the manual page,
 the AppImage and the macOS app; Rico writes the notes and publishes. *Run workflow* on the

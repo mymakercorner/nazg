@@ -89,12 +89,17 @@ A release is built on GitHub from a tag, by the same workflow, `.github/workflow
 4. Rico writes the notes on the draft (Releases page, or a draft handed to Claude) and publishes.
    Nobody sees a draft before.
 
+**First made so: `0.1.0-test.4`** (2026-10-24), the first with the macOS app -- all eight jobs
+green in about six minutes, the draft's notes then set with `gh release edit --notes-file`, and
+published on Rico's word. A draft's page lives at `releases/tag/untagged-<hash>` until published.
+
 *Run workflow* on the Actions tab does all of it but the release -- a rehearsal, its packages
 kept as the run's artifacts for a tester. The packages a release carries: `nazg-<v>-windows-x64.zip`,
 `nazg-<v>-manual.html`, `nazg-<v>-linux-x86_64.AppImage`, `nazg-<v>-macos-arm64.zip`. Building
 them by hand still works -- the three `tools/package_*.py` -- but nothing needs it.
 
-**The macOS app** (`tools/package_macos.py`, first made 2026-10-24, never yet opened on a Mac):
+**The macOS app** (`tools/package_macos.py`, first made 2026-10-24, released in `0.1.0-test.4`,
+never yet opened on a Mac):
 `Nazg.app` in a zip made by `ditto`, 6.2 MB. `Info.plist` from `resources/package/macos/`, its
 version and minimum macOS (11.0, the first on Apple Silicon: `CMAKE_OSX_DEPLOYMENT_TARGET`)
 filled in; the icon, fonts, both bundles and the licences in `Contents/Resources/`, where
