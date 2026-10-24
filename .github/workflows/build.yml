@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Builds Nazg and runs its tests on every push and pull request (build-and-release.md,
-# "Automatic builds: GitHub Actions"). Windows and Linux; macOS joins as a job here. Debug runs
+# "Automatic builds: GitHub Actions"). Windows, Linux and macOS. Debug runs
 # the tests with the asserts on, Release runs them optimised; on Windows it also keeps the
 # testers' zip tools/package_windows.py makes, as an artifact of the run.
 
@@ -113,3 +113,37 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build_Linux -C ${{ matrix.config }} --output-on-failure
+
+  # Apple's Clang on Apple Silicon, the Mac Nazg is tried on. No generate script yet: nobody builds
+  # Nazg on a Mac by hand, so the job calls CMake as the script would, into its own build_macOS/.
+  # Tests only; the .app bundle comes later.
+  macos:
+    name: macOS (${{ matrix.config }})
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [Debug, Release]
+
+    steps:
+      - name: Check out, with the pinned submodules
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Install Ninja
+        run: brew install ninja
+
+      - name: Fetch the definition bundles
+        run: |
+          python3 tools/update_via_bundle.py
+          python3 tools/update_community_bundle.py
+
+      - name: Configure
+        run: cmake -S . -B build_macOS -G "Ninja Multi-Config"
+
+      - name: Build
+        run: cmake --build build_macOS --config ${{ matrix.config }} --parallel
+
+      - name: Test
+        run: ctest --test-dir build_macOS -C ${{ matrix.config }} --output-on-failure
