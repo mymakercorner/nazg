@@ -200,9 +200,9 @@ for Linux too -- the Windows zip and the AppImage, a GitHub pre-release: Linux o
 Allow..., so the permission path waits for another tester), hotplug, saved layouts, the Device section, the key test for every board. From test.2: the
 tester's Keychron Q6 knob works fully (2026-10-15); the K10 HE retest -- the transport fix -- is
 due the week of 2026-10-19. Then CI: Windows, Linux and macOS building and running the tests --
-Windows done (2026-10-24, `.github/workflows/build.yml`: Debug and Release, 49 tests, the testers'
-zip kept; build-and-release.md, "Windows on GitHub, first run"); Linux next, already passing in WSL
-and in the AppImage's container (2026-10-18); then macOS, tested on a colleague's Apple Silicon Mac.
+Windows and Linux done (2026-10-24, `.github/workflows/build.yml`: Debug and Release, 49 tests
+each, the Windows testers' zip kept; build-and-release.md, "Windows on GitHub, first run"); macOS
+next, tested on a colleague's Apple Silicon Mac.
 
 **In progress** (Rico, 2026-10-17, ahead of CI): the Leyden Jar diagnostics, built from the two
 mockups (ui-design.md, "Plugins", "Built"), seen working on Rico's F77 (2026-10-17) -- never tested

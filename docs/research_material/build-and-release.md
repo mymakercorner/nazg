@@ -2,7 +2,8 @@
 
 *Written 2026-10-05. Built by hand on Windows with Visual Studio 2022, and on Linux with GCC in
 WSL (2026-10-18, "Linux: first build, in WSL"), its AppImage in an AlmaLinux 8 container ("The
-AppImage"). GitHub Actions builds Windows since 2026-10-24 ("Windows on GitHub, first run").*
+AppImage"). GitHub Actions builds Windows and Linux since 2026-10-24 ("Windows on GitHub, first
+run").*
 
 ## Automatic builds: GitHub Actions
 
@@ -52,6 +53,15 @@ filter to tags.
   configurations, MSVC 14.44.
 - The actions are `checkout@v5` and `upload-artifact@v6`, both on Node 24; v5 of the latter
   was forced from Node 20 with a warning.
+
+**Linux joined the same day**: a job on `ubuntu-24.04` -- the Ubuntu of Rico's WSL, GCC 13, the
+compiler whose crash on a braced list in a `co_await` the code avoids -- Debug and Release,
+configured by `GenerateBuildForLinux.sh` itself. Its packages: SDL's `docs/README-linux.md` list
+without audio, plus `libwayland-dev`, `libdecor-0-dev` and `libudev-dev`. **49 of 49 tests pass
+in both**, about four minutes a job. No package kept: the AppImage comes from the container, a
+job of its own with the releases. The log's two kinds of warning are known and left: GCC's
+`-Wstringop-overflow` false positive in `NazgLighting.cpp` ("The AppImage"), and
+`wayland-scanner` finding SDL's protocol XML off its DTD.
 
 ## Releases
 
