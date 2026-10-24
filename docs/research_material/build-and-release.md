@@ -267,8 +267,14 @@ after that podman's cache answers, and a run with little changed takes seconds.
   `resources/package/README.txt` says for Windows.
 - **Seen working in WSL**: the AppImage starts from `/mnt/c` -- WSL's Ubuntu has `fuse3` and
   `/dev/fuse` -- through XWayland, SDL_GPU on Vulkan (llvmpipe); the F77 lent by usbipd, refused,
-  shown **"not allowed" with Allow...** (Rico). Not yet on a real desktop, nor on an old
-  distribution (glibc 2.28) -- a tester's job.
+  shown **"not allowed" with Allow...** (Rico).
+- **Seen working on a tester's Linux desktop** (reported 2026-10-24; KDE, the distribution not
+  known), a Keychron on VIA: the AppImage started with nothing to install, a few keys changed, the
+  key test used -- reading the switches, Keychron building every board with `VIA_INSECURE`, so the
+  key test on the computer's keys is still unseen on Linux. His board was **already allowed**
+  -- most likely a udev rule left by an earlier VIA or Vial setup, whose instructions have users
+  write one -- so Allow..., pkexec and uaccess were not met: they wait for a tester whose board
+  Linux refuses. Not yet on an old distribution (glibc 2.28).
 - `Main.cpp` asks SDL_GPU for its debug mode in every build, so Vulkan says "Validation layers
   not found"; where they are installed (a Vulkan developer's machine), the release would run
   them.

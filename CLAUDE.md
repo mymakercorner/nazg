@@ -164,7 +164,7 @@ one board to unlock).
 | The Device section on Rico's boards (2026-10-18): the bootloader, said how where the firmware lacks it, keymap reset, macros emptied | |
 | The key test (2026-10-18): the Concordia on the computer's keys, hatched keys and the shared-key marks; the F77 on its switches unlocked, on the computer's keys locked; Win and Alt+Tab taken while it reads them | |
 | Linux in WSL (2026-10-18): GCC 13 build, all tests; the F77 lent by usbipd, refused until a udev rule, then Vial, unlock, keymap and Diagnostics (Rico) | Linux on a real desktop: uaccess, X11, the window icon, a locked board's key test (WSLg gets no keys from a board lent to Linux) |
-| The AppImage (2026-10-18, released in 0.1.0-test.3): built in the container, 49 tests passing there, glibc 2.27 and libudev only; started in WSL, the F77 shown "not allowed" with Allow... (Rico) | The AppImage on a real desktop and on an old distribution; Wayland with libdecor (GNOME) |
+| The AppImage (2026-10-18, released in 0.1.0-test.3): built in the container, 49 tests passing there, glibc 2.27 and libudev only; started in WSL, the F77 shown "not allowed" with Allow... (Rico). On a tester's KDE desktop (2026-10-24), a Keychron on VIA: started as it was, a few keys changed, the key test reading the switches (Keychron's `VIA_INSECURE`) -- his board already allowed, so no Allow... | The AppImage on an old distribution; Wayland with libdecor (GNOME) |
 | A board Linux does not allow, in WSL on the F77 (Rico, 2026-10-18): "not allowed", Allow... with the commands pasted (no pkexec there), Nazg's rule file written; Allowed, Stop allowing, the file deleted -- a group rule standing in for uaccess | pkexec's password window; uaccess giving the board; whether Stop allowing acts before a replug |
 
 ## Traps already found
@@ -195,8 +195,9 @@ one board to unlock).
   job, not to be taken from it (Rico, 2026-10-18).
 
 **Next**: the testers' reports on the third test build, `0.1.0-test.3` (2026-10-18), the first
-for Linux too -- the Windows zip and the AppImage, a GitHub pre-release: Linux on real desktops,
-hotplug, saved layouts, the Device section, the key test for every board. From test.2: the
+for Linux too -- the Windows zip and the AppImage, a GitHub pre-release: Linux on real desktops
+(the first tester's, KDE and a Keychron, 2026-10-24: the AppImage, keys and the key test work; his board needed no
+Allow..., so the permission path waits for another tester), hotplug, saved layouts, the Device section, the key test for every board. From test.2: the
 tester's Keychron Q6 knob works fully (2026-10-15); the K10 HE retest -- the transport fix -- is
 due the week of 2026-10-19. Then CI: Windows, Linux and macOS building and running the tests --
 Linux already builds and passes them in WSL and in the AppImage's container (2026-10-18).
