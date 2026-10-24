@@ -22,12 +22,12 @@ number of whole pixels, centred, so it stays sharp. 64 px and up are the vector 
 
 ## Where each platform takes it
 
-Windows uses it today, Linux's AppImage too (`tools/package_linux.py`, 2026-10-18). The rest is
-prepared for those builds and their packages, not built yet (build-and-release.md), and all of it
-unchecked on a real system:
+Windows uses it today, Linux's AppImage too (`tools/package_linux.py`, 2026-10-18), and the
+macOS app (`tools/package_macos.py`, 2026-10-24) -- never yet opened on a Mac. The web is
+prepared, not built (build-and-release.md):
 
 - **macOS** -- a bundle, `Nazg.app/Contents/`: `Info.plist` from `resources/package/macos/`, its
-  `@NAZG_VERSION@` and `@CMAKE_OSX_DEPLOYMENT_TARGET@` filled by CMake's `configure_file`;
+  `@NAZG_VERSION@` and `@CMAKE_OSX_DEPLOYMENT_TARGET@` filled by `tools/package_macos.py`;
   `MacOS/nazg`; `Resources/nazg.icns`. The identifier is `com.mymakercorner.nazg`. In a bundle
   `SDL_GetBasePath()` answers `Contents/Resources/`, so the fonts, the definition bundles and
   `icon/` go there, not beside the executable. macOS 26's grey tile should be avoided by the

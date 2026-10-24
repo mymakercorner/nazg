@@ -51,8 +51,8 @@ filter to tags.
   choice is the one CLAUDE.md defers: VS2026, on the runner and on Rico's machine.
 - **First green run**: about six minutes per job, most of it SDL; **49 of 49 tests pass** in both
   configurations, MSVC 14.44.
-- The actions are `checkout@v5` and `upload-artifact@v6`, both on Node 24; v5 of the latter
-  was forced from Node 20 with a warning.
+- The actions are `checkout@v5`, `upload-artifact@v6` and `download-artifact@v7`, all on
+  Node 24; the versions before them were forced from Node 20 with a warning.
 
 **Linux joined the same day**: a job on `ubuntu-24.04` -- the Ubuntu of Rico's WSL, GCC 13, the
 compiler whose crash on a braced list in a `co_await` the code avoids -- Debug and Release,
@@ -65,14 +65,50 @@ job of its own with the releases. The log's two kinds of warning are known and l
 
 **macOS joined too, and passed at once**: a job on `macos-15`, Apple Silicon, AppleClang 17 --
 the first compiler of Apple's Nazg has met -- Debug and Release, `Ninja Multi-Config` into
-`build_macOS/` (Ninja is on the runner already). No generate script: nobody builds Nazg on a Mac
-by hand yet. **49 of 49 tests pass in both**, about three minutes a job, no compiler warning,
+`build_macOS/` (Ninja is on the runner already), `-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0`. No
+generate script: nobody builds Nazg on a Mac by hand yet. **49 of 49 tests pass in both**, about three minutes a job, no compiler warning,
 nothing skipped. GitHub warns that arm64 macOS runners may queue longer. Not proven by it: the
 window, Metal, hidapi's IOKit backend on a real board, and whether macOS asks for Input
 Monitoring -- a colleague of Rico's with an Apple Silicon Mac will try the `.app`, which comes
 with the releases.
 
 ## Releases
+
+### Making one (since 2026-10-24)
+
+A release is built on GitHub from a tag, by the same workflow, `.github/workflows/build.yml`:
+
+1. Set `NAZG_VERSION` in `CMakeLists.txt` (`0.1.0-test.4`), commit, push.
+2. Tag that commit `v<NAZG_VERSION>` and push the tag: `git tag v0.1.0-test.4`, then
+   `git push origin v0.1.0-test.4`.
+3. The workflow builds and tests the three systems as on any push, packaging the Windows zip and
+   its manual page and the macOS app; the **appimage** job builds the AppImage in its container,
+   tests included; then **Draft release** checks that the tag names `NAZG_VERSION`, and makes a
+   **draft** release of that tag with the four files -- a pre-release when the version has a
+   label. About seven minutes.
+4. Rico writes the notes on the draft (Releases page, or a draft handed to Claude) and publishes.
+   Nobody sees a draft before.
+
+*Run workflow* on the Actions tab does all of it but the release -- a rehearsal, its packages
+kept as the run's artifacts for a tester. The packages a release carries: `nazg-<v>-windows-x64.zip`,
+`nazg-<v>-manual.html`, `nazg-<v>-linux-x86_64.AppImage`, `nazg-<v>-macos-arm64.zip`. Building
+them by hand still works -- the three `tools/package_*.py` -- but nothing needs it.
+
+**The macOS app** (`tools/package_macos.py`, first made 2026-10-24, never yet opened on a Mac):
+`Nazg.app` in a zip made by `ditto`, 6.2 MB. `Info.plist` from `resources/package/macos/`, its
+version and minimum macOS (11.0, the first on Apple Silicon: `CMAKE_OSX_DEPLOYMENT_TARGET`)
+filled in; the icon, fonts, both bundles and the licences in `Contents/Resources/`, where
+`SDL_GetBasePath()` points; **SDL3 and hidapi as libraries in `Contents/Frameworks/`**, the
+binary's build rpaths replaced by `@executable_path/../Frameworks`. Not linked statically: SDL
+carries its own copy of hidapi, whose four `hid_darwin_*` functions then clash with hidapi's --
+Linux's static build has no such clash. Every binary may ask only for `/usr/lib` and
+`/System/Library`, checked. **Signed ad hoc**, the bundle sealed as a whole: no developer's
+signature, so Gatekeeper refuses it once, but not "damaged". The tester's way past it, for the
+release notes: open it, close the refusal, then System Settings, Privacy & Security, *Open
+Anyway*. `Main.cpp` gives the window no PNG icon on macOS, where SDL would put it in the Dock
+over the app's `.icns`.
+
+### What a release is
 
 A **release** is a git tag with a page on GitHub; files attached to it are **release assets**
 (up to 2 GB each), downloadable from a fixed address with no API and no rate limit:
@@ -347,9 +383,9 @@ repository. It matters for public releases only, not for CI builds.
 ## Order
 
 1. The workflow: build and test on the three runners, artifacts only. Fix what Linux and
-   macOS find.
+   macOS find. *Done 2026-10-24.*
 2. Releases from tags: a package per platform, both bundles included; for Linux, the AppImage
    built in the AlmaLinux 8 container -- `tools/package_linux.py` runs as it is in a job, podman
-   being on GitHub's Ubuntu runners ("The AppImage").
+   being on GitHub's Ubuntu runners ("The AppImage"). *Done 2026-10-24* ("Making one").
 3. Signing, when releases are public; with them, Linux's .deb / .rpm if wanted.
 4. The community repository's own workflow and release, when it exists.

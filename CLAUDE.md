@@ -63,8 +63,8 @@ exists, where, and how far it has been proven.
   (`permission/NazgBoardPermission.*`; build-and-release.md, "Nazg allowing the boards itself").
 - **Icon.** The rune ᚾ in a blue ring on a keycap (ui-design.md, "The application icon"):
   `resources/icon/`, exported from its mockup -- the `.ico` in the exe (`src/Nazg.rc`), PNGs for
-  the window elsewhere (`SDL_SetWindowIcon` in `Main.cpp`); macOS's `Info.plist`, Linux's desktop entry and the web
-  manifest prepared in `resources/package/`, waiting for those builds (`resources/icon/README.md`).
+  the window on Linux (`SDL_SetWindowIcon` in `Main.cpp`); the `.icns` and `Info.plist` in the macOS app, Linux's
+  desktop entry in the AppImage; the web manifest prepared in `resources/package/` (`resources/icon/README.md`).
 - **Settings.** `settings.json` in the data folder (`settings/NazgSettings.*`): one JSON object,
   `"format": 1`; keys this build does not know are kept when it writes, and a newer format is
   read but never written over. Written whole then renamed, a second after the last change and on
@@ -202,8 +202,10 @@ tester's Keychron Q6 knob works fully (2026-10-15); the K10 HE retest -- the tra
 due the week of 2026-10-19. Then CI: Windows, Linux and macOS building and running the tests --
 done (2026-10-24, `.github/workflows/build.yml`: Debug and Release on all three, 49 tests each,
 the Windows testers' zip kept; build-and-release.md, "Windows on GitHub, first run"). macOS
-compiles and passes its tests, AppleClang's first time, but the app has never run on a Mac: the
-`.app` for a colleague's Apple Silicon Mac comes with releases built from tags, next.
+compiles and passes its tests, AppleClang's first time, but the app has never run on a Mac.
+Releases are now built from tags, the macOS app among them (2026-10-24, rehearsed, no release
+made yet): next, the app on a colleague's Apple Silicon Mac -- does it open, draw, see a board,
+and does macOS ask for Input Monitoring.
 
 **In progress** (Rico, 2026-10-17, ahead of CI): the Leyden Jar diagnostics, built from the two
 mockups (ui-design.md, "Plugins", "Built"), seen working on Rico's F77 (2026-10-17) -- never tested
@@ -340,6 +342,17 @@ in an AlmaLinux 8 container (`tools/package_linux.Containerfile`: glibc 2.28, GC
 source; podman) into `build_manylinux/`, everything but glibc and libudev linked in, checks that,
 and writes `dist/nazg-<NAZG_VERSION>-linux-x86_64.AppImage` with the static runtime -- no libfuse2.
 `--test` runs the tests in the container too. Pins and layout: build-and-release.md, "The AppImage".
+
+**A macOS app for testers**: `python3 tools/package_macos.py`, on a Mac, from a Release build in
+`build_macOS/` (`-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0`), writes `dist/nazg-<NAZG_VERSION>-macos-arm64.zip`:
+`Nazg.app`, SDL3 and hidapi in its `Contents/Frameworks/` (static, their hidapi copies clash),
+signed ad hoc. Only the CI runs it -- Rico has no Mac.
+
+**Releases are built by GitHub from a tag** (build-and-release.md, "Making one"): set
+`NAZG_VERSION`, commit and push, then push the tag `v<NAZG_VERSION>`. The workflow builds,
+tests and packages all three systems and makes a **draft** release with the zip, the manual page,
+the AppImage and the macOS app; Rico writes the notes and publishes. *Run workflow* on the
+Actions tab rehearses it all without releasing.
 
 On Windows, Ninja and VS2026 were both evaluated on
 2026-09-21 and **deliberately deferred** — nothing in the project needs the v145 toolset, and
