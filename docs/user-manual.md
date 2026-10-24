@@ -1,11 +1,11 @@
 # Nazg user manual
 
-*For Nazg 0.1.0-test.3. Nazg is a test build: things will be missing or wrong. Please say so
+*For Nazg 0.1.0-test.4. Nazg is a test build: things will be missing or wrong. Please say so
 (see "Reporting a problem", at the end).*
 
 Nazg configures keyboards running **VIA** or **Vial** firmware: the keymap, knobs, layout options,
 macros, tap dances, combos, key overrides, QMK's settings, lighting, audio and a board's own menus.
-It is a desktop app for Windows and Linux. It needs no browser and no special firmware: a keyboard
+It is a desktop app for Windows, Linux and macOS. It needs no browser and no special firmware: a keyboard
 that works with VIA or Vial works with Nazg.
 
 **What you change is written to the keyboard**, as in VIA and Vial. The keyboard keeps it when
@@ -58,6 +58,18 @@ double-click it. It runs on most distributions from 2018 on. It needs no libfuse
 **Linux does not let programs talk to a keyboard until you allow it.** The first time, your
 keyboard shows **not allowed** in the list, with **Allow...** where *Open* would be. See
 [Allowing a keyboard on Linux](#allowing-a-keyboard-on-linux).
+
+### macOS
+
+A Mac with Apple Silicon (M1 or later), macOS 11 or later. Unzip
+`nazg-<version>-macos-arm64.zip` and move **Nazg** to Applications if you like.
+
+The app is not signed by Apple yet, so the first time macOS refuses to open it, saying it cannot
+check it for malicious software. Close that message, open **System Settings**, then **Privacy &
+Security**, and click **Open Anyway** beside Nazg's name; confirm. macOS remembers.
+
+*Nazg has not been tried on a Mac yet:* what you see is especially welcome (see "Reporting a
+problem").
 
 ### First start
 
@@ -689,6 +701,7 @@ Settings are saved by themselves, a second after each change and when Nazg close
 |---|---|
 | Windows | `%APPDATA%\mymakercorner\Nazg\` |
 | Linux | `~/.local/share/mymakercorner/Nazg/` |
+| macOS | `~/Library/Application Support/mymakercorner/Nazg/` |
 
 It holds `settings.json` and the definitions you imported. Deleting the folder resets Nazg. Your
 keyboards keep their configuration either way. Hover **Yours** in Settings to see the exact path.
@@ -746,7 +759,7 @@ Please say:
 - which keyboard, and whether it runs VIA or Vial (the header shows it),
 - what you did, and what you saw,
 - Nazg's version and its definitions' versions (Settings, *About* and *Definitions*),
-- your system: Windows or Linux, and which distribution and desktop.
+- your system: Windows, macOS, or Linux with its distribution and desktop.
 
 A screenshot helps. A `.vil` file from **Save to file...** helps with anything about the keymap or
 the features.
