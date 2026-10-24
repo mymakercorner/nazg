@@ -2,8 +2,8 @@
 
 *Written 2026-10-05. Built by hand on Windows with Visual Studio 2022, and on Linux with GCC in
 WSL (2026-10-18, "Linux: first build, in WSL"), its AppImage in an AlmaLinux 8 container ("The
-AppImage"). GitHub Actions builds Windows and Linux since 2026-10-24 ("Windows on GitHub, first
-run").*
+AppImage"). GitHub Actions builds Windows, Linux and macOS since 2026-10-24 ("Windows on GitHub,
+first run").*
 
 ## Automatic builds: GitHub Actions
 
@@ -62,6 +62,15 @@ in both**, about four minutes a job. No package kept: the AppImage comes from th
 job of its own with the releases. The log's two kinds of warning are known and left: GCC's
 `-Wstringop-overflow` false positive in `NazgLighting.cpp` ("The AppImage"), and
 `wayland-scanner` finding SDL's protocol XML off its DTD.
+
+**macOS joined too, and passed at once**: a job on `macos-15`, Apple Silicon, AppleClang 17 --
+the first compiler of Apple's Nazg has met -- Debug and Release, `Ninja Multi-Config` into
+`build_macOS/` (Ninja is on the runner already). No generate script: nobody builds Nazg on a Mac
+by hand yet. **49 of 49 tests pass in both**, about three minutes a job, no compiler warning,
+nothing skipped. GitHub warns that arm64 macOS runners may queue longer. Not proven by it: the
+window, Metal, hidapi's IOKit backend on a real board, and whether macOS asks for Input
+Monitoring -- a colleague of Rico's with an Apple Silicon Mac will try the `.app`, which comes
+with the releases.
 
 ## Releases
 
