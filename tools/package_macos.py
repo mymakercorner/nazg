@@ -3,16 +3,18 @@
 # SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com>
 """Package a macOS build of Nazg as an app testers unzip and open.
 
-From a Release build in build_macOS/ -- SDL3 and hidapi linked in (-DBUILD_SHARED_LIBS=OFF), so
-the binary asks only for macOS's own libraries and frameworks, checked here -- it makes Nazg.app
-(resources/icon/README.md, "Where each platform takes it"): Info.plist from
-resources/package/macos/ with the version and the minimum macOS filled in, the executable in
-Contents/MacOS/, and in Contents/Resources/ -- where SDL_GetBasePath() points inside a bundle --
-the icon, fonts/, both definition bundles and the licences. The app is signed ad hoc, as a whole:
-not a developer's signature, so Gatekeeper asks the tester to allow it once, but a sealed bundle,
-which macOS would otherwise call damaged.
+From a Release build in build_macOS/ it makes Nazg.app (resources/icon/README.md, "Where each
+platform takes it"): Info.plist from resources/package/macos/ with the version and the minimum
+macOS filled in, the executable in Contents/MacOS/, and in Contents/Resources/ -- where
+SDL_GetBasePath() points inside a bundle -- the icon, fonts/, both definition bundles and the
+licences. SDL3 and hidapi are libraries of their own, as Windows' DLLs are: linked statically,
+SDL's copy of hidapi clashes with hidapi's macOS functions. The binary finds them through its
+rpath, so they go in Contents/Frameworks/ and the rpath is set to that; past them, binary and
+libraries may ask only for macOS's own libraries and frameworks, checked here. The app is signed
+ad hoc, as a whole: not a developer's signature, so Gatekeeper asks the tester to allow it once,
+but a sealed bundle, which macOS would otherwise call damaged.
 
-    cmake -S . -B build_macOS -G "Ninja Multi-Config" -DBUILD_SHARED_LIBS=OFF -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
+    cmake -S . -B build_macOS -G "Ninja Multi-Config" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
     cmake --build build_macOS --config Release --target nazg
     python3 tools/package_macos.py
 
@@ -78,19 +80,45 @@ def run(*command):
     return subprocess.run(list(command), capture_output=True, text=True, check=True).stdout
 
 
-def check_binary(binary):
-    """Nothing but the system's libraries, and the architectures built: the zip's name says them."""
-    linked = [line.split(" (")[0].strip() for line in run("otool", "-L", str(binary)).splitlines()[1:]]
-    foreign = [path for path in linked if not path.startswith(SYSTEM)]
-    if foreign:
-        sys.exit(f"{binary} needs {', '.join(foreign)}: not linked in -- configure with -DBUILD_SHARED_LIBS=OFF")
-    return run("lipo", "-archs", str(binary)).split()
+def linked(binary):
+    """The libraries a binary asks for, its own install name left out."""
+    lines = run("otool", "-L", str(binary)).splitlines()[1:]
+    names = [line.split(" (")[0].strip() for line in lines]
+    own = run("otool", "-D", str(binary)).splitlines()[1:]
+    return [name for name in names if name not in own]
 
 
-def app(folder, label, minimum):
+def libraries(binary):
+    """The build's own libraries the binary finds through its rpath (SDL3, hidapi), from the build
+    directory; anything else must be the system's."""
+    found = []
+    for name in linked(binary):
+        if name.startswith(SYSTEM):
+            continue
+        if not name.startswith("@rpath/"):
+            sys.exit(f"{binary} needs {name}: neither the system's nor the build's")
+        file = name[len("@rpath/"):]
+        matches = [path for path in (ROOT / "build_macOS").rglob(file) if "Release" in path.parts]
+        if not matches:
+            sys.exit(f"{binary} needs {name}: not in build_macOS/'s Release")
+        found.append(matches[0])
+    for library in found:
+        foreign = [name for name in linked(library) if not name.startswith(SYSTEM)]
+        if foreign:
+            sys.exit(f"{library.name} needs {', '.join(foreign)}")
+    return found
+
+
+def rpaths(binary):
+    """LC_RPATH entries: the build directories CMake wrote in."""
+    return re.findall(r"^\s*path (\S+) \(offset", run("otool", "-l", str(binary)), re.M)
+
+
+def app(folder, label, minimum, shipped):
     """Nazg.app's contents."""
     contents = folder / "Contents"
     (contents / "MacOS").mkdir(parents=True)
+    (contents / "Frameworks").mkdir()
     resources = contents / "Resources"
     (resources / "licences").mkdir(parents=True)
 
@@ -100,7 +128,17 @@ def app(folder, label, minimum):
     (contents / "Info.plist").write_text(plist, encoding="utf-8")
     (contents / "PkgInfo").write_text("APPL????", encoding="ascii")
 
-    shutil.copy2(BUILD / "nazg", contents / "MacOS" / "nazg")
+    binary = contents / "MacOS" / "nazg"
+    shutil.copy2(BUILD / "nazg", binary)
+    # The build's rpaths out, Frameworks/ in: the libraries are found inside the app, never in
+    # a build directory that happens to exist.
+    for path in rpaths(binary):
+        run("install_name_tool", "-delete_rpath", path, str(binary))
+    run("install_name_tool", "-add_rpath", "@executable_path/../Frameworks", str(binary))
+    for library in shipped:
+        # copyfile, not copy2: CMake's library files are links to the versioned one.
+        shutil.copyfile(library, contents / "Frameworks" / library.name)
+
     shutil.copy2(ROOT / "resources" / "icon" / "nazg.icns", resources / "nazg.icns")
     shutil.copytree(BUILD / "fonts", resources / "fonts")
     for name in BUNDLES:
@@ -124,14 +162,15 @@ def main():
 
     label = version()
     minimum = deployment_target()
-    architectures = check_binary(BUILD / "nazg")
+    shipped = libraries(BUILD / "nazg")
+    architectures = run("lipo", "-archs", str(BUILD / "nazg")).split()
 
     DIST.mkdir(exist_ok=True)
     output = DIST / f"nazg-{label}-macos-{'-'.join(sorted(architectures))}.zip"
     output.unlink(missing_ok=True)
     with tempfile.TemporaryDirectory() as scratch:
         folder = Path(scratch) / "Nazg.app"
-        app(folder, label, minimum)
+        app(folder, label, minimum, shipped)
         # Ad hoc, the bundle sealed as a whole; then checked as macOS will.
         run("codesign", "--force", "--deep", "--sign", "-", str(folder))
         run("codesign", "--verify", "--deep", "--strict", str(folder))
@@ -140,7 +179,8 @@ def main():
 
     official = manifest(ROOT / "build_resources" / "via_definitions.tar.xz")
     community = manifest(ROOT / "build_resources" / "community_definitions.tar.xz")
-    print(f"{output}: {output.stat().st_size / 1024 / 1024:.1f} MB -- {' '.join(architectures)}, macOS {minimum}+; "
+    print(f"{output}: {output.stat().st_size / 1024 / 1024:.1f} MB -- {' '.join(architectures)}, macOS {minimum}+, "
+          f"with {' '.join(library.name for library in shipped)}; "
           f"VIA {official['commit'][:7]}, community {community['release']}")
 
 

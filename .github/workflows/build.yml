@@ -124,7 +124,8 @@ jobs:
 
   # Apple's Clang on Apple Silicon, the Mac Nazg is tried on. No generate script yet: nobody builds
   # Nazg on a Mac by hand, so the job calls CMake as tools/package_macos.py says to, into its own
-  # build_macOS/ -- the libraries linked in, macOS 11 the oldest, the first on Apple Silicon.
+  # build_macOS/ -- macOS 11 the oldest, the first on Apple Silicon. SDL3 and hidapi stay libraries
+# of their own, as on Windows: linked statically, SDL's copy of hidapi clashes with hidapi's.
   macos:
     name: macOS (${{ matrix.config }})
     runs-on: macos-15
@@ -148,9 +149,7 @@ jobs:
           python3 tools/update_community_bundle.py
 
       - name: Configure
-        run: >
-          cmake -S . -B build_macOS -G "Ninja Multi-Config"
-          -DBUILD_SHARED_LIBS=OFF -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
+        run: cmake -S . -B build_macOS -G "Ninja Multi-Config" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
 
       - name: Build
         run: cmake --build build_macOS --config ${{ matrix.config }} --parallel
