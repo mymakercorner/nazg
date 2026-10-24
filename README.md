@@ -10,9 +10,9 @@ application handles boards that today need three different tools.
 
 > **Status: test builds.** VIA and Vial boards load and edit end to end; test builds for Windows,
 > Linux and macOS are on the [releases page](https://github.com/mymakercorner/nazg/releases).
-> From the next release on, Nazg also runs in Chrome, Edge or Opera on a computer, with nothing
-> to install: **[mymakercorner.github.io/nazg](https://mymakercorner.github.io/nazg/)**. How to
-> use it: the [user manual](docs/user-manual.md).
+> Nazg also runs in Chrome, Edge or Opera on a computer, with nothing to install:
+> **[mymakercorner.com/nazg](https://mymakercorner.com/nazg/)**. How to use it: the
+> [user manual](docs/user-manual.md).
 
 ## Why
 

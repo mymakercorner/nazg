@@ -1,6 +1,6 @@
 # Nazg user manual
 
-*For Nazg 0.1.0-test.4. Nazg is a test build: things will be missing or wrong. Please say so
+*For Nazg 0.1.0-test.5. Nazg is a test build: things will be missing or wrong. Please say so
 (see "Reporting a problem", at the end).*
 
 Nazg configures keyboards running **VIA** or **Vial** firmware: the keymap, knobs, layout options,
@@ -73,7 +73,7 @@ problem").
 
 ### In a browser
 
-Open **[mymakercorner.github.io/nazg](https://mymakercorner.github.io/nazg/)** in **Chrome, Edge
+Open **[mymakercorner.com/nazg](https://mymakercorner.com/nazg/)** in **Chrome, Edge
 or Opera on a computer** -- Windows, macOS or Linux. Nothing is installed, and the page is always
 the latest release. Firefox and Safari cannot reach keyboards, nor can any phone; the page says so.
 
