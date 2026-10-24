@@ -23,7 +23,8 @@ concurrency:
 jobs:
   windows:
     name: Windows (${{ matrix.config }})
-    runs-on: windows-2025
+    # windows-2025 carries Visual Studio 2026 only; Nazg builds with 2022 (CLAUDE.md, "Stack").
+    runs-on: windows-2022
     strategy:
       fail-fast: false
       matrix:
