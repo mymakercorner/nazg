@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Builds Nazg and runs its tests on every push and pull request (build-and-release.md,
-# "Automatic builds: GitHub Actions"). Windows only for now; Linux and macOS join as jobs here.
-# Debug runs the tests with the asserts on; Release runs them too and keeps the testers' zip
-# tools/package_windows.py makes, as an artifact of the run.
+# "Automatic builds: GitHub Actions"). Windows and Linux; macOS joins as a job here. Debug runs
+# the tests with the asserts on, Release runs them optimised; on Windows it also keeps the
+# testers' zip tools/package_windows.py makes, as an artifact of the run.
 
 name: Build
 
@@ -71,3 +71,45 @@ jobs:
           name: nazg-windows-x64
           path: dist/*.zip
           if-no-files-found: error
+
+  # GCC on the Ubuntu of Rico's WSL, as GenerateBuildForLinux.sh builds there. Tests only: the
+  # testers' AppImage comes from tools/package_linux.py's container, a job of its own later.
+  linux:
+    name: Linux (${{ matrix.config }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [Debug, Release]
+
+    steps:
+      - name: Check out, with the pinned submodules
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      # SDL's docs/README-linux.md list without audio, plus Wayland and libdecor; libudev for
+      # hidapi's hidraw backend.
+      - name: Install the build packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build pkg-config libudev-dev \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev \
+            libxss-dev libxtst-dev libxkbcommon-dev libdrm-dev libgbm-dev \
+            libgl1-mesa-dev libgles2-mesa-dev libegl1-mesa-dev libdbus-1-dev libibus-1.0-dev \
+            libwayland-dev libdecor-0-dev
+
+      - name: Fetch the definition bundles
+        run: |
+          python3 tools/update_via_bundle.py
+          python3 tools/update_community_bundle.py
+
+      - name: Configure
+        run: sh GenerateBuildForLinux.sh
+
+      - name: Build
+        run: cmake --build build_Linux --config ${{ matrix.config }} --parallel
+
+      - name: Test
+        run: ctest --test-dir build_Linux -C ${{ matrix.config }} --output-on-failure
