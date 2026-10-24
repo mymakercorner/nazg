@@ -7,9 +7,15 @@
 
 name: Build
 
+# Not for a push that only changes notes: nothing built or tested would differ. GitHub never
+# applies the filter to a tag, so a tag always builds; the Actions tab's button always runs.
 on:
   push:
+    paths-ignore: &notes
+      - "docs/**"
+      - "**.md"
   pull_request:
+    paths-ignore: *notes
   workflow_dispatch:
 
 permissions:

@@ -41,7 +41,9 @@ workflow*): one job per configuration, **Debug and Release side by side**, each 
 bundles -- so `via_bundle_contents` and `community_bundle_contents` run -- then configuring,
 building and running `ctest`. Release then runs `tools/package_windows.py` and keeps the testers'
 zip as the run's artifact, `nazg-windows-x64`. A newer push to the same branch cancels the older
-run.
+run. **A push changing only notes runs nothing** (`paths-ignore`: `docs/**`, `**.md`) -- the
+user manual among them, though the zip carries it; a tag always builds, GitHub applying no path
+filter to tags.
 
 - **The runner is `windows-2022`**: `windows-2025` carries Visual Studio 2026 only, and the
   `Visual Studio 17 2022` generator finds nothing there. When GitHub retires `windows-2022`, the
