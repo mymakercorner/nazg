@@ -394,10 +394,17 @@ add_custom_command(TARGET nazg POST_BUILD
 if(EMSCRIPTEN)
     set_target_properties(nazg PROPERTIES SUFFIX ".html")
 
-    set(NAZG_WEB_SHELL ${CMAKE_CURRENT_SOURCE_DIR}/resources/package/web/shell.html)
+    # The page, its files asked for with the version: the shell's Module.locateFile() for the
+    # .wasm and the .data, tools/VersionWebPage.cmake for the script, once Emscripten wrote it.
+    set(NAZG_WEB_SHELL ${CMAKE_CURRENT_BINARY_DIR}/web/shell.html)
+    configure_file(resources/package/web/shell.html ${NAZG_WEB_SHELL} @ONLY)
     target_link_options(nazg PRIVATE ${NAZG_WEB_EXPORTS} -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2
                         --shell-file ${NAZG_WEB_SHELL})
     set_property(TARGET nazg APPEND PROPERTY LINK_DEPENDS ${NAZG_WEB_SHELL} ${NAZG_FONTS})
+    add_custom_command(TARGET nazg POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -DPAGE=$<TARGET_FILE:nazg> -DSCRIPT=nazg.js -DVERSION=${NAZG_VERSION}
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/tools/VersionWebPage.cmake
+        VERBATIM)
 
     foreach(font ${NAZG_FONTS})
         get_filename_component(fontName ${font} NAME)

@@ -360,7 +360,8 @@ signed ad hoc. Only the CI runs it -- Rico has no Mac.
 `NAZG_VERSION`, commit and push, then push the tag `v<NAZG_VERSION>`. The workflow builds,
 tests and packages all three systems and makes a **draft** release with the zip, the manual page,
 the AppImage and the macOS app; Rico writes the notes and publishes. *Run workflow* on the
-Actions tab rehearses it all without releasing.
+Actions tab rehearses it all without releasing. **Publishing puts the web build online**: the
+Pages workflow builds the tag and deploys it to https://mymakercorner.github.io/nazg/.
 
 On Windows, Ninja and VS2026 were both evaluated on
 2026-09-21 and **deliberately deferred** — nothing in the project needs the v145 toolset, and
@@ -376,8 +377,12 @@ browser"), **works on the F77 in Chrome** (Rico, 2026-10-24: unlock, key test, k
 Leyden Jar diagnostics; no difference in speed from the native app); the app's browser pane has
 no device chooser, so boards need Chrome or Edge. The browser's file dialogs -- upload for Import
 and Load, download for Export and Save -- written the same day; all four work in Edge, on the
-Concordia (Rico). Left
-of step 3: GitHub Pages, with cache-busting -- Chrome kept a stale `nazg.js` after a plain reload.
+Concordia (Rico). GitHub
+Pages, https://mymakercorner.github.io/nazg/, is put online by `.github/workflows/pages.yml` when
+Rico publishes a release; CI's `web` job builds and tests it on every push; every file is asked
+for with the version (build-and-release.md, "On GitHub Pages"). Served as
+`https://mymakercorner.com/nazg/`, the account's custom domain -- **which has no HTTPS certificate
+yet** (2026-10-24): Rico's to fix in `mymakercorner.github.io`'s Pages settings.
 
 It is a dedicated `#ifdef __EMSCRIPTEN__` path in `Main.cpp` plus a branch in
 `CMakeLists.txt` — **not** a renderer abstraction layer, and not a second codebase: the same

@@ -379,12 +379,11 @@ LaTeX or a headless browser, and its page width shrinks the 1600 px screenshots.
 
 ## The web build
 
-*Step 1 of three, 2026-10-24: it builds, draws and keeps its settings. Step 2 written the same
-day, not yet seen with a board.* The plan (client-architecture.md, "Web build"): 1. this; 2. a
-WebHID transport and an "Add a keyboard..." button, Chrome's own device prompt needing a click
-(ui-design.md, "The list in a browser"); 3. file upload and download in place of the dialogs, a
-workflow job publishing to GitHub Pages. Chromium only, for good (via.md, "Client and browser
-support").
+*All three steps, 2026-10-24.* The plan (client-architecture.md, "Web build"): 1. it builds,
+draws and keeps its settings; 2. a WebHID transport and an "Add a keyboard..." button, Chrome's
+own device prompt needing a click (ui-design.md, "The list in a browser"); 3. file upload and
+download in place of the dialogs, and GitHub Pages ("On GitHub Pages" below). Chromium only, for
+good (via.md, "Client and browser support").
 
 **Step 2, the WebHID transport** (`src/transport/NazgHidTransportWebHid.cpp`): operations one
 at a time in submission order, as the native worker takes them, each started when the one before
@@ -467,6 +466,40 @@ found and the build now has: tail calls (`task`, "deep chain stays flat") and Ja
 exceptions (`transport_shutdown`, "pump guard"). Sizes: `nazg.wasm` 3.4 MB, `nazg.data` 5.1 MB
 (fonts 4.6 MB), `nazg.js` 0.2 MB, before the server's compression. Not yet seen: Chrome or Edge
 themselves, a high-DPI display, a phone-sized window.
+
+### On GitHub Pages (2026-10-24)
+
+**https://mymakercorner.github.io/nazg/** -- served as `https://mymakercorner.com/nazg/`, see
+below -- put online **when Rico publishes a release** (Rico,
+2026-10-24): the page always matches the downloads, and nothing goes online before he says so.
+On every push before that, CI builds the web build and runs its tests under Node beside the
+three systems -- the `web` job of `build.yml` -- so a change breaking the browser shows at once.
+
+- **`.github/workflows/pages.yml`**, on `release: published`: the release's tag checked out,
+  Emscripten installed from emsdk at the version `GenerateBuildForWeb.sh` names, both bundles
+  fetched, built and tested, then `nazg.html` as the site's `index.html` beside `nazg.js`,
+  `.wasm`, `.data`, the web app manifest and `icon/` -- `actions/upload-pages-artifact@v5`, then
+  `actions/deploy-pages@v5` into the `github-pages` environment. By hand from the Actions tab it
+  builds and tests, keeping the site as an artifact; it goes online only with **deploy** ticked.
+- **Pages' source is "GitHub Actions"** (Settings, Pages), and the `github-pages` environment
+  must let tags `v*` deploy: a release runs on its tag, which the default rule, the default
+  branch only, refuses. Both set with `gh api` on 2026-10-24 (Rico's go-ahead).
+- **The address is `https://mymakercorner.com/nazg/`**: the user site `mymakercorner.github.io`
+  has the custom domain `mymakercorner.com`, which every project page inherits --
+  `mymakercorner.github.io/nazg/` redirects there. **Blocked on 2026-10-24: the domain has no
+  certificate.** It points to GitHub's servers (185.199.108-111.153) with HTTPS enforced, but
+  GitHub never issued one (`https_certificate: null`): HTTPS answers with GitHub's `*.github.io`
+  certificate, which browsers refuse for `mymakercorner.com`, and plain HTTP redirects to it. The
+  whole site fails that way, and WebHID needs a working HTTPS page. The usual cure, Rico's to do:
+  in `mymakercorner.github.io`'s Settings, Pages, remove the custom domain, save, enter it again
+  and save -- GitHub checks the DNS again and asks Let's Encrypt for a certificate, minutes to a
+  day -- with no CAA record refusing `letsencrypt.org`.
+- **Every file is asked for with the version** -- `nazg.js?v=0.1.0-test.5` -- so a browser never
+  runs one release's page with another's files from its cache: Pages lets them be cached ten
+  minutes, and Chrome kept a stale `nazg.js` locally. `Module.locateFile()` in the page template
+  does the `.wasm` and the `.data`; `tools/VersionWebPage.cmake` gives Emscripten's script tag the
+  version after linking, and stops the build if Emscripten ever writes that tag otherwise.
+- **The README and the manual** ("In a browser") point to the page.
 
 ## Signing
 

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Builds Nazg and runs its tests on every push and pull request (build-and-release.md,
-# "Automatic builds: GitHub Actions"). Windows, Linux and macOS. Debug runs the tests with the
+# "Automatic builds: GitHub Actions"). Windows, Linux, macOS, and the web build. Debug runs the tests with the
 # asserts on, Release runs them optimised and packages what testers download: the Windows zip and
 # the macOS app, kept as artifacts of the run.
 #
@@ -168,6 +168,51 @@ jobs:
           name: nazg-macos-arm64
           path: dist/*.zip
           if-no-files-found: error
+
+  # The web build, as GenerateBuildForWeb.sh makes it, its tests run by Node (build-and-release.md,
+  # "The web build"). Release only: the browser runs nothing else. Published by pages.yml, not here.
+  web:
+    name: Web (Release)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out, with the pinned submodules
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Install Ninja
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build
+
+      # The Emscripten GenerateBuildForWeb.sh names, from Emscripten's own emsdk.
+      - name: Install Emscripten
+        run: |
+          version=$(sed -n 's/^NAZG_EMSCRIPTEN_VERSION=//p' GenerateBuildForWeb.sh)
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$HOME/emsdk"
+          "$HOME/emsdk/emsdk" install "$version"
+          "$HOME/emsdk/emsdk" activate "$version"
+
+      - name: Fetch the definition bundles
+        run: |
+          python3 tools/update_via_bundle.py
+          python3 tools/update_community_bundle.py
+
+      - name: Configure
+        run: |
+          . "$HOME/emsdk/emsdk_env.sh"
+          sh GenerateBuildForWeb.sh
+
+      - name: Build
+        run: |
+          . "$HOME/emsdk/emsdk_env.sh"
+          cmake --build build_Web --config Release --parallel
+
+      - name: Test
+        run: |
+          . "$HOME/emsdk/emsdk_env.sh"
+          ctest --test-dir build_Web -C Release --output-on-failure
 
   # The AppImage, in tools/package_linux.py's AlmaLinux 8 container (podman is on the runner),
   # with its tests run there too. Minutes of container build: for a release or by hand only.

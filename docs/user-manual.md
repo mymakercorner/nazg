@@ -5,8 +5,8 @@
 
 Nazg configures keyboards running **VIA** or **Vial** firmware: the keymap, knobs, layout options,
 macros, tap dances, combos, key overrides, QMK's settings, lighting, audio and a board's own menus.
-It is a desktop app for Windows, Linux and macOS. It needs no browser and no special firmware: a keyboard
-that works with VIA or Vial works with Nazg.
+It is a desktop app for Windows, Linux and macOS, and it runs in a browser too. It needs no special
+firmware: a keyboard that works with VIA or Vial works with Nazg.
 
 **What you change is written to the keyboard**, as in VIA and Vial. The keyboard keeps it when
 unplugged, on any computer, without Nazg. Nazg does not keep its own copy of your keymap. To keep
@@ -70,6 +70,26 @@ Security**, and click **Open Anyway** beside Nazg's name; confirm. macOS remembe
 
 *Nazg has not been tried on a Mac yet:* what you see is especially welcome (see "Reporting a
 problem").
+
+### In a browser
+
+Open **[mymakercorner.github.io/nazg](https://mymakercorner.github.io/nazg/)** in **Chrome, Edge
+or Opera on a computer** -- Windows, macOS or Linux. Nothing is installed, and the page is always
+the latest release. Firefox and Safari cannot reach keyboards, nor can any phone; the page says so.
+
+- **A web page may only use a keyboard you choose.** The first time, click **Add a keyboard...**:
+  the browser lists the VIA and Vial keyboards plugged in. Pick yours and click **Connect**; Nazg
+  opens it. The browser remembers your choice for this page: next time the keyboard is there at
+  once. To remove it, use the browser's site settings -- the icon left of the address.
+- **Files**: *Import a definition...* and *Load from file...* open the browser's file picker;
+  *Save to file...* and *Export definition...* download the file.
+- **Your settings and your definitions are kept by the browser**, one set per browser: what you
+  import in Edge is not in Chrome. Clearing the site's data in the browser removes them.
+- **On Linux the browser needs the keyboard allowed too**, as the desktop app does. Allow it once
+  with the desktop app (see [Allowing a keyboard on Linux](#allowing-a-keyboard-on-linux)): the
+  browser can then use it as well. Until then the browser lists it, and it does not answer.
+- **Keep the tab in front** while Nazg works on a keyboard: a browser gives a tab in the
+  background little or no time, and the work waits.
 
 ### First start
 

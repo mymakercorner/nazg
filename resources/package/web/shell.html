@@ -1,7 +1,9 @@
 <!doctype html>
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- The web build's page (CMakeLists.txt): Emscripten puts its script where SCRIPT is. SDL fills
-     the page with the canvas (SDL_WINDOW_FILL_DOCUMENT, Main.cpp). -->
+     the page with the canvas (SDL_WINDOW_FILL_DOCUMENT, Main.cpp). CMake fills in the version:
+     every file the page loads is asked for with it, so a browser never mixes a release's files
+     with the one before from its cache (tools/VersionWebPage.cmake does the script's). -->
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -25,6 +27,9 @@
   <script>
     var Module = {
       canvas: document.getElementById('canvas'),
+      locateFile: function (path, prefix) {
+        return prefix + path + '?v=@NAZG_VERSION@';
+      },
       setStatus: function (text) {
         var status = document.getElementById('status');
         if (status)

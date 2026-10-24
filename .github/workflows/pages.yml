@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Puts the web build on GitHub Pages, https://mymakercorner.github.io/nazg/, when Rico publishes a
+# release (Rico, 2026-10-24): the page then always matches the downloads, and nothing goes online
+# before he says so (build-and-release.md, "The web build"). Built from the release's tag, as the
+# Build workflow built its packages. Run by hand from the Actions tab, it builds and tests the
+# page and keeps it as an artifact; it goes online only if "deploy" is ticked.
+
+name: Pages
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Put it online, from the branch or tag chosen above"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# One deployment at a time, and never one cut short: the site would be left half replaced.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build the page
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out, with the pinned submodules
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Install Ninja
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build
+
+      # The Emscripten GenerateBuildForWeb.sh names, from Emscripten's own emsdk.
+      - name: Install Emscripten
+        run: |
+          version=$(sed -n 's/^NAZG_EMSCRIPTEN_VERSION=//p' GenerateBuildForWeb.sh)
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$HOME/emsdk"
+          "$HOME/emsdk/emsdk" install "$version"
+          "$HOME/emsdk/emsdk" activate "$version"
+
+      - name: Fetch the definition bundles
+        run: |
+          python3 tools/update_via_bundle.py
+          python3 tools/update_community_bundle.py
+
+      - name: Configure
+        run: |
+          . "$HOME/emsdk/emsdk_env.sh"
+          sh GenerateBuildForWeb.sh
+
+      - name: Build
+        run: |
+          . "$HOME/emsdk/emsdk_env.sh"
+          cmake --build build_Web --config Release --parallel
+
+      - name: Test
+        run: |
+          . "$HOME/emsdk/emsdk_env.sh"
+          ctest --test-dir build_Web -C Release --output-on-failure
+
+      # The page as the site's index, beside what it loads -- and nothing else of the build folder.
+      - name: Gather the site
+        run: |
+          mkdir site
+          cp build_Web/Release/nazg.html site/index.html
+          cp build_Web/Release/nazg.js build_Web/Release/nazg.wasm build_Web/Release/nazg.data \
+             build_Web/Release/nazg.webmanifest site/
+          cp -r build_Web/Release/icon site/
+          ls -lR site
+
+      - name: Keep the site
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+  deploy:
+    name: Put it online
+    if: github.event_name == 'release' || inputs.deploy
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
