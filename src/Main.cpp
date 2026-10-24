@@ -238,7 +238,8 @@ namespace
 
     // The window's icon where the platform takes it from the app (resources/icon/README.md): 32 px
     // for 100% display scale, 64 and 256 for SDL to pick from above it. Not on Windows, where
-    // SDL's window class already carries the exe's icon (src/Nazg.rc), drawn for every size.
+    // SDL's window class already carries the exe's icon (src/Nazg.rc), drawn for every size; nor
+    // on macOS, where SDL would put it in the Dock over the app's nazg.icns, drawn on Apple's grid.
     [[maybe_unused]] void SetWindowIcon(SDL_Window* window, const std::string& executableFolder)
     {
         SDL_Surface* const icon = SDL_LoadPNG((executableFolder + "icon/nazg-32.png").c_str());
@@ -324,7 +325,7 @@ int main(int, char**)
 
     const char* basePath      = SDL_GetBasePath();   // owned by SDL, ends with a separator
     platform.executableFolder = basePath != nullptr ? basePath : "";
-#if !defined(_WIN32)
+#if !defined(_WIN32) && !defined(__APPLE__)
     SetWindowIcon(pWindow, platform.executableFolder);
 #endif
     platform.displayScale     = mainScale;
