@@ -64,7 +64,8 @@ def version():
 
 def deployment_target():
     """The oldest macOS the build was made for, from its CMake cache: Info.plist says the same."""
-    found = re.search(r"^CMAKE_OSX_DEPLOYMENT_TARGET:STRING=(\S+)$", CACHE.read_text(encoding="utf-8"), re.M)
+    # Its type is UNINITIALIZED when it came only from the command line.
+    found = re.search(r"^CMAKE_OSX_DEPLOYMENT_TARGET:\w+=(\S+)$", CACHE.read_text(encoding="utf-8"), re.M)
     if not found:
         sys.exit(f"{CACHE} sets no CMAKE_OSX_DEPLOYMENT_TARGET -- configure with -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0")
     return found.group(1)
