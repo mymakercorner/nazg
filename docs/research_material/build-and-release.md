@@ -1,8 +1,8 @@
 # Building on GitHub and releasing
 
-*Written 2026-10-05. Nothing of it is set up yet: Nazg has only been built by hand, on Windows
-with Visual Studio 2022, and on Linux with GCC in WSL (2026-10-18, "Linux: first build, in WSL"),
-its AppImage in an AlmaLinux 8 container ("The AppImage").*
+*Written 2026-10-05. Built by hand on Windows with Visual Studio 2022, and on Linux with GCC in
+WSL (2026-10-18, "Linux: first build, in WSL"), its AppImage in an AlmaLinux 8 container ("The
+AppImage"). GitHub Actions builds Windows since 2026-10-24 ("Windows on GitHub, first run").*
 
 ## Automatic builds: GitHub Actions
 
@@ -33,6 +33,23 @@ Each run:
 true of the Leyden Jar tool's CMake layout, not of Nazg's code: it has only met MSVC. GCC and
 Clang will warn where MSVC did not, and MSVC-only options such as `/utf-8` need their
 counterparts or a guard. Finding those is the point of the job.
+
+### Windows on GitHub, first run (2026-10-24)
+
+`.github/workflows/build.yml`, on every push and pull request and by hand (Actions tab, *Run
+workflow*): one job per configuration, **Debug and Release side by side**, each fetching both
+bundles -- so `via_bundle_contents` and `community_bundle_contents` run -- then configuring,
+building and running `ctest`. Release then runs `tools/package_windows.py` and keeps the testers'
+zip as the run's artifact, `nazg-windows-x64`. A newer push to the same branch cancels the older
+run.
+
+- **The runner is `windows-2022`**: `windows-2025` carries Visual Studio 2026 only, and the
+  `Visual Studio 17 2022` generator finds nothing there. When GitHub retires `windows-2022`, the
+  choice is the one CLAUDE.md defers: VS2026, on the runner and on Rico's machine.
+- **First green run**: about six minutes per job, most of it SDL; **49 of 49 tests pass** in both
+  configurations, MSVC 14.44.
+- The actions are `checkout@v5` and `upload-artifact@v6`, both on Node 24; v5 of the latter
+  was forced from Node 20 with a warning.
 
 ## Releases
 

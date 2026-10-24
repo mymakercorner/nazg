@@ -60,7 +60,7 @@ jobs:
 
       - name: Keep the package
         if: matrix.config == 'Release'
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: nazg-windows-x64
           path: dist/*.zip
