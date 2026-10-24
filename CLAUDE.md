@@ -202,9 +202,10 @@ one board to unlock).
 - **Deferred, very low priority**: the HID console (ui-design.md, "The console") -- QMK Toolbox's
   job, not to be taken from it (Rico, 2026-10-18).
 
-**Next**: the testers' reports on the fourth test build, `0.1.0-test.4` (2026-10-24), the first
-for macOS and the first built by GitHub from its tag -- the Windows zip, the AppImage, the macOS
-app and the manual page, a GitHub pre-release. Above all the app on a colleague's Apple Silicon
+**Next**: the testers' reports on the fifth test build, `0.1.0-test.5` (2026-10-24), the first
+**in a browser**, at https://mymakercorner.com/nazg/ -- put online by publishing it -- beside the
+Windows zip, the AppImage, the macOS app and the manual page, a GitHub pre-release. `0.1.0-test.4`,
+the same day, was the first for macOS and the first built by GitHub from its tag. Above all the app on a colleague's Apple Silicon
 Mac: does it open past Gatekeeper, draw, see a board, and does macOS ask for Input Monitoring.
 Still open from test.3 (2026-10-18): Linux's Allow... on a real desktop -- the first Linux
 tester's (KDE and a Keychron, 2026-10-24: the AppImage, keys and the key test work) needed none;

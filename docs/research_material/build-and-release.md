@@ -500,6 +500,11 @@ three systems -- the `web` job of `build.yml` -- so a change breaking the browse
   does the `.wasm` and the `.data`; `tools/VersionWebPage.cmake` gives Emscripten's script tag the
   version after linking, and stops the build if Emscripten ever writes that tag otherwise.
 - **The README and the manual** ("In a browser") point to the page.
+- **First online with `0.1.0-test.5`** (2026-10-24): published on Rico's word, the Pages run
+  started by itself from the release, built, tested and deployed in about five minutes. Checked:
+  `https://mymakercorner.com/nazg/` answers 200, `mymakercorner.github.io/nazg/` redirects there,
+  every file served with the version and the right type (`application/wasm`), the page a secure
+  context with WebHID, Settings saying `0.1.0-test.5` with both bundles.
 
 ## Signing
 
