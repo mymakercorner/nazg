@@ -167,6 +167,11 @@ namespace nazg
         m_Worker = std::thread(&HidTransport::WorkerLoop, this);
     }
 
+    bool HidTransport::IsAvailable() const noexcept
+    {
+        return true;
+    }
+
     void HidTransport::Submit(OperationPtr operation)
     {
         {
@@ -230,6 +235,7 @@ namespace nazg
         switch (operation.kind)
         {
         case OperationKind::Enumerate: ExecuteEnumerate(operation); break;
+        case OperationKind::Choose:    operation.error = "only a browser asks which device to use"; break;
         case OperationKind::Open:      ExecuteOpen(operation);      break;
         case OperationKind::Request:   ExecuteRequest(operation);   break;
         case OperationKind::Series:    ExecuteSeries(operation);    break;

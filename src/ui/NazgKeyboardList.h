@@ -10,6 +10,10 @@
 // openable, with the technical columns that exist only in that view. Its state is the
 // caller's, off at every start.
 //
+// In a browser the list holds only the keyboards the user chose (ui-design.md, "The list in a
+// browser"): the first visit says how to add one, Add a keyboard... sits under the list in the
+// checkbox's place, and Show all HID devices is gone.
+//
 // It only draws and reports what was clicked; opening a board is the caller's. ImGui only,
 // no SDL.
 
@@ -37,16 +41,23 @@ namespace nazg
         std::optional<size_t> open;           // index into the devices
         std::optional<size_t> allow;          // a board not allowed: Allow...
         std::optional<size_t> stopAllowing;   // a board Nazg allowed: Allowed, to stop it
+        bool                  add = false;    // in a browser: Add a keyboard...
     };
 
     // `protocols` runs parallel to `devices`: "Vial", "VIA", "no answer", c_NotAllowed, or empty
     // while the board has not been asked yet. `allowedByNazg`, parallel too, marks the boards whose
     // rule Nazg wrote -- only on Linux. `isListing` until the first list is in; `canOpen` is false
-    // while something still works on a board, or a board is being asked.
+    // while something still works on a board, or a board is being asked. `chosenOnly`: the list
+    // of a browser, its boards the ones the user chose.
     [[nodiscard]] KeyboardListAction DrawKeyboardList(const std::vector<HidDeviceInfo>& devices,
                                                       const std::vector<std::string>&   protocols,
                                                       const std::vector<bool>&          allowedByNazg,
                                                       bool&                             showAllHidDevices,
                                                       bool                              isListing,
-                                                      bool                              canOpen);
+                                                      bool                              canOpen,
+                                                      bool                              chosenOnly);
+
+    // A browser without WebHID (ui-design.md, "The list in a browser"): said, with the way out.
+    // True when Download Nazg was clicked.
+    [[nodiscard]] bool DrawNoWebHid();
 }

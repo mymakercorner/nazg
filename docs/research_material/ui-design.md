@@ -2527,6 +2527,29 @@ for a board refused for that reason. Rico's choices, from his take as a Linux ne
 - **Not opened by itself**: the lone board opened at start is not one Linux refuses, and *Switch
   to* leaves those out.
 
+### The list in a browser
+
+Settled 2026-10-24 from the mockup [web-keyboards.html](ui-design/web-keyboards.html) (the web
+build, build-and-release.md, "The web build", step 2). A page sees only the keyboards the user
+lets it use, each chosen once in the browser's own device chooser -- WebHID's `requestDevice()`,
+which only a click opens, filtered to VIA and Vial's raw HID (0xFF60 / 0x61). A board chosen
+once is there at every later visit, no prompt, while plugged in. Rico's choices:
+
+- **The first visit says what to do**: no list -- "Add your keyboard", what the browser will
+  ask, one button. "No keyboard found." would be wrong: the boards are there, not yet allowed.
+- **Add a keyboard...** sits under the list once one is there, where Show all HID devices sits
+  natively (beside the count and as the list's last row were the variants).
+- **A board chosen is opened at once**, as a lone board is at start -- the user just picked it.
+- **No Forget in Nazg**: the hint under the list names the browser's site settings, the icon
+  left of the address. A Forget on each row (`HIDDevice.forget()`) was the variant.
+- **Show all HID devices is hidden**: it could list nothing but the chosen boards' interfaces.
+- **A browser without WebHID** -- Firefox, Safari, any phone -- is told so, with Chrome, Edge or
+  Opera named and the desktop app's download, instead of an empty list.
+
+On Linux Chrome still needs the board allowed by a udev rule: Chrome lists it, the open fails.
+For now the row says "no answer"; pointing to the manual is left for later -- a page cannot write
+the rule.
+
 ## Saved layouts
 
 **Built** 2026-10-18 from the mockup [saved-layouts.html](ui-design/saved-layouts.html). **Tried by

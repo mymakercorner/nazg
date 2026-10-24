@@ -74,10 +74,17 @@ namespace nazg
         std::function<void()>                             showLayoutOpenDialog;
         std::function<void(const std::string& suggested)> showLayoutSaveDialog;
 
+        // A file written where a save dialog said, once it is. In a browser the dialog only named a
+        // place in memory, so the file is handed to the browser as a download; natively, none.
+        std::function<void(const std::string& path)> fileSaved;
+
         // While the live test reads the computer's keys (ui-design.md, "The key test"): the window
         // takes the keyboard -- Win and Alt+Tab reach Nazg, Alt+F4 no longer closes it -- and gives
         // it back after.
         std::function<void(bool take)> takeKeyboard;
+
+        // A web page shown in the user's browser -- in a browser, a new tab.
+        std::function<void(const std::string& url)> openUrl;
     };
 
     class App
@@ -232,6 +239,7 @@ namespace nazg
                              std::optional<DefinitionRef> chosen);
         Task<void> LockBoard(std::string path);
         Task<void> SaveLayout(std::string path);
+        Task<void> AddKeyboard();   // in a browser: its chooser, then the board chosen opened
 
         void StartRefresh();
         void StartLoad(const std::string& path, const DeviceIdentity& identity, std::optional<DefinitionRef> chosen);
@@ -299,6 +307,11 @@ namespace nazg
         Task<void>       m_LoadTask;
         Task<void>       m_LockTask;
         Task<void>       m_LayoutTask;   // Save to file...: reading the board, then writing the file
+        Task<void>       m_AddTask;      // Add a keyboard..., in a browser
+
+        // The board just chosen in a browser's chooser: opened once the list holds it (ui-design.md,
+        // "The list in a browser").
+        std::string m_OpenOnceListed;
 
         // Leaving the board while a section holds changes not written yet: the user is asked,
         // Save, Discard or Cancel, and the leaving waits in `m_PendingLeave` (ui-design.md, "The

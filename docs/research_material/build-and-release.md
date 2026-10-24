@@ -379,11 +379,43 @@ LaTeX or a headless browser, and its page width shrinks the 1600 px screenshots.
 
 ## The web build
 
-*Step 1 of three, 2026-10-24: it builds, draws and keeps its settings; no board yet.* The plan
-(client-architecture.md, "Web build"): 1. this; 2. a WebHID transport and an "Add a
-keyboard..." button, Chrome's own device prompt needing a click (a mockup first); 3. file upload
-and download in place of the dialogs, hotplug from WebHID's events, a workflow job publishing to
-GitHub Pages. Chromium only, for good (via.md, "Client and browser support").
+*Step 1 of three, 2026-10-24: it builds, draws and keeps its settings. Step 2 written the same
+day, not yet seen with a board.* The plan (client-architecture.md, "Web build"): 1. this; 2. a
+WebHID transport and an "Add a keyboard..." button, Chrome's own device prompt needing a click
+(ui-design.md, "The list in a browser"); 3. file upload and download in place of the dialogs, a
+workflow job publishing to GitHub Pages. Chromium only, for good (via.md, "Client and browser
+support").
+
+**Step 2, the WebHID transport** (`src/transport/NazgHidTransportWebHid.cpp`): operations one
+at a time in submission order, as the native worker takes them, each started when the one before
+ends and ended by the browser's answer -- exported C functions its JavaScript calls between two
+frames, never resuming a coroutine: `Pump()` does, as natively. A device is `webhid:<handle>`, its
+handle the page's for its life. Replies through the protocol's `ReplyCheck`; a report nobody
+waits for is dropped, as WebHID does anyway; timeouts are browser timers. The farewell is written
+before a close. `ChooseDevice()` asks the browser's chooser at once, not queued, so the click
+still counts. Hotplug: WebHID's connect and disconnect events counted, `Main.cpp` polling the
+count as it polls SDL's. A browser without WebHID gets its own screen and a link to the
+releases. **Seen** in the app's browser pane (Electron, which has `navigator.hid` but no chooser):
+the first visit as the mockup, and Add a keyboard... reaching the browser with the click still
+counting -- no SecurityError -- the pane answering "nothing chosen". **Seen with a board in
+Chrome** (Rico, 2026-10-24, served from his PC): the F77 added and opened, Vial unlocked, the QMK
+key test, keys changed, the Leyden Jar diagnostics -- all working, and **no difference in speed
+from the native app** to his eye, JavaScript-based exceptions and all. The Concordia needed its
+definition imported, and Import did nothing: SDL has no file dialogs in a browser.
+
+**The browser's file dialogs** (`Main.cpp`, written the same day): to open -- Import a
+definition..., Load from file... -- a hidden `<input type="file">` clicked while Nazg's click
+still counts, the files picked copied into memory under `/uploads` and handed to App as SDL's
+dialogs hand theirs; to save -- Export definition..., Save to file... -- a path under
+`/downloads` given at once, and once App has written the file (`PlatformServices::fileSaved`,
+natively unset) the browser downloads it under its own name. Seen in the pane: a file handed in
+as picked reaches the import and is refused with the parser's message, as natively. **Import
+seen working in Edge** (Rico, 2026-10-24); in Chrome it still did nothing after a plain reload --
+Chrome kept the earlier `nazg.js` and `nazg.wasm` from its cache, Python's test server sending no
+caching headers. **Pages needs cache-busting for that reason**: every release would otherwise
+leave some browsers on the one before. **Load from file and Save to file seen working** in Edge
+on the Concordia (Rico, 2026-10-24) -- the upload and the download both; the first VIA board
+over WebHID. Export definition... too: all four dialogs seen.
 
 **Emscripten 6.0.13**, through emsdk in WSL's Ubuntu (`~/emsdk`; `emsdk install 6.0.13`,
 `emsdk activate 6.0.13`, `. ~/emsdk/emsdk_env.sh` in each shell). **`GenerateBuildForWeb.sh`**:
@@ -397,8 +429,9 @@ What differs from the native build, all in `CMakeLists.txt` and `Main.cpp`:
 
 - **No hidapi.** `src/transport/NazgHidTransport.cpp` is the half of `HidTransport` the main
   thread sees, on every platform; natively `NazgHidTransportHidapi.cpp` services the operations
-  on its worker thread, in a browser `NazgHidTransportWebHid.cpp` with no thread -- for now
-  listing no device and opening none.
+  on its worker thread, in a browser `NazgHidTransportWebHid.cpp` over WebHID with no thread.
+  Its JavaScript copies reports through `malloc()` and `free()`, exported from every executable
+  (`NAZG_WEB_EXPORTS`).
 - **JavaScript-based exceptions and tail calls** (`-fexceptions -mtail-call`, on everything):
   Emscripten turns C++ exceptions off otherwise, and WebAssembly's own are miscompiled in
   coroutines; without tail calls `Task`'s symmetric transfer overflows the stack
@@ -417,10 +450,9 @@ What differs from the native build, all in `CMakeLists.txt` and `Main.cpp`:
   write (via-registry.md, "WebAssembly"). The data folder is `/storage/mymakercorner/Nazg/`, one
   per site. App's destructor never runs -- the page is closed, not quit -- so a change made
   less than a second before closing the tab may be lost.
-- **Left out for now**: the file dialogs (SDL has none in a browser and answers "cancelled"),
-  hotplug, the window's place (the browser's), Linux's Allow... (compiled out with `__linux__`,
-  which Emscripten does not define), the OS's modifier names (SDL says "Emscripten", read as
-  Linux's).
+- **Left out for now**: the window's place (the browser's), Linux's Allow... (compiled out with `__linux__`, which
+  Emscripten does not define; on Linux Chrome lists a board it cannot open, which says "no
+  answer"), the OS's modifier names (SDL says "Emscripten", read as Linux's).
 - **The tests run under Node**, CMake's emulator for Emscripten (`-sNODERAWFS` reads the
   computer's files, `-sEXIT_RUNTIME` gives back the exit code):
   `ctest --test-dir build_Web -C Release --output-on-failure`. One test says what differs:

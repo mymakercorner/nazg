@@ -43,6 +43,10 @@ set(JSON_BuildTests         OFF CACHE BOOL "" FORCE)
 if(EMSCRIPTEN)
     add_compile_options(-fexceptions -mtail-call)
     add_link_options(-fexceptions -mtail-call -sSTACK_SIZE=1MB -sALLOW_MEMORY_GROWTH=1)
+
+    # Every executable linking nazg_core: malloc() and free() for the WebHID transport's
+    # JavaScript, which copies reports through them.
+    set(NAZG_WEB_EXPORTS -sEXPORTED_FUNCTIONS=_main,_malloc,_free)
     set(SDL_EMSCRIPTEN_PERSISTENT_PATH "/storage" CACHE STRING "" FORCE)
 endif()
 
@@ -391,7 +395,8 @@ if(EMSCRIPTEN)
     set_target_properties(nazg PROPERTIES SUFFIX ".html")
 
     set(NAZG_WEB_SHELL ${CMAKE_CURRENT_SOURCE_DIR}/resources/package/web/shell.html)
-    target_link_options(nazg PRIVATE -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 --shell-file ${NAZG_WEB_SHELL})
+    target_link_options(nazg PRIVATE ${NAZG_WEB_EXPORTS} -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2
+                        --shell-file ${NAZG_WEB_SHELL})
     set_property(TARGET nazg APPEND PROPERTY LINK_DEPENDS ${NAZG_WEB_SHELL} ${NAZG_FONTS})
 
     foreach(font ${NAZG_FONTS})
@@ -432,7 +437,7 @@ option(NAZG_BUILD_TESTS "Build the test executables" ON)
 # directly and leaving with its exit code.
 set(NAZG_NODE_LINK_OPTIONS "")
 if(EMSCRIPTEN)
-    set(NAZG_NODE_LINK_OPTIONS -sNODERAWFS=1 -sEXIT_RUNTIME=1)
+    set(NAZG_NODE_LINK_OPTIONS ${NAZG_WEB_EXPORTS} -sNODERAWFS=1 -sEXIT_RUNTIME=1)
 endif()
 
 if(NAZG_BUILD_TESTS)

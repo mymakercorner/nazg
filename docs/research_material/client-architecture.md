@@ -333,8 +333,9 @@ works for Nazg**:
 - **JavaScript-based exceptions (`-fexceptions`) are right** at every level. They cost speed
   and size -- a call that may throw inside a `try` or past a destructor goes through a
   JavaScript `invoke_*` trampoline -- which a configurator's frame, not a game's, can afford:
-  6.95 ms a frame on the keyboard list (first measure, 2026-10-24); an open board's frame is
-  still to be measured.
+  6.95 ms a frame on the keyboard list (first measure, 2026-10-24), and on the F77 over WebHID
+  Rico saw no difference in speed from the native app -- the keymap, Vial's unlock, the key test,
+  the Leyden Jar diagnostics.
 
 The exception kind decides the **frame loop**. A browser page must give the event loop back
 after every frame. `emscripten_set_main_loop(..., simulate_infinite_loop)` does it by leaving

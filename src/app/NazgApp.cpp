@@ -263,6 +263,29 @@ namespace nazg
         m_DeviceList.isProbing = false;
     }
 
+    // Add a keyboard..., in a browser (ui-design.md, "The list in a browser"): the browser's chooser,
+    // asked on the click, offering VIA and Vial's raw HID interface (IsViaInterface()). The board
+    // chosen is listed again at once and opened once it is -- the user just picked it. Cancelled,
+    // nothing changes.
+    Task<void> App::AddKeyboard()
+    {
+        std::string path;
+        try
+        {
+            path = co_await m_Transport.ChooseDevice(0xFF60, 0x61);
+        }
+        catch (const HidTransportError& failure)
+        {
+            m_DeviceList.error = failure.what();
+            m_Platform.logError(failure.what());
+        }
+        if (path.empty())
+            co_return;
+
+        m_OpenOnceListed       = path;
+        m_DeviceList.changedAt = ImGui::GetTime() - c_DevicesSettleDelay;
+    }
+
     // Open, load everything (board/NazgBoardLoad.h), close. The user definitions the caller read
     // for the board's VID:PID are passed by value, so the load does not depend on the library
     // staying put. `chosen` is the remembered choice, if any; when it does not settle which
@@ -362,6 +385,8 @@ namespace nazg
             m_Board.layoutNote          = stream ? "Saved to " + FileName(path) : "Not saved: cannot write " + FileName(path);
             m_Board.isLayoutNoteWarning = !stream;
             m_Board.layoutNoteAt        = ImGui::GetTime();
+            if (stream && m_Platform.fileSaved)
+                m_Platform.fileSaved(path);
         }
         catch (const std::exception& failure)
         {
@@ -636,7 +661,11 @@ namespace nazg
     {
         m_IsExportOpen = false;
         if (path)
+        {
             m_Board.exportMessage = WriteExport(m_ExportBytes, m_ExportName, *path);
+            if (m_Platform.fileSaved)
+                m_Platform.fileSaved(*path);
+        }
         m_ExportBytes.clear();
     }
 
@@ -762,6 +791,16 @@ namespace nazg
                 if (index >= m_DeviceList.protocols.size() || m_DeviceList.protocols[index] != c_NotAllowed)
                     StartLoad(lone->path, IdentityOf(*lone), std::nullopt);
             }
+        }
+
+        // A board just chosen in a browser's chooser, once the list read after the choice is in.
+        if (!m_OpenOnceListed.empty() && !m_DeviceList.changedAt && m_RefreshTask.IsValid() && m_RefreshTask.IsDone())
+        {
+            const std::string path   = std::exchange(m_OpenOnceListed, std::string());
+            const auto        chosen = std::find_if(m_DeviceList.devices.begin(), m_DeviceList.devices.end(),
+                                                    [&](const HidDeviceInfo& device) { return device.path == path; });
+            if (chosen != m_DeviceList.devices.end() && !IsBoardBusy() && path != m_Board.path)
+                StartLoad(chosen->path, IdentityOf(*chosen), std::nullopt);
         }
 
         // Waiting for the board to be idle: every section stops, and the waiting is over once the
@@ -1322,6 +1361,14 @@ namespace nazg
 
     void App::DrawKeyboardListScreen(bool isBusy)
     {
+        // A browser without WebHID: nothing could ever be listed.
+        if (!m_Transport.IsAvailable())
+        {
+            if (DrawNoWebHid() && m_Platform.openUrl)
+                m_Platform.openUrl("https://github.com/mymakercorner/nazg/releases");
+            return;
+        }
+
         if (!m_DeviceList.error.empty())
             ColouredText(PanelColour::Error, "%s", m_DeviceList.error.c_str());
         if (!m_Board.error.empty())
@@ -1334,8 +1381,11 @@ namespace nazg
 
         const KeyboardListAction action = DrawKeyboardList(m_DeviceList.devices, m_DeviceList.protocols,
                                                            m_DeviceList.allowedByNazg, m_ShowAllHidDevices,
-                                                           m_DeviceList.isLoading, !isBusy && m_RefreshTask.IsDone());
+                                                           m_DeviceList.isLoading, !isBusy && m_RefreshTask.IsDone(),
+                                                           HidTransport::c_ListsChosenDevicesOnly);
 
+        if (action.add && (!m_AddTask.IsValid() || m_AddTask.IsDone()))
+            m_AddTask = AddKeyboard();
         if (action.open && !isBusy)
         {
             const HidDeviceInfo& device = m_DeviceList.devices[*action.open];

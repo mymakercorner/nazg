@@ -33,6 +33,16 @@ namespace nazg
         return EnumerateAwaitable(*this, std::move(operation));
     }
 
+    HidTransport::ChooseAwaitable HidTransport::ChooseDevice(uint16_t usagePage, uint16_t usage)
+    {
+        auto operation       = std::make_shared<Operation>();
+        operation->kind      = OperationKind::Choose;
+        operation->usagePage = usagePage;
+        operation->usage     = usage;
+
+        return ChooseAwaitable(*this, std::move(operation));
+    }
+
     HidTransport::OpenAwaitable HidTransport::Open(std::string path)
     {
         auto operation  = std::make_shared<Operation>();

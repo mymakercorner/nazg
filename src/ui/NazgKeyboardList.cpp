@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
+#include <initializer_list>
 
 #include "imgui.h"
 #include "imgui_internal.h"   // ImGuiTable, for the height its rows took
@@ -22,7 +23,8 @@ namespace nazg
         constexpr uint16_t c_ViaUsage     = 0x61;
 
         // Pixels, before DPI scaling.
-        constexpr float c_ListWidth = 900.0f;   // at most: across a wide window, rows read as endless lines
+        constexpr float c_ListWidth    = 900.0f;   // at most: across a wide window, rows read as endless lines
+        constexpr float c_MessageWidth = 560.0f;   // a message alone on the screen, at most
         constexpr int   c_MaxRows   = 24;       // the other interfaces' frame at most, then it scrolls
         constexpr int   c_MinRows   = 4;        // and at least, however short the window
 
@@ -65,6 +67,38 @@ namespace nazg
             }
             list->AddText(at, colour, word);
             return clicked;
+        }
+
+        // A short message alone on the screen, in a narrow column centred in the window and a little
+        // way down: a heading, its paragraphs wrapped, and one button under them, centred. True when
+        // the button was clicked.
+        bool CentredMessage(const char* heading, std::initializer_list<const char*> paragraphs, const char* button)
+        {
+            const float available = ImGui::GetContentRegionAvail().x;
+            const float width     = std::min(available, c_MessageWidth * ImGui::GetStyle().FontScaleDpi);
+            const float indent    = std::floor((available - width) / 2.0f);
+            const float start     = ImGui::GetCursorPosX();
+
+            ImGui::Dummy(ImVec2(0.0f, ImGui::GetFrameHeight() * 2.0f));
+            PushHeaderFont();
+            ImGui::SetCursorPosX(start + std::floor((available - ImGui::CalcTextSize(heading).x) / 2.0f));
+            ImGui::TextUnformatted(heading);
+            ImGui::PopFont();
+            ImGui::Spacing();
+
+            ImGui::PushTextWrapPos(start + indent + width);
+            for (const char* paragraph : paragraphs)
+            {
+                ImGui::SetCursorPosX(start + indent);
+                ImGui::TextWrapped("%s", paragraph);
+                ImGui::Spacing();
+            }
+            ImGui::PopTextWrapPos();
+
+            const ImGuiStyle& style = ImGui::GetStyle();
+            const float       wide  = ImGui::CalcTextSize(button).x + style.FramePadding.x * 4.0f;
+            ImGui::SetCursorPosX(start + std::floor((available - wide) / 2.0f));
+            return ImGui::Button(button, ImVec2(wide, ImGui::GetFrameHeight() * 1.25f));
         }
 
         // A list's frame: rounded and outlined like the panels, so it has a visible top and
@@ -151,9 +185,23 @@ namespace nazg
                                         const std::vector<bool>&          allowedByNazg,
                                         bool&                             showAllHidDevices,
                                         bool                              isListing,
-                                        bool                              canOpen)
+                                        bool                              canOpen,
+                                        bool                              chosenOnly)
     {
         KeyboardListAction action;
+        const auto         keyboards = std::count_if(devices.begin(), devices.end(), IsViaInterface);
+
+        // A browser's first visit: nothing chosen yet, so no list -- what to do instead.
+        if (chosenOnly && !isListing && keyboards == 0)
+        {
+            action.add = CentredMessage("Add your keyboard",
+                                        { "A web page may only use a keyboard you choose. Click below, and your browser lists "
+                                          "the keyboards Nazg can configure -- VIA and Vial ones. Pick yours and click Connect.",
+                                          "Once added, it is there each time you come back. Not in the browser's list? It may "
+                                          "not run VIA or Vial firmware." },
+                                        "Add a keyboard...");
+            return action;
+        }
 
         // One column, centred in the window: the room left over falls evenly on both sides.
         const float available = ImGui::GetContentRegionAvail().x;
@@ -161,7 +209,6 @@ namespace nazg
         const float indent    = std::floor((available - width) / 2.0f);
         if (indent > 0.0f)
             ImGui::Indent(indent);
-        const auto keyboards = std::count_if(devices.begin(), devices.end(), IsViaInterface);
 
         // The heading, with the count once the list is known.
         ImGui::AlignTextToFramePadding();
@@ -255,14 +302,37 @@ namespace nazg
         }
 
         ImGui::Spacing();
-        ImGui::Checkbox("Show all HID devices", &showAllHidDevices);
-        if (!showAllHidDevices)
-            ColouredText(PanelColour::Muted, "Not listed? Turn on Show all HID devices.");
+        if (chosenOnly)
+        {
+            // Only the chosen boards could be shown: no Show all HID devices.
+            action.add = ImGui::Button("Add a keyboard...");
+            ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + width);
+            ImGui::PushStyleColor(ImGuiCol_Text, ColourOf(PanelColour::Muted));
+            ImGui::TextWrapped("Nazg sees only the keyboards you add, each once: your browser remembers them for this site. "
+                               "To remove one, use the browser's site settings (the icon left of the address).");
+            ImGui::PopStyleColor();
+            ImGui::PopTextWrapPos();
+        }
         else
-            DrawOtherInterfaces(devices, width);
+        {
+            ImGui::Checkbox("Show all HID devices", &showAllHidDevices);
+            if (!showAllHidDevices)
+                ColouredText(PanelColour::Muted, "Not listed? Turn on Show all HID devices.");
+            else
+                DrawOtherInterfaces(devices, width);
+        }
 
         if (indent > 0.0f)
             ImGui::Unindent(indent);
         return action;
+    }
+
+    bool DrawNoWebHid()
+    {
+        return CentredMessage("This browser cannot reach keyboards",
+                              { "Nazg in a browser needs WebHID, which only Chrome, Edge and Opera have, on a computer -- "
+                                "Firefox and Safari do not, nor does any phone.",
+                                "Open this page in one of them, or download Nazg for Windows, macOS or Linux." },
+                              "Download Nazg");
     }
 }

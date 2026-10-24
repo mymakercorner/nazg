@@ -123,14 +123,40 @@ namespace nazg
 
         // Each of these returns an object that is awaited, never stored.
         class EnumerateAwaitable;
+        class ChooseAwaitable;
         class OpenAwaitable;
         class RequestAwaitable;
         class SeriesAwaitable;
         class SendAwaitable;
 
-        // Enumerate connected HID devices. Pass a usagePage/usage of 0 for no filter.
+        // In a browser Nazg sees only the devices the user chose for it, each once, in the browser's
+        // own chooser (ChooseDevice()); natively it sees every device the system lists.
+#if defined(__EMSCRIPTEN__)
+        static constexpr bool c_ListsChosenDevicesOnly = true;
+#else
+        static constexpr bool c_ListsChosenDevicesOnly = false;
+#endif
+
+        // Whether this transport can reach devices at all: always natively; in a browser, only one
+        // with WebHID -- Chrome, Edge, Opera on a computer.
+        [[nodiscard]] bool IsAvailable() const noexcept;
+
+        // Enumerate connected HID devices. Pass a usagePage/usage of 0 for no filter. In a browser,
+        // the chosen ones that are plugged in.
         //     auto devices = co_await transport.Enumerate(0xFF60, 0x61);
         [[nodiscard]] EnumerateAwaitable Enumerate(uint16_t usagePage = 0, uint16_t usage = 0);
+
+        // In a browser: its device chooser, listing the devices with this usage page and usage --
+        // called on a click, which the browser requires. Yields the chosen device's path, empty when
+        // the user cancelled; it is listed by Enumerate() from then on. Not queued behind other
+        // operations, so the click still counts when the browser is asked. Natively it fails.
+        [[nodiscard]] ChooseAwaitable ChooseDevice(uint16_t usagePage, uint16_t usage);
+
+#if defined(__EMSCRIPTEN__)
+        // How many times a chosen device was plugged in or unplugged since the page loaded: Main.cpp
+        // polls it as natively it polls SDL's count (ui-design.md, "Hotplug").
+        [[nodiscard]] static uint32_t DeviceChangeCount() noexcept;
+#endif
 
         // Open one device by the path from HidDeviceInfo, yielding the id every later
         // call uses. Throws HidTransportError if the device cannot be opened, and
@@ -195,6 +221,7 @@ namespace nazg
         enum class OperationKind
         {
             Enumerate,
+            Choose,
             Open,
             Request,
             Series,
@@ -203,15 +230,15 @@ namespace nazg
             Close
         };
 
-        // One struct for all seven operations rather than a class hierarchy: the worker
+        // One struct for all eight operations rather than a class hierarchy: the worker
         // loop stays a flat switch, and everything an operation carries is visible in
         // one place. Inputs are filled in by the caller, outputs by the worker.
         struct Operation
         {
             OperationKind kind = OperationKind::Enumerate;
 
-            uint16_t             usagePage = 0;                    // Enumerate
-            uint16_t             usage     = 0;                    // Enumerate
+            uint16_t             usagePage = 0;                    // Enumerate, Choose
+            uint16_t             usage     = 0;                    // Enumerate, Choose
             std::string          path;                             // Open
             DeviceId             device    = c_InvalidDevice;      // Request, Series, Send, Farewell, Close
             std::vector<uint8_t> payload;                          // Request, Send, Farewell
@@ -223,6 +250,7 @@ namespace nazg
             std::vector<std::vector<uint8_t>> replies;    // Series
 
             std::vector<HidDeviceInfo> devices;                       // Enumerate
+            std::string                chosen;                        // Choose: a path, or empty
             DeviceId                   opened = c_InvalidDevice;      // Open
             std::vector<uint8_t>       reply;                         // Request
             std::string                error;                         // empty means success
@@ -267,6 +295,29 @@ namespace nazg
         std::deque<OperationPtr> m_Pending;     // submitted, not yet serviced
         std::deque<OperationPtr> m_Completed;   // serviced, awaiting Pump()
 
+#if defined(__EMSCRIPTEN__)
+        // In a browser (NazgHidTransportWebHid.cpp) there is no worker: an operation is started as
+        // the one before it ends, and the browser's answers -- WebHidEvents, exported to its
+        // JavaScript -- end it. One at a time, in submission order, as the worker services them.
+        friend struct WebHidEvents;
+
+        void StartNext();                                // services queued operations while none is
+        void Service(Operation& operation);              // starts one: ends it at once, or asks the browser
+        void WriteNextPayload();                         // Request, Series: the next report, its reply awaited
+        void Finish(const OperationPtr& operation);      // completed, for Pump() to resume
+
+        bool                              m_IsAvailable = false;   // the browser has WebHID
+        OperationPtr                      m_InService;             // the one the browser works on
+        OperationPtr                      m_Choosing;              // the browser's chooser, beside it
+        uint32_t                          m_Token       = 0;       // m_InService's, for the browser's answers
+        uint32_t                          m_ChooseToken = 0;       // m_Choosing's
+        uint32_t                          m_NextToken   = 1;       // never 0: 0 is "nobody waits"
+        size_t                            m_SeriesIndex = 0;       // Series: the payload being answered
+        bool                              m_IsWaiting   = false;   // Request, Series: its reply awaited
+        bool                              m_IsStarting  = false;   // StartNext() is on the stack
+        std::unordered_map<DeviceId, int> m_WebDevices;            // open ones: the browser's handle
+#endif
+
     public:
         // Suspends the calling coroutine, hands the operation to the worker thread,
         // and is resumed from Pump(). Only await_resume() differs per operation, so
@@ -309,6 +360,18 @@ namespace nazg
             {
                 ThrowIfFailed();
                 return std::move(m_Operation->devices);
+            }
+        };
+
+        class ChooseAwaitable : public Awaitable
+        {
+        public:
+            using Awaitable::Awaitable;
+
+            std::string await_resume()
+            {
+                ThrowIfFailed();
+                return std::move(m_Operation->chosen);
             }
         };
 

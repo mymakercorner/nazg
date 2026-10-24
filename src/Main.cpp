@@ -31,6 +31,8 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <functional>
 #include <mutex>
@@ -38,6 +40,58 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+#if defined(__EMSCRIPTEN__)
+// A browser's file dialogs. To open: a hidden <input type="file">, clicked while the click on Nazg's
+// button still counts; the files picked are copied into memory under /uploads and their paths left in
+// Module.nazgChosenFiles for the frame loop -- `which` says for whom -- none when cancelled. To save:
+// the file written in memory, then handed to the browser as a download.
+EM_JS_DEPS(nazg_shell, "$FS,$stringToNewUTF8,$UTF8ToString");
+
+EM_JS(void, NazgChooseFiles, (const char* accept, int multiple, int which), {
+    const input    = document.createElement("input");
+    input.type     = "file";
+    input.accept   = UTF8ToString(accept);
+    input.multiple = multiple !== 0;
+    input.addEventListener("change", async () => {
+        const paths = [];
+        FS.mkdirTree("/uploads");
+        for (const file of input.files) {
+            const path = "/uploads/" + file.name;
+            FS.writeFile(path, new Uint8Array(await file.arrayBuffer()));
+            paths.push(path);
+        }
+        Module.nazgChosenFiles = { which: which, paths: paths };
+    });
+    input.addEventListener("cancel", () => { Module.nazgChosenFiles = { which: which, paths: [] }; });
+    input.click();
+});
+
+// What NazgChooseFiles() left, once: "<which>\n<path>\n<path>...", for free(); null while nothing is.
+EM_JS(char*, NazgTakeChosenFiles, (), {
+    const chosen = Module.nazgChosenFiles;
+    if (!chosen)
+        return 0;
+    Module.nazgChosenFiles = null;
+    return stringToNewUTF8([String(chosen.which)].concat(chosen.paths).join("\n"));
+});
+
+EM_JS(void, NazgOfferDownload, (const char* path), {
+    try {
+        const name = UTF8ToString(path);
+        const url  = URL.createObjectURL(new Blob([FS.readFile(name)]));
+        const link = document.createElement("a");
+        link.href     = url;
+        link.download = name.split("/").pop();
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (error) {
+        console.error("Nazg: no download for " + UTF8ToString(path) + ": " + error);
+    }
+});
+#endif
 
 namespace
 {
@@ -233,6 +287,49 @@ namespace
         answers.layoutSavePath     = FirstChosen(filelist);
     }
 
+#if defined(__EMSCRIPTEN__)
+    // NazgChooseFiles()'s `which`: the dialog the files were picked in.
+    constexpr int c_ChoosingImport = 0;
+    constexpr int c_ChoosingLayout = 1;
+
+    // Where a browser's save dialog puts a file: memory, until it is downloaded under its own name.
+    std::string DownloadPath(const std::string& suggested)
+    {
+        std::error_code ignored;
+        std::filesystem::create_directories("/downloads", ignored);
+        return "/downloads/" + suggested.substr(suggested.find_last_of('/') + 1);
+    }
+
+    // The files picked in a browser's open dialog, if any came since the last frame, handed to App
+    // as SDL's dialogs hand theirs.
+    void TakeBrowserFiles(DialogAnswers& answers)
+    {
+        char* const chosen = NazgTakeChosenFiles();
+        if (chosen == nullptr)
+            return;
+
+        std::vector<std::string> lines;
+        for (const char* line = chosen; *line != '\0';)
+        {
+            const char* end = std::strchr(line, '\n');
+            lines.emplace_back(line, end != nullptr ? end : line + std::strlen(line));
+            line = end != nullptr ? end + 1 : line + std::strlen(line);
+        }
+        std::free(chosen);
+
+        const std::lock_guard<std::mutex> lock(answers.mutex);
+        if (lines.empty())
+            return;
+        if (lines[0] == std::to_string(c_ChoosingImport))
+            answers.imported.insert(answers.imported.end(), lines.begin() + 1, lines.end());
+        else
+        {
+            answers.isLayoutOpenClosed = true;
+            answers.layoutOpenPath     = lines.size() > 1 ? std::optional<std::string>(lines[1]) : std::nullopt;
+        }
+    }
+#endif
+
     // Windows runs a loop of its own while the window is dragged -- moved or resized -- and the
     // frame loop in main() stops until the mouse is released: a resized window would stretch its
     // last frame meanwhile. SDL keeps sending SDL_EVENT_WINDOW_EXPOSED from inside that loop --
@@ -403,12 +500,37 @@ int main(int, char**)
             SDL_ResetHint(SDL_HINT_WINDOWS_CLOSE_ON_ALT_F4);
         SDL_SetWindowKeyboardGrab(pWindow, take);
     };
+    platform.openUrl = [](const std::string& url)
+    {
+        if (!SDL_OpenURL(url.c_str()))
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_OpenURL() failed: %s", SDL_GetError());
+    };
     platform.showLayoutSaveDialog = [&answers, pWindow](const std::string& suggested)
     {
         answers.layoutSuggested = suggested;   // App opens one at a time
         static const SDL_DialogFileFilter c_Filters[] = { { "Vial layout", "vil" } };
         SDL_ShowSaveFileDialog(OnLayoutSaveChosen, &answers, pWindow, c_Filters, 1, answers.layoutSuggested.c_str());
     };
+#if defined(__EMSCRIPTEN__)
+    // In a browser SDL has no file dialogs -- it answers "cancelled" -- so the browser's own: an open
+    // dialog's files come back through TakeBrowserFiles(); a save names a file in memory at once, and
+    // once App has written it, it is downloaded.
+    platform.showImportDialog     = [] { NazgChooseFiles(".json", 1, c_ChoosingImport); };
+    platform.showLayoutOpenDialog = [] { NazgChooseFiles(".vil,.json", 0, c_ChoosingLayout); };
+    platform.showExportDialog     = [&answers](const std::string& suggested)
+    {
+        const std::lock_guard<std::mutex> lock(answers.mutex);
+        answers.isExportClosed = true;
+        answers.exportPath     = DownloadPath(suggested.empty() ? "definition.json" : suggested);
+    };
+    platform.showLayoutSaveDialog = [&answers](const std::string& suggested)
+    {
+        const std::lock_guard<std::mutex> lock(answers.mutex);
+        answers.isLayoutSaveClosed = true;
+        answers.layoutSavePath     = DownloadPath(suggested);
+    };
+    platform.fileSaved = [](const std::string& path) { NazgOfferDownload(path.c_str()); };
+#endif
 
     // Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -568,8 +690,11 @@ int main(int, char**)
 
         // A HID device came or went: SDL counts what the OS notices -- not which device, and it
         // opens none. The first call starts SDL's own copy of hidapi, apart from Nazg's
-        // (ui-design.md, "Hotplug"). In a browser WebHID's events are to say it -- not yet.
+        // (ui-design.md, "Hotplug").
         Uint32 deviceChanges = SDL_hid_device_change_count();
+#else
+        // In a browser WebHID counts them: a chosen device plugged in or unplugged.
+        Uint32 deviceChanges = nazg::HidTransport::DeviceChangeCount();
 #endif
 
         // One pass of the frame loop: the events, then the frame.
@@ -592,15 +717,18 @@ int main(int, char**)
                     if (const std::optional<uint32_t> usage = HidUsageOf(event.key.scancode))
                         app.OnHostKey(*usage, event.type == SDL_EVENT_KEY_DOWN);
             }
-#if !defined(__EMSCRIPTEN__)
+#if defined(__EMSCRIPTEN__)
+            TakeBrowserFiles(answers);
+            const Uint32 changes = nazg::HidTransport::DeviceChangeCount();
+#else
             TrackWindowPlace(pWindow, app.Settings().window);
-
-            if (const Uint32 changes = SDL_hid_device_change_count(); changes != deviceChanges)
+            const Uint32 changes = SDL_hid_device_change_count();
+#endif
+            if (changes != deviceChanges)
             {
                 deviceChanges = changes;
                 app.OnDevicesChanged();
             }
-#endif
 
             drawFrame(false);
             done = app.IsQuitConfirmed();
