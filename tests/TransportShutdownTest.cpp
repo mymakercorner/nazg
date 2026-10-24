@@ -129,7 +129,13 @@ namespace
 
         Check(unresolved == 0, "every coroutine was resumed and unwound");
         Check(g_completed + g_failed == c_ProbeCount, "every request was resolved exactly once");
+#if defined(__EMSCRIPTEN__)
+        // In a browser without WebHID -- Node, and the web build until WebHID comes -- nothing is
+        // ever queued: every answer is known as the operation is submitted.
+        Check(g_completed == c_ProbeCount, "nothing was queued: every request was serviced as submitted");
+#else
         Check(g_failed > 0, "queued requests were failed, not serviced");
+#endif
     }
 
     // Pump() must keep draining while resumed coroutines queue more work. With the

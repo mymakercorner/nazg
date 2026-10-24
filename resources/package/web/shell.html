@@ -1,0 +1,52 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The web build's page (CMakeLists.txt): Emscripten puts its script where SCRIPT is. SDL fills
+     the page with the canvas (SDL_WINDOW_FILL_DOCUMENT, Main.cpp). -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nazg</title>
+  <link rel="icon" href="icon/nazg.svg" type="image/svg+xml">
+  <link rel="icon" href="icon/nazg-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="icon/nazg-180.png">
+  <link rel="manifest" href="nazg.webmanifest">
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #0f0f11; color: #c8c8d0;
+                 font-family: Arimo, Arial, sans-serif; }
+    #canvas { display: block; outline: none; }
+    #status { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+              font-size: 15px; }
+  </style>
+</head>
+<body>
+  <div id="status">Loading Nazg...</div>
+  <canvas id="canvas" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
+  <script>
+    var Module = {
+      canvas: document.getElementById('canvas'),
+      setStatus: function (text) {
+        var status = document.getElementById('status');
+        if (status)
+          status.textContent = text;
+      },
+      onRuntimeInitialized: function () {
+        var status = document.getElementById('status');
+        if (status)
+          status.remove();
+      },
+      print: function (text) { console.log(text); },
+      printErr: function (text) { console.error(text); }
+    };
+
+    // Main.cpp hands the frame loop to the browser by unwinding main() with a throw of 'unwind'.
+    // SDL starts main() from the callback that loads the saved data, so nothing above it stops
+    // that throw and the browser would report it as an error: it is not one.
+    window.addEventListener('error', function (event) {
+      if (event.error === 'unwind')
+        event.preventDefault();
+    });
+  </script>
+  {{{ SCRIPT }}}
+</body>
+</html>

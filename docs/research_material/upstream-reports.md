@@ -11,6 +11,7 @@ filing, the bug may have gone.
 |---|---|---|---|---|---|
 | 1 | vial-kb/vial-qmk | Alt Repeat sends right-hand modifiers wrong | 2026-10-10 | 2026-10-10, `vial` branch: present, no issue | no |
 | 2 | vial-kb/vial-gui | Key override options 4 and 5 have each other's label | 2026-10-10 | 2026-10-10, `main`: present | no |
+| 3 | llvm/llvm-project (WebAssembly) | `-fwasm-exceptions`: invalid module for a catch around a `co_await` in a loop | 2026-10-24 | Emscripten 6.0.13 and 5.0.7: present; the tracker not searched yet | no |
 
 ---
 
@@ -125,3 +126,91 @@ Fix: swap the two strings.
 
 What Nazg does: its own words for both, the two bits shown turned round so every box ticked is
 QMK's usual way (`ui/NazgKeyOverridesSection.cpp`, `DrawOptions()`).
+
+---
+
+## 3. LLVM WebAssembly: a catch around a `co_await` in a loop gives an invalid module
+
+Found building Nazg's web build (client-architecture.md, "Exceptions, and the frame loop"): in
+Nazg's own code the exception escaped the coroutine instead of being caught; reduced, the module
+is rejected outright. Search <https://github.com/llvm/llvm-project/issues> (label
+`backend:WebAssembly`, "coroutine" and "exception") before filing; if nothing, file there, or at
+<https://github.com/emscripten-core/emscripten/issues> if Emscripten is thought the better door.
+
+**Title:** [WebAssembly] -fwasm-exceptions: invalid module ("catch does not match a try") for a try/catch around co_await in a loop
+
+**Body:**
+
+````markdown
+**Summary**
+
+With `-fwasm-exceptions`, a coroutine that catches, inside a loop, what an awaiter with a
+non-trivial destructor throws from `await_resume()` compiles to an invalid module from `-O1` on.
+With the legacy encoding V8 rejects it ("catch does not match a try") and `wasm-opt` fails to
+parse it at `-O2`/`-O3`; with exnref (`-sWASM_LEGACY_EXCEPTIONS=0`) it is invalid even at `-O0`.
+In a larger program the module validated but the catch missed the exception, which escaped the
+coroutine's `resume()`. `-fexceptions` (Emscripten's JavaScript-based EH) is correct at every level.
+
+**Reproduction** (Emscripten 6.0.13, clang 24.0.0git 83ee07799c34; also 5.0.7, clang 23.0.0git)
+
+```cpp
+#include <coroutine>
+#include <cstdio>
+#include <cstdlib>
+#include <memory>
+#include <stdexcept>
+
+struct Task {
+    struct promise_type {
+        Task get_return_object() { return Task{std::coroutine_handle<promise_type>::from_promise(*this)}; }
+        std::suspend_never initial_suspend() noexcept { return {}; }
+        std::suspend_always final_suspend() noexcept { return {}; }
+        void return_void() {}
+        void unhandled_exception() { std::printf("unhandled_exception\n"); }
+    };
+    std::coroutine_handle<promise_type> handle;
+};
+
+std::coroutine_handle<> g_waiting;
+
+struct Failing {
+    std::shared_ptr<int> state = std::make_shared<int>(1);   // a destructor to run when it throws
+    bool await_ready() const noexcept { return false; }
+    void await_suspend(std::coroutine_handle<> h) noexcept { g_waiting = h; }
+    void await_resume() { throw std::runtime_error("failed"); }
+};
+
+int g_caught = 0;
+
+Task Looping(int count) {
+    for (int i = 0; i < count; ++i) {
+        try { co_await Failing{}; }
+        catch (const std::runtime_error&) { ++g_caught; }
+    }
+}
+
+int main() {
+    Task t = Looping(3);
+    for (int i = 0; i < 3; ++i) g_waiting.resume();
+    std::printf("caught %d, done %d\n", g_caught, t.handle.done() ? 1 : 0);
+    std::_Exit(0);
+}
+```
+
+```
+em++ -std=c++20 -O1 -fwasm-exceptions repro.cpp -o repro.js && node repro.js
+```
+
+Expected `caught 3, done 1` (what `-O0` and `-fexceptions` print). Got:
+
+```
+CompileError: WebAssembly.instantiate(): Compiling function #7 failed: catch does not match a try @+1193
+```
+
+At `-O2`: `wasm-opt` fails, `[parse exception: unexpected catch]`. With
+`-sWASM_LEGACY_EXCEPTIONS=0 -O0`: `expected 1 elements on the stack for branch, found 0`.
+
+Without the loop, or with a trivially destructible awaiter, it is fine.
+````
+
+What Nazg does: `-fexceptions` in the web build (CMakeLists.txt).

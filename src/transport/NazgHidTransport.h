@@ -40,8 +40,9 @@
 //     with the report ID byte hidapi expects. QMK's 32-byte RAW_EPSIZE frame is the
 //     protocol layer's business, not the pipe's.
 //
-// Under Emscripten this class would be reimplemented over WebHID with no thread at
-// all; the interface, Pump() and the awaiting protocol code stay identical.
+// Under Emscripten the operations are serviced over WebHID with no thread at all
+// (NazgHidTransportWebHid.cpp, in place of NazgHidTransportHidapi.cpp's worker); the
+// interface, Pump() (NazgHidTransport.cpp) and the awaiting protocol code stay identical.
 
 #pragma once
 

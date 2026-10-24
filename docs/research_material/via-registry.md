@@ -873,12 +873,17 @@ settings.json           the settings; imgui.ini before 2026-10-16, left as it wa
   `nextId` and rewrites the choices that point at them.
 
 **WebAssembly.** The same layout, in Emscripten's virtual file system mounted on **IDBFS**
-(IndexedDB); `Main.cpp` mounts it at start and calls `FS.syncfs` after each write — a few
-KB. WasmFS with the browser's private file system (OPFS) is newer and harder, particularly
-around threads, and not needed at these sizes. SDL's pref path in a web build is only a path
-in that virtual file system; whether SDL3 mounts anything persistent there is to be checked.
-The bundle is a static file beside the `.wasm`, its version in its name so the browser's
-HTTP cache handles it. Web-only limits:
+(IndexedDB) — a few KB. WasmFS with the browser's private file system (OPFS) is newer and
+harder, particularly around threads, and not needed at these sizes. **SDL does the mounting,
+not `Main.cpp`** (checked 2026-10-24, SDL 3.4.16): built with
+`-DSDL_EMSCRIPTEN_PERSISTENT_PATH=/storage` (CMakeLists.txt sets it), SDL's own `main()`
+mounts IDBFS there with `autoPersist`, loads it with `FS.syncfs` before Nazg's `main()` runs,
+and Emscripten saves each write back by itself; `SDL_GetPrefPath` then answers
+`/storage/mymakercorner/Nazg/`, so the library and the settings run unchanged. Without the
+option the pref path is `/libsdl/...` in memory, lost with the page. The bundles are packed
+with the fonts into the page's `.data` file (`--preload-file`), at the paths the native build
+reads — SDL's base path is `/` in a browser — so the same code opens them (build-and-release.md,
+"The web build"). Web-only limits:
 
 - **Eviction**: the browser may evict the data under storage pressure unless the app
   obtains `navigator.storage.persist()`, and clearing site data wipes the library. **Export
@@ -1010,8 +1015,6 @@ HTTP cache handles it. Web-only limits:
 - QMK community modules: whether a board can serve its definition through one without a
   QMK fork (level 3), and how mature they are.
 - The community repository's provenance format and validator checks, when it starts.
-- Whether SDL3 makes its pref path persistent in an Emscripten build, or `Main.cpp` must
-  mount IDBFS itself.
 - Dynamic names: whether Nazg reads them (a custom-menu value read on connect), and whether
   the same mechanism is worth borrowing to let a board pick among several definitions.
 - V2 definitions: needed only for protocol ≤ 10 boards; what differs from V3 beyond

@@ -14,7 +14,8 @@ exists, where, and how far it has been proven.
 
 ## What is built
 
-- **Pipeline.** `Task<T>` coroutines, a hidapi transport (`transport/`), the VIA command set
+- **Pipeline.** `Task<T>` coroutines, a hidapi transport (`transport/`: what the main thread sees
+  in `NazgHidTransport.cpp`, the worker in `NazgHidTransportHidapi.cpp`), the VIA command set
   (`adapters/via`) with the Vial branch deriving from it (`adapters/vial`). Protocol code talks to
   a `DeviceChannel`, so it tests with scripted bytes; the tests are plain CTest executables in `tests/`.
   Opening a board -- protocol, definition, keymap, report -- is `board/NazgBoardLoad.*`, tested
@@ -163,6 +164,7 @@ one board to unlock).
 | Diagnostics on Rico's F77: key output off and on again, Key presses, Signal levels, Device; Enter bootloader and Erase EEPROM, the board closed and the list saying where it went (2026-10-17); Key presses and Enter bootloader on the F77 locked, past Vial's lock (2026-10-18) | |
 | The Device section on Rico's boards (2026-10-18): the bootloader, said how where the firmware lacks it, keymap reset, macros emptied | |
 | The key test (2026-10-18): the Concordia on the computer's keys, hatched keys and the shared-key marks; the F77 on its switches unlocked, on the computer's keys locked; Win and Alt+Tab taken while it reads them | |
+| The web build (2026-10-24): all tests under Node; the page in the app's browser pane -- the list, Settings, both bundles, settings kept across a reload. No board: WebHID is step 2 | The web build in Chrome or Edge themselves, on a high-DPI display |
 | Linux in WSL (2026-10-18): GCC 13 build, all tests; the F77 lent by usbipd, refused until a udev rule, then Vial, unlock, keymap and Diagnostics (Rico) | Linux on a real desktop: uaccess, X11, the window icon, a locked board's key test (WSLg gets no keys from a board lent to Linux) |
 | The AppImage (2026-10-18, released in 0.1.0-test.3): built in the container, 49 tests passing there, glibc 2.27 and libudev only; started in WSL, the F77 shown "not allowed" with Allow... (Rico). On a tester's KDE desktop (2026-10-24), a Keychron on VIA: started as it was, a few keys changed, the key test reading the switches (Keychron's `VIA_INSECURE`) -- his board already allowed, so no Allow... | The AppImage on an old distribution; Wayland with libdecor (GNOME) |
 | A board Linux does not allow, in WSL on the F77 (Rico, 2026-10-18): "not allowed", Allow... with the commands pasted (no pkexec there), Nazg's rule file written; Allowed, Stop allowing, the file deleted -- a group rule standing in for uaccess | pkexec's password window; uaccess giving the board; whether Stop allowing acts before a replug |
@@ -180,6 +182,9 @@ one board to unlock).
   A QMK setting must be read at its own width -- past it the reply still holds the request.
 - **GCC 13 crashes** (an internal compiler error) on a braced list written inside a `co_await`
   -- `co_await f({ a, b })`: put it in a named variable first.
+- **Emscripten's `-fwasm-exceptions` miscompiles a catch around a `co_await` in a loop**
+  (5.0.7 and 6.0.13): the web build uses `-fexceptions`; do not switch it back without running
+  the tests under Node (upstream-reports.md, 3).
 - QMK numbers lighting effects among those built in, so VIA's effect names can be wrong; underglow's
   speed does nothing; Vial's lighting is the format before VIA V3 (via-vial-commands.md, "Lighting").
 
@@ -359,14 +364,21 @@ On Windows, Ninja and VS2026 were both evaluated on
 the current setup is verified working. Revisit later if desired; no known blockers (the
 dependency tree looks CMake 4 clean, and VS CMake folder mode keeps full IDE debugging).
 
-**Emscripten web build is explicitly deferred**, and note that SDL_GPU has no WebGPU backend
-(d3d12/metal/vulkan only) — a web build will need its own renderer path, either
-`imgui_impl_opengl3` over WebGL or the `sdl3_wgpu` route.
+**The Emscripten web build: step 1 of 3 done** (2026-10-24; build-and-release.md, "The web
+build"): `GenerateBuildForWeb.sh` in WSL with emsdk 6.0.13 into `build_Web/`; it builds, draws
+and keeps its settings in IndexedDB, and the tests pass under Node
+(`ctest --test-dir build_Web -C Release`). No board yet: step 2 is the WebHID transport
+(`transport/NazgHidTransportWebHid.cpp`, a stub listing nothing) and an "Add a keyboard..."
+button, mockup first; step 3 file upload/download, hotplug, GitHub Pages.
 
-When that happens it goes in as a dedicated `#ifdef __EMSCRIPTEN__` path in `Main.cpp` plus a
-branch in `CMakeLists.txt` — **not** a renderer abstraction layer, and not a second codebase:
-the same `App`, inside another shell. This is only affordable while SDL and renderer calls stay
-confined to `Main.cpp`, which is the main reason that rule exists.
+It is a dedicated `#ifdef __EMSCRIPTEN__` path in `Main.cpp` plus a branch in
+`CMakeLists.txt` — **not** a renderer abstraction layer, and not a second codebase: the same
+`App`, inside another shell. This is only affordable while SDL and renderer calls stay
+confined to `Main.cpp`, which is the main reason that rule exists. SDL_GPU has no WebGPU
+backend, so the browser draws through `imgui_impl_opengl3` over WebGL 2. **Exceptions are
+Emscripten's JavaScript-based ones (`-fexceptions`)**, with `-mtail-call` -- WebAssembly's own
+are miscompiled in coroutines, and that choice is also what lets `emscripten_set_main_loop`
+keep `main()`'s locals (client-architecture.md, "Exceptions, and the frame loop").
 
 **Notes on the dependencies:** minlzma decodes Vial's LZMA-compressed keyboard definitions;
 it is dormant upstream (last commit January 2022) but small and self-contained. jsoncpp was

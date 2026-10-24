@@ -377,6 +377,65 @@ LaTeX or a headless browser, and its page width shrinks the 1600 px screenshots.
   inside a list item four spaces of indent -- the manual is written so both read it alike. The
   build stops on an in-page link that reaches no heading.
 
+## The web build
+
+*Step 1 of three, 2026-10-24: it builds, draws and keeps its settings; no board yet.* The plan
+(client-architecture.md, "Web build"): 1. this; 2. a WebHID transport and an "Add a
+keyboard..." button, Chrome's own device prompt needing a click (a mockup first); 3. file upload
+and download in place of the dialogs, hotplug from WebHID's events, a workflow job publishing to
+GitHub Pages. Chromium only, for good (via.md, "Client and browser support").
+
+**Emscripten 6.0.13**, through emsdk in WSL's Ubuntu (`~/emsdk`; `emsdk install 6.0.13`,
+`emsdk activate 6.0.13`, `. ~/emsdk/emsdk_env.sh` in each shell). **`GenerateBuildForWeb.sh`**:
+`emcmake cmake`, `Ninja Multi-Config` into `build_Web/`, saying so when another Emscripten is
+active. Then the usual `cmake --build build_Web --config Release`; the page is
+`build_Web/Release/nazg.html`, with `nazg.js`, `nazg.wasm`, `nazg.data`, the web app manifest and
+`icon/`, served over HTTP (`python3 -m http.server -d build_Web/Release 8080`) -- a `file://`
+page cannot fetch its `.wasm`.
+
+What differs from the native build, all in `CMakeLists.txt` and `Main.cpp`:
+
+- **No hidapi.** `src/transport/NazgHidTransport.cpp` is the half of `HidTransport` the main
+  thread sees, on every platform; natively `NazgHidTransportHidapi.cpp` services the operations
+  on its worker thread, in a browser `NazgHidTransportWebHid.cpp` with no thread -- for now
+  listing no device and opening none.
+- **JavaScript-based exceptions and tail calls** (`-fexceptions -mtail-call`, on everything):
+  Emscripten turns C++ exceptions off otherwise, and WebAssembly's own are miscompiled in
+  coroutines; without tail calls `Task`'s symmetric transfer overflows the stack
+  (client-architecture.md, "Exceptions, and the frame loop"). A 1 MB stack (Emscripten's default
+  is 64 KB) and a growing memory, for the bundle's 35 MB decode.
+- **WebGL 2 through `imgui_impl_opengl3`**, SDL_GPU having no WebGPU backend; the canvas fills
+  the page (`SDL_WINDOW_FILL_DOCUMENT`) at the display's pixels.
+- **The browser runs the frame loop** (`emscripten_set_main_loop_arg` over the native loop's
+  body), a pass per display refresh. A hidden tab gets none, so board work waits while the tab
+  is in the background -- to look at with WebHID.
+- **The fonts and the bundles are packed** into `nazg.data` (`--preload-file`) at `/fonts/` and
+  `/`, where the native code looks -- SDL's base path is `/`. A bundle is packed if it was there
+  when CMake ran: after `tools/update_via_bundle.py`, configure again.
+- **Settings and the user library in IndexedDB**: SDL built with
+  `SDL_EMSCRIPTEN_PERSISTENT_PATH=/storage` mounts it before `main()` and Emscripten saves each
+  write (via-registry.md, "WebAssembly"). The data folder is `/storage/mymakercorner/Nazg/`, one
+  per site. App's destructor never runs -- the page is closed, not quit -- so a change made
+  less than a second before closing the tab may be lost.
+- **Left out for now**: the file dialogs (SDL has none in a browser and answers "cancelled"),
+  hotplug, the window's place (the browser's), Linux's Allow... (compiled out with `__linux__`,
+  which Emscripten does not define), the OS's modifier names (SDL says "Emscripten", read as
+  Linux's).
+- **The tests run under Node**, CMake's emulator for Emscripten (`-sNODERAWFS` reads the
+  computer's files, `-sEXIT_RUNTIME` gives back the exit code):
+  `ctest --test-dir build_Web -C Release --output-on-failure`. One test says what differs:
+  `transport_shutdown` finds nothing queued, every answer of the stub known at once.
+
+**Seen 2026-10-24**, in the Claude desktop app's browser pane (Chromium), served by
+`python -m http.server`: the keyboard list, Settings, Arimo from the packed fonts; both bundles
+decoded -- 3513 official definitions, 737 community; a frame 6.95 ms on the keyboard list
+(Ryzen X3D, JavaScript-based exceptions); Advanced tools ticked, the page reloaded, still ticked --
+`settings.json` in IndexedDB. **All 49 tests pass under Node** (Release). Two things the tests
+found and the build now has: tail calls (`task`, "deep chain stays flat") and JavaScript-based
+exceptions (`transport_shutdown`, "pump guard"). Sizes: `nazg.wasm` 3.4 MB, `nazg.data` 5.1 MB
+(fonts 4.6 MB), `nazg.js` 0.2 MB, before the server's compression. Not yet seen: Chrome or Edge
+themselves, a high-DPI display, a phone-sized window.
+
 ## Signing
 
 Unsigned builds work, with warnings: **Windows SmartScreen** warns on an unsigned

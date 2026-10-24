@@ -315,6 +315,47 @@ None of which matters, because **WebHID is already async and event-driven** — 
 needs no I/O thread at all. Build it single-threaded and skip the cross-origin isolation
 requirement entirely.
 
+### Exceptions, and the frame loop
+
+*Found building the first web build, 2026-10-24, with probes of a few lines each.* Nazg needs
+C++ exceptions -- transport and protocol errors are thrown and caught in coroutines -- and
+Emscripten turns them off unless told. It has two kinds, and **only the JavaScript-based one
+works for Nazg**:
+
+- **WebAssembly's own (`-fwasm-exceptions`) are miscompiled in coroutines.** A coroutine
+  catching, inside a loop, what an awaiter with a destructor throws from `await_resume()` --
+  Nazg's every protocol sequence -- misses it: in Nazg's tests the exception escaped `resume()`
+  into `Pump()` (`transport_shutdown`, "pump guard", `-O1` and up). Reduced to 50 lines with no
+  Nazg code, the module is **invalid**: "catch does not match a try" at `-O1`, `wasm-opt`
+  failing at `-O2`, and with the newer exnref encoding (`-sWASM_LEGACY_EXCEPTIONS=0`) invalid at
+  `-O0` too. Emscripten 6.0.13 (clang 24.0.0git) and 5.0.7 (clang 23.0.0git) alike. To report
+  upstream (upstream-reports.md); the probe is the reproduction.
+- **JavaScript-based exceptions (`-fexceptions`) are right** at every level. They cost speed
+  and size -- a call that may throw inside a `try` or past a destructor goes through a
+  JavaScript `invoke_*` trampoline -- which a configurator's frame, not a game's, can afford:
+  6.95 ms a frame on the keyboard list (first measure, 2026-10-24); an open board's frame is
+  still to be measured.
+
+The exception kind decides the **frame loop**. A browser page must give the event loop back
+after every frame. `emscripten_set_main_loop(..., simulate_infinite_loop)` does it by leaving
+`main()` with a throw that is not a C++ exception: WebAssembly's exceptions run `main()`'s
+cleanups on the way out -- a probe's local was destroyed before the first frame, which would
+be `App` -- while the JavaScript-based trampolines catch only C++ exceptions and let it pass,
+`main()`'s locals living on with the page. **So `Main.cpp` uses `emscripten_set_main_loop_arg`
+over the native loop's body**, as ImGui's own Emscripten examples do. Tried and dropped:
+**JSPI** (`-sJSPI`), suspending `main()`'s native `while` loop each frame -- fine with
+WebAssembly's exceptions, but it cannot suspend through the trampolines' JavaScript frames
+("trying to suspend JS frames"), and it would have asked for Chrome 137. **Asyncify** does not
+support WebAssembly's exceptions.
+
+**Tail calls (`-mtail-call`) are needed** whichever exceptions: `Task`'s symmetric transfer is
+otherwise an ordinary call, and `task`'s "deep chain stays flat" overflowed the stack. Every
+browser with WebHID has them (Chrome 112 on).
+
+**The renderer is `imgui_impl_opengl3` over WebGL 2.** SDL_GPU has no WebGPU backend (SDL
+3.4.16: d3d12, metal, vulkan), and ImGui's WebGPU route needs the emdawnwebgpu port for
+nothing a 2D interface uses.
+
 | Layer | Desktop | Web (Emscripten) |
 |---|---|---|
 | UI (ImGui) | shared | shared |
@@ -325,35 +366,30 @@ requirement entirely.
 
 One seam, one new implementation behind it, everything above untouched.
 
-### Assets under Emscripten: compile them in
+### Assets under Emscripten: packed as files
 
 No filesystem in the browser, fetches are async, and ImGui's font atlas must be built before
-the first frame. `--preload-file` (MEMFS) and `--embed-file` both work, but the right answer
-is **compiled-in C arrays**, because ImGui already works that way and ships the tool:
-`misc/fonts/binary_to_compressed_c.cpp`.
-
-```cpp
-io.Fonts->AddFontFromMemoryCompressedTTF(MyFont_data, MyFont_size, 16.0f * dpi_scale);
-
-ImFontConfig cfg; cfg.MergeMode = true;
-static const ImWchar ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
-io.Fonts->AddFontFromMemoryCompressedTTF(FontAwesome_data, FontAwesome_size, 16.0f, &cfg, ranges);
-```
-
-No filesystem, no preload, no async, **no `#ifdef` between desktop and web**.
+the first frame. This section first chose **compiled-in C arrays** (ImGui's
+`misc/fonts/binary_to_compressed_c.cpp`), written when the asset budget was one font and an
+icon font. **Corrected 2026-10-24:** Nazg reads files by then -- Arimo and three Noto fonts and
+the icon font from `fonts/`, both definition bundles beside the executable -- so
+**`--preload-file`** is the simpler answer: Emscripten packs them into a `.data` file fetched
+before `main()`, into its in-memory file system at the paths the native build reads (SDL's
+base path is `/` in a browser). The same `fopen` and `std::filesystem` code opens them, with
+**no `#ifdef` between desktop and web** and no generated sources to keep in step. The cost is
+one more file beside the `.wasm` (CMakeLists.txt; build-and-release.md, "The web build").
 
 - `imgui_freetype` works on the web via Emscripten's official port
   (`--use-port=freetype`, legacy `-sUSE_FREETYPE=1`).
 - **DPI on the web is `window.devicePixelRatio`**, queried from JS; scale font size and
   `ScaleAllSizes()` by it *and* size the canvas at CSS-size × devicePixelRatio. Getting this
   wrong is the main cause of blurry ImGui in a browser.
-- If real bitmaps are needed, **`stb_image.h` works in wasm** — embed PNG bytes as a C array,
+- If real bitmaps are needed, **`stb_image.h` works in wasm** — a PNG from the packed files,
   `stbi_load_from_memory()`, upload to a GL texture. Same code both platforms.
 
-For this application the entire asset budget is **one UI font, one subset icon font, possibly
-a logo** — the keyboard itself is vector work through `ImDrawList`, and icons come from the
-font atlas. Asset management disappears on both platforms. Notably better than a web-frontend
-stack, where font loading, FOUT and asset URLs all need managing.
+The keyboard itself is vector work through `ImDrawList`, and icons come from the font atlas,
+so the assets stay a few fonts and two bundles. Notably better than a web-frontend stack,
+where font loading, FOUT and asset URLs all need managing.
 
 ### The web app is Chromium-only regardless of toolkit
 

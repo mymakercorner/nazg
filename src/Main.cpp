@@ -8,13 +8,23 @@
 // platform knows, and runs the frame loop around it. Keep it that way: it is what makes
 // switching the renderer backend (SDL_GPU -> OpenGL3) or adding an Emscripten path a
 // single-file change. See CLAUDE.md.
+//
+// In a browser (__EMSCRIPTEN__; build-and-release.md, "The web build") the window is the page's
+// canvas, drawn with OpenGL ES 3 -- WebGL 2 -- since SDL_GPU has no WebGPU backend, and the
+// browser runs the frame loop, a pass per display refresh.
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
+#if defined(__EMSCRIPTEN__)
+#include "imgui_impl_opengl3.h"
+#include <SDL3/SDL_opengles2.h>   // glClear() and the rest: WebGL 2 is OpenGL ES 3's
+#include <emscripten.h>
+#else
 #include "imgui_impl_sdlgpu3.h"
+#endif
 
 #include "app/NazgApp.h"
 #include "files/NazgFiles.h"
@@ -275,7 +285,16 @@ int main(int, char**)
     // Create the window, sized in logical units scaled by the display's content scale.
     const float mainScale = SDL_GetDisplayContentScale(SDL_GetPrimaryDisplay());
 
+#if defined(__EMSCRIPTEN__)
+    // The page is the window: the canvas fills it and follows the browser's window, drawn at the
+    // display's own pixels. OpenGL ES 3.0 is what WebGL 2 offers.
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+    const SDL_WindowFlags windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_FILL_DOCUMENT | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+#else
     const SDL_WindowFlags windowFlags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+#endif
     SDL_Window* pWindow = SDL_CreateWindow(c_WindowTitle,
                                            static_cast<int>(c_DefaultWindowWidth  * mainScale),
                                            static_cast<int>(c_DefaultWindowHeight * mainScale),
@@ -287,6 +306,19 @@ int main(int, char**)
         return 1;
     }
 
+#if defined(__EMSCRIPTEN__)
+    SDL_GLContext glContext = SDL_GL_CreateContext(pWindow);
+    if (glContext == nullptr)
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_GL_CreateContext() failed: %s", SDL_GetError());
+        SDL_DestroyWindow(pWindow);
+        SDL_Quit();
+        return 1;
+    }
+    SDL_GL_MakeCurrent(pWindow, glContext);
+
+    const char* const pGpuDriver = "WebGL 2";
+#else
     // Create the GPU device. SDL picks the backend per platform: Metal on macOS,
     // D3D12 on Windows, Vulkan on Linux. We accept every shader format so SDL is free
     // to choose; ImGui ships its own precompiled shaders, so we supply none ourselves.
@@ -314,6 +346,7 @@ int main(int, char**)
     SDL_SetGPUSwapchainParameters(pGpuDevice, pWindow, SDL_GPU_SWAPCHAINCOMPOSITION_SDR, SDL_GPU_PRESENTMODE_VSYNC);
 
     const char* pGpuDriver = SDL_GetGPUDeviceDriver(pGpuDevice);
+#endif
     SDL_Log("GPU backend: %s", pGpuDriver != nullptr ? pGpuDriver : "unknown");
 
     const auto logError = [](const std::string& text) { SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", text.c_str()); };
@@ -325,7 +358,7 @@ int main(int, char**)
 
     const char* basePath      = SDL_GetBasePath();   // owned by SDL, ends with a separator
     platform.executableFolder = basePath != nullptr ? basePath : "";
-#if !defined(_WIN32) && !defined(__APPLE__)
+#if !defined(_WIN32) && !defined(__APPLE__) && !defined(__EMSCRIPTEN__)   // a page's icon is in its HTML
     SetWindowIcon(pWindow, platform.executableFolder);
 #endif
     platform.displayScale     = mainScale;
@@ -388,6 +421,11 @@ int main(int, char**)
         // Nazg itself, with its settings read: the window shows where it was left.
         nazg::App app(std::move(platform));
 
+#if defined(__EMSCRIPTEN__)
+        // The browser's window is where the user left it; the canvas fills it.
+        ImGui_ImplSDL3_InitForOpenGL(pWindow, glContext);
+        ImGui_ImplOpenGL3_Init("#version 300 es");
+#else
         PlaceWindow(pWindow, app.Settings().window, mainScale);
         SDL_ShowWindow(pWindow);
 
@@ -400,6 +438,7 @@ int main(int, char**)
         initInfo.SwapchainComposition = SDL_GPU_SWAPCHAINCOMPOSITION_SDR;
         initInfo.PresentMode        = SDL_GPU_PRESENTMODE_VSYNC;
         ImGui_ImplSDLGPU3_Init(&initInfo);
+#endif
 
         const ImVec4 clearColor = ImVec4(0.09f, 0.09f, 0.11f, 1.0f);
 
@@ -463,7 +502,11 @@ int main(int, char**)
                 return;
             }
 
+#if defined(__EMSCRIPTEN__)
+            ImGui_ImplOpenGL3_NewFrame();
+#else
             ImGui_ImplSDLGPU3_NewFrame();
+#endif
             ImGui_ImplSDL3_NewFrame();
             ImGui::NewFrame();
 
@@ -477,6 +520,19 @@ int main(int, char**)
             ImDrawData* pDrawData = ImGui::GetDrawData();
             const bool isMinimized = (pDrawData->DisplaySize.x <= 0.0f || pDrawData->DisplaySize.y <= 0.0f);
 
+#if defined(__EMSCRIPTEN__)
+            // The canvas at the display's pixels; the browser shows it after this frame's turn.
+            (void)isLive;
+            if (!isMinimized)
+            {
+                glViewport(0, 0, static_cast<int>(pDrawData->DisplaySize.x * pDrawData->FramebufferScale.x),
+                           static_cast<int>(pDrawData->DisplaySize.y * pDrawData->FramebufferScale.y));
+                glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
+                glClear(GL_COLOR_BUFFER_BIT);
+                ImGui_ImplOpenGL3_RenderDrawData(pDrawData);
+                SDL_GL_SwapWindow(pWindow);
+            }
+#else
             SDL_GPUCommandBuffer* pCommandBuffer = SDL_AcquireGPUCommandBuffer(pGpuDevice);
 
             SDL_GPUTexture* pSwapchainTexture = nullptr;
@@ -503,18 +559,22 @@ int main(int, char**)
             }
 
             SDL_SubmitGPUCommandBuffer(pCommandBuffer);
+#endif
             isDrawing = false;
         };
 
+#if !defined(__EMSCRIPTEN__)
         SDL_AddEventWatch(DrawDuringLiveResize, &drawFrame);
 
         // A HID device came or went: SDL counts what the OS notices -- not which device, and it
         // opens none. The first call starts SDL's own copy of hidapi, apart from Nazg's
-        // (ui-design.md, "Hotplug").
+        // (ui-design.md, "Hotplug"). In a browser WebHID's events are to say it -- not yet.
         Uint32 deviceChanges = SDL_hid_device_change_count();
+#endif
 
-        bool done = false;
-        while (!done)
+        // One pass of the frame loop: the events, then the frame.
+        bool                  done = false;
+        std::function<void()> pass = [&]
         {
             SDL_Event event;
             while (SDL_PollEvent(&event))
@@ -532,6 +592,7 @@ int main(int, char**)
                     if (const std::optional<uint32_t> usage = HidUsageOf(event.key.scancode))
                         app.OnHostKey(*usage, event.type == SDL_EVENT_KEY_DOWN);
             }
+#if !defined(__EMSCRIPTEN__)
             TrackWindowPlace(pWindow, app.Settings().window);
 
             if (const Uint32 changes = SDL_hid_device_change_count(); changes != deviceChanges)
@@ -539,14 +600,29 @@ int main(int, char**)
                 deviceChanges = changes;
                 app.OnDevicesChanged();
             }
+#endif
 
             drawFrame(false);
             done = app.IsQuitConfirmed();
-        }
+        };
+
+#if defined(__EMSCRIPTEN__)
+        // The browser runs the loop, a pass per display refresh, and main() is left by unwinding it.
+        // Emscripten's JavaScript-based exceptions let that unwinding through without running a
+        // destructor, so main()'s locals -- App among them -- live on with the page; WebAssembly's
+        // own would destroy them before the first frame (client-architecture.md, "Exceptions").
+        // Closing the tab is the only way out: nothing below runs in a browser.
+        emscripten_set_main_loop_arg([](void* loopPass) { (*static_cast<std::function<void()>*>(loopPass))(); }, &pass,
+                                     0, true);
+#else
+        while (!done)
+            pass();
 
         SDL_RemoveEventWatch(DrawDuringLiveResize, &drawFrame);
+#endif
     }
 
+#if !defined(__EMSCRIPTEN__)
     SDL_WaitForGPUIdle(pGpuDevice);
     ImGui_ImplSDL3_Shutdown();
     ImGui_ImplSDLGPU3_Shutdown();
@@ -556,6 +632,7 @@ int main(int, char**)
     SDL_DestroyGPUDevice(pGpuDevice);
     SDL_DestroyWindow(pWindow);
     SDL_hid_exit();   // started by the change count
+#endif
     SDL_Quit();
 
     return 0;

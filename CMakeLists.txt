@@ -31,12 +31,29 @@ set(SDL_INSTALL             OFF CACHE BOOL "" FORCE)
 set(HIDAPI_BUILD_HIDTEST    OFF CACHE BOOL "" FORCE)
 set(JSON_BuildTests         OFF CACHE BOOL "" FORCE)
 
+# The web build (GenerateBuildForWeb.sh; build-and-release.md, "The web build"). No threads, so
+# no cross-origin isolation is asked of the host. Transport errors are exceptions, which
+# Emscripten turns off unless told -- its JavaScript-based ones: WebAssembly's own
+# (-fwasm-exceptions) are miscompiled in coroutines, a catch around a co_await in a loop missing
+# what the awaiter throws (Emscripten 5.0.7 and 6.0.13; client-architecture.md, "Exceptions").
+# Tail calls, or Task's symmetric transfer (async/NazgTask.h) is an ordinary call and a keymap
+# read's hundreds of awaits overflow the stack. Emscripten's default stack, 64 KB, is far below
+# the desktop's. SDL keeps its pref path -- the settings, the user definitions -- in the
+# browser's IndexedDB, loaded before main() and saved after each write.
+if(EMSCRIPTEN)
+    add_compile_options(-fexceptions -mtail-call)
+    add_link_options(-fexceptions -mtail-call -sSTACK_SIZE=1MB -sALLOW_MEMORY_GROWTH=1)
+    set(SDL_EMSCRIPTEN_PERSISTENT_PATH "/storage" CACHE STRING "" FORCE)
+endif()
+
 # CMAKE_FOLDER is inherited by targets created below, placing every dependency
 # under an "external" folder in the IDE.
 set(CMAKE_FOLDER external)
 
 add_subdirectory(external/SDL)
-add_subdirectory(external/hidapi)
+if(NOT EMSCRIPTEN)
+    add_subdirectory(external/hidapi)   # a browser has WebHID instead
+endif()
 add_subdirectory(external/json)
 add_subdirectory(external/minlzma/minlzlib)
 
@@ -44,7 +61,8 @@ unset(CMAKE_FOLDER)
 
 # Dear ImGui has no CMake build of its own; compile the core plus only the two
 # backends we use. Renderer backend is SDL_GPU -- see CLAUDE.md for why, and for the
-# fallback to imgui_impl_opengl3 if it causes trouble.
+# fallback to imgui_impl_opengl3 if it causes trouble. In a browser it is that fallback, over
+# WebGL 2: SDL_GPU has no WebGPU backend.
 set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui)
 set(IMGUI_CORE_SOURCES
   ${IMGUI_DIR}/imgui.cpp
@@ -54,9 +72,15 @@ set(IMGUI_CORE_SOURCES
   ${IMGUI_DIR}/imgui_widgets.cpp
 )
 
+if(EMSCRIPTEN)
+  set(IMGUI_RENDERER_SOURCE ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp)
+else()
+  set(IMGUI_RENDERER_SOURCE ${IMGUI_DIR}/backends/imgui_impl_sdlgpu3.cpp)
+endif()
+
 set(IMGUI_BACKEND_SOURCES
   ${IMGUI_DIR}/backends/imgui_impl_sdl3.cpp
-  ${IMGUI_DIR}/backends/imgui_impl_sdlgpu3.cpp
+  ${IMGUI_RENDERER_SOURCE}
 )
 
 set(IMGUI_SOURCES ${IMGUI_CORE_SOURCES} ${IMGUI_BACKEND_SOURCES})
@@ -65,10 +89,18 @@ set(IMGUI_SOURCES ${IMGUI_CORE_SOURCES} ${IMGUI_BACKEND_SOURCES})
 # Everything except main() and the ImGui front end. The app and the test executables
 # link the same objects instead of each recompiling the sources they need.
 
+# Who services the transport's operations: hidapi on a worker thread, or WebHID in a browser.
+if(EMSCRIPTEN)
+  set(NAZG_TRANSPORT_SOURCE src/transport/NazgHidTransportWebHid.cpp)
+else()
+  set(NAZG_TRANSPORT_SOURCE src/transport/NazgHidTransportHidapi.cpp)
+endif()
+
 set(NAZG_CORE_SOURCES
   src/async/NazgTask.h
   src/transport/NazgHidTransport.h
   src/transport/NazgHidTransport.cpp
+  ${NAZG_TRANSPORT_SOURCE}
   src/transport/NazgDeviceChannel.h
   src/transport/NazgDeviceChannel.cpp
   src/files/NazgFiles.h
@@ -204,7 +236,10 @@ target_include_directories(nazg_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 # spelled out here rather than arriving with the target.
 target_include_directories(nazg_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/minlzma)
 
-target_link_libraries(nazg_core PUBLIC hidapi::hidapi nlohmann_json::nlohmann_json minlzlib)
+target_link_libraries(nazg_core PUBLIC nlohmann_json::nlohmann_json minlzlib)
+if(NOT EMSCRIPTEN)
+    target_link_libraries(nazg_core PUBLIC hidapi::hidapi)
+endif()
 
 # Host-layout legends are UTF-8 string literals ("é", "ß", Cyrillic, CJK). MSVC reads
 # source in the system code page unless told otherwise; GCC and Clang default to UTF-8.
@@ -348,12 +383,57 @@ add_custom_command(TARGET nazg POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different ${NAZG_FONTS} $<TARGET_FILE_DIR:nazg>/fonts
     VERBATIM)
 
+# The web build: nazg.html, its .js, .wasm and .data -- the fonts and the bundles packed in the
+# .data file at the places Main.cpp finds them natively, SDL's base path being "/" in a browser.
+# A bundle is packed if it was there when CMake ran: after tools/update_via_bundle.py, configure
+# again. Beside the page, the web app manifest and the icons (resources/icon/README.md).
+if(EMSCRIPTEN)
+    set_target_properties(nazg PROPERTIES SUFFIX ".html")
+
+    set(NAZG_WEB_SHELL ${CMAKE_CURRENT_SOURCE_DIR}/resources/package/web/shell.html)
+    target_link_options(nazg PRIVATE -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 --shell-file ${NAZG_WEB_SHELL})
+    set_property(TARGET nazg APPEND PROPERTY LINK_DEPENDS ${NAZG_WEB_SHELL} ${NAZG_FONTS})
+
+    foreach(font ${NAZG_FONTS})
+        get_filename_component(fontName ${font} NAME)
+        target_link_options(nazg PRIVATE "--preload-file=${font}@/fonts/${fontName}")
+    endforeach()
+    foreach(bundle ${NAZG_VIA_BUNDLE} ${NAZG_COMMUNITY_BUNDLE})
+        if(EXISTS ${bundle})
+            get_filename_component(bundleName ${bundle} NAME)
+            target_link_options(nazg PRIVATE "--preload-file=${bundle}@/${bundleName}")
+            set_property(TARGET nazg APPEND PROPERTY LINK_DEPENDS ${bundle})
+        endif()
+    endforeach()
+
+    set(NAZG_WEB_ICONS
+        ${CMAKE_CURRENT_SOURCE_DIR}/resources/icon/nazg.svg
+        ${CMAKE_CURRENT_SOURCE_DIR}/resources/icon/png/nazg-32.png
+        ${CMAKE_CURRENT_SOURCE_DIR}/resources/icon/png/nazg-180.png
+        ${CMAKE_CURRENT_SOURCE_DIR}/resources/icon/png/nazg-192.png
+        ${CMAKE_CURRENT_SOURCE_DIR}/resources/icon/png/nazg-512.png)
+    add_custom_command(TARGET nazg POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${CMAKE_CURRENT_SOURCE_DIR}/resources/package/web/nazg.webmanifest $<TARGET_FILE_DIR:nazg>
+        COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:nazg>/icon
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${NAZG_WEB_ICONS} $<TARGET_FILE_DIR:nazg>/icon
+        VERBATIM)
+endif()
+
 # --- Tests --------------------------------------------------------------------------
 # CTest, not a test framework: CMake ships it, so there is no submodule and no
 # framework choice locked in. Run with:
 #   ctest --test-dir build_VS2022 -C Debug --output-on-failure
 
 option(NAZG_BUILD_TESTS "Build the test executables" ON)
+
+# In the web build every command-line program -- the tests, nazg-validate -- is WebAssembly run
+# by Node (CMake's emulator, set by Emscripten's toolchain), reading the computer's files
+# directly and leaving with its exit code.
+set(NAZG_NODE_LINK_OPTIONS "")
+if(EMSCRIPTEN)
+    set(NAZG_NODE_LINK_OPTIONS -sNODERAWFS=1 -sEXIT_RUNTIME=1)
+endif()
 
 if(NAZG_BUILD_TESTS)
     enable_testing()
@@ -367,6 +447,7 @@ if(NAZG_BUILD_TESTS)
         add_executable(${targetName} ${sourceFile} tests/TestSupport.h tests/FakeDeviceChannel.h)
         target_include_directories(${targetName} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tests)
         target_link_libraries(${targetName} PRIVATE nazg_core)
+        target_link_options(${targetName} PRIVATE ${NAZG_NODE_LINK_OPTIONS})
         set_property(TARGET ${targetName} PROPERTY FOLDER tests)
 
         add_test(NAME ${testName} COMMAND ${targetName} ${ARGN})
@@ -424,6 +505,7 @@ if(NAZG_BUILD_TESTS)
                    src/ui/NazgLegendFont.h src/ui/NazgLegendFont.cpp ${IMGUI_CORE_SOURCES})
     target_include_directories(nazg_legend_font_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tests ${IMGUI_DIR})
     target_link_libraries(nazg_legend_font_test PRIVATE nazg_core)
+    target_link_options(nazg_legend_font_test PRIVATE ${NAZG_NODE_LINK_OPTIONS})
     set_property(TARGET nazg_legend_font_test PROPERTY FOLDER tests)
     add_test(NAME legend_font COMMAND nazg_legend_font_test ${CMAKE_CURRENT_SOURCE_DIR}/resources/fonts)
 
@@ -439,6 +521,7 @@ endif()
 # community bundle's seed and CI, and for anyone writing a definition. No window, no board.
 add_executable(nazg-validate src/cli/ValidateDefinitions.cpp)
 target_link_libraries(nazg-validate PRIVATE nazg_core)
+target_link_options(nazg-validate PRIVATE ${NAZG_NODE_LINK_OPTIONS})
 
 # Make nazg the solution's startup project so F5 runs the app, not ALL_BUILD.
 # Must be set on the directory holding the top-level project().
@@ -453,11 +536,11 @@ if(WIN32)
 endif()
 
 # The application icon (resources/icon/README.md). On Windows it is in the exe, which the
-# window takes it from too; elsewhere Main.cpp gives the window the PNGs copied into icon/
-# beside the executable.
+# window takes it from too; in a browser it is the page's, above; elsewhere Main.cpp gives the
+# window the PNGs copied into icon/ beside the executable.
 if(WIN32)
     target_sources(nazg PRIVATE src/Nazg.rc)
-else()
+elseif(NOT EMSCRIPTEN)
     set(NAZG_WINDOW_ICONS
         ${CMAKE_CURRENT_SOURCE_DIR}/resources/icon/png/nazg-32.png
         ${CMAKE_CURRENT_SOURCE_DIR}/resources/icon/png/nazg-64.png
