@@ -22,7 +22,14 @@
      Settled 2026-10-18 (Rico): a tag at the strip's end as well as the panel's line; shared keys amber
      with a ?, keys that send nothing hatched. The toggles keep the alternatives.
      The board is made up: a 60% with a split space bar (both halves Space), Fn on MO(1), an empty
-     position, and a knob. Click keys to press them; the knob's arrows turn it. -->
+     position, and a knob. Click keys to press them; the knob's arrows turn it.
+
+     Second round (2026-10-26), after a tester's report: he checks his layers at the end of programming
+     -- Fn and 1 sending F1, the navigation keys -- with VIA's Key Tester or SwitchHitter, both reading
+     what the computer receives. Nazg's test matched the base layer only (NazgMatrixView.cpp): Fn and 1
+     lit nothing. Two proposals, the second row of controls: the strip's tag becomes a choice of test,
+     Nazg's pick selected; and the computer's keys test the layer shown, picked in the strip. Fn is
+     held by clicking it, let go by clicking it again. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -71,6 +78,19 @@ svg.board .k{cursor:pointer}
 .panel .how.host{color:var(--warn)}
 .panel .row{display:flex;gap:10px;align-items:center}
 .panel .row .right{margin-left:auto}
+.strip .layers{display:flex;gap:4px;align-items:center;margin-left:14px}
+.strip .layers .tab{padding:4px 10px;min-width:30px;text-align:center;cursor:pointer}
+.strip .seg{margin-left:auto;display:inline-flex;align-items:center;gap:0}
+.strip .seg .name{color:var(--muted);margin-right:8px}
+.strip .seg button{border-radius:0;padding:3px 10px;font-size:12px}
+.strip .seg button:first-of-type{border-radius:10px 0 0 10px}
+.strip .seg button:last-of-type{border-radius:0 10px 10px 0;margin-left:-1px}
+.strip .seg button.on.sw{background:var(--seen);border-color:var(--seenline);color:var(--ok)}
+.strip .seg button.on.host{background:var(--maybe);border-color:var(--maybeline);color:var(--warn)}
+.strip .seg button:disabled{opacity:.45;cursor:default}
+.panel .recv{margin-top:2px}
+.panel .recv b{font-weight:600}
+.panel .recv button{padding:1px 8px;font-size:12px;margin-left:6px}
 .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:4px}
 .legend i{display:inline-block;width:14px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-2px;border:1px solid var(--keyline)}
 .notes{max-width:1000px;margin:0 auto;padding:4px 16px 30px;color:var(--muted);line-height:1.55}
@@ -96,6 +116,19 @@ const SENDS_NOTHING = new Set(['MO1', 'NO']);
 const KEYS = [];
 ROWS.forEach((r, y) => { let x = 0; r.forEach(([w, l, kc], i) => { KEYS.push({ x, y, w, l, kc, id: y + ':' + i }); x += w; }); });
 const KNOB = { x: 15.6, y: 0, l: 'Vol', ccw: 'VOLD', cw: 'VOLU' };
+// Layer 1, under Fn: the F-keys on the digits, Delete on Backspace, navigation on the right hand;
+// every other key transparent. [keycode on layer 0] -> [keycode on layer 1].
+const LAYER1 = { 1: 'F1', 2: 'F2', 3: 'F3', 4: 'F4', 5: 'F5', 6: 'F6', 7: 'F7', 8: 'F8', 9: 'F9', 0: 'F10', MINS: 'F11', EQL: 'F12',
+  ESC: 'GRV', BSPC: 'DEL', I: 'UP', J: 'LEFT', K: 'DOWN', L: 'RGHT', U: 'HOME', O: 'END', Y: 'PGUP', H: 'PGDN' };
+const LAYER_COUNT = 2;
+const LABEL = { GRV: '`', DEL: 'Del', UP: '↑', LEFT: '←', DOWN: '↓', RGHT: '→', HOME: 'Home', END: 'End', PGUP: 'PgUp', PGDN: 'PgDn' };
+for (let i = 1; i <= 12; i++) LABEL['F' + i] = 'F' + i;
+// What a key holds on a layer, 'TRNS' where the layer leaves it to the one below.
+const own = (k, layer) => layer === 0 ? k.kc : (LAYER1[k.kc] || 'TRNS');
+// What it sends with `layer` on: the first layer from there down that does not leave it transparent.
+function effective(k, layer) { for (let l = layer; l >= 0; l--) { const kc = own(k, l); if (kc !== 'TRNS') return kc; } return 'NO'; }
+const labelOf = (k, layer) => { const kc = effective(k, layer); return kc === k.kc ? k.l : (LABEL[kc] || kc); };
+const nameOf = kc => LABEL[kc] || KEYS.find(k => k.kc === kc)?.l || kc;
 
 const FIRMWARE = {
   'Stock VIA (matrix refused)': { matrix: false, name: 'Phoenix Project No 1', proto: 'VIA 12' },
@@ -103,21 +136,71 @@ const FIRMWARE = {
   'Vial, unlocked': { matrix: true, name: 'F77 Model F Keyboard', proto: 'Vial 6' },
 };
 const state = { fw: 'Stock VIA (matrix refused)', says: 'A tag in the strip, the line too', marks: 'Shared keys amber, mute keys hatched', theme: 'Light',
-  pressed: new Set(), seen: new Set(), knob: new Set(), method: null };
+  choosing: 'The tag is a choice', layers: 'The layer shown', follow: 'Follows the key received',
+  pressed: new Set(), seen: new Set(), knob: new Set(), method: null,
+  // Second round: the keys seen per layer on the computer's keys; the layer shown; Fn held; the
+  // test the user picked (null: Nazg's); a board found not to report its switches; the last key received.
+  seenOn: [new Set(), new Set()], layer: 0, fnHeld: false, chosen: null, refused: false, fellBack: false, received: null,
+  // Following: the layer a key held came from, shown over the strip's while it is down and a moment
+  // after; the key down; the layer the last key received came from.
+  peek: null, down: null, receivedFrom: null };
 
 const fw = () => FIRMWARE[state.fw];
-function press(key) {
-  // The first press decides: the matrix shows it, or only the computer receives it.
-  if (!state.method) state.method = fw().matrix ? 'switches' : (SENDS_NOTHING.has(key.kc) ? null : 'computer');
-  if (state.method === 'switches') state.seen.add(key.id);
-  else if (state.method === 'computer' && !SENDS_NOTHING.has(key.kc))
-    KEYS.filter(k => k.kc === key.kc).forEach(k => state.seen.add(k.id));
+const choosing = () => state.choosing === 'The tag is a choice';
+const byLayer = () => state.layers === 'The layer shown';
+const follows = () => byLayer() && state.follow === 'Follows the key received';
+const shownLayer = () => !byLayer() ? 0 : follows() && state.peek !== null ? state.peek : state.layer;
+// The layer a key received came from, as far as Nazg can tell -- the computer does not say: the layer
+// whose own key sends it -- not one passing it through a transparent key, so S after Fn is let go is
+// layer 0 again, and so is Q with Fn held. Several layers sending it: the one shown if it is one of
+// them, else the lowest. None when no key does.
+function layersOf(kc) {
+  const owners = Array.from({ length: LAYER_COUNT }, (_, l) => l).filter(l => KEYS.some(k => own(k, l) === kc));
+  return owners.includes(shownLayer()) ? [shownLayer()] : owners;
 }
-function shared(kc) { return KEYS.filter(k => k.kc === kc).length > 1; }
+// Released: the strip's layer back once no key is down, a moment later -- a tap would only flash.
+const BACK_MS = 500;
+let backTimer = null;
+function release() {
+  state.down = null;
+  if (state.peek === null) return;
+  clearTimeout(backTimer);
+  backTimer = setTimeout(() => { if (state.down === null) { state.peek = null; render(); } }, BACK_MS);
+}
+function press(key) {
+  // Fn is held by a click and let go by the next: the board's layer 1 while it is down.
+  const sent = effective(key, state.fnHeld ? 1 : 0);
+  if (key.kc === 'MO1') state.fnHeld = !state.fnHeld;
+  // The first press decides, unless the user chose: the matrix shows it, or only the computer
+  // receives it. Switches chosen on a board that does not report them: Nazg falls back, and says so.
+  if (!state.method) {
+    if (state.chosen === 'switches' && !fw().matrix) { state.refused = true; state.fellBack = true; state.method = 'computer'; }
+    else if (state.chosen) state.method = state.chosen;
+    else if (fw().matrix) state.method = 'switches';
+    else if (!SENDS_NOTHING.has(sent)) { state.method = 'computer'; state.refused = true; }
+  }
+  if (state.method === 'switches') state.seen.add(key.id);
+  else if (state.method === 'computer' && !SENDS_NOTHING.has(sent)) {
+    // The computer cannot tell which layer was on: a key received counts on every layer whose key
+    // sends it, so the layer shown is a view, and showing another later finds it lit there too.
+    state.received = sent;
+    for (let layer = 0; layer < (byLayer() ? LAYER_COUNT : 1); layer++)
+      KEYS.filter(k => effective(k, layer) === sent).forEach(k => state.seenOn[layer].add(k.id));
+    // Following: the board shows the layer the key came from while it is down (Rico, 2026-10-26).
+    const from = layersOf(sent);
+    state.receivedFrom = from.length ? from[0] : null;
+    if (follows() && from.length) { clearTimeout(backTimer); state.down = key.id; state.peek = from[0]; }
+  }
+}
+function shared(kc, layer) { return KEYS.filter(k => effective(k, layer) === kc).length > 1; }
+// A key the shown layer leaves transparent: drawn faint, as Keymap draws it, and not counted --
+// it sends what the layer below does.
+const passes = (k, layer) => layer > 0 && own(k, layer) === 'TRNS' && k.kc !== 'MO1';
 function markOf(key) {
-  const host = state.method === 'computer';
-  if (host && SENDS_NOTHING.has(key.kc)) return 'mute';
-  if (state.seen.has(key.id)) return host && shared(key.kc) ? 'maybe' : 'seen';
+  const host = state.method === 'computer', layer = shownLayer(), kc = effective(key, layer);
+  if (host && SENDS_NOTHING.has(kc)) return 'mute';
+  if (state.method === 'switches') return state.seen.has(key.id) ? 'seen' : '';
+  if (state.seenOn[layer].has(key.id)) return host && shared(kc, layer) ? 'maybe' : 'seen';
   return '';
 }
 
@@ -125,15 +208,21 @@ function boardSvg() {
   const u = 40, W = 17 * u, H = 5 * u + 20;
   let s = `<svg class="board" width="${W + 20}" height="${H + 10}"><defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="var(--keyline)" stroke-width="2"/></pattern></defs>`;
   s += `<rect x="4" y="4" width="${15 * u + 12}" height="${5 * u + 12}" rx="8" fill="var(--plate)"/>`;
+  // The switches test positions: the base layer's legends. The computer's keys test the layer shown.
+  const layer = state.method === 'switches' ? 0 : shownLayer();
   for (const k of KEYS) {
     const m = markOf(k), x = 10 + k.x * u + 2, y = 10 + k.y * u + 2, w = k.w * u - 4, h = u - 4;
     let fill = 'var(--key)', stroke = 'var(--keyline)', sw = 1, op = 1, dash = '';
     if (m === 'seen') { fill = 'var(--seen)'; stroke = 'var(--seenline)'; sw = 2; }
     if (m === 'maybe') { fill = state.marks.startsWith('Shared keys amber') ? 'var(--maybe)' : 'var(--seen)'; stroke = state.marks.startsWith('Shared keys amber') ? 'var(--maybeline)' : 'var(--seenline)'; sw = 2; }
     if (m === 'mute') { op = .55; dash = state.marks.endsWith('hatched') ? '' : '4 3'; }
+    if (!m && passes(k, layer)) op = .4;
+    // Fn while held: the mockup's stand-in for a finger on it.
+    if (k.kc === 'MO1' && state.fnHeld) { stroke = 'var(--accent)'; sw = 2.5; op = 1; }
     s += `<g class="k" data-id="${k.id}" opacity="${op}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"${dash ? ` stroke-dasharray="${dash}"` : ''}/>`;
     if (m === 'mute' && state.marks.endsWith('hatched')) s += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="url(#hatch)" opacity=".5"/>`;
-    s += `<text x="${x + w / 2}" y="${y + h / 2 + 4}" text-anchor="middle" font-size="12" fill="var(--text)">${k.l || (k.kc === 'NO' ? '✕' : '')}</text>`;
+    s += `<text x="${x + w / 2}" y="${y + h / 2 + 4}" text-anchor="middle" font-size="12" fill="var(--text)">${labelOf(k, layer) || (k.kc === 'NO' ? '✕' : '')}</text>`;
+    if (passes(k, layer)) s += `<text x="${x + w - 10}" y="${y + h - 4}" font-size="9" fill="var(--muted)">▽</text>`;
     if (m === 'maybe' && state.marks.startsWith('Shared keys amber')) s += `<text x="${x + w - 9}" y="${y + 13}" font-size="11" fill="var(--maybeline)">?</text>`;
     s += `</g>`;
   }
@@ -151,9 +240,16 @@ function methodWords() {
   if (!state.method)
     return { cls: '', head: 'Press any key.', more: 'Nazg reads the board\'s switches if it reports them, else the keys the computer receives -- it tells which once a key is pressed.' };
   if (state.method === 'switches')
-    return { cls: 'sw', head: 'Testing the switches', more: `The board reports which of its switches are pressed, whatever they send. The knob has no switch: turn it in Keymap to try it.` };
+    return { cls: 'sw', head: 'Testing the switches', more: `The board reports which of its switches are pressed, whatever they send. The knob has no switch: turn it in Keymap to try it.`
+      + (choosing() ? ` To test what each key sends, on each layer, choose Computer's keys.` : '') };
+  const why = state.fellBack ? `The board did not report that press: this firmware does not report its switches (built without VIA_INSECURE), so `
+            : state.refused ? `This firmware does not report its switches (built without VIA_INSECURE), so `
+            : `Chosen: `;
+  const layerWords = !byLayer() ? ''
+    : follows() ? ` The board shows the layer each key received comes from; keys a layer leaves transparent are faint ▽ and send what the layer below does.`
+    : ` On layer ${state.layer}${state.layer ? ', with the key that turns it on held' : ''}: keys it leaves transparent are faint ▽ and send what the layer below does.`;
   return { cls: 'host', head: 'Testing what the computer receives',
-    more: `This firmware does not report its switches (built without VIA_INSECURE), so a key lights when the computer receives what it sends. `
+    more: why + `a key lights when the computer receives what it sends.` + layerWords + ` `
       + `Fn and the empty key send nothing: they cannot be tested this way. Both halves of the space bar send Space: either lights both. `
       + `Keys the system keeps -- Win, Alt+Tab, Print Screen -- may not arrive.` };
 }
@@ -167,18 +263,50 @@ function columnHtml() {
 
 function stripHtml() {
   const tabs = `<span class="tab on">Live test</span><span class="tab">Wiring</span>`;
+  // The layers, while the computer's keys are tested: the one shown is the one tested.
+  const layers = state.method === 'computer' && byLayer()
+    ? `<span class="layers"><span class="muted">Layer</span>` + Array.from({ length: LAYER_COUNT }, (_, n) =>
+        `<span class="tab${n === shownLayer() ? ' on' : ''}" data-layer="${n}">${n}</span>`).join('') + `</span>` : '';
   let tag = '';
-  if (state.says === 'A tag in the strip, the line too' && state.method)
+  if (choosing()) {
+    // The tag as a choice: Nazg's pick selected once a key decides, the user's at once. Switches
+    // greyed once the board is known not to report them.
+    const on = state.method || state.chosen;
+    tag = `<span class="seg"><span class="name">Test</span>`
+      + `<button data-test="switches" class="${on === 'switches' ? 'on sw' : ''}"${state.refused ? ' disabled title="This firmware does not report its switches"' : ''}>Switches</button>`
+      + `<button data-test="computer" class="${on === 'computer' ? 'on host' : ''}">Computer's keys</button></span>`;
+  } else if (state.says === 'A tag in the strip, the line too' && state.method)
     tag = state.method === 'switches' ? `<span class="tag sw">Switches</span>` : `<span class="tag host">Computer's keys</span>`;
-  return tabs || tag ? `<div class="strip">${tabs}${tag}</div>` : '';
+  return `<div class="strip">${tabs}${layers}${tag}</div>`;
+}
+// What the computer received last, and where it is: on the layer shown, or only on another --
+// a way there offered, never taken by itself: the layer shown is the user's.
+function receivedHtml() {
+  // As built, nothing says what arrived: Fn and 1 just light nothing.
+  if (state.method !== 'computer' || !state.received || !byLayer()) return '';
+  const kc = state.received, name = nameOf(kc);
+  const on = l => KEYS.filter(k => effective(k, l) === kc);
+  // Following, the line keeps where the last key came from after the board went back.
+  const layer = follows() && state.receivedFrom !== null ? state.receivedFrom : shownLayer();
+  if (on(layer).length) return `<div class="recv">Received <b>${name}</b>: ${on(layer).map(k => k.l || '✕').join(', ')} on layer ${layer}.</div>`;
+  const elsewhere = Array.from({ length: LAYER_COUNT }, (_, l) => l).filter(l => l !== layer && on(l).length);
+  if (elsewhere.length) return `<div class="recv">Received <b>${name}</b>: not on layer ${layer}; ${on(elsewhere[0]).map(k => k.l).join(', ')} sends it on layer ${elsewhere[0]}.`
+    + `<button data-layer="${elsewhere[0]}">Show layer ${elsewhere[0]}</button></div>`;
+  return `<div class="recv">Received <b>${name}</b>: no key of this board sends it.</div>`;
 }
 
 function panelHtml() {
-  const w = methodWords(), keys = KEYS.filter(k => !(state.method === 'computer' && SENDS_NOTHING.has(k.kc)));
-  const seen = keys.filter(k => state.seen.has(k.id)).length;
-  const count = state.method ? `Seen ${seen} of ${keys.length} keys.` : '';
+  const w = methodWords();
+  let count = '';
+  if (state.method === 'switches') count = `Seen ${state.seen.size} of ${KEYS.length} keys.`;
+  else if (state.method === 'computer') {
+    // The layer's own keys: on a layer above the base, the ones it does not leave transparent.
+    const layer = shownLayer(), keys = KEYS.filter(k => !SENDS_NOTHING.has(effective(k, layer)) && !passes(k, layer));
+    const seen = keys.filter(k => state.seenOn[layer].has(k.id)).length;
+    count = `Seen ${seen} of ${keys.length} keys` + (byLayer() && layer ? ` of layer ${layer}.` : '.');
+  }
   let html = `<div class="panel"><div class="row"><span class="how ${w.cls}">${w.head}</span><span>${count}</span><span class="right"><button id="over">Start over</button></span></div>`
-    + `<div class="muted">${w.more}</div>`;
+    + `<div class="muted">${w.more}</div>` + receivedHtml();
   if (state.method === 'computer')
     html += `<div class="legend"><span><i style="background:var(--seen);border-color:var(--seenline)"></i>received</span>`
       + (state.marks.startsWith('Shared keys amber') ? `<span><i style="background:var(--maybe);border-color:var(--maybeline)"></i>received, one of several sending it</span>` : '')
@@ -196,13 +324,24 @@ const CONTROLS = [
   ['Says', 'says', ['A line in the panel', 'A tag in the strip, the line too']],
   ['Marks', 'marks', ['Shared keys amber, mute keys hatched', 'Shared keys green, mute keys dashed']],
   ['Theme', 'theme', ['Light', 'Dark']],
+  'break',
+  // Second round (2026-10-26).
+  ['Choosing', 'choosing', ['Nazg alone (as built)', 'The tag is a choice']],
+  ['Computer\'s keys test', 'layers', ['The base layer (as built)', 'The layer shown']],
+  // With the layer shown: picked in the strip only, or moved to the layer each key received came from.
+  ['Layer shown', 'follow', ['Picked in the strip', 'Follows the key received']],
 ];
-function reset() { state.pressed.clear(); state.seen.clear(); state.knob.clear(); state.method = null; }
+function reset() {
+  state.pressed.clear(); state.seen.clear(); state.knob.clear(); state.method = null;
+  state.seenOn.forEach(s => s.clear()); state.layer = 0; state.fnHeld = false; state.chosen = null;
+  state.refused = false; state.fellBack = false; state.received = null;
+  state.peek = null; state.down = null; state.receivedFrom = null; clearTimeout(backTimer);
+}
 function render() {
   document.documentElement.dataset.theme = state.theme.toLowerCase();
-  document.getElementById('controls').innerHTML = CONTROLS.map(([name, key, vals]) =>
-    `<div class="group"><span class="name">${name}</span>` + vals.map(v =>
-      `<button data-key="${key}" data-val="${v}"${state[key] === v ? ' class="on"' : ''}>${v}</button>`).join('') + `</div>`).join('');
+  document.getElementById('controls').innerHTML = CONTROLS.map(c => c === 'break' ? '<div style="flex-basis:100%;height:0"></div>' :
+    `<div class="group"><span class="name">${c[0]}</span>` + c[2].map(v =>
+      `<button data-key="${c[1]}" data-val="${v}"${state[c[1]] === v ? ' class="on"' : ''}>${v}</button>`).join('') + `</div>`).join('');
   document.getElementById('frame').innerHTML = frameHtml();
   document.getElementById('notes').innerHTML = NOTES;
 }
@@ -210,16 +349,26 @@ document.getElementById('controls').addEventListener('click', e => {
   const b = e.target.closest('button[data-key]');
   if (!b) return;
   state[b.dataset.key] = b.dataset.val;
-  if (b.dataset.key === 'fw') reset();
+  if (b.dataset.key === 'fw' || b.dataset.key === 'choosing' || b.dataset.key === 'layers') reset();
   render();
 });
 document.getElementById('frame').addEventListener('click', e => {
   if (e.target.id === 'over') { reset(); render(); return; }
+  const layer = e.target.closest('[data-layer]');
+  if (layer) { state.layer = +layer.dataset.layer; state.peek = null; render(); return; }
+  // The user's choice of test; a switch to it keeps what each has seen.
+  const test = e.target.closest('[data-test]');
+  if (test) { if (!test.disabled) { state.chosen = test.dataset.test; state.method = test.dataset.test; state.fellBack = false; } render(); return; }
   const knob = e.target.closest('[data-knob]');
   if (knob) { if (!state.method && !fw().matrix) state.method = 'computer'; if (state.method === 'computer') state.knob.add(knob.dataset.knob); render(); return; }
-  const g = e.target.closest('[data-id]');
-  if (g) { press(KEYS.find(k => k.id === g.dataset.id)); render(); }
 });
+// A key is down while the mouse button is: pressed on mousedown, released on mouseup, so holding the
+// button holds the key. Fn stays down from one press to the next.
+document.getElementById('frame').addEventListener('pointerdown', e => {
+  const g = e.target.closest('[data-id]');
+  if (g) { e.preventDefault(); press(KEYS.find(k => k.id === g.dataset.id)); render(); }
+});
+addEventListener('pointerup', () => { if (state.down !== null) release(); });
 
 const NOTES = `
 <p><b>Two methods, chosen by the board.</b> Nazg reads the switch matrix, as the live test does today, and listens to the keys the
@@ -233,7 +382,25 @@ either lights both, marked. The knob, which has no switch, can be tested only th
 Nazg; Alt+F4 would close it -- Nazg ignores what it can. VIA's own tester draws a generic 108-key keyboard; Nazg draws the board.</p>
 <p><b>Where</b> (Rico, 2026-10-18): the Matrix view, in Tools, for everyone -- the live test with both methods, and the
 row/column wiring, no longer behind Advanced tools. A separate Key test section, and the wiring kept Advanced, were drawn first. Dashed: what changes.</p>
-<p><b>Saying which</b> (Rico): always, in the panel's first line, and what the method cannot see; or a tag at the strip's end too.</p>`;
+<p><b>Saying which</b> (Rico): always, in the panel's first line, and what the method cannot see; or a tag at the strip's end too.</p>
+<p><b>Second round, 2026-10-26</b> -- the second row of controls. A tester checks his layers at the end of programming, Fn and 1 sending
+F1, with VIA's Key Tester or SwitchHitter: what the computer receives. On a board reporting its switches Nazg never offered that, and
+on one that does not it matched the base layer only -- Fn and 1 lit nothing (<i>The base layer</i>: hold Fn, press 1).</p>
+<p><b>The tag is a choice</b>: <i>Switches</i> or <i>Computer's keys</i>, Nazg's pick selected once the first press decides, the user's
+at once. Switches are greyed once the board is known not to report them; chosen before that, the first press falls back and says why.
+Each test keeps what it has seen when the other is chosen. Try it with <i>VIA_INSECURE</i> or <i>Vial, unlocked</i>: the switches test
+first, then Computer's keys to test the layers.</p>
+<p><b>The layer shown</b>: while the computer's keys are tested, the strip has the layers, as Keymap's; the board draws the layer
+chosen and a key lights when the computer receives what it sends there. Keys the layer leaves transparent are faint with ▽ and not
+counted: they send what the layer below does. The count is per layer. The computer cannot tell Nazg which layer is on, so a key
+received counts on every layer whose key sends it -- the layer shown is only a view. A key received that the layer shown does not
+have is said, with the layer that has it and a button to show it. <b>Layer shown: Follows the key received</b> (Rico, 2026-10-26):
+while a key received is down, the board shows the layer it comes from, as far as Nazg can tell -- the layer whose own key sends
+it, not one passing it through a transparent key -- and goes back to the strip's layer half a second after it is released, so a tap
+is seen (Rico: released, F1 stayed on layer 1). The line keeps where the last key came from. A keycode several layers send keeps the
+layer shown if it is one of them, else the lowest. <i>Picked in the strip</i>: the layer moves only when clicked. A key is down while
+the mouse button is: hold it to hold the key. Try it: Layer 1, click Fn to hold it, then 1, I, J... Show layer 0 while Fn is held, press 1: F1 is
+received, and the line offers layer 1. The switches test positions, whatever the layer: no layers in the strip there.</p>`;
 render();
 </script>
 </body>

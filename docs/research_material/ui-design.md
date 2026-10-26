@@ -2776,6 +2776,35 @@ As built (2026-10-18):
 - **What arrives**: SDL's scancodes are the keyboard page's usages; the volume arrives on the
   keyboard page whichever page QMK sent it on, Play, Next, Previous and Stop on the consumer page.
 
+Proposed (2026-10-26), after a tester's report on 0.1.0-test.5: he checks his layers at the end of
+programming -- Fn and 1 sending F1, the navigation keys -- with VIA's Key Tester or SwitchHitter, both
+reading what the computer receives. Nazg offered no such test on a board reporting its switches, and on
+one that does not it matched the base layer only (`NazgMatrixView.cpp`): Fn and 1 lit nothing. Rico
+answered him that a choice of test would come. Mockup: [ui-design/key-test.html](ui-design/key-test.html),
+its second round.
+
+- **The tag becomes a choice**: *Switches* or *Computer's keys* at the strip's end, Nazg's pick
+  selected once the first press decides, the user's at once. Switches greyed once the board is known
+  not to report them; chosen before that, the first press falls back and says why. Each test keeps
+  what it has seen.
+- **The computer's keys test the layer shown**: the layers in the strip, as Keymap's, while that test
+  runs; the board draws the layer chosen, its transparent keys faint with ▽ and not counted. The
+  computer cannot tell which layer is on, so a key received counts on every layer whose key sends it:
+  the layer shown is a view, the count is per layer.
+- **What arrived, said**: "Received F1: 1 on layer 1", or, when the layer shown lacks it, the layer that
+  has it with a *Show layer n* button. The switches test positions: no layers in the strip there.
+- **The layer shown follows the key received** (Rico, 2026-10-26, the mockup's *Layer shown*): while
+  a key received is down, the layer whose own key sends it -- not one passing it through a transparent
+  key; released, back to the strip's layer half a second later, so a tap is seen (Rico: F1 released
+  stayed on layer 1). The line keeps where the last key came from. A keycode several layers send keeps
+  the layer shown if it is one of them, else the lowest. Nazg infers it: VIA and Vial do not report the
+  active layer, but the computer reports releases as well as presses.
+- **Declined: the layer shown as soon as Fn is held** (Rico, 2026-10-26). Fn sends nothing the computer
+  hears, so on a board refusing its matrix -- the boards this test is for -- Nazg cannot know it is
+  held. Where the switches are reported, reading them alongside would be exact only for `MO`: an `LT`
+  key's hold depends on the firmware's tap-hold decision, and `TG`, `TO`, `DF` on a state Nazg did not
+  see set. The layer already shows at the first key received under Fn, and the strip shows it before.
+
 ### What the definition says about its matrix
 
 Nothing here prevents anything: every definition loads and draws as before. The matrix view
