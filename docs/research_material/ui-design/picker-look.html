@@ -5,7 +5,9 @@
      browser. Keycaps are drawn as the board draws them (ui-design.md, "The board's look"), with
      what ImGui can draw: rounded rectangles, lines and text. The design is settled (2026-10-04); the
      controls switch the theme, the after-a-pick setting and the board the mockup stands for. Arimo
-     comes from Google Fonts, so it needs a network connection. -->
+     comes from Google Fonts, so it needs a network connection.
+     A proposal on top (2026-10-26, after a tester's report): the Keys tab drawn as a full-size
+     keyboard in the host layout, its key size, and Press a key -- the third row of controls. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -53,9 +55,11 @@ button:disabled{opacity:.45;cursor:default}
 .tile{position:relative;border-radius:5px;overflow:hidden;cursor:pointer;flex:none}
 .flow{display:grid;grid-auto-rows:40px;column-gap:4px;row-gap:6px;align-items:start}
 .flow .glabel{font-size:12px;line-height:1.2;overflow:hidden;align-self:stretch;display:flex;align-items:center;border:1px solid var(--border);border-radius:5px;padding:0 8px;background:var(--label-fill);color:var(--label-text)}
-.pick{flex:1;display:flex;flex-direction:column;min-width:0}
-.tabs{display:flex;align-items:flex-end;gap:2px;padding:8px 10px 0;border-bottom:1px solid var(--border);flex-wrap:wrap}
-.tabs .tab{border:1px solid transparent;border-bottom:none;border-radius:5px 5px 0 0;padding:5px 9px 4px;cursor:pointer;color:var(--muted);position:relative}
+.pick{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
+.tabs{display:flex;align-items:flex-end;gap:2px;padding:8px 10px 0;border-bottom:1px solid var(--border)}
+/* Too many to fit, the tabs shrink and cut their names, as ImGui's FittingPolicyShrink does. */
+.tabs .tab{border:1px solid transparent;border-bottom:none;border-radius:5px 5px 0 0;padding:5px 7px 4px;cursor:pointer;color:var(--muted);position:relative;
+  flex:0 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tabs .tab.on{background:var(--window);border-color:var(--border);color:var(--text);margin-bottom:-1px}
 .tabs .tab .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;vertical-align:1px}
 .tabs input{margin-left:auto;margin-bottom:5px;flex:1 1 100px;width:0;min-width:100px;max-width:220px;padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--control);color:var(--text);font:inherit}
@@ -675,6 +679,10 @@ function drawKeycap(el, k, opts) {
     mark = k.kind === 'trns' ? '▽' : '✕'; shown = opts.fallsTo; faint = true;
   }
   const d = shown ? describe(shown, opts.where) : {};
+  // In the picker, Shift and a key shows its Shift character alone, as the tiles do.
+  if (opts.shiftAlone && shown && shown.kind === 'mods' && modsList(shown.mods).join() === 'shift' && d.shifted) {
+    d.plain = d.shifted; d.shifted = undefined;
+  }
   const pad = 0.10 * u, letter = 0.30 * u, words = 0.18 * u, head = 0.15 * u;
   const layer = document.createElement('div');
   Object.assign(layer.style, { position: 'absolute', inset: 0, opacity: faint ? 0.28 : 1 });
@@ -689,7 +697,8 @@ function drawKeycap(el, k, opts) {
   // Headers top right: the hold, then the command's or the modifiers'.
   let headerBottom = Math.max(2, 0.055 * u) + 0.02 * u + pad * 0.3;
   let headerLeft = w;
-  for (const hd of [d.hold, d.header]) {
+  // A header the group's title already says is left out, its band kept, as the tiles do.
+  for (const hd of opts.dropHeader ? [] : [d.hold, d.header]) {
     if (!hd) continue;
     const text = fitHeader(hd, head, w - 2 * pad);
     const tw = textWidth(text, head, true);
@@ -697,7 +706,7 @@ function drawKeycap(el, k, opts) {
     headerLeft = Math.min(headerLeft, w - pad - tw);
     headerBottom += head * 1.05;
   }
-  const hasHeaders = !!(d.hold || d.header);
+  const hasHeaders = !opts.dropHeader && !!(d.hold || d.header);
   if (d.arrow) {
     span(layer, d.arrow, pad, pad + (hasHeaders ? headerBottom - pad : 0), letter, legend, true);
   } else if (d.plain !== undefined) {
@@ -897,8 +906,172 @@ function tabs() {
     { id: 'fw', name: 'Firmware', cat: 'fw', groups: [g('Keys that can hurt: rebooting, erasing settings', cmds('QK_BOOT QK_RBT EE_CLR DB_TOGG QK_MAKE'))] },
   ];
   for (const t of all) t.groups = t.groups.filter(gr => gr.items.length);
+  // Two tabs (Rico, 2026-10-26): Basic, the 104 or 105 keys of a standard keyboard, drawn as one;
+  // Extra, every other key of the old Keys tab, as tiles. Each tab's groups hold what it shows, so
+  // search finds every key once.
+  if (state.keysView === 'Two tabs') {
+    const keys = all[0], drawn = drawnSet();
+    const basic = { ...keys, name: 'Basic', drawn: true,
+                    groups: keys.groups.map(gr => ({ title: gr.title, items: gr.items.filter(k => drawn.has(format(k))) })).filter(gr => gr.items.length) };
+    const extra = { id: 'extra', name: 'Extra', groups: leftoverGroups(keys.groups, drawn) };
+    all.splice(0, 1, basic, extra);
+  }
   return all.filter(t => t.groups.length);
 }
+
+// ---------------------------------------------------------------------------------------------
+// Proposal (2026-10-26): the Keys tab drawn as a full-size keyboard, as Vial's Basic tab -- but in
+// the host layout, its shape too: ISO for French, ANSI for US (JIS would come with Japanese), where
+// Vial needs a second tab. Drawn with the board's own keycaps, only the keys a real keyboard has
+// (Rico: ▽ and ✕ over the numpad were not). What it cannot hold goes to the Extra tab, ▽ and ✕
+// first, or stays as tiles under it. No gap under the F-row, as Vial draws it: six rows, no more.
+const DRAWN_UNITS = { 'As tiles': 44, 'Smaller': 36, 'Smallest': 30 };
+const DRAWN_WIDTH = 22.5, DRAWN_HEIGHT = 6;
+function fullKeyboard(iso) {
+  const keys = [];
+  const row = (y, x, items) => { for (const [w, kc] of items) { if (kc) keys.push({ x, y, w, h: 1, kc }); x += w; } };
+  const ones = s => s.split(' ').map(kc => [1, kc]);
+  const letters = s => s.split('').map(c => [1, 'KC_' + c]);
+  row(0, 0, [[1, 'KC_ESC'], [1, null], ...ones('KC_F1 KC_F2 KC_F3 KC_F4'), [0.5, null], ...ones('KC_F5 KC_F6 KC_F7 KC_F8'), [0.5, null],
+             ...ones('KC_F9 KC_F10 KC_F11 KC_F12')]);
+  row(0, 15.25, ones('KC_PSCR KC_SCRL KC_PAUS'));
+  row(1, 0, [[1, 'KC_GRV'], ...letters('1234567890'), [1, 'KC_MINS'], [1, 'KC_EQL'], [2, 'KC_BSPC']]);
+  row(1, 15.25, ones('KC_INS KC_HOME KC_PGUP'));
+  row(1, 18.5, ones('KC_NUM KC_PSLS KC_PAST KC_PMNS'));
+  row(2, 0, [[1.5, 'KC_TAB'], ...letters('QWERTYUIOP'), [1, 'KC_LBRC'], [1, 'KC_RBRC'], ...(iso ? [] : [[1.5, 'KC_BSLS']])]);
+  // ISO's Enter: 1.5u on the Q row, 1.25u on the A row -- an L, as Nazg traces it (KeyContour()).
+  // Its legend sits in the upper part.
+  if (iso) keys.push({ x: 13.5, y: 2, w: 1.5, h: 1, kc: 'KC_ENT', isoEnter: true });
+  row(2, 15.25, ones('KC_DEL KC_END KC_PGDN'));
+  row(2, 18.5, ones('KC_P7 KC_P8 KC_P9'));
+  keys.push({ x: 21.5, y: 2, w: 1, h: 2, kc: 'KC_PPLS' });
+  row(3, 0, [[1.75, 'KC_CAPS'], ...letters('ASDFGHJKL'), [1, 'KC_SCLN'], [1, 'KC_QUOT'], ...(iso ? [[1, 'KC_NUHS']] : [[2.25, 'KC_ENT']])]);
+  row(3, 18.5, ones('KC_P4 KC_P5 KC_P6'));
+  row(4, 0, [...(iso ? [[1.25, 'KC_LSFT'], [1, 'KC_NUBS']] : [[2.25, 'KC_LSFT']]), ...letters('ZXCVBNM'), [1, 'KC_COMM'], [1, 'KC_DOT'],
+             [1, 'KC_SLSH'], [2.75, 'KC_RSFT']]);
+  row(4, 16.25, ones('KC_UP'));
+  row(4, 18.5, ones('KC_P1 KC_P2 KC_P3'));
+  keys.push({ x: 21.5, y: 4, w: 1, h: 2, kc: 'KC_PENT' });
+  row(5, 0, [[1.25, 'KC_LCTL'], [1.25, 'KC_LGUI'], [1.25, 'KC_LALT'], [6.25, 'KC_SPC'], [1.25, 'KC_RALT'], [1.25, 'KC_RGUI'], [1.25, 'KC_APP'],
+             [1.25, 'KC_RCTL']]);
+  row(5, 15.25, ones('KC_LEFT KC_DOWN KC_RGHT'));
+  row(5, 18.5, [[2, 'KC_P0'], [1, 'KC_PDOT']]);
+  return keys;
+}
+const drawnKeycode = kc => kc === 'KC_TRNS' ? TRNS : kc === 'KC_NO' ? NO : B(kc);
+// The keycodes the drawing holds, for the host layout's shape.
+const drawnSet = () => new Set(fullKeyboard(state.host !== 'US').map(k => format(drawnKeycode(k.kc))));
+// The unit the keyboard is drawn at -- and Extra's keys with it: as large as the key size asks and
+// the panel's width allows, less the padding and room for a vertical scrollbar.
+function drawnUnit() {
+  const room = document.getElementById('panel').clientWidth - 2 - 24 - 16;
+  return Math.max(24, Math.min(DRAWN_UNITS[state.drawnUnit], Math.floor(room / DRAWN_WIDTH)));
+}
+// The selected key's keycode, or the tap under its hold or modifiers, is outlined where drawn.
+function sendsSelected(k) {
+  const cur = current();
+  return !!cur && (format(cur) === format(k) || (k.kind === 'basic' && tapOf(cur) === k.kc));
+}
+// ISO's Enter traced as one L over its upper part's box: the face and border as an SVG path, the
+// legends drawn by drawKeycap() into the upper part.
+function shapeIsoEnter(el, u, gap, selected) {
+  const T = THEMES[state.theme], w = 1.5 * u - 2 * gap, h = 2 * u - 2 * gap, notch = 0.25 * u, step = u - 2 * gap;
+  const face = el.style.background, outline = T.outline;
+  Object.assign(el.style, { height: h + 'px', background: 'transparent', border: 'none', overflow: 'visible', borderRadius: 0 });
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  Object.assign(svg.style, { position: 'absolute', left: 0, top: 0, overflow: 'visible' });
+  svg.setAttribute('width', w); svg.setAttribute('height', h);
+  const r = 0.12 * u, path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  // Clockwise from the top left; rounded outer corners, the inner corner square.
+  path.setAttribute('d', `M ${r} 0.5 H ${w - r} Q ${w - 0.5} 0.5 ${w - 0.5} ${r} V ${h - r} Q ${w - 0.5} ${h - 0.5} ${w - r} ${h - 0.5} ` +
+                         `H ${notch + r} Q ${notch} ${h - 0.5} ${notch} ${h - r} V ${step} H ${r} Q 0.5 ${step} 0.5 ${step - r} V ${r} Q 0.5 0.5 ${r} 0.5 Z`);
+  path.setAttribute('fill', face); path.setAttribute('stroke', selected ? T.selected : outline);
+  if (selected) path.setAttribute('stroke-width', 2.5);
+  svg.appendChild(path);
+  el.insertBefore(svg, el.firstChild);
+  el.style.boxShadow = '';
+}
+// Draws the keyboard into `parent`.
+function renderDrawnKeyboard(parent) {
+  const keys = fullKeyboard(state.host !== 'US');
+  const u = drawnUnit(), gap = 0.06 * u;
+  const wrap = document.createElement('div');
+  Object.assign(wrap.style, { position: 'relative', width: DRAWN_WIDTH * u + 'px', height: DRAWN_HEIGHT * u + 'px', margin: '2px 0 12px' });
+  for (const key of keys) {
+    const k = drawnKeycode(key.kc);
+    const el = document.createElement('div'); el.className = 'key';
+    Object.assign(el.style, { left: key.x * u + gap + 'px', top: key.y * u + gap + 'px' });
+    const selected = sendsSelected(k);
+    drawKeycap(el, k, { unit: u, gap, w: key.w, h: key.h, where: 'board', selected });
+    if (key.isoEnter) shapeIsoEnter(el, u, gap, selected);
+    hook(el, k);
+    wrap.appendChild(el);
+  }
+  parent.appendChild(wrap);
+}
+// The Keys tab's groups less what the drawing holds, Nothing -- ▽ and ✕, picked often on layers --
+// first. The punctuation left is the other shape's: ISO's two keys on ANSI, ANSI's backslash on ISO.
+function leftoverGroups(groups, drawn) {
+  const other = state.host !== 'US' ? 'ANSI key -- not on an ISO keyboard' : 'ISO keys -- not on an ANSI keyboard';
+  const left = groups.map(g => {
+    const items = g.items.filter(k => !drawn.has(format(k)));
+    const title = g.title.startsWith('Punctuation') ? other : g.title;
+    return { title, items };
+  }).filter(g => g.items.length);
+  return [...left.filter(g => g.title === 'Nothing'), ...left.filter(g => g.title !== 'Nothing')];
+}
+
+// Press a key: what the browser calls each key (KeyboardEvent.code, named by its US position, as
+// HID numbers keys) to QMK's keycode. Nazg would read SDL's scancodes, the same HID usages, with the
+// window taking the keyboard as the key test does, so Win and Alt+Tab arrive too.
+const CODE_TO_KC = (() => {
+  const m = {};
+  for (const c of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') m['Key' + c] = 'KC_' + c;
+  for (let i = 0; i <= 9; i++) { m['Digit' + i] = 'KC_' + i; m['Numpad' + i] = 'KC_P' + i; }
+  for (let i = 1; i <= 24; i++) m['F' + i] = 'KC_F' + i;
+  Object.assign(m, { Escape: 'KC_ESC', Tab: 'KC_TAB', Enter: 'KC_ENT', Backspace: 'KC_BSPC', Space: 'KC_SPC', Delete: 'KC_DEL', Insert: 'KC_INS',
+    CapsLock: 'KC_CAPS', Home: 'KC_HOME', End: 'KC_END', PageUp: 'KC_PGUP', PageDown: 'KC_PGDN', ArrowUp: 'KC_UP', ArrowDown: 'KC_DOWN',
+    ArrowLeft: 'KC_LEFT', ArrowRight: 'KC_RGHT', PrintScreen: 'KC_PSCR', ScrollLock: 'KC_SCRL', Pause: 'KC_PAUS', ContextMenu: 'KC_APP',
+    Minus: 'KC_MINS', Equal: 'KC_EQL', BracketLeft: 'KC_LBRC', BracketRight: 'KC_RBRC', Backslash: 'KC_BSLS', IntlBackslash: 'KC_NUBS',
+    Semicolon: 'KC_SCLN', Quote: 'KC_QUOT', Backquote: 'KC_GRV', Comma: 'KC_COMM', Period: 'KC_DOT', Slash: 'KC_SLSH', NumLock: 'KC_NUM',
+    NumpadDecimal: 'KC_PDOT', NumpadDivide: 'KC_PSLS', NumpadMultiply: 'KC_PAST', NumpadSubtract: 'KC_PMNS', NumpadAdd: 'KC_PPLS',
+    NumpadEnter: 'KC_PENT', NumpadEqual: 'KC_PEQL', NumpadComma: 'KC_PCMM', IntlRo: 'KC_INT1', KanaMode: 'KC_INT2', IntlYen: 'KC_INT3',
+    Convert: 'KC_INT4', NonConvert: 'KC_INT5', Lang1: 'KC_LNG1', Lang2: 'KC_LNG2',
+    ShiftLeft: 'KC_LSFT', ControlLeft: 'KC_LCTL', AltLeft: 'KC_LALT', MetaLeft: 'KC_LGUI',
+    ShiftRight: 'KC_RSFT', ControlRight: 'KC_RCTL', AltRight: 'KC_RALT', MetaRight: 'KC_RGUI' });
+  return m;
+})();
+const MOD_OF_CODE = { ShiftLeft: 'shift', ShiftRight: 'shift', ControlLeft: 'ctrl', ControlRight: 'ctrl', AltLeft: 'alt', AltRight: 'alt',
+                      MetaLeft: 'gui', MetaRight: 'gui' };
+// The modifiers down while listening, by code; `alone` while no other key came with them.
+const heldMods = new Map();
+let alone = true;
+addEventListener('keydown', e => {
+  if (!state.listening || state.selected === null) return;
+  e.preventDefault(); e.stopPropagation();
+  if (e.repeat) return;
+  if (MOD_OF_CODE[e.code]) { if (!heldMods.size) alone = true; heldMods.set(e.code, MOD_OF_CODE[e.code]); return; }
+  const kc = CODE_TO_KC[e.code];
+  if (!kc) { state.message = `Nazg has no keycode for ${e.code}`; state.warning = true; render(); return; }
+  alone = false;
+  state.listening = false;
+  // The event's own flags, so a modifier held before listening began counts too; its side from
+  // the modifier keys seen down.
+  const mods = { ctrl: e.ctrlKey, shift: e.shiftKey, alt: e.altKey, gui: e.metaKey };
+  if (modsList(mods).length) {
+    mods.right = heldMods.size > 0 && [...heldMods.keys()].every(c => c.endsWith('Right'));
+    write({ kind: 'mods', mods, kc }, true);
+  } else write(B(kc), true);
+}, true);
+addEventListener('keyup', e => {
+  if (!MOD_OF_CODE[e.code]) { if (state.listening) e.preventDefault(); return; }
+  const was = heldMods.size;
+  heldMods.delete(e.code);
+  if (!state.listening || state.selected === null) return;
+  e.preventDefault();
+  // A modifier pressed and let go alone is the key to write.
+  if (was === 1 && alone) { state.listening = false; write(B(CODE_TO_KC[e.code]), true); }
+}, true);
 
 // ---------------------------------------------------------------------------------------------
 // State and controls. The picker's design is settled (Rico, 2026-10-04); what the controls still
@@ -907,6 +1080,7 @@ const state = {
   theme: 'Light', advance: 'Stay', split: 0.62, popup: null, unit: 56, flash: null, justPicked: null,
   host: 'US', firmware: 'Unknown', lighting: 'Underglow + RGB Matrix', protocol: 'Vial 6', ownKeys: 'None',
   layer: 0, selected: null, tab: 'keys', search: '', preview: null, message: '', warning: false, exprDraft: null,
+  keysView: 'Two tabs', drawnUnit: 'As tiles', pressKey: 'On', listening: false,
 };
 const CONTROLS = [
   ['theme', 'Theme', Object.keys(THEMES)],
@@ -922,6 +1096,12 @@ const CONTROLS = [
   ['protocol', 'Protocol', Object.keys(BOARDS)],
   // A board whose definition names keycodes of its own (customKeycodes) -- 416 of VIA's 3513.
   ['ownKeys', 'Own keys', ['None', ...Object.keys(OWN_SETS)]],
+  'break',
+  // The proposal (2026-10-26): the Keys tab drawn as a keyboard, as Vial's Basic tab; how large
+  // its keys are drawn, since it costs height (Rico: perhaps smaller later); Press a key.
+  ['keysView', 'Proposal: Keys tab', ['Tiles', 'Keyboard + tiles', 'Two tabs']],
+  ['drawnUnit', 'Drawn key size', Object.keys(DRAWN_UNITS)],
+  ['pressKey', 'Press a key', ['Off', 'On']],
 ];
 function buildControls() {
   const root = document.getElementById('controls');
@@ -1050,7 +1230,7 @@ function renderBoard() {
     const k = previewing ? state.preview : KEYMAP[state.layer][i];
     drawKeycap(el, k, { unit: u, gap, w: key.w, cls: CLASSES[i], where: key.w >= 3 ? 'spacebar' : 'board', selected: i === state.selected && !previewing,
                         previewing, fallsTo: fallsTo(i, state.layer) });
-    el.onclick = () => { state.selected = i; state.message = ''; state.exprDraft = null; render(); };
+    el.onclick = () => { state.selected = i; state.message = ''; state.exprDraft = null; state.listening = false; render(); };
     hoverable(el, () => tipFor(k) + `\nrow ${key.row}, column ${key.col}`);
     // The key just written: a ring fading out, from where it is now when the board redraws.
     const since = state.flash && state.flash.i === i ? performance.now() - state.flash.at : Infinity;
@@ -1108,6 +1288,13 @@ function tileEl(k, opts = {}) {
   }
   if (d.mark) span(el, d.mark, w - 13, h - 15, 10, legend, false, { opacity: 0.55 });
   if (selected) el.style.boxShadow = `inset 0 0 0 2px ${T.selected}`;
+  hook(el, k);
+  return el;
+}
+// A key of the Extra tab, drawn as the Basic tab's: a 1u keycap at the keyboard's unit.
+function drawnKeyEl(k, u, dropHeader) {
+  const el = document.createElement('div'); el.className = 'tile';
+  drawKeycap(el, k, { unit: u, gap: 0.06 * u, w: 1, where: 'board', selected: sendsSelected(k), shiftAlone: true, dropHeader });
   hook(el, k);
   return el;
 }
@@ -1183,6 +1370,17 @@ function renderKeyLine() {
     if (k) write(k, true); else { input.classList.add('bad'); msg.style.color = 'var(--error)'; msg.textContent = 'not a keycode Nazg knows'; } };
   input.oninput = () => { state.exprDraft = input.value; input.classList.remove('bad'); };
   bar.appendChild(input);
+  // Press a key (proposal, 2026-10-26): the next key pressed on the computer's keyboard is written,
+  // with the modifiers held with it; a modifier pressed and released alone is written itself.
+  if (state.pressKey === 'On') {
+    const b = document.createElement('button');
+    b.textContent = state.listening ? '⌨ Press a key now…' : '⌨ Press a key';
+    if (state.listening) b.className = 'on';
+    b.title = state.listening ? 'Click again to cancel'
+                              : 'Press a key on the computer\'s keyboard: it is written to this key.\nCtrl, Shift, Alt or Win held with it are sent with it.';
+    b.onclick = () => { state.listening = !state.listening; heldMods.clear(); b.blur(); render(); };
+    bar.appendChild(b);
+  }
   const tapKc = tapOf(cur);
   if (tapKc) {
     const hold = cur.kind === 'mt' ? 'mods' : cur.kind === 'lt' ? 'layer' : 'none';
@@ -1274,7 +1472,12 @@ function renderTabs() {
   else {
     const tab = all.find(t => t.id === state.tab);
     if (tab.lighting) { const i = document.createElement('div'); i.className = 'info'; i.innerHTML = FIRMWARE_LINES[state.firmware] + ' Board lighting: ' + state.lighting + '.'; items.appendChild(i); }
-    renderGroups(items, tab.groups);
+    if (tab.drawn) renderDrawnKeyboard(items);
+    else if (tab.id === 'extra') renderGroups(items, tab.groups, true);
+    else if (tab.id === 'keys' && state.keysView === 'Keyboard + tiles') {
+      renderDrawnKeyboard(items);
+      renderGroups(items, leftoverGroups(tab.groups, drawnSet()));
+    } else renderGroups(items, tab.groups);
   }
   pickEl.appendChild(items);
   return pickEl;
@@ -1286,8 +1489,15 @@ function sharedHeader(items) {
 }
 // Groups flow side by side where they fit (Rico, 2026-10-04: Digits beside Punctuation), each its
 // label then its tiles; a long one takes the width and wraps.
-function renderGroups(parent, groups) {
+// `drawn`: the keys drawn as the Basic tab's keyboard draws them -- square keycaps at its unit, a
+// unit apart -- instead of tiles (Rico, 2026-10-26, for the Extra tab).
+function renderGroups(parent, groups, drawn) {
   const flow = document.createElement('div'); flow.className = 'flow'; flow.groups = [];
+  if (drawn) {
+    const u = drawnUnit(), gap = 0.06 * u;
+    Object.assign(flow, { cell: u, gapX: 2 * gap });
+    Object.assign(flow.style, { gridAutoRows: u - 2 * gap + 'px', columnGap: 2 * gap + 'px', rowGap: 2 * gap + 'px' });
+  }
   parent.appendChild(flow);
   for (const g of groups) {
     if (!g.items.length) continue;
@@ -1296,7 +1506,7 @@ function renderGroups(parent, groups) {
     const label = document.createElement('div'); label.className = 'glabel';
     const [title, more] = g.title.split(' -- ');
     label.textContent = title; if (more) label.title = more;
-    const tiles = g.items.map(k => tileEl(k, { dropHeader }));
+    const tiles = g.items.map(k => drawn ? drawnKeyEl(k, flow.cell, dropHeader) : tileEl(k, { dropHeader }));
     flow.append(label, ...tiles);
     flow.groups.push({ label, tiles });
   }
@@ -1308,8 +1518,9 @@ function renderGroups(parent, groups) {
 // spans all its rows (Rico, 2026-10-04).
 function layoutFlow(flow) {
   // In half cells: a label takes four, a tile two, and a group starts on an even one.
-  const n = 2 * Math.max(6, Math.floor((flow.clientWidth + TILE.gap) / CELL));
-  flow.style.gridTemplateColumns = `repeat(${n}, ${HALF - TILE.gap}px)`;
+  const cell = flow.cell || CELL, gapX = flow.gapX !== undefined ? flow.gapX : TILE.gap;
+  const n = 2 * Math.max(6, Math.floor((flow.clientWidth + gapX) / cell));
+  flow.style.gridTemplateColumns = `repeat(${n}, ${cell / 2 - gapX}px)`;
   const place = (el, row, col, span) => { el.style.gridRow = row; el.style.gridColumn = `${col + 1} / span ${span}`; };
   let row = 1, col = 0;
   for (const g of flow.groups) {
@@ -1345,6 +1556,7 @@ function renderSearch(parent, all) {
 
 function renderNotes() {
   document.getElementById('notes').innerHTML = [
+    '<p><b>Proposal, 2026-10-26</b> -- the third row of controls. A tester found the letters in alphabetical order odd, after VIA and Vial; worse, with a host layout other than US the order is neither alphabetical nor the keyboard\'s (Host layout: French). <b>Keys tab: Two tabs</b> (Rico, 2026-10-26, after Vial\'s Basic tab): <b>Basic</b>, the 104 or 105 keys of a standard keyboard drawn as one, nothing else -- six rows, no gap under the F-row, as Vial; <b>Extra</b>, every other key of the old Keys tab, drawn as Basic draws its keys -- keycaps at the keyboard\'s unit, a unit apart (Rico) -- in groups: ▽ and ✕ first, picked often on layers, then Shift and a key, F13 to F24, the numpad\'s rarer keys, international, the rarer HID keys, and the other shape\'s punctuation -- ISO\'s two keys on ANSI, ANSI\'s backslash on ISO. <b>Keyboard + tiles</b> is the first draft, the tiles under the keyboard in one tab. The keyboard is drawn in the host layout -- its legends and its shape, ISO for French, ANSI for US, JIS for Japanese, where Vial needs a second tab -- with the board\'s own keycaps, ISO\'s Enter an L as Nazg traces it on a board; only the keys a real keyboard has (Rico: not ▽ and ✕ over the numpad). The key the selected key sends is outlined, its tap under a hold too. Search is unchanged, each key found once. It was weighed on 2026-10-04 and set aside for its height; since then the panel is the window\'s width and the splitter gives it what it needs. One tab more: at the panel\'s 980 px the tabs still fit, the search box at its narrowest; ImGui shrinks tabs that do not. <b>Drawn key size</b>: As tiles is the tiles\' size, 6 rows of 44 px at most -- narrower panels draw it smaller; Smaller and Smallest show what drawing it smaller would save, perhaps later (Rico). The panel at its minimum scrolls. <b>Press a key</b>: on the key line, then the next key pressed on the computer\'s keyboard is written -- with Ctrl, Shift, Alt or Win held, sent with them; a modifier pressed and let go alone is written itself. Neither VIA nor Vial has it; Nazg reads the computer\'s keys already for the key test. A browser keeps Win and Alt+Tab for itself; Nazg would take the keyboard while it listens.</p>',
     '<p><b>Try</b>: click a key on the board, then a keycode -- it is written at once, as Nazg does. Click Caps Lock: it holds Ctrl, taps Esc. Pick another key and the hold stays: the key line shapes every pick, so LT(1, KC_SPC) is "When held: Layer", then Space -- one step, where Vial takes two. Type in the expression box -- <code>LT(2,KC_A)</code>, <code>C(S(KC_T))</code>, <code>OSM(MOD_LSFT)</code> -- and press Enter.</p>',
     '<p><b>The picker</b>, settled with Rico on 2026-10-04 -- the alternatives it was chosen from are in this file\'s history. <b>Tabs</b> by category, each with its colour, and one search box through them all. <b>Tiles</b>, every one 1u, 46 x 40 px: the keycap\'s face, band and colours, words at a 1u keycap\'s legend size at the board\'s smallest unit, so every name fits as legend_font checks it does there; a header the group\'s title says is left out. Groups pack side by side on one grid, each title in a box spanning its rows.</p>',
     '<p><b>The key line</b>, over the tabs, next to the keycodes it shapes: where the key is, its keycode in QMK\'s words -- editable, the Any entry -- and the composer. "When held" Nothing, Modifiers or Layer, and "Sent with" -- None first -- open in small popups, so the line never wraps; they show only where they apply, with a plain key or one already holding or modified. A tile picked keeps the key\'s hold or modifiers, and its tooltip says what the click writes.</p>',

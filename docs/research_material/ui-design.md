@@ -1415,6 +1415,36 @@ Caps Word, Layer Lock -- and its alt repeat count, which the Repeat keys need; `
 keycode version 0.0.6. What nothing tells -- audio, haptic, Unicode, steno -- is offered, as Vial
 and VIA do, hover saying what it needs. A tab left with no group is not shown.
 
+### The Keys tab as a keyboard -- a proposal (2026-10-26)
+
+A tester (0.1.0-test.5) found the letters in alphabetical order odd after VIA and Vial. Alphabetical
+holds only on US: the tiles carry the host layout's legends, so on French the Letters row reads
+Q B C D E... A... Z X Y W. VIA lists its Basic keys alphabetically too (`via-app/src/utils/key.ts`);
+Vial draws a full-size ANSI keyboard, falling back to 80% and 70% when narrow, with ISO and JIS a
+second tab (`vial-gui/.../tabbed_keycodes.py`). Rico asked for a proposal; mockup:
+[ui-design/picker-look.html](ui-design/picker-look.html), its third row of controls.
+
+- **A full-size keyboard**, the board's own keycaps, in the host layout -- legends and shape: ISO for
+  French, ANSI for US, JIS for Japanese; ISO's Enter an L, as `KeyContour()` traces it on a board.
+  Only the keys a real keyboard has: ▽ and ✕, first drawn in the empty corner over the numpad, went
+  to Extra (Rico, 2026-10-26). The key the selected
+  key sends is outlined. Search unchanged. Weighed on 2026-10-04 and set aside for its height; the
+  panel has since become the window's width, and the splitter gives it the height.
+- **Two tabs** (Rico, 2026-10-26, after seeing Vial's, more compact): **Basic**, the 104 or 105 keys
+  of a standard keyboard drawn as one and nothing else -- six rows, no gap under the F-row, as Vial;
+  **Extra**, the rest of the old Keys tab: ▽ and ✕ first, picked often on layers, then Shifted, F13 to F24, the rarer numpad keys,
+  international, the rarer HID keys, the other shape's punctuation -- drawn as Basic draws its keys,
+  keycaps at the keyboard's unit (Rico), in groups with their titles as the tiles have. The other
+  tabs keep the tiles. Names Rico's ("Basic keys",
+  "Extra keys") shortened: every tab holds keys. Vial's own keyboard is no smaller -- about 45 px a
+  key against the tiles' 44 -- its compactness was having nothing under it. The tab bar keeps one
+  line at the panel's 980 px.
+- **Its height** (Rico, 2026-10-26): it takes more than the tiles did. Drawing its keys smaller than
+  the tiles may come later, if the height proves a problem -- the mockup's *Drawn key size* shows it.
+- **Press a key**, a separate variant: on the key line, the next key pressed on the computer's
+  keyboard is written, with the modifiers held with it. Neither VIA nor Vial has it; Nazg reads the
+  computer's keys already for the key test (`model/NazgHostKeys.*`, the window taking the keyboard).
+
 ### The tiles
 
 - **Every tile 1u, 58 x 50 px.** Its text area is a 1u keycap's legend box at the board's
