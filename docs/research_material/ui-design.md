@@ -2783,10 +2783,15 @@ one that does not it matched the base layer only (`NazgMatrixView.cpp`): Fn and 
 answered him that a choice of test would come. Mockup: [ui-design/key-test.html](ui-design/key-test.html),
 its second round.
 
-- **The tag becomes a choice**: *Switches* or *Computer's keys* at the strip's end, Nazg's pick
-  selected once the first press decides, the user's at once. Switches greyed once the board is known
-  not to report them; chosen before that, the first press falls back and says why. Each test keeps
-  what it has seen.
+- **The tag becomes a choice**: *Switches* or *Computer's keys* at the strip's end. Switches greyed
+  once the board is known not to report them; chosen before that, the first press falls back and says
+  why. Each test keeps what it has seen.
+- **Computer's keys by default** (Rico, 2026-10-26), changing "Both ways, Nazg choosing" above: selected
+  from the start on every board -- what most open the test for, after programming, layers included,
+  and the same test whatever the firmware. Switches stay one click away, for a board just soldered:
+  by position, ghosting and rollover, keys that send nothing -- why replacing them was declined, and
+  still is. Nazg no longer works out a test before the first press. Remembering the choice in
+  `settings.json` waits (Rico).
 - **The computer's keys test the layer shown**: the layers in the strip, as Keymap's, while that test
   runs; the board draws the layer chosen, its transparent keys faint with ▽ and not counted. The
   computer cannot tell which layer is on, so a key received counts on every layer whose key sends it:
@@ -2799,6 +2804,9 @@ its second round.
   stayed on layer 1). The line keeps where the last key came from. A keycode several layers send keeps
   the layer shown if it is one of them, else the lowest. Nazg infers it: VIA and Vial do not report the
   active layer, but the computer reports releases as well as presses.
+- **A layer followed is marked** (Rico, 2026-10-26): while the board shows a key's layer rather than
+  the strip's, its tab is violet -- Behaviour's colour, which layer keys wear -- not the accent blue of
+  a layer picked. The tab only (Rico): the plate tinted and outlined as well was offered and declined.
 - **Declined: the layer shown as soon as Fn is held** (Rico, 2026-10-26). Fn sends nothing the computer
   hears, so on a board refusing its matrix -- the boards this test is for -- Nazg cannot know it is
   held. Where the switches are reported, reading them alongside would be exact only for `MO`: an `LT`

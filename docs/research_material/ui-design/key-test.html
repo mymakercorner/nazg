@@ -38,10 +38,10 @@
 <style>
 :root{--window:#f3f3f5;--menubar:#e3e4e9;--text:#1d1e22;--muted:#6b6e78;--control:#ffffff;--border:#c8cad2;--accent:#3b82f6;--accent-text:#fff;--panel:#f8f8fa;--column:#ebecf0;--selected:rgba(59,130,246,.16);
 --plate:#d3d4d8;--key:#ffffff;--keyline:#b4b7c2;--ok:#15803d;--warn:#c2410c;--chg:#2563eb;
---seen:#e6f4dc;--seenline:#6aa84f;--maybe:#fff1d6;--maybeline:#d08a1c;--none:#ececef}
+--seen:#e6f4dc;--seenline:#6aa84f;--maybe:#fff1d6;--maybeline:#d08a1c;--none:#ececef;--layer:#8b5cf6;--layerplate:#ddd5ee}
 :root[data-theme="dark"]{--window:#0f0f11;--menubar:#24252b;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--accent:#4296fa;--accent-text:#fff;--panel:#16171b;--column:#16171b;--selected:rgba(66,150,250,.22);
 --plate:#1c1d23;--key:#3a3c48;--keyline:#4b4e5c;--ok:#4ade80;--warn:#fb923c;--chg:#60a5fa;
---seen:#24401a;--seenline:#6aa84f;--maybe:#47340f;--maybeline:#e0a43a;--none:#25262c}
+--seen:#24401a;--seenline:#6aa84f;--maybe:#47340f;--maybeline:#e0a43a;--none:#25262c;--layer:#9d7bf0;--layerplate:#2a2338}
 *{box-sizing:border-box}
 body{margin:0;background:var(--window);color:var(--text);font-family:Arimo,"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
 .controls{display:flex;flex-wrap:wrap;gap:8px 22px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
@@ -80,6 +80,7 @@ svg.board .k{cursor:pointer}
 .panel .row .right{margin-left:auto}
 .strip .layers{display:flex;gap:4px;align-items:center;margin-left:14px}
 .strip .layers .tab{padding:4px 10px;min-width:30px;text-align:center;cursor:pointer}
+.strip .layers .tab.followed{background:var(--layer);border-color:var(--layer);color:#fff}
 .strip .seg{margin-left:auto;display:inline-flex;align-items:center;gap:0}
 .strip .seg .name{color:var(--muted);margin-right:8px}
 .strip .seg button{border-radius:0;padding:3px 10px;font-size:12px}
@@ -136,7 +137,7 @@ const FIRMWARE = {
   'Vial, unlocked': { matrix: true, name: 'F77 Model F Keyboard', proto: 'Vial 6' },
 };
 const state = { fw: 'Stock VIA (matrix refused)', says: 'A tag in the strip, the line too', marks: 'Shared keys amber, mute keys hatched', theme: 'Light',
-  choosing: 'The tag is a choice', layers: 'The layer shown', follow: 'Follows the key received',
+  choosing: 'Computer\'s keys by default', layers: 'The layer shown', follow: 'Follows the key received', followMark: 'Its tab',
   pressed: new Set(), seen: new Set(), knob: new Set(), method: null,
   // Second round: the keys seen per layer on the computer's keys; the layer shown; Fn held; the
   // test the user picked (null: Nazg's); a board found not to report its switches; the last key received.
@@ -146,10 +147,15 @@ const state = { fw: 'Stock VIA (matrix refused)', says: 'A tag in the strip, the
   peek: null, down: null, receivedFrom: null };
 
 const fw = () => FIRMWARE[state.fw];
-const choosing = () => state.choosing === 'The tag is a choice';
+const choosing = () => state.choosing !== 'Nazg alone (as built)';
+// Computer's keys from the start, whatever the board (Rico, 2026-10-26); Switches by choice.
+const hostByDefault = () => state.choosing === 'Computer\'s keys by default';
 const byLayer = () => state.layers === 'The layer shown';
 const follows = () => byLayer() && state.follow === 'Follows the key received';
 const shownLayer = () => !byLayer() ? 0 : follows() && state.peek !== null ? state.peek : state.layer;
+// A layer shown because a key came from it, not because it was picked: marked (Rico, 2026-10-26),
+// in Behaviour's violet, the colour layer keys wear. Only while it differs from the strip's pick.
+const followed = () => follows() && state.peek !== null && state.peek !== state.layer && state.followMark !== 'Nothing';
 // The layer a key received came from, as far as Nazg can tell -- the computer does not say: the layer
 // whose own key sends it -- not one passing it through a transparent key, so S after Fn is let go is
 // layer 0 again, and so is Q with Fn held. Several layers sending it: the one shown if it is one of
@@ -174,11 +180,11 @@ function press(key) {
   // The first press decides, unless the user chose: the matrix shows it, or only the computer
   // receives it. Switches chosen on a board that does not report them: Nazg falls back, and says so.
   if (!state.method) {
-    if (state.chosen === 'switches' && !fw().matrix) { state.refused = true; state.fellBack = true; state.method = 'computer'; }
-    else if (state.chosen) state.method = state.chosen;
+    if (state.chosen) state.method = state.chosen;
     else if (fw().matrix) state.method = 'switches';
     else if (!SENDS_NOTHING.has(sent)) { state.method = 'computer'; state.refused = true; }
   }
+  if (state.method === 'switches' && !fw().matrix) { state.refused = true; state.fellBack = true; state.method = 'computer'; }
   if (state.method === 'switches') state.seen.add(key.id);
   else if (state.method === 'computer' && !SENDS_NOTHING.has(sent)) {
     // The computer cannot tell which layer was on: a key received counts on every layer whose key
@@ -207,7 +213,8 @@ function markOf(key) {
 function boardSvg() {
   const u = 40, W = 17 * u, H = 5 * u + 20;
   let s = `<svg class="board" width="${W + 20}" height="${H + 10}"><defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="var(--keyline)" stroke-width="2"/></pattern></defs>`;
-  s += `<rect x="4" y="4" width="${15 * u + 12}" height="${5 * u + 12}" rx="8" fill="var(--plate)"/>`;
+  const tinted = followed() && state.followMark === 'Its tab and the plate';
+  s += `<rect x="4" y="4" width="${15 * u + 12}" height="${5 * u + 12}" rx="8" fill="var(${tinted ? '--layerplate' : '--plate'})"${tinted ? ' stroke="var(--layer)" stroke-width="2"' : ''}/>`;
   // The switches test positions: the base layer's legends. The computer's keys test the layer shown.
   const layer = state.method === 'switches' ? 0 : shownLayer();
   for (const k of KEYS) {
@@ -244,6 +251,7 @@ function methodWords() {
       + (choosing() ? ` To test what each key sends, on each layer, choose Computer's keys.` : '') };
   const why = state.fellBack ? `The board did not report that press: this firmware does not report its switches (built without VIA_INSECURE), so `
             : state.refused ? `This firmware does not report its switches (built without VIA_INSECURE), so `
+            : hostByDefault() && !state.chosen ? `What each key sends, on each layer -- choose Switches to test the switches themselves, by position: `
             : `Chosen: `;
   const layerWords = !byLayer() ? ''
     : follows() ? ` The board shows the layer each key received comes from; keys a layer leaves transparent are faint ▽ and send what the layer below does.`
@@ -266,7 +274,7 @@ function stripHtml() {
   // The layers, while the computer's keys are tested: the one shown is the one tested.
   const layers = state.method === 'computer' && byLayer()
     ? `<span class="layers"><span class="muted">Layer</span>` + Array.from({ length: LAYER_COUNT }, (_, n) =>
-        `<span class="tab${n === shownLayer() ? ' on' : ''}" data-layer="${n}">${n}</span>`).join('') + `</span>` : '';
+        `<span class="tab${n === shownLayer() ? (followed() ? ' followed' : ' on') : ''}" data-layer="${n}">${n}</span>`).join('') + `</span>` : '';
   let tag = '';
   if (choosing()) {
     // The tag as a choice: Nazg's pick selected once a key decides, the user's at once. Switches
@@ -326,16 +334,19 @@ const CONTROLS = [
   ['Theme', 'theme', ['Light', 'Dark']],
   'break',
   // Second round (2026-10-26).
-  ['Choosing', 'choosing', ['Nazg alone (as built)', 'The tag is a choice']],
+  ['Choosing', 'choosing', ['Nazg alone (as built)', 'The tag is a choice', 'Computer\'s keys by default']],
   ['Computer\'s keys test', 'layers', ['The base layer (as built)', 'The layer shown']],
   // With the layer shown: picked in the strip only, or moved to the layer each key received came from.
   ['Layer shown', 'follow', ['Picked in the strip', 'Follows the key received']],
+  // While a key's layer is shown, not the strip's: how it is marked.
+  ['Layer followed', 'followMark', ['Nothing', 'Its tab', 'Its tab and the plate']],
 ];
 function reset() {
   state.pressed.clear(); state.seen.clear(); state.knob.clear(); state.method = null;
   state.seenOn.forEach(s => s.clear()); state.layer = 0; state.fnHeld = false; state.chosen = null;
   state.refused = false; state.fellBack = false; state.received = null;
   state.peek = null; state.down = null; state.receivedFrom = null; clearTimeout(backTimer);
+  if (hostByDefault()) state.method = 'computer';
 }
 function render() {
   document.documentElement.dataset.theme = state.theme.toLowerCase();
@@ -390,6 +401,11 @@ on one that does not it matched the base layer only -- Fn and 1 lit nothing (<i>
 at once. Switches are greyed once the board is known not to report them; chosen before that, the first press falls back and says why.
 Each test keeps what it has seen when the other is chosen. Try it with <i>VIA_INSECURE</i> or <i>Vial, unlocked</i>: the switches test
 first, then Computer's keys to test the layers.</p>
+<p><b>Computer's keys by default</b> (Rico, 2026-10-26), the default here: the choice, with Computer's keys selected from the start
+on every board -- what most open the test for, after programming, layers included, and the same test whatever the firmware. Switches
+one click away, for a board just soldered: by position, ghosting and rollover, keys that send nothing. Nazg no longer works out a test
+before the first press; chosen on a board that refuses its matrix, Switches fall back at the first press and say why. Remembering the
+choice in settings.json waits (Rico).</p>
 <p><b>The layer shown</b>: while the computer's keys are tested, the strip has the layers, as Keymap's; the board draws the layer
 chosen and a key lights when the computer receives what it sends there. Keys the layer leaves transparent are faint with ▽ and not
 counted: they send what the layer below does. The count is per layer. The computer cannot tell Nazg which layer is on, so a key
@@ -398,9 +414,13 @@ have is said, with the layer that has it and a button to show it. <b>Layer shown
 while a key received is down, the board shows the layer it comes from, as far as Nazg can tell -- the layer whose own key sends
 it, not one passing it through a transparent key -- and goes back to the strip's layer half a second after it is released, so a tap
 is seen (Rico: released, F1 stayed on layer 1). The line keeps where the last key came from. A keycode several layers send keeps the
-layer shown if it is one of them, else the lowest. <i>Picked in the strip</i>: the layer moves only when clicked. A key is down while
+layer shown if it is one of them, else the lowest. <i>Picked in the strip</i>: the layer moves only when clicked.
+<b>Layer followed</b> (Rico, 2026-10-26): while the board shows a key's layer rather than the strip's, its tab is violet --
+Behaviour's colour, the one layer keys wear -- instead of the accent blue of a layer picked. Back to the strip's layer, back to
+blue. Chosen: the tab only (Rico); the plate tinted and outlined too was declined. A key is down while
 the mouse button is: hold it to hold the key. Try it: Layer 1, click Fn to hold it, then 1, I, J... Show layer 0 while Fn is held, press 1: F1 is
 received, and the line offers layer 1. The switches test positions, whatever the layer: no layers in the strip there.</p>`;
+reset();
 render();
 </script>
 </body>
