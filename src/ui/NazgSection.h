@@ -53,10 +53,24 @@ namespace nazg
         // Shorter than `entries`: the rest are not.
         std::vector<bool> struck;
 
-        // A word at the strip's right end, in a rounded outline -- how the Matrix view's live test
-        // reads the board (Rico, 2026-10-18). Green, or the warning's colour with `tagWarning`.
-        std::string tag;
-        bool        tagWarning = false;
+        // A second row of choices after the entries, under its own label: the layers the Matrix
+        // view's live test shows (ui-design.md, "The key test"). `groupMarked`: an entry shown for
+        // another reason than being picked -- the layer a key received came from -- in Behaviour's
+        // violet, the colour layer keys wear (Rico, 2026-10-26). Empty: no group.
+        std::string              groupLabel;
+        std::vector<std::string> group;
+        size_t                   groupChosen = 0;
+        std::optional<size_t>    groupMarked;
+
+        // A choice at the strip's right end, under its own label, the chosen one in green or, with
+        // `choiceWarning` set for it, the warning's colour -- how the live test reads the board
+        // (Rico, 2026-10-26; a tag only, from 2026-10-18). `choiceDisabled`: why an entry cannot be
+        // chosen, said on hover; empty, or shorter than `choices`: it can. Empty: no choice.
+        std::string              choiceLabel;
+        std::vector<std::string> choices;
+        size_t                   choiceChosen = 0;
+        std::vector<bool>        choiceWarning;
+        std::vector<std::string> choiceDisabled;
     };
 
     // The column's groups (ui-design.md, "Nazg's sections, then the board's menus"): the sections
@@ -87,6 +101,10 @@ namespace nazg
         [[nodiscard]] virtual Strip DescribeStrip() const { return {}; }
         virtual void OnStripChosen(size_t /*entry*/) {}
         virtual void OnStripHovered(std::optional<size_t> /*entry*/) {}
+
+        // An entry of the strip's group, or of its choice, clicked -- one not chosen already.
+        virtual void OnStripGroupChosen(size_t /*entry*/) {}
+        virtual void OnStripChoice(size_t /*entry*/) {}
 
         // 2. The board. Every frame, `board` arrives as the board's definition draws it
         // (DescribeKeyboard()); the section fills it in -- or replaces its keys, to draw

@@ -2776,7 +2776,7 @@ As built (2026-10-18):
 - **What arrives**: SDL's scancodes are the keyboard page's usages; the volume arrives on the
   keyboard page whichever page QMK sent it on, Play, Next, Previous and Stop on the consumer page.
 
-Proposed (2026-10-26), after a tester's report on 0.1.0-test.5: he checks his layers at the end of
+Built (2026-10-26; seen working on Rico's boards, the F77 among them, the same day), after a tester's report on 0.1.0-test.5: he checks his layers at the end of
 programming -- Fn and 1 sending F1, the navigation keys -- with VIA's Key Tester or SwitchHitter, both
 reading what the computer receives. Nazg offered no such test on a board reporting its switches, and on
 one that does not it matched the base layer only (`NazgMatrixView.cpp`): Fn and 1 lit nothing. Rico

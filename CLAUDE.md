@@ -108,9 +108,10 @@ exists, where, and how far it has been proven.
     while audio is off, Play a sound (device indication: the board's song on its own speaker); the
     board lighting the keys that change it; written at once, read each time the section is shown
     (`ui/NazgAudioSection.*`, `adapters/via/NazgViaAudio.*`).
-  - **Matrix view** (Tools, every board since 2026-10-18) -- a live test reading the switches, or the
-    keys the computer receives when the firmware refuses its matrix, said in the panel and the strip's
-    tag (ui-design.md, "The key test"; `model/NazgHostKeys.*`); first and started when shown,
+  - **Matrix view** (Tools, every board since 2026-10-18) -- a live test reading the keys the computer
+    receives by default, on the layer shown -- picked in the strip, or while a key is held the layer it
+    comes from, its entry violet -- or the switches, chosen at the strip's end, falling back where the
+    firmware refuses them (Rico, 2026-10-26; ui-design.md, "The key test"; `model/NazgHostKeys.*`); first and started when shown,
     and wiring.
   - **Diagnostics** (Tools, every board answering the Leyden Jar's probe; `ui/NazgDiagnosticsSection.*`)
     -- Key presses (now and seen; the board, QMK's matrix or the controller's), Signal levels (the
@@ -164,6 +165,7 @@ one board to unlock).
 | Diagnostics on Rico's F77: key output off and on again, Key presses, Signal levels, Device; Enter bootloader and Erase EEPROM, the board closed and the list saying where it went (2026-10-17); Key presses and Enter bootloader on the F77 locked, past Vial's lock (2026-10-18) | |
 | The Device section on Rico's boards (2026-10-18): the bootloader, said how where the firmware lacks it, keymap reset, macros emptied | |
 | The key test (2026-10-18): the Concordia on the computer's keys, hatched keys and the shared-key marks; the F77 on its switches unlocked, on the computer's keys locked; Win and Alt+Tab taken while it reads them | |
+| The key test's second round (Rico, 2026-10-26, the F77 among his boards): Computer's keys by default, Switches chosen and falling back, layers shown and followed -- Ctrl+Space and A found on layer 1 | Two layers sending the same keycode: Nazg takes the one shown, else the lowest, and may be wrong |
 | The web build (2026-10-24): all tests under Node; the list, Settings, both bundles, settings kept across a reload; in Chrome over WebHID the F77 added, unlocked, key test, keys changed, Leyden Jar diagnostics; in Edge the Concordia with its definition imported, Load from file, Save to file, Export definition (Rico) | The web build on a high-DPI display |
 | Linux in WSL (2026-10-18): GCC 13 build, all tests; the F77 lent by usbipd, refused until a udev rule, then Vial, unlock, keymap and Diagnostics (Rico) | Linux on a real desktop: uaccess, X11, the window icon, a locked board's key test (WSLg gets no keys from a board lent to Linux) |
 | The AppImage (2026-10-18, released in 0.1.0-test.3): built in the container, 49 tests passing there, glibc 2.27 and libudev only; started in WSL, the F77 shown "not allowed" with Allow... (Rico). On a tester's KDE desktop (2026-10-24), a Keychron on VIA: started as it was, a few keys changed, the key test reading the switches (Keychron's `VIA_INSECURE`) -- his board already allowed, so no Allow... | The AppImage on an old distribution; Wayland with libdecor (GNOME) |

@@ -8,6 +8,7 @@
 #include <cmath>
 #include <optional>
 #include <string>
+#include <utility>   // std::exchange
 #include <vector>
 
 #include "imgui.h"
@@ -295,11 +296,27 @@ namespace nazg
             const float dotRoom = 4.0f * style.FontScaleDpi;
             total += dotRoom;
 
-            // The tag keeps its room at the right end; the entries have the rest.
-            const float tagWidth  = strip.tag.empty() ? 0.0f
-                                                      : ImGui::CalcTextSize(strip.tag.c_str()).x + 3 * style.FramePadding.x;
+            // The group after the entries and the choice at the right end keep their room; the entries
+            // have the rest.
+            const auto buttonWidth = [&](const std::string& text)
+            { return std::max(minWidth, ImGui::CalcTextSize(text.c_str()).x + 2 * style.FramePadding.x); };
+            float groupWidth = 0.0f;
+            if (!strip.group.empty())
+            {
+                groupWidth = 2 * style.ItemSpacing.x + ImGui::CalcTextSize(strip.groupLabel.c_str()).x;
+                for (const std::string& entry : strip.group)
+                    groupWidth += style.ItemSpacing.x + buttonWidth(entry);
+            }
+            float choiceWidth = 0.0f;
+            if (!strip.choices.empty())
+            {
+                choiceWidth = ImGui::CalcTextSize(strip.choiceLabel.c_str()).x + style.ItemSpacing.x;
+                for (const std::string& choice : strip.choices)
+                    choiceWidth += ImGui::CalcTextSize(choice.c_str()).x + 2 * style.FramePadding.x;
+            }
             const float right     = ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x;
-            const float available = ImGui::GetContentRegionAvail().x - (strip.tag.empty() ? 0.0f : tagWidth + style.ItemSpacing.x);
+            const float available = ImGui::GetContentRegionAvail().x - groupWidth -
+                                    (strip.choices.empty() ? 0.0f : choiceWidth + style.ItemSpacing.x);
             const bool  overflows = total > available;
             const float arrow     = ImGui::GetFrameHeight();
             const float inside    = overflows ? std::max(arrow, available - 2 * (arrow + style.ItemSpacing.x)) : available;
@@ -409,24 +426,89 @@ namespace nazg
                 ImGui::EndDisabled();
             }
 
-            // A word at the right end, in a rounded outline: how the Matrix view's live test reads
-            // the board -- green, or in the warning's colour.
-            if (!strip.tag.empty())
+            // What follows is level with the label and the arrows: below the raised entries.
+            bool lowered = overflows;
+            const auto nextOnLine = [&](float spacing)
             {
-                ImGui::SameLine();
-                if (!overflows)
+                ImGui::SameLine(0.0f, spacing);
+                if (!std::exchange(lowered, true))
                     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + dotRoom);
-                ImGui::SetCursorPosX(right - tagWidth);
-                const ImVec2 min = ImGui::GetCursorScreenPos();
-                const ImVec2 max(min.x + tagWidth, min.y + ImGui::GetFrameHeight());
-                const ImU32  colour =
-                    ImGui::ColorConvertFloat4ToU32(ColourOf(strip.tagWarning ? PanelColour::Warning : PanelColour::Success));
-                ImDrawList*  list = ImGui::GetWindowDrawList();
-                list->AddRect(min, max, colour, ImGui::GetFrameHeight() / 2, 0, std::max(1.0f, style.FontScaleDpi));
-                const ImVec2 text = ImGui::CalcTextSize(strip.tag.c_str());
-                list->AddText(ImVec2(min.x + (tagWidth - text.x) / 2, min.y + (max.y - min.y - text.y) / 2), colour,
-                              strip.tag.c_str());
-                ImGui::Dummy(ImVec2(tagWidth, ImGui::GetFrameHeight()));
+            };
+
+            // The group: its label, its entries -- the chosen one as the entries' is, a marked one in
+            // Behaviour's violet, its words dark or light for contrast. A marked entry is shown, not
+            // picked: clicking it picks it.
+            if (!strip.group.empty())
+            {
+                nextOnLine(2 * style.ItemSpacing.x);
+                ImGui::AlignTextToFramePadding();
+                ImGui::TextUnformatted(strip.groupLabel.c_str());
+                const ImU32 violet = BoardColours::Category(CommandCategory::Behaviour, CategoryUse::Band, KeyFill::Modifier, 0.0f)
+                                         .value_or(ImGui::GetColorU32(ImGuiCol_ButtonActive));
+                const ImVec4 fill  = ImGui::ColorConvertU32ToFloat4(violet);
+                const bool   light = 0.2126f * fill.x + 0.7152f * fill.y + 0.0722f * fill.z > 0.5f;
+                for (size_t index = 0; index < strip.group.size(); ++index)
+                {
+                    ImGui::SameLine();
+                    ImGui::PushID(static_cast<int>(index) + 0x10000);
+                    const bool isMarked = strip.groupMarked == index;
+                    const bool isChosen = index == strip.groupChosen;
+                    int        pushed   = 0;
+                    if (isMarked)
+                    {
+                        ImGui::PushStyleColor(ImGuiCol_Button, fill);
+                        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, fill);
+                        ImGui::PushStyleColor(ImGuiCol_ButtonActive, fill);
+                        ImGui::PushStyleColor(ImGuiCol_Text, light ? ImVec4(0, 0, 0, 1) : ImVec4(1, 1, 1, 1));
+                        pushed = 4;
+                    }
+                    else if (isChosen)
+                    {
+                        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+                        pushed = 1;
+                    }
+                    if (ImGui::Button(strip.group[index].c_str(), ImVec2(buttonWidth(strip.group[index]), 0.0f)) &&
+                        (!isChosen || isMarked))
+                        section.OnStripGroupChosen(index);
+                    ImGui::PopStyleColor(pushed);
+                    ImGui::PopID();
+                }
+            }
+
+            // The choice at the right end, its entries side by side: the chosen one green, or in the
+            // warning's colour; one that cannot be chosen greyed, saying why on hover.
+            if (!strip.choices.empty())
+            {
+                nextOnLine(-1.0f);
+                ImGui::SetCursorPosX(right - choiceWidth);
+                ImGui::AlignTextToFramePadding();
+                ImGui::TextUnformatted(strip.choiceLabel.c_str());
+                ImGui::SameLine();
+                ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, style.ItemSpacing.y));
+                for (size_t index = 0; index < strip.choices.size(); ++index)
+                {
+                    if (index > 0)
+                        ImGui::SameLine();
+                    ImGui::PushID(static_cast<int>(index) + 0x20000);
+                    const bool isChosen = index == strip.choiceChosen;
+                    const bool disabled = index < strip.choiceDisabled.size() && !strip.choiceDisabled[index].empty();
+                    if (isChosen)
+                    {
+                        const bool warning = index < strip.choiceWarning.size() && strip.choiceWarning[index];
+                        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+                        ImGui::PushStyleColor(ImGuiCol_Text, ColourOf(warning ? PanelColour::Warning : PanelColour::Success));
+                    }
+                    ImGui::BeginDisabled(disabled);
+                    if (ImGui::Button(strip.choices[index].c_str()) && !isChosen)
+                        section.OnStripChoice(index);
+                    ImGui::EndDisabled();
+                    if (disabled && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                        ImGui::SetTooltip("%s", strip.choiceDisabled[index].c_str());
+                    if (isChosen)
+                        ImGui::PopStyleColor(2);
+                    ImGui::PopID();
+                }
+                ImGui::PopStyleVar();
             }
             section.OnStripHovered(hovered);
         }

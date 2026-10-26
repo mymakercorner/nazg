@@ -14,6 +14,7 @@
 #include "model/NazgHostKeys.h"
 #include "transport/NazgDeviceChannel.h"
 #include "ui/NazgKeycapLegend.h"
+#include "ui/NazgKeycodePicker.h"
 #include "ui/NazgTheme.h"
 
 namespace nazg
@@ -73,12 +74,28 @@ namespace nazg
         strip.label   = "Matrix";
         strip.entries = { "Live test", "Wiring" };
         strip.chosen  = m_ShowWiring ? 1 : 0;
-        if (IsLiveShown() && m_Live == Live::Running && m_Method == Method::Switches)
-            strip.tag = "Switches";
-        else if (IsLiveShown() && m_Live == Live::Running && m_Method == Method::Computer)
+        if (!IsLiveShown())
+            return strip;
+
+        // The test, chosen at the end (Rico, 2026-10-26): the computer's keys in the warning's colour,
+        // as their tag was -- they cannot see what sends nothing.
+        strip.choiceLabel   = "Test";
+        strip.choices       = { "Switches", "Computer's keys" };
+        strip.choiceChosen  = m_Method == Method::Switches ? 0 : 1;
+        strip.choiceWarning = { false, true };
+        if (!m_SwitchesRefused.empty())
+            strip.choiceDisabled = { m_SwitchesRefused };
+
+        // The layers, on the computer's keys: the one shown chosen, in violet when a key held shows it.
+        const uint8_t layers = m_Keyboard.keymap.Layers();
+        if (m_Method == Method::Computer && layers > 1)
         {
-            strip.tag        = "Computer's keys";
-            strip.tagWarning = true;
+            strip.groupLabel = "Layer";
+            for (uint8_t layer = 0; layer < layers; ++layer)
+                strip.group.push_back(std::to_string(layer));
+            strip.groupChosen = ShownLayer();
+            if (m_Peek && *m_Peek != m_Layer)
+                strip.groupMarked = *m_Peek;
         }
         return strip;
     }
@@ -89,6 +106,53 @@ namespace nazg
         m_ShowWiring = entry == 1;
         if (!m_ShowWiring && m_Live == Live::Failed)
             m_Live = Live::Off;   // chosen again: tried again
+    }
+
+    void MatrixView::OnStripGroupChosen(size_t entry)
+    {
+        m_Layer = static_cast<uint8_t>(entry);
+        m_Peek.reset();
+    }
+
+    // Each test keeps what it saw while the other runs. The switches open the board in DescribeBoard().
+    void MatrixView::OnStripChoice(size_t entry)
+    {
+        if (entry == 0)
+        {
+            m_Method            = Method::Switches;
+            m_SwitchesConfirmed = false;
+            m_Why.clear();
+            m_HostDownAt.reset();
+            m_QuietReadings = 0;
+            if (m_Live == Live::Failed)
+                m_Live = Live::Running;   // tried again
+        }
+        else
+        {
+            UseComputerKeys({}, false);
+        }
+    }
+
+    uint8_t MatrixView::ShownLayer() const noexcept
+    {
+        return m_Method == Method::Computer ? m_Peek.value_or(m_Layer) : 0;
+    }
+
+    void MatrixView::ResetTest()
+    {
+        m_Method            = Method::Computer;
+        m_SwitchesConfirmed = false;
+        m_Why.clear();
+        m_Readings = {};
+        m_HostDownAt.reset();
+        m_QuietReadings = 0;
+        m_HostHeld.clear();
+        m_HostSeen.clear();
+        m_Peek.reset();
+        m_Received.clear();
+        m_FindLayer = false;
+        m_ReceivedFrom.reset();
+        m_ReceivedLine.clear();
     }
 
     bool MatrixView::IsBusy() const
@@ -118,35 +182,46 @@ namespace nazg
             StopLiveTest();
 
         // Nothing starts in a frame Nazg told the view to stop in. Otherwise the live test starts
-        // as soon as it shows, and is paced here, as the Vial unlock is: a reading goes out once
-        // the last one has come back and the interval has passed since it was asked for.
+        // as soon as it shows, on the computer's keys, which need nothing from the board. The
+        // switches open it, and are paced here, as the Vial unlock is: a reading goes out once the
+        // last one has come back and the interval has passed since it was asked for.
         if (!std::exchange(m_HiddenThisFrame, false) && !m_ShowWiring && !IsBusy())
         {
             if (m_Live == Live::Off)
             {
-                m_Readings = {};
+                ResetTest();
                 m_LiveMessage.clear();
+                m_Live = Live::Running;
+            }
+
+            if (m_Method == Method::Computer)
+            {
+                m_Channel.reset();   // nothing to read from the board
+                if (m_Live == Live::Failed)
+                    m_Live = Live::Running;
+            }
+            else if (m_Live == Live::Running && !m_Channel)
+            {
                 m_Request = StartLive();
             }
-            else if (m_Live == Live::Running && m_Method == Method::Computer)
-            {
-                m_Channel.reset();   // nothing more to read from the board
-            }
-            else if (m_Live == Live::Running && m_Channel && ImGui::GetTime() - m_LastPoll >= c_PollInterval)
+            else if (m_Live == Live::Running && ImGui::GetTime() - m_LastPoll >= c_PollInterval)
             {
                 m_LastPoll = ImGui::GetTime();
                 m_Request  = Poll();
             }
         }
 
-        // Layer 0's legends, so each key is recognised; the keymap itself is not the point here.
-        DescribeLegends(board, m_Keyboard, 0, m_Legends);
+        // The layer a key just received came from, before the legends are taken from it.
+        if (IsLiveTestRunning() && m_Method == Method::Computer)
+            FollowReceived(board);
+
+        // The layer shown's legends: layer 0's on the switches and in Wiring, so each key is
+        // recognised; on the computer's keys, the layer whose keys are tested.
+        DescribeLegends(board, m_Keyboard, IsLiveShown() ? ShownLayer() : 0, m_Legends);
 
         // The live test is a view of its own: only what the board reports, no wiring.
         const bool isLive = IsLiveTestRunning();
-        // Before the first press too, the keys the computer could not hear hatched (Rico, 2026-10-18):
-        // the board most likely does not report its switches; if it does, the hatching goes.
-        if (isLive && m_Method != Method::Switches)
+        if (isLive && m_Method == Method::Computer)
             DescribeComputerKeys(board);
         else
             m_Counts = DescribeMatrix(board, m_Keyboard.definition.matrixRows, m_Keyboard.definition.matrixColumns,
@@ -275,17 +350,27 @@ namespace nazg
         }
 
         DrawMethodLine();
-        if (m_Method == Method::Unknown)
+        if (m_Method == Method::Switches && !m_SwitchesConfirmed)
             return;
         ImGui::Spacing();
 
-        ImGui::Text("Seen %zu of %zu keys. Press every key once.", m_Counts.seenKeys, m_Counts.keys);
+        // On the computer's keys, each layer's count is its own.
+        const uint8_t layer = ShownLayer();
+        if (m_Method == Method::Computer && layer > 0)
+            ImGui::Text("Seen %zu of %zu keys of layer %d. Press every key once.", m_Counts.seenKeys, m_Counts.keys, layer);
+        else
+            ImGui::Text("Seen %zu of %zu keys. Press every key once.", m_Counts.seenKeys, m_Counts.keys);
         ImGui::SameLine();
         if (ImGui::SmallButton("Start over"))
         {
             m_Readings = {};
             m_HostSeen.clear();
+            m_Received.clear();
+            m_ReceivedFrom.reset();
+            m_ReceivedLine.clear();
         }
+        if (m_Method == Method::Computer && !m_ReceivedLine.empty())
+            ImGui::TextUnformatted(m_ReceivedLine.c_str());
 
         if (m_Counts.seenKeys == m_Counts.keys && m_Counts.keys > 0)
             ColouredText(PanelColour::Success, m_Method == Method::Switches ? "Every key works."
@@ -316,41 +401,44 @@ namespace nazg
     {
         switch (m_Method)
         {
-        case Method::Unknown:
-            ImGui::TextUnformatted("Press any key.");
-            ColouredText(PanelColour::Muted, "Nazg reads the board's switches if it reports them, else the keys the "
-                                             "computer receives -- it says which once a key is pressed. Hatched: keys "
-                                             "sending nothing the computer hears, which only the switches can test.");
-            return;
         case Method::Switches:
             ColouredText(PanelColour::Success, "Testing the switches");
-            ColouredText(PanelColour::Muted, "The board reports which of its switches are pressed, whatever they send.");
+            ColouredText(PanelColour::Muted, "The board reports which of its switches are pressed, whatever they send%s",
+                         m_SwitchesConfirmed ? "." : " -- if it reports them: press any key.");
             return;
         case Method::Computer:
             ColouredText(PanelColour::Warning, "Testing what the computer receives");
-            ColouredText(PanelColour::Muted, "%s, so a key lights when the computer receives what it sends. A key sending "
+            if (m_Why.empty())
+                ColouredText(PanelColour::Muted, "What each key sends, on each layer -- choose Switches at the strip's end "
+                                                 "to test the switches themselves, by position.");
+            else
+                ColouredText(PanelColour::Muted, "%s.", m_Why.c_str());
+            ColouredText(PanelColour::Muted, "A key lights when the computer receives what it sends. While a key is held, "
+                                             "the board shows the layer it comes from, in violet in the strip; keys a "
+                                             "layer leaves transparent are faint and not counted. A key sending "
                                              "nothing -- a layer key, an empty one -- cannot be tested this way, and is "
                                              "hatched; keys sending the same thing light together, marked ?. Keys the "
-                                             "system keeps may never arrive.",
-                         m_Why.c_str());
+                                             "system keeps may never arrive.");
             return;
         }
     }
 
-    void MatrixView::UseComputerKeys(std::string why)
+    void MatrixView::UseComputerKeys(std::string why, bool refused)
     {
         m_Method = Method::Computer;
         m_Why    = std::move(why);
         m_Live   = Live::Running;
+        if (refused)
+            m_SwitchesRefused = m_Why;
     }
 
     void MatrixView::OnHostKey(uint32_t usage, bool down)
     {
-        if (!IsLiveTestRunning() || m_Method == Method::Switches)
+        if (!IsLiveTestRunning() || (m_Method == Method::Switches && m_SwitchesConfirmed))
             return;
 
-        // Any key, tested or not, tells a refusal from rest.
-        if (m_Method == Method::Unknown)
+        // On the switches, any key, tested or not, tells a refusal from rest.
+        if (m_Method == Method::Switches)
         {
             if (down && !m_HostDownAt)
             {
@@ -361,7 +449,8 @@ namespace nazg
                 m_HostDownAt.reset();
         }
 
-        for (const std::string_view name : KeycodesSending(usage, m_Keyboard.keycodeVersion))
+        const std::vector<std::string_view> names = KeycodesSending(usage, m_Keyboard.keycodeVersion);
+        for (const std::string_view name : names)
         {
             if (down)
             {
@@ -371,6 +460,67 @@ namespace nazg
             else
                 m_HostHeld.erase(name);
         }
+
+        // The layer it came from is found with the board, in DescribeBoard(); released, the one picked.
+        if (down && !names.empty())
+        {
+            m_Received  = names;
+            m_FindLayer = true;
+        }
+        if (m_HostHeld.empty())
+            m_Peek.reset();
+    }
+
+    // The layer a key received came from, as Nazg can tell -- VIA and Vial do not report it: the layer
+    // whose own key sends it, not one passing it through a transparent key -- so S after Fn is let go
+    // is layer 0 again. Several layers sending it: the one shown if it is one, else the lowest.
+    void MatrixView::FollowReceived(const BoardDescription& board)
+    {
+        if (!std::exchange(m_FindLayer, false) || m_Received.empty())
+            return;
+
+        const qmk::KeycodeVersion version = m_Keyboard.keycodeVersion;
+        const auto                sends   = [&](const Keycode& keycode)
+        {
+            const std::optional<std::string_view> name = TestedName(keycode, version);
+            return name && std::find(m_Received.begin(), m_Received.end(), *name) != m_Received.end();
+        };
+
+        std::vector<uint8_t> owners;
+        for (uint8_t layer = 0; layer < m_Keyboard.keymap.Layers(); ++layer)
+            for (const BoardKey& key : board.keys)
+                if (key.geometry.IsSwitch() && sends(m_Keyboard.KeycodeFor(key.geometry, layer)))
+                {
+                    owners.push_back(layer);
+                    break;
+                }
+
+        const uint8_t shown = ShownLayer();
+        m_ReceivedFrom.reset();
+        if (!owners.empty())
+            m_ReceivedFrom = std::find(owners.begin(), owners.end(), shown) != owners.end() ? shown : owners.front();
+
+        // Only while it is held: a tap released before this frame leaves the layer picked.
+        if (m_ReceivedFrom && !m_HostHeld.empty())
+            m_Peek = *m_ReceivedFrom == m_Layer ? std::nullopt : m_ReceivedFrom;
+
+        // Said in the panel: "Received F1: 1 on layer 1."
+        const std::string name = KeycodeLabel(NamedKey{ m_Received.front() }, version);
+        if (!m_ReceivedFrom)
+        {
+            m_ReceivedLine = "Received " + name + ": no key of this board sends it.";
+            return;
+        }
+        std::string keys;
+        for (const BoardKey& key : board.keys)
+        {
+            if (!key.geometry.IsSwitch())
+                continue;
+            const ResolvedKey resolved = ResolveKey(m_Keyboard, key.geometry, *m_ReceivedFrom);
+            if (resolved.fallthrough != Fallthrough::Disabled && sends(resolved.keycode))
+                keys += (keys.empty() ? "" : ", ") + KeycodeLabel(m_Keyboard.KeycodeFor(key.geometry, 0), version);
+        }
+        m_ReceivedLine = "Received " + name + ": " + keys + " on layer " + std::to_string(*m_ReceivedFrom) + ".";
     }
 
     void MatrixView::DescribeComputerKeys(BoardDescription& board)
@@ -378,25 +528,34 @@ namespace nazg
         const uint8_t             rows    = m_Keyboard.definition.matrixRows;
         const uint8_t             columns = m_Keyboard.definition.matrixColumns;
         const qmk::KeycodeVersion version = m_Keyboard.keycodeVersion;
+        const uint8_t             layer   = ShownLayer();
 
-        // What each key is tested by, and how many keys share it: a switch by its keycode on the base
-        // layer, a Vial knob's direction key by its turn.
-        const auto turnOf = [&](const via::DefinitionKey& key, bool clockwise) -> std::optional<std::string_view>
+        // What a key sends on the layer shown, through the transparent keys below it; nothing for one
+        // KC_NO disables.
+        const auto testedBy = [&](const std::optional<ResolvedKey>& resolved) -> std::optional<std::string_view>
         {
-            if (m_Keyboard.encoderMap.empty() || key.encoderIndex < 0 ||
-                static_cast<size_t>(key.encoderIndex) >= m_Keyboard.encoderMap[0].size())
+            if (!resolved || resolved->fallthrough == Fallthrough::Disabled)
                 return std::nullopt;
-            const KnobTurns& turns = m_Keyboard.encoderMap[0][static_cast<size_t>(key.encoderIndex)];
-            return TestedName(clockwise ? turns.clockwise : turns.counterClockwise, version);
+            return TestedName(resolved->keycode, version);
         };
+        const auto turnOf = [&](const via::DefinitionKey& key, bool clockwise)
+        { return testedBy(ResolveTurn(m_Keyboard, key.encoderIndex, clockwise, layer)); };
 
+        // What each key is tested by, and how many keys share it: a switch by its keycode, a Vial
+        // knob's direction key by its turn. A key the layer leaves transparent is tested -- it sends
+        // what the layer below does -- but not counted: drawn faint, it is not the layer's own.
         std::vector<std::optional<std::string_view>> tested(board.keys.size());
+        std::vector<bool>                            passes(board.keys.size(), false);
         std::map<std::string_view, int>              sharing;
         for (size_t index = 0; index < board.keys.size(); ++index)
         {
             const via::DefinitionKey& key = board.keys[index].geometry;
             if (key.IsSwitch())
-                tested[index] = TestedName(m_Keyboard.KeycodeFor(key, 0), version);
+            {
+                const ResolvedKey resolved = ResolveKey(m_Keyboard, key, layer);
+                tested[index] = testedBy(resolved);
+                passes[index] = layer > 0 && resolved.fallthrough == Fallthrough::Transparent;
+            }
             else if (key.encoderIndex >= 0 && key.encoderDirection >= 0)
                 tested[index] = turnOf(key, key.encoderDirection == 1);
             if (tested[index])
@@ -450,7 +609,7 @@ namespace nazg
             }
 
             const bool heard = m_HostSeen.count(*tested[index]) > 0;
-            if (key.IsSwitch() && key.row < rows && key.column < columns)
+            if (key.IsSwitch() && key.row < rows && key.column < columns && !passes[index])
             {
                 ++keys;
                 seen += heard ? 1 : 0;
@@ -475,16 +634,14 @@ namespace nazg
         m_LiveMessage = std::move(message);
     }
 
-    // Opens the board, keeps it open, and finds out whether and how it will answer.
+    // Opens the board for the switches, keeps it open, and finds out whether it will answer -- back to
+    // the computer's keys where it cannot, saying why.
     Task<void> MatrixView::StartLive()
     {
-        m_Live          = Live::Starting;
-        m_Method        = Method::Unknown;
-        m_Why.clear();
+        m_Live              = Live::Starting;
+        m_SwitchesConfirmed = false;
         m_HostDownAt.reset();
         m_QuietReadings = 0;
-        m_HostHeld.clear();
-        m_HostSeen.clear();
 
         const uint8_t rows    = m_Keyboard.definition.matrixRows;
         const uint8_t columns = m_Keyboard.definition.matrixColumns;
@@ -502,15 +659,18 @@ namespace nazg
                 if (identity && identity->protocolVersion < c_VialMatrixTesterProtocol)
                 {
                     UseComputerKeys("This firmware speaks Vial protocol " + std::to_string(identity->protocolVersion) +
-                                    ", older than Vial's matrix test");
+                                        ", older than Vial's matrix test: it cannot report its switches",
+                                    true);
                     co_return;
                 }
 
+                // Locked: back to the computer's keys, the switches still there for once it is unlocked.
                 const vial::UnlockStatus status = co_await vial.GetUnlockStatus();
                 if (!status.unlocked)
                 {
                     UseComputerKeys("The board is locked, and Vial reports its switches only once unlocked -- click "
-                                    "Locked in the header to test them");
+                                    "Locked in the header, then Switches",
+                                    false);
                     co_return;
                 }
 
@@ -524,7 +684,8 @@ namespace nazg
             if (m_Format == via::SwitchMatrixFormat::Whole && !via::WholeMatrixFits(rows, columns))
             {
                 UseComputerKeys("This firmware reports its switches only when all of them fit in one reply, and " +
-                                std::to_string(rows) + " rows of " + std::to_string(columns) + " columns do not");
+                                    std::to_string(rows) + " rows of " + std::to_string(columns) + " columns do not",
+                                true);
                 co_return;
             }
 
@@ -548,16 +709,18 @@ namespace nazg
                 m_Format, m_Keyboard.definition.matrixRows, m_Keyboard.definition.matrixColumns);
             AddReading(m_Readings, reading);
 
-            // The first press decides: shown by the matrix, the switches; heard by the computer alone
-            // through readings sent while it was down, the firmware refuses its matrix.
-            if (m_Method == Method::Unknown)
+            // The first press decides: shown by the matrix, the switches are read; heard by the
+            // computer alone through readings sent while it was down, the firmware refuses its matrix.
+            if (m_Method == Method::Switches && !m_SwitchesConfirmed)
             {
                 if (AnyPressed(reading))
-                    m_Method = Method::Switches;
+                    m_SwitchesConfirmed = true;
                 else if (m_HostDownAt && sent > *m_HostDownAt && ++m_QuietReadings >= c_QuietReadings)
-                    UseComputerKeys(m_IsVial ? "This firmware does not report its switches"
-                                             : "This firmware does not report its switches -- it was built without "
-                                               "VIA_INSECURE");
+                    UseComputerKeys(m_IsVial ? "The board did not report that press: this firmware does not report "
+                                               "its switches"
+                                             : "The board did not report that press: this firmware does not report its "
+                                               "switches -- it was built without VIA_INSECURE",
+                                    true);
             }
         }
         catch (const std::exception& failure)
