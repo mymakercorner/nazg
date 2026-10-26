@@ -137,7 +137,7 @@ const FIRMWARE = {
   'Vial, unlocked': { matrix: true, name: 'F77 Model F Keyboard', proto: 'Vial 6' },
 };
 const state = { fw: 'Stock VIA (matrix refused)', says: 'A tag in the strip, the line too', marks: 'Shared keys amber, mute keys hatched', theme: 'Light',
-  choosing: 'Computer\'s keys by default', layers: 'The layer shown', follow: 'Follows the key received', followMark: 'Its tab',
+  choosing: 'Computer\'s keys by default', layers: 'The layer shown', follow: 'Follows the key received', followMark: 'Its tab', back: 'None',
   pressed: new Set(), seen: new Set(), knob: new Set(), method: null,
   // Second round: the keys seen per layer on the computer's keys; the layer shown; Fn held; the
   // test the user picked (null: Nazg's); a board found not to report its switches; the last key received.
@@ -165,13 +165,15 @@ function layersOf(kc) {
   return owners.includes(shownLayer()) ? [shownLayer()] : owners;
 }
 // Released: the strip's layer back once no key is down, a moment later -- a tap would only flash.
-const BACK_MS = 500;
+// Half a second looked long (Rico, 2026-10-26); none chosen, the control keeps the others.
+const BACK_MS = { '0.5 s': 500, '0.25 s': 250, '0.1 s': 100, 'None': 0 };
 let backTimer = null;
 function release() {
   state.down = null;
   if (state.peek === null) return;
   clearTimeout(backTimer);
-  backTimer = setTimeout(() => { if (state.down === null) { state.peek = null; render(); } }, BACK_MS);
+  if (!BACK_MS[state.back]) { state.peek = null; render(); return; }
+  backTimer = setTimeout(() => { if (state.down === null) { state.peek = null; render(); } }, BACK_MS[state.back]);
 }
 function press(key) {
   // Fn is held by a click and let go by the next: the board's layer 1 while it is down.
@@ -340,6 +342,8 @@ const CONTROLS = [
   ['Layer shown', 'follow', ['Picked in the strip', 'Follows the key received']],
   // While a key's layer is shown, not the strip's: how it is marked.
   ['Layer followed', 'followMark', ['Nothing', 'Its tab', 'Its tab and the plate']],
+  // How long the followed layer stays after the key is released.
+  ['Back after', 'back', Object.keys(BACK_MS)],
 ];
 function reset() {
   state.pressed.clear(); state.seen.clear(); state.knob.clear(); state.method = null;
@@ -412,8 +416,9 @@ counted: they send what the layer below does. The count is per layer. The comput
 received counts on every layer whose key sends it -- the layer shown is only a view. A key received that the layer shown does not
 have is said, with the layer that has it and a button to show it. <b>Layer shown: Follows the key received</b> (Rico, 2026-10-26):
 while a key received is down, the board shows the layer it comes from, as far as Nazg can tell -- the layer whose own key sends
-it, not one passing it through a transparent key -- and goes back to the strip's layer half a second after it is released, so a tap
-is seen (Rico: released, F1 stayed on layer 1). The line keeps where the last key came from. A keycode several layers send keeps the
+it, not one passing it through a transparent key -- and goes back to the strip's layer once it is released (Rico: released, F1
+stayed on layer 1). <b>Back after</b>: at once, chosen (Rico); a moment later so a tap is seen was tried -- 0.5 s looked long, 0.25 s
+and 0.1 s offered -- and dropped. The control keeps them. The line keeps where the last key came from. A keycode several layers send keeps the
 layer shown if it is one of them, else the lowest. <i>Picked in the strip</i>: the layer moves only when clicked.
 <b>Layer followed</b> (Rico, 2026-10-26): while the board shows a key's layer rather than the strip's, its tab is violet --
 Behaviour's colour, the one layer keys wear -- instead of the accent blue of a layer picked. Back to the strip's layer, back to

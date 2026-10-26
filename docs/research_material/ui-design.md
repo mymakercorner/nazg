@@ -2800,8 +2800,9 @@ its second round.
   has it with a *Show layer n* button. The switches test positions: no layers in the strip there.
 - **The layer shown follows the key received** (Rico, 2026-10-26, the mockup's *Layer shown*): while
   a key received is down, the layer whose own key sends it -- not one passing it through a transparent
-  key; released, back to the strip's layer half a second later, so a tap is seen (Rico: F1 released
-  stayed on layer 1). The line keeps where the last key came from. A keycode several layers send keeps
+  key; released, back to the strip's layer at once (Rico: F1 released stayed on layer 1). A delay so a
+  tap is seen was tried -- 0.5 s looked long, 0.25 s and 0.1 s offered -- and dropped (Rico): the
+  violet tab and the line say the rest. The line keeps where the last key came from. A keycode several layers send keeps
   the layer shown if it is one of them, else the lowest. Nazg infers it: VIA and Vial do not report the
   active layer, but the computer reports releases as well as presses.
 - **A layer followed is marked** (Rico, 2026-10-26): while the board shows a key's layer rather than
