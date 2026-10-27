@@ -30,6 +30,7 @@ registry, a browser dependency, or a firmware fork?
 | [short-forms.md](short-forms.md) | **Design decisions** — what every keycode's legend says: the header / main-legend rules, the action vocabulary, the word table, and the complete table for QMK's keycodes, checked to fit 1u *(added 2026-10-03)* |
 | [build-and-release.md](build-and-release.md) | **Plan** — building on GitHub Actions for Windows, Linux and macOS, release assets, signing; one Linux build for most distributions, its formats and the udev permission Nazg could install itself *(added 2026-10-05; Linux 2026-10-13)* |
 | [upstream-reports.md](upstream-reports.md) | **To file** — bugs found in Vial and others while building Nazg, each with an issue drafted and where to file it *(added 2026-10-10)* |
+| [tester-feedback.md](tester-feedback.md) | **To act on** — testers' reports on a release, what of each is true, and the proposal for it *(added 2026-10-27)* |
 
 Each protocol document carries an **"Extending with custom features"** section; they are
 summarised under [Adding custom features](#adding-custom-features) below.

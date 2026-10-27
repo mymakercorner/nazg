@@ -205,6 +205,14 @@ one board to unlock).
   how to try it: ui-design.md, "Open points" (2026-10-24; Rico has no second monitor).
 - **Deferred, very low priority**: the HID console (ui-design.md, "The console") -- QMK Toolbox's
   job, not to be taken from it (Rico, 2026-10-18).
+- **A tester's report on `0.1.0-test.6`, analysed and agreed, nothing built**
+  (2026-10-27): [tester-feedback.md](docs/research_material/tester-feedback.md) -- eleven items with
+  the verdict and the proposal for each. First of them: **Nazg does not start on his Windows 10
+  machine**, the cause most likely `SDL_CreateGPUDevice`'s `debug_mode` hard-coded `true` in
+  `Main.cpp`, asking D3D12 for a debug layer that is not installed -- and every startup failure
+  there exits silently, so he saw nothing. Then the display scale on a second monitor (the deferred
+  item, worse than it reads: Nazg *started* on that screen is wrong too), and key names beside the
+  signal levels in Diagnostics.
 
 **Next**: the testers' reports on the sixth test build, `0.1.0-test.6` (2026-10-27), which carries
 the picker's Basic tab drawn as a keyboard and the key test's choice of test with its layers --
