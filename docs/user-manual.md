@@ -621,7 +621,7 @@ the other and back.
   and cannot be tested this way. Keys sending the same thing light together, marked **?**. While
   this test runs, Nazg takes the whole keyboard, so Win and Alt+Tab are tested rather than acted on.
 
-    ![Testing the computer's keys: the layer key hatched](user-manual/matrix-computer-keys.png)
+    ![Testing the computer's keys: layer 1 followed while F5 is held, its tab violet](user-manual/matrix-computer-keys.png)
 
     **The layers are in the strip**, as in Keymap: the board draws the layer you choose, and the
     keys it leaves transparent are faint with ▽ and not counted. The computer cannot tell which
