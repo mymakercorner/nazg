@@ -93,6 +93,12 @@ A release is built on GitHub from a tag, by the same workflow, `.github/workflow
 green in about six minutes, the draft's notes then set with `gh release edit --notes-file`, and
 published on Rico's word. A draft's page lives at `releases/tag/untagged-<hash>` until published.
 
+**`0.1.0-test.6`** (2026-10-27) went the same way, start to finish in about twelve minutes: the
+version set and pushed, the tag pushed, all eight jobs green in seven, the draft made with its four
+assets, its notes handed to Claude and set with `gh release edit --notes-file`, published on Rico's
+word (`gh release edit --draft=false`), and the Pages run then online in five -- the live page
+asking for `nazg.js?v=0.1.0-test.6`.
+
 *Run workflow* on the Actions tab does all of it but the release -- a rehearsal, its packages
 kept as the run's artifacts for a tester. The packages a release carries: `nazg-<v>-windows-x64.zip`,
 `nazg-<v>-manual.html`, `nazg-<v>-linux-x86_64.AppImage`, `nazg-<v>-macos-arm64.zip`. Building

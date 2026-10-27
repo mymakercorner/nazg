@@ -206,8 +206,12 @@ one board to unlock).
 - **Deferred, very low priority**: the HID console (ui-design.md, "The console") -- QMK Toolbox's
   job, not to be taken from it (Rico, 2026-10-18).
 
-**Next**: the testers' reports on the fifth test build, `0.1.0-test.5` (2026-10-24), the first
-**in a browser**, at https://mymakercorner.com/nazg/ -- put online by publishing it -- beside the
+**Next**: the testers' reports on the sixth test build, `0.1.0-test.6` (2026-10-27), which carries
+the picker's Basic tab drawn as a keyboard and the key test's choice of test with its layers --
+both answers to reports on test.5, so what it asks first is whether the layer following reads right
+on a tester's own layers. The manual's two key-test pictures still show the previous design (Rico to
+retake, as he did the picker's). `0.1.0-test.5` (2026-10-24) was the first **in a browser**, at
+https://mymakercorner.com/nazg/ -- put online by publishing it -- beside the
 Windows zip, the AppImage, the macOS app and the manual page, a GitHub pre-release. `0.1.0-test.4`,
 the same day, was the first for macOS and the first built by GitHub from its tag. Above all the app on a colleague's Apple Silicon
 Mac: does it open past Gatekeeper, draw, see a board, and does macOS ask for Input Monitoring.
