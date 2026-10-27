@@ -1,6 +1,6 @@
 # Nazg user manual
 
-*For Nazg 0.1.0-test.5. Nazg is a test build: things will be missing or wrong. Please say so
+*For Nazg 0.1.0-test.6. Nazg is a test build: things will be missing or wrong. Please say so
 (see "Reporting a problem", at the end).*
 
 Nazg configures keyboards running **VIA** or **Vial** firmware: the keymap, knobs, layout options,
@@ -611,25 +611,39 @@ seen, with a count. A row or column label turns green once all its keys are seen
 grey points at that trace. A key lighting without being pressed points at ghosting, or a missing
 diode. **Start over** clears it.
 
-Nazg tests one of two things, and always says which, in the panel and with a tag at the strip's
-end:
+**What is tested is your choice**, at the strip's end: **Computer's keys** or **Switches**. The
+panel's first line always says which. Each test keeps what it has seen, so you can go from one to
+the other and back.
 
-- **Switches** (green): the board reports which switches are pressed, whatever they send. This is
-  the better test.
-
-    ![Testing the switches: 20 of 75 keys seen](user-manual/matrix-switches.png)
-
-- **Computer's keys** (orange): the firmware refuses to report its switches, which most VIA
-  firmware does for safety, so Nazg tests what the computer receives. **Hatched** keys send
-  nothing the computer hears (layer keys, empty keys, Boot, macros) and cannot be tested this way.
-  Keys sending the same thing light together, marked **?**. While this test runs, Nazg takes the
-  whole keyboard, so Win and Alt+Tab are tested rather than acted on.
+- **Computer's keys**, chosen from the start on every board, tests what the computer receives --
+  the keymap and the system as much as the switches, which is what most check after programming a
+  board. **Hatched** keys send nothing the computer hears (layer keys, empty keys, Boot, macros)
+  and cannot be tested this way. Keys sending the same thing light together, marked **?**. While
+  this test runs, Nazg takes the whole keyboard, so Win and Alt+Tab are tested rather than acted on.
 
     ![Testing the computer's keys: the layer key hatched](user-manual/matrix-computer-keys.png)
 
-A locked Vial board reports its switches only once unlocked. Until then it is tested on the
-computer's keys, and the panel says to click **Locked**. While the test runs, the board types into
-Nazg, so keyboard navigation is off.
+    **The layers are in the strip**, as in Keymap: the board draws the layer you choose, and the
+    keys it leaves transparent are faint with ▽ and not counted. The computer cannot tell which
+    layer is on, so a key received counts on every layer whose own key sends it -- the layer shown
+    is a view, the count is per layer. The panel says what arrived and where ("Received F1: 1 on
+    layer 1"), or, when the layer shown has no such key, which layer has it, with a **Show layer n**
+    button. **While a key is held, the board shows the layer that key comes from**, its tab violet;
+    released, the strip's layer comes back at once. So Fn and 1 light F1 on layer 1 with no layer to
+    pick yourself.
+
+- **Switches** asks the board which switches are pressed, whatever they send: the better test for a
+  board just soldered -- by position, whatever the keymap, ghosting and rollover included. It tests
+  positions, so the strip has no layers there.
+
+    ![Testing the switches: 20 of 75 keys seen](user-manual/matrix-switches.png)
+
+    Most VIA firmware refuses to report its switches, for safety, and a locked Vial board refuses
+    until it is unlocked. Where it is refused the test falls back to the computer's keys and says
+    why -- on a locked Vial board, click **Locked** in the header. Switches is greyed out once the
+    board is known not to report them.
+
+While either test runs, the board types into Nazg, so keyboard navigation is off.
 
 ![Wiring: G pinned, its row 3 in blue and its column 8 in pink](user-manual/matrix-wiring.png)
 
@@ -769,7 +783,8 @@ The panel says what the board stored. A locked Vial board stores Boot as nothing
 A keycode the firmware does not know is refused.
 
 **Nothing lights in the key test.**
-Look at the tag at the strip's end. On *Computer's keys*, hatched keys cannot be tested that way.
+Look at the choice at the strip's end. On *Computer's keys*, hatched keys cannot be tested that way,
+and a key on another layer counts on the layer that sends it -- hold it and the board follows.
 On a locked Vial board, click **Locked** first.
 
 **My macro types the wrong characters.**
