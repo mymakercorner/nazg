@@ -2839,7 +2839,9 @@ its second round.
   computer cannot tell which layer is on, so a key received counts on every layer whose key sends it:
   the layer shown is a view, the count is per layer.
 - **What arrived, said**: "Received F1: 1 on layer 1", or, when the layer shown lacks it, the layer that
-  has it with a *Show layer n* button. The switches test positions: no layers in the strip there.
+  has it with a *Show layer n* button. **Not as built** (noticed 2026-10-27, writing the manual for
+  `0.1.0-test.6`): the line names the lowest layer that has the key (`owners.front()`), and there is no
+  button -- while the key is held the board shows that layer by itself. To build or to drop: Rico's. The switches test positions: no layers in the strip there.
 - **The layer shown follows the key received** (Rico, 2026-10-26, the mockup's *Layer shown*): while
   a key received is down, the layer whose own key sends it -- not one passing it through a transparent
   key; released, back to the strip's layer at once (Rico: F1 released stayed on layer 1). A delay so a

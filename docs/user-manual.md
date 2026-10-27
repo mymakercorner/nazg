@@ -626,9 +626,10 @@ the other and back.
     **The layers are in the strip**, as in Keymap: the board draws the layer you choose, and the
     keys it leaves transparent are faint with ▽ and not counted. The computer cannot tell which
     layer is on, so a key received counts on every layer whose own key sends it -- the layer shown
-    is a view, the count is per layer. The panel says what arrived and where ("Received F1: 1 on
-    layer 1"), or, when the layer shown has no such key, which layer has it, with a **Show layer n**
-    button. **While a key is held, the board shows the layer that key comes from**, its tab violet;
+    is a view, the count is per layer. The panel says what arrived, which key sends it and on which
+    layer -- "Received F1: 1 on layer 1", the key named as the base layer prints it; when the layer
+    on screen has no key for it, the line names the lowest layer that has one.
+    **While a key is held, the board shows the layer that key comes from**, its tab violet;
     released, the strip's layer comes back at once. So Fn and 1 light F1 on layer 1 with no layer to
     pick yourself.
 
