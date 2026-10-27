@@ -194,6 +194,84 @@ namespace
 
 namespace
 {
+    // Basic is a full-size keyboard in the host layout's shape, Extra what it leaves; a key in one.
+    void TestBasicAndExtra()
+    {
+        std::printf("basic and extra\n");
+
+        using nazg::KeyboardShape;
+        const auto countOf = [](KeyboardShape shape) { return nazg::FullSizeKeyboard(shape).size(); };
+        Check(countOf(KeyboardShape::Ansi) == 104 && countOf(KeyboardShape::Iso) == 105 && countOf(KeyboardShape::Jis) == 109,
+              "104 keys on ANSI, 105 on ISO, 109 on JIS");
+
+        const auto enter = [](KeyboardShape shape)
+        {
+            for (const nazg::CatalogueKey& key : nazg::FullSizeKeyboard(shape))
+                if (key.keycode == Keycode{ nazg::NamedKey{ "KC_ENT" } })
+                    return key.geometry;
+            return nazg::via::DefinitionKey{};
+        };
+        Check(!enter(KeyboardShape::Ansi).HasSecondRectangle() && enter(KeyboardShape::Iso).HasSecondRectangle() &&
+                  enter(KeyboardShape::Jis).HasSecondRectangle(),
+              "ISO's and JIS's Enter an L");
+
+        const Keyboard board = MakeKeyboard(qmk::KeycodeVersion::V0_0_8, 4);
+        const struct
+        {
+            const char*  layout;
+            const char*  drawn;
+            const char*  left;
+            const char*  title;
+        } c_Shapes[] = {
+            { "us", "KC_BSLS", "KC_NUBS", "ISO keys" },
+            { "french", "KC_NUBS", "KC_BSLS", "ANSI key" },
+            { "japanese", "KC_INT1", "KC_BSLS", "ANSI and ISO keys" },
+        };
+        for (const auto& shape : c_Shapes)
+        {
+            const std::vector<CatalogueTab> tabs = nazg::BuildKeycodeCatalogue(board, { shape.layout });
+            const std::string               name = shape.layout;
+            Check(tabs.size() >= 2 && tabs[0].id == "basic" && tabs[1].id == "extra", (name + ": Basic, then Extra").c_str());
+
+            const CatalogueTab& basic = tabs[0];
+            const CatalogueTab& extra = tabs[1];
+            Check(basic.look == nazg::CatalogueLook::Keyboard && basic.keyboard.size() == basic.groups.front().keycodes.size(),
+                  (name + ": Basic drawn, its keys searchable").c_str());
+            Check(Offers({ basic }, shape.drawn) && !Offers({ extra }, shape.drawn), (name + ": its shape's key drawn").c_str());
+            Check(Offers({ extra }, shape.left) && extra.groups.back().title == shape.title,
+                  (name + ": the other shape's last in Extra").c_str());
+            Check(extra.look == nazg::CatalogueLook::Keycaps && extra.groups.front().title == "Nothing" &&
+                      extra.groups.front().keycodes.size() == 2,
+                  (name + ": Extra starts with ▽ and ✕").c_str());
+
+            // Each keycode once in the picker, so a search finds it once.
+            std::multiset<std::string> seen;
+            for (const CatalogueTab& tab : tabs)
+                for (const nazg::CatalogueGroup& group : tab.groups)
+                    for (const Keycode& keycode : group.keycodes)
+                        seen.insert(nazg::FormatKeycode(keycode));
+            bool once = true;
+            for (const std::string& keycode : seen)
+                once = once && seen.count(keycode) == 1;
+            Check(once, (name + ": every keycode in one tab, once").c_str());
+        }
+    }
+
+    void TestSentBy()
+    {
+        std::printf("what the selected key sends\n");
+
+        const Keycode a = nazg::NamedKey{ "KC_A" };
+        Check(nazg::IsSentBy(a, a), "the key itself");
+        Check(nazg::IsSentBy(a, nazg::LayerTapKey{ 1, "KC_A" }) && nazg::IsSentBy(a, nazg::ModTapKey{ nazg::Mod::LeftCtrl, "KC_A" }),
+              "the tap under a hold");
+        Check(nazg::IsSentBy(a, nazg::ModifiedKey{ nazg::Mod::LeftCtrl, "KC_A" }), "the key under its modifiers");
+        Check(!nazg::IsSentBy(nazg::NamedKey{ "KC_B" }, nazg::LayerTapKey{ 1, "KC_A" }), "no other key");
+    }
+}
+
+namespace
+{
     // The key line keeps what it set: a hold, or the modifiers a key is sent with.
     void TestCompose()
     {
@@ -208,9 +286,18 @@ namespace
         Check(nazg::FormatKeycode(ComposeWithKey(space, nazg::ModTapKey{ nazg::Mod::LeftCtrl, "KC_ESC" }, version)) ==
                   "MT(MOD_LCTL,KC_SPC)",
               "and modifiers when held");
-        Check(nazg::FormatKeycode(ComposeWithKey(nazg::NamedKey{ "KC_2" }, nazg::ModifiedKey{ nazg::Mod::LeftShift, "KC_1" },
-                                                 version)) == "LSFT(KC_2)",
+        Check(nazg::FormatKeycode(ComposeWithKey(nazg::NamedKey{ "KC_2" }, nazg::ModifiedKey{ nazg::Mod::LeftCtrl, "KC_1" },
+                                                 version)) == "LCTL(KC_2)",
               "and the modifiers sent with the key");
+        constexpr uint8_t ctrlShift = nazg::Mod::LeftCtrl | nazg::Mod::LeftShift;
+        Check(ComposeWithKey(nazg::NamedKey{ "KC_2" }, nazg::ModifiedKey{ ctrlShift, "KC_1" }, version) ==
+                  Keycode{ nazg::ModifiedKey{ ctrlShift, "KC_2" } },
+              "Shift with another modifier too");
+        Check(ComposeWithKey(nazg::NamedKey{ "KC_2" }, nazg::ModifiedKey{ nazg::Mod::LeftShift, "KC_1" }, version) ==
+                      Keycode{ nazg::NamedKey{ "KC_2" } } &&
+                  ComposeWithKey(nazg::NamedKey{ "KC_2" }, nazg::ModifiedKey{ nazg::Mod::RightShift, "KC_1" }, version) ==
+                      Keycode{ nazg::NamedKey{ "KC_2" } },
+              "but not Shift alone: Shift and a key is a symbol");
         Check(ComposeWithKey(nazg::NamedKey{ "UG_TOGG" }, nazg::LayerTapKey{ 1, "KC_A" }, version) == Keycode{ nazg::NamedKey{ "UG_TOGG" } },
               "a keycode past the basic byte cannot be a tap: written as picked");
         Check(nazg::FormatKeycode(ComposeWithKey(nazg::NamedKey{ "KC_MPLY" }, nazg::LayerTapKey{ 1, "KC_A" }, version)) ==
@@ -233,6 +320,8 @@ int main()
     TestWhatTheBoardSays();
     TestLightingByPolicy();
     TestCustomAndSearch();
+    TestBasicAndExtra();
+    TestSentBy();
 
     return TestResult();
 }

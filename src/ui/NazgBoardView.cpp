@@ -931,6 +931,24 @@ namespace nazg
         return events;
     }
 
+    void DrawKeycaps(const BoardDescription& board, ImVec2 origin, float unit)
+    {
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+        // The picker's items over the keys stay hovered while clicked: the key does too.
+        const bool canHover = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
+
+        if (CurrentBoardStyle().keycaps == KeycapStyle::BottomLip)
+            for (const BoardKey& key : board.keys)
+                if (!key.geometry.decal)
+                    (void)DrawKey(drawList, origin, unit, key, canHover, KeyPass::Lip);
+
+        for (const KeyPass pass : { KeyPass::Keycap, KeyPass::Legends })
+            for (const BoardKey& key : board.keys)
+                if (!key.geometry.decal)
+                    (void)DrawKey(drawList, origin, unit, key, canHover, pass);
+    }
+
     void DrawKeycodeTile(const KeycodeTile& tile, const FaceBox& box)
     {
         ImDrawList*  drawList = ImGui::GetWindowDrawList();

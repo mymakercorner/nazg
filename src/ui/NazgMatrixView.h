@@ -110,11 +110,11 @@ namespace nazg
         // A key of the computer's, pressed or released, as USB numbers it (model/NazgHostKeys.h): every
         // one, while the live test runs -- it tests the keys on the computer's keys, and on the
         // switches tells a firmware refusing its matrix from a board at rest.
-        void OnHostKey(uint32_t usage, bool down);
+        void OnHostKey(uint32_t usage, bool down) override;
 
         // The live test reads the computer's keys, or waits to know whether it must: the window takes
         // the keyboard meanwhile, so Win and Alt+Tab reach it and Alt+F4 does not close Nazg.
-        [[nodiscard]] bool WantsComputerKeys() const noexcept
+        [[nodiscard]] bool WantsComputerKeys() const noexcept override
         {
             return IsLiveTestRunning() && (m_Method == Method::Computer || !m_SwitchesConfirmed);
         }

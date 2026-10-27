@@ -22,6 +22,7 @@
 #include "adapters/via/NazgViaProtocol.h"
 #include "adapters/vial/NazgEncoderMap.h"
 #include "adapters/vial/NazgVialProtocol.h"
+#include "model/NazgHostKeys.h"
 #include "transport/NazgDeviceChannel.h"
 #include "ui/NazgBoardDescription.h"
 #include "ui/NazgBoardView.h"
@@ -230,6 +231,10 @@ namespace nazg
             current = m_Keyboard.keymap.At(m_Layer, m_Selected->row, m_Selected->column);
         else if (m_Knob)
             current = KnobKeycode(*m_Knob);
+
+        // Press a key belongs to the key line: gone with it.
+        if (!m_Selected)
+            m_Listening = false;
 
         if (m_Knob)
             DrawKnobPanel();
@@ -527,6 +532,24 @@ namespace nazg
         ImGui::SetItemTooltip("Type a keycode as QMK writes it -- LT(1,KC_SPC), MT(MOD_LCTL,KC_A),\n"
                               "C(S(KC_T)), OSM(MOD_LSFT), MO(2) -- and press Enter.");
 
+        // Press a key: the next key pressed on the computer's keyboard is written (ui-design.md, "The
+        // Keys tab as a keyboard"). Clicked again, it stops listening.
+        ImGui::SameLine();
+        ImGui::BeginDisabled(IsBusy());
+        if (ToggleButton(m_Listening ? "Press a key now...###presskey" : "Press a key###presskey", m_Listening))
+        {
+            m_Listening = !m_Listening;
+            m_Message.clear();
+        }
+        ImGui::EndDisabled();
+        const std::array<const char*, 4> modifiers = ModifierWords(m_Legends.modifierNames);
+        if (m_Listening)
+            ImGui::SetItemTooltip("Click again to stop listening.");
+        else
+            ImGui::SetItemTooltip("Press a key on the computer's keyboard: it is written to this key.\n"
+                                  "%s, %s, %s or %s held with it are sent with it.",
+                                  modifiers[0], modifiers[1], modifiers[2], modifiers[3]);
+
         if (entered)
         {
             const std::optional<Keycode> typed = qmk::ParseExpression(m_Expression, version);
@@ -630,6 +653,83 @@ namespace nazg
     bool KeymapSection::IsBusy() const
     {
         return m_Write.IsValid() && !m_Write.IsDone();
+    }
+
+    void KeymapSection::WhileHidden()
+    {
+        m_Listening = false;
+        m_WrittenKeyDown.reset();
+    }
+
+    // The modifiers are followed whether listening or not, so one held before Press a key was
+    // clicked counts too.
+    void KeymapSection::OnHostKey(uint32_t usage, bool down)
+    {
+        if (!down && m_WrittenKeyDown == usage)
+            m_WrittenKeyDown.reset();
+
+        const uint32_t code = usage & 0xFFFF;
+        if ((usage >> 16) == c_KeyboardPage && code >= 0xE0 && code <= 0xE7)
+        {
+            // USB numbers the modifiers in QMK's bit order: left Ctrl, Shift, Alt, GUI, then right.
+            const auto bit = static_cast<uint8_t>(1u << (code - 0xE0));
+            if (down)
+            {
+                if (m_HeldMods == 0)
+                    m_ModifierAlone = true;
+                m_HeldMods = static_cast<uint8_t>(m_HeldMods | bit);
+                return;
+            }
+
+            // Let go with no other key since the first modifier went down: the modifier itself.
+            const bool alone = m_ModifierAlone && m_HeldMods == bit;
+            m_HeldMods = static_cast<uint8_t>(m_HeldMods & ~bit);
+            if (alone && m_Listening)
+                WriteHostKey(usage, 0);
+            return;
+        }
+
+        if (!down)
+            return;
+        m_ModifierAlone = false;
+        m_WrittenKeyDown.reset();
+        if (m_Listening)
+            WriteHostKey(usage, m_HeldMods);
+    }
+
+    void KeymapSection::WriteHostKey(uint32_t usage, uint8_t held)
+    {
+        const qmk::KeycodeVersion           version = m_Keyboard.keycodeVersion;
+        const std::vector<std::string_view> names   = KeycodesSending(usage, version);
+        if (names.empty())
+        {
+            m_Message   = "Nazg has no keycode for that key";
+            m_IsWarning = true;
+            return;
+        }
+
+        // A keycode holds the modifiers of one side: the right ones only with no left one held.
+        const auto left  = static_cast<uint8_t>(held & 0x0F);
+        const auto right = static_cast<uint8_t>(held >> 4);
+        const auto mods  = static_cast<uint8_t>(left != 0 ? (left | right) : right << 4);
+
+        Keycode keycode = NamedKey{ names.front() };
+        if (mods != 0)
+            if (const Keycode modified = ModifiedKey{ mods, names.front() }; qmk::EncodeKeycode(modified, version))
+                keycode = modified;
+
+        // What the key holds already: typed on the board being changed, perhaps, whose keys send what
+        // they hold now -- the key it had is then in Basic. Still listening.
+        if (m_Selected && m_Keyboard.keymap.At(m_Layer, m_Selected->row, m_Selected->column) == keycode)
+        {
+            m_Message   = "already " + FormatKeycode(keycode) + " -- typing on this board? Its keys send what they hold now";
+            m_IsWarning = true;
+            return;
+        }
+
+        m_Listening      = false;
+        m_WrittenKeyDown = usage;
+        Write(keycode, true);
     }
 
     // Keep the model in step with what the board says it stored.

@@ -33,6 +33,13 @@ namespace nazg
     // scrolling sideways past that. Returns what the mouse did on it this frame.
     [[nodiscard]] BoardEvents DrawBoard(const BoardDescription& board, float maxHeight);
 
+    // The keys of `board` alone, `unit` pixels each, key units' (0, 0) at `origin` on screen: the
+    // board's keycaps -- every pass, style and mark -- with no plate, no lines, labels or tags, and
+    // nothing claimed in the window, so any unit may be asked for. The keycode picker's Basic
+    // keyboard and Extra keys (ui-design.md, "The Keys tab as a keyboard"), which put an item over
+    // each key for its tooltip and click.
+    void DrawKeycaps(const BoardDescription& board, ImVec2 origin, float unit);
+
     // A definition drawn small -- blank keys, the first choice of every layout option -- so
     // candidates tell apart at a glance: ANSI from ISO, ortho from staggered. At most
     // `width` pixels wide and `height` high, keeping the board's proportions.

@@ -213,18 +213,25 @@ namespace nazg
 
         std::vector<CatalogueTab> tabs;
 
-        // Keys: what a stock keyboard has, Shift and a key in one click, the rarer HID keys last.
+        // Basic: a full-size keyboard in the host layout's shape, and nothing else (Rico, 2026-10-26,
+        // after Vial's Basic tab). Extra: every other key a keyboard sends -- ▽ and ✕ first, picked
+        // often on layers; Shift and a key in one click; the rarer HID keys; the other shape's
+        // punctuation last. A key is in one of the two, so a search finds it once.
         {
-            CatalogueTab tab{ "keys", "Keys", CommandCategory::None, {} };
-            tab.groups.push_back(builder.Group("Letters", "", { "KC_A", "KC_B", "KC_C", "KC_D", "KC_E", "KC_F", "KC_G", "KC_H",
-                                                               "KC_I", "KC_J", "KC_K", "KC_L", "KC_M", "KC_N", "KC_O", "KC_P",
-                                                               "KC_Q", "KC_R", "KC_S", "KC_T", "KC_U", "KC_V", "KC_W", "KC_X",
-                                                               "KC_Y", "KC_Z" }));
-            tab.groups.push_back(builder.Group("Digits", "", { "KC_1", "KC_2", "KC_3", "KC_4", "KC_5", "KC_6", "KC_7", "KC_8",
-                                                              "KC_9", "KC_0" }));
-            tab.groups.push_back(builder.Group("Punctuation", "the last two are ISO's",
-                                               { "KC_GRV", "KC_MINS", "KC_EQL", "KC_LBRC", "KC_RBRC", "KC_BSLS", "KC_SCLN",
-                                                 "KC_QUOT", "KC_COMM", "KC_DOT", "KC_SLSH", "KC_NUBS", "KC_NUHS" }));
+            const KeyboardShape shape = legends.Layout().shape;
+
+            CatalogueTab basic{ "basic", "Basic", CommandCategory::None, { { "Basic", "a full-size keyboard", {} } },
+                                CatalogueLook::Keyboard, {} };
+            std::vector<Keycode>& drawn = basic.groups.front().keycodes;
+            for (CatalogueKey& key : FullSizeKeyboard(shape))
+                if (qmk::EncodeKeycode(key.keycode, builder.Version()))
+                {
+                    drawn.push_back(key.keycode);
+                    basic.keyboard.push_back(std::move(key));
+                }
+
+            CatalogueTab extra{ "extra", "Extra", CommandCategory::None, {}, CatalogueLook::Keycaps, {} };
+            extra.groups.push_back(builder.Group("Nothing", "▽ falls through to the layer below, ✕ does nothing", { "KC_TRNS", "KC_NO" }));
 
             // VIA's symbols, for a symbol layer: S(KC_1) is "!" in one click.
             std::vector<Keycode> shifted;
@@ -233,40 +240,42 @@ namespace nazg
                                            "KC_QUOT", "KC_COMM", "KC_DOT", "KC_SLSH" })
                 if (const qmk::KeycodeEntry* row = qmk::FindKeycodeByName(name, builder.Version()))
                     shifted.push_back(ModifiedKey{ Mod::LeftShift, row->name });
-            tab.groups.push_back(builder.Group("Shifted", "Shift and the key, in one", shifted));
-
-            tab.groups.push_back(builder.Group("Editing and spaces", "", { "KC_ESC", "KC_TAB", "KC_ENT", "KC_BSPC", "KC_SPC",
-                                                                          "KC_DEL", "KC_INS", "KC_CAPS" }));
-            tab.groups.push_back(builder.Group("Modifiers", "", { "KC_LSFT", "KC_LCTL", "KC_LALT", "KC_LGUI", "KC_RSFT",
-                                                                 "KC_RCTL", "KC_RALT", "KC_RGUI", "KC_APP" }));
-            tab.groups.push_back(builder.Group("Navigation", "", { "KC_HOME", "KC_END", "KC_PGUP", "KC_PGDN", "KC_UP",
-                                                                  "KC_DOWN", "KC_LEFT", "KC_RGHT", "KC_PSCR", "KC_SCRL",
-                                                                  "KC_PAUS" }));
+            extra.groups.push_back(builder.Group("Shifted", "Shift and the key, in one", shifted));
 
             std::vector<Keycode> function;
-            for (int key = 1; key <= 24; ++key)
+            for (int key = 13; key <= 24; ++key)
                 builder.AddNamed(function, Numbered("KC_F", key));
-            tab.groups.push_back({ "Function keys", "", std::move(function) });
+            extra.groups.push_back({ "Function keys", "", std::move(function) });
 
-            tab.groups.push_back(builder.Group("Numpad", "", { "KC_NUM", "KC_PSLS", "KC_PAST", "KC_PMNS", "KC_PPLS", "KC_PENT",
-                                                              "KC_P1", "KC_P2", "KC_P3", "KC_P4", "KC_P5", "KC_P6", "KC_P7",
-                                                              "KC_P8", "KC_P9", "KC_P0", "KC_PDOT", "KC_PEQL", "KC_PCMM" }));
+            extra.groups.push_back(builder.Group("Numpad", "", { "KC_PEQL", "KC_PCMM" }));
 
             std::vector<Keycode> international;
             for (int key = 1; key <= 9; ++key)
                 builder.AddNamed(international, Numbered("KC_INT", key));
             for (int key = 1; key <= 9; ++key)
                 builder.AddNamed(international, Numbered("KC_LNG", key));
-            tab.groups.push_back({ "International", "Japanese and Korean keys first", std::move(international) });
+            extra.groups.push_back({ "International", "Japanese and Korean keys first", std::move(international) });
 
-            tab.groups.push_back(builder.Group("Rarer keys", "HID keys few systems act on",
-                                               { "KC_UNDO", "KC_CUT", "KC_COPY", "KC_PSTE", "KC_FIND", "KC_AGIN", "KC_STOP",
-                                                 "KC_SLCT", "KC_MENU", "KC_EXEC", "KC_HELP", "KC_KB_POWER", "KC_KB_MUTE",
-                                                 "KC_KB_VOLUME_UP", "KC_KB_VOLUME_DOWN", "KC_LCAP", "KC_LNUM", "KC_LSCR",
-                                                 "KC_SYRQ", "KC_ERAS", "KC_CNCL", "KC_CLR", "KC_PRIR", "KC_RETN", "KC_SEPR",
-                                                 "KC_OUT", "KC_OPER", "KC_CLAG", "KC_CRSL", "KC_EXSL", "KC_KP_EQUAL_AS400" }));
-            tab.groups.push_back(builder.Group("Nothing", "", { "KC_TRNS", "KC_NO" }));
-            tabs.push_back(std::move(tab));
+            extra.groups.push_back(builder.Group("Rarer keys", "HID keys few systems act on",
+                                                 { "KC_UNDO", "KC_CUT", "KC_COPY", "KC_PSTE", "KC_FIND", "KC_AGIN", "KC_STOP",
+                                                   "KC_SLCT", "KC_MENU", "KC_EXEC", "KC_HELP", "KC_KB_POWER", "KC_KB_MUTE",
+                                                   "KC_KB_VOLUME_UP", "KC_KB_VOLUME_DOWN", "KC_LCAP", "KC_LNUM", "KC_LSCR",
+                                                   "KC_SYRQ", "KC_ERAS", "KC_CNCL", "KC_CLR", "KC_PRIR", "KC_RETN", "KC_SEPR",
+                                                   "KC_OUT", "KC_OPER", "KC_CLAG", "KC_CRSL", "KC_EXSL", "KC_KP_EQUAL_AS400" }));
+
+            // The punctuation of the other shapes: ISO's two keys on ANSI, ANSI's backslash on ISO.
+            const auto [title, more] = shape == KeyboardShape::Ansi ? std::pair{ "ISO keys", "not on an ANSI keyboard" }
+                                     : shape == KeyboardShape::Iso  ? std::pair{ "ANSI key", "not on an ISO keyboard" }
+                                                                    : std::pair{ "ANSI and ISO keys", "not on a JIS keyboard" };
+            extra.groups.push_back(builder.Group(title, more, { "KC_BSLS", "KC_NUBS", "KC_NUHS" }));
+
+            // What the keyboard draws is not offered again.
+            for (CatalogueGroup& group : extra.groups)
+                std::erase_if(group.keycodes, [&](const Keycode& keycode)
+                              { return std::find(drawn.begin(), drawn.end(), keycode) != drawn.end(); });
+
+            tabs.push_back(std::move(basic));
+            tabs.push_back(std::move(extra));
         }
 
         // Layers: the seven operations for each layer the board has.
@@ -454,6 +463,126 @@ namespace nazg
         return tabs;
     }
 
+    std::vector<CatalogueKey> FullSizeKeyboard(KeyboardShape shape)
+    {
+        const bool ansi = shape == KeyboardShape::Ansi;
+        const bool jis  = shape == KeyboardShape::Jis;
+
+        std::vector<CatalogueKey> keys;
+        const auto key = [&](float x, float y, float width, std::string_view name, float height = 1.0f)
+        {
+            via::DefinitionKey geometry;
+            geometry.x      = x;
+            geometry.y      = y;
+            geometry.width  = width;
+            geometry.height = height;
+            keys.push_back({ geometry, NamedKey{ name } });
+        };
+        // Keys side by side from `x`, each { width, name }.
+        const auto row = [&](float x, float y, std::initializer_list<std::pair<float, std::string_view>> items)
+        {
+            for (const auto& [width, name] : items)
+            {
+                key(x, y, width, name);
+                x += width;
+            }
+        };
+        // 1u keys side by side from `x`.
+        const auto ones = [&](float x, float y, std::initializer_list<std::string_view> names)
+        {
+            for (std::string_view name : names)
+                key(x++, y, 1.0f, name);
+        };
+
+        // The function row, no gap under it: Esc, three blocks of four, half a unit apart.
+        key(0, 0, 1, "KC_ESC");
+        ones(2, 0, { "KC_F1", "KC_F2", "KC_F3", "KC_F4" });
+        ones(6.5f, 0, { "KC_F5", "KC_F6", "KC_F7", "KC_F8" });
+        ones(11, 0, { "KC_F9", "KC_F10", "KC_F11", "KC_F12" });
+        ones(15.25f, 0, { "KC_PSCR", "KC_SCRL", "KC_PAUS" });
+
+        // The digits; JIS has Yen before a 1u Backspace.
+        ones(0, 1, { "KC_GRV", "KC_1", "KC_2", "KC_3", "KC_4", "KC_5", "KC_6", "KC_7", "KC_8", "KC_9", "KC_0", "KC_MINS",
+                     "KC_EQL" });
+        if (jis)
+            row(13, 1, { { 1.0f, "KC_INT3" }, { 1.0f, "KC_BSPC" } });
+        else
+            key(13, 1, 2, "KC_BSPC");
+        ones(15.25f, 1, { "KC_INS", "KC_HOME", "KC_PGUP" });
+        ones(18.5f, 1, { "KC_NUM", "KC_PSLS", "KC_PAST", "KC_PMNS" });
+
+        // Q to P. ANSI's backslash ends the row; elsewhere Enter is an L over two rows, 1.5u here and
+        // 1.25u under, as a definition gives it (KeyContour()).
+        key(0, 2, 1.5f, "KC_TAB");
+        ones(1.5f, 2, { "KC_Q", "KC_W", "KC_E", "KC_R", "KC_T", "KC_Y", "KC_U", "KC_I", "KC_O", "KC_P", "KC_LBRC", "KC_RBRC" });
+        if (ansi)
+            key(13.5f, 2, 1.5f, "KC_BSLS");
+        else
+        {
+            key(13.75f, 2, 1.25f, "KC_ENT", 2.0f);
+            keys.back().geometry.secondX      = -0.25f;
+            keys.back().geometry.secondWidth  = 1.5f;
+            keys.back().geometry.secondHeight = 1.0f;
+        }
+        ones(15.25f, 2, { "KC_DEL", "KC_END", "KC_PGDN" });
+        ones(18.5f, 2, { "KC_P7", "KC_P8", "KC_P9" });
+        key(21.5f, 2, 1, "KC_PPLS", 2.0f);
+
+        // A to the quote; then ANSI's Enter, or the key in the L's corner.
+        key(0, 3, 1.75f, "KC_CAPS");
+        ones(1.75f, 3, { "KC_A", "KC_S", "KC_D", "KC_F", "KC_G", "KC_H", "KC_J", "KC_K", "KC_L", "KC_SCLN", "KC_QUOT" });
+        if (ansi)
+            key(12.75f, 3, 2.25f, "KC_ENT");
+        else
+            key(12.75f, 3, 1, "KC_NUHS");
+        ones(18.5f, 3, { "KC_P4", "KC_P5", "KC_P6" });
+
+        // Z to the slash: ISO's key beside a short left Shift, JIS's backslash before a short right one.
+        if (shape == KeyboardShape::Iso)
+            row(0, 4, { { 1.25f, "KC_LSFT" }, { 1.0f, "KC_NUBS" } });
+        else
+            key(0, 4, 2.25f, "KC_LSFT");
+        ones(2.25f, 4, { "KC_Z", "KC_X", "KC_C", "KC_V", "KC_B", "KC_N", "KC_M", "KC_COMM", "KC_DOT", "KC_SLSH" });
+        if (jis)
+            row(12.25f, 4, { { 1.0f, "KC_INT1" }, { 1.75f, "KC_RSFT" } });
+        else
+            key(12.25f, 4, 2.75f, "KC_RSFT");
+        key(16.25f, 4, 1, "KC_UP");
+        ones(18.5f, 4, { "KC_P1", "KC_P2", "KC_P3" });
+        key(21.5f, 4, 1, "KC_PENT", 2.0f);
+
+        // The bottom row: JIS shortens the space bar for Muhenkan, Henkan and Kana.
+        if (jis)
+            row(0, 5, { { 1.25f, "KC_LCTL" }, { 1.25f, "KC_LGUI" }, { 1.25f, "KC_LALT" }, { 1.25f, "KC_INT5" }, { 2.5f, "KC_SPC" },
+                        { 1.25f, "KC_INT4" }, { 1.25f, "KC_INT2" }, { 1.25f, "KC_RALT" }, { 1.25f, "KC_RGUI" }, { 1.25f, "KC_APP" },
+                        { 1.25f, "KC_RCTL" } });
+        else
+            row(0, 5, { { 1.25f, "KC_LCTL" }, { 1.25f, "KC_LGUI" }, { 1.25f, "KC_LALT" }, { 6.25f, "KC_SPC" }, { 1.25f, "KC_RALT" },
+                        { 1.25f, "KC_RGUI" }, { 1.25f, "KC_APP" }, { 1.25f, "KC_RCTL" } });
+        ones(15.25f, 5, { "KC_LEFT", "KC_DOWN", "KC_RGHT" });
+        row(18.5f, 5, { { 2.0f, "KC_P0" }, { 1.0f, "KC_PDOT" } });
+        return keys;
+    }
+
+    bool IsSentBy(const Keycode& keycode, const Keycode& current)
+    {
+        if (keycode == current)
+            return true;
+
+        const auto* named = std::get_if<NamedKey>(&keycode);
+        if (named == nullptr)
+            return false;
+
+        std::string_view tap;
+        if (const auto* modTap = std::get_if<ModTapKey>(&current))
+            tap = modTap->key;
+        else if (const auto* layerTap = std::get_if<LayerTapKey>(&current))
+            tap = layerTap->key;
+        else if (const auto* modified = std::get_if<ModifiedKey>(&current))
+            tap = modified->key;
+        return !tap.empty() && tap == named->name;
+    }
+
     Keycode ComposeWithKey(const Keycode& picked, const Keycode& current, qmk::KeycodeVersion version)
     {
         const auto* named = std::get_if<NamedKey>(&picked);
@@ -470,7 +599,10 @@ namespace nazg
             composed = ModTapKey{ modTap->mods, row->name };
         else if (const auto* layerTap = std::get_if<LayerTapKey>(&current))
             composed = LayerTapKey{ layerTap->layer, row->name };
-        else if (const auto* modified = std::get_if<ModifiedKey>(&current))
+        // Shift alone is not kept: Shift and a key is a symbol -- "!" -- not a setting of the key
+        // line (Rico, 2026-10-27).
+        else if (const auto* modified = std::get_if<ModifiedKey>(&current);
+                 modified != nullptr && modified->mods != Mod::LeftShift && modified->mods != Mod::RightShift)
             composed = ModifiedKey{ modified->mods, row->name };
 
         // Only what the board can store: an LT past layer 15, say, stays as picked.

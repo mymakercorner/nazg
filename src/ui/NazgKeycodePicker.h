@@ -6,9 +6,10 @@
 //
 // Category tabs, each with its colour's dot, and one search box through them all; in a tab, its
 // groups packed side by side on one grid, each title in a box spanning its rows, then its tiles --
-// every one 1u, drawn as the board draws a key (DrawKeycodeTile()). What the tabs hold is the
-// catalogue's (ui/NazgKeycodeCatalogue.h); writing is the section's: this only says what was
-// clicked, and what the mouse rests on, for the hover preview.
+// every one 1u, drawn as the board draws a key (DrawKeycodeTile()). Basic is a full-size keyboard
+// instead, and Extra's keys are its keycaps (ui-design.md, "The Keys tab as a keyboard"). What the
+// tabs hold is the catalogue's (ui/NazgKeycodeCatalogue.h); writing is the section's: this only
+// says what was clicked, and what the mouse rests on, for the hover preview.
 //
 // ImGui only, no SDL: compiled into the application, not into nazg_core.
 
@@ -31,7 +32,7 @@ namespace nazg
 {
     struct KeycodePickerState
     {
-        std::string tab        = "keys";   // CatalogueTab::id
+        std::string tab        = "basic";  // CatalogueTab::id
         bool        restoreTab = true;     // the tab bar shows `tab` first, then follows the clicks
         char        search[64] = {};
 

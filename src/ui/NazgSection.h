@@ -23,6 +23,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -130,6 +131,15 @@ namespace nazg
         // only while this one shows -- the matrix view's live test, the diagnostics' polling, which
         // keep the board open. Called in a frame, DescribeBoard() in that frame starts nothing.
         virtual void WhileHidden() {}
+
+        // A key of the computer's, pressed or released, as USB numbers it (model/NazgHostKeys.h):
+        // every one, to every section, each acting on it only while it listens -- the matrix view's
+        // live test, Keymap's Press a key.
+        virtual void OnHostKey(uint32_t /*usage*/, bool /*down*/) {}
+
+        // It reads the computer's keys: the window takes the keyboard -- Win and Alt+Tab reach Nazg,
+        // Alt+F4 does not close it -- and keyboard navigation is off, so no key it reads drives the UI.
+        [[nodiscard]] virtual bool WantsComputerKeys() const { return false; }
 
         // The board was sent away by a command it never answers -- to its bootloader, or erased and
         // restarting: what the keyboard list says of it, empty while it is here. Nazg closes the

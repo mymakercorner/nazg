@@ -1379,8 +1379,10 @@ for a while, at no height of its own; with the tiles compact the height became a
   while a hold is set, a tap-hold's tap being a plain key.
 - **A tile picked keeps the key's hold or modifiers.** With "When held: Layer 1" on a key,
   picking Space writes `LT(1,KC_SPC)` -- one step, where Vial takes two (its placeholder, then
-  the key). With Shift sent, every pick is sent with Shift. A tile's tooltip says what the click
-  writes when that is not the tile's own keycode.
+  the key). With Ctrl sent, every pick is sent with Ctrl -- but **not Shift alone** (Rico,
+  2026-10-27): Shift and a key is a symbol, "!", which Extra offers and Press a key writes, so
+  picking 2 on `LSFT(KC_1)` writes `KC_2`, not "@"; Shift with another modifier is kept. A tile's
+  tooltip says what the click writes when that is not the tile's own keycode.
 - **The message**: what the board stored, read back; a write the board changed or refused is a
   warning, as today.
 
@@ -1393,7 +1395,8 @@ that category, Macros' tap dances aside.
 
 | Tab | Dot | Holds |
 |---|---|---|
-| **Keys** | -- | letters, digits, punctuation (the two ISO keys last), **Shifted** -- Shift and a key in one click, VIA's symbols for a symbol layer -- editing keys, modifiers, navigation, F1 to F24, numpad, international (INT 1-9, Lang 1-9), the rarer HID keys (Undo, Copy, SysRq, the locking keys...), Transparent and None |
+| **Basic** | -- | a full-size keyboard in the host layout's shape, drawn as one (below, "The Keys tab as a keyboard"; 2026-10-26) |
+| **Extra** | -- | the rest of the old Keys tab, as keycaps: Transparent and None first, **Shifted** -- Shift and a key in one click, VIA's symbols for a symbol layer -- F13 to F24, the numpad's = and comma, international (INT 1-9, Lang 1-9, less what the keyboard draws), the rarer HID keys (Undo, Copy, SysRq, the locking keys...), the other shapes' punctuation |
 | **Layers** | Behaviour | the seven operations -- Hold, Toggle, To, Tap tog, Once, Base, Set base -- for each layer the board has; one-shot modifiers (eight, Meh, Hyper); layer lock and tri layer |
 | **Media & mouse** | Host | media, volume, screen, system, apps, web; then the mouse -- move, buttons, wheel, speed (Rico: one tab, as Vial's "App, Media and Mouse") |
 | **Lighting** | Board | by the lighting policy ("Which lighting keycodes a board gets", above); **absent** when the definition declares no lighting |
@@ -1406,7 +1409,7 @@ that category, Macros' tap dances aside.
 
 **Every keycode of the board's keycode version is in a tab, and search finds it** -- but MIDI past
 its basic set and steno's extra chord keys, which take the expression box. There is no
-catch-all: the rare keys went where they are looked for -- the HID ones to the end of Keys -- and
+catch-all: the rare keys went where they are looked for -- the HID ones to Extra -- and
 the rest made Special, Custom and Devices.
 
 **A group is left out only when the board says it cannot work**: the lighting the definition
@@ -1415,7 +1418,7 @@ Caps Word, Layer Lock -- and its alt repeat count, which the Repeat keys need; `
 keycode version 0.0.6. What nothing tells -- audio, haptic, Unicode, steno -- is offered, as Vial
 and VIA do, hover saying what it needs. A tab left with no group is not shown.
 
-### The Keys tab as a keyboard -- a proposal (2026-10-26)
+### The Keys tab as a keyboard (proposed and settled 2026-10-26, built the same day)
 
 A tester (0.1.0-test.5) found the letters in alphabetical order odd after VIA and Vial. Alphabetical
 holds only on US: the tiles carry the host layout's legends, so on French the Letters row reads
@@ -1444,6 +1447,45 @@ second tab (`vial-gui/.../tabbed_keycodes.py`). Rico asked for a proposal; mocku
 - **Press a key**, a separate variant: on the key line, the next key pressed on the computer's
   keyboard is written, with the modifiers held with it. Neither VIA nor Vial has it; Nazg reads the
   computer's keys already for the key test (`model/NazgHostKeys.*`, the window taking the keyboard).
+
+**Built 2026-10-26**, from the mockup's chosen variants (Two tabs, As tiles, Press a key on); tried by
+Rico on 2026-10-27 -- the shape in his host layout, the legends at the panel's narrowest, the tab
+bar, Press a key -- and adjusted as below. What the building settled:
+
+- **The shape is the host layout's own**, a column of the host layout table read from the drawing
+  in each of QMK's keymap extras: 47 layouts ISO, 21 ANSI (US and its variants, Colemak, Dvorak,
+  Workman, the Mac ANSI ones, Korean, Polish, the two Russian, Ukrainian, Lithuanian Qwerty,
+  EurKEY, Norman), Japanese JIS. Brazilian ABNT2 is drawn ISO; its extra key (INT1) and the numpad comma
+  are in Extra.
+- **JIS**, which the mockup did not draw, as QMK's Japanese drawing has it: Yen (INT3) before a 1u
+  Backspace, ] (NUHS) in the L's corner, \ (INT1) before a 1.75u right Shift, Muhenkan (INT5),
+  Henkan (INT4) and Kana (INT2) round a 2.5u space bar, the bottom row's other keys 1.25u -- 109
+  keys. Extra's last group is then "ANSI and ISO keys".
+- **The unit**: 44 px before the tiles' zoom (55 px at 100 %), smaller to fit the panel, down to
+  30 px; room kept for the vertical scrollbar, so the keys do not change size when it comes. The
+  board's 60 px legibility floor does not apply -- the mockup has none either; at the panel's
+  980 px the keys are about 42 px.
+- **Drawn by the board's renderer** (`DrawKeycaps()` in `ui/NazgBoardView.*`: every pass, style
+  and mark, no plate), legends as the board prints them -- each key's side, the space bar blank.
+  Extra's keys take the tiles' legends -- "Trans" and "None" for ▽ and ✕, faint with their badge
+  as on a board -- but every level of a key, as Basic prints it: Shift and 1 is "! 1", not the
+  tiles' "!" alone (Rico, 2026-10-27, after trying it: the Shifted keys lacked symbols Basic shows). A key the board may not act on or the section refuses
+  is dimmed rather than faded.
+- **Press a key** is a toggle on the key line, after the expression box: "Press a key", then "Press
+  a key now..." while it listens; clicked again, it stops. A key with no keycode leaves it
+  listening, saying so; so does the keycode the key holds already. Press a key reads what the
+  computer receives: typed on the board being changed, a key sends what it holds now -- Rico changed
+  W to C, then could not type W back (2026-10-27) -- so Nazg says "already KC_C -- typing on this
+  board?" rather than writing the same again. Right-hand modifiers are sent only with no left one held -- a keycode holds
+  one side. The window keeps the keyboard, and keyboard navigation stays off, until the key written
+  is let go, so its press never reaches the UI. Listening ends with the key line -- no key
+  selected, or another section shown. Not tried: AltGr, which Windows sends as left Ctrl and right
+  Alt together, would be written with left Ctrl and Alt.
+
+Code: `ui/NazgKeycodeCatalogue.*` (`FullSizeKeyboard()`, `CatalogueLook`, `IsSentBy()`),
+`ui/NazgKeycodePicker.cpp` (`DrawKeyboard()`, `DrawGroups()` drawing keycaps),
+`ui/NazgKeymapSection.*` (`OnHostKey()`, `WriteHostKey()`), `Section::OnHostKey()` and
+`WantsComputerKeys()`, which App now asks of every section.
 
 ### The tiles
 

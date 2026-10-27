@@ -10,6 +10,9 @@
 // (adapters/via/NazgViaKeymap.h). The panel is the first-draft picker for now. Hovering a
 // layer in the strip shows it, as choosing it would, until the mouse leaves: a peek.
 //
+// Press a key, on the key line: the next key pressed on the computer's keyboard is written, with the
+// modifiers held with it (ui-design.md, "The Keys tab as a keyboard").
+//
 // Knobs are edited here too (ui-design.md, "Knobs"): a click on one selects it, and the panel
 // shows its actions side by side -- turned left, turned right and, on VIA, pressed -- the picker
 // writing the one chosen: a turn through the encoder map (adapters/vial/NazgEncoderMap.h), the
@@ -54,6 +57,14 @@ namespace nazg
         void DrawPanel() override;
 
         [[nodiscard]] bool IsBusy() const override;
+
+        // Press a key: listening stops when another section shows.
+        void WhileHidden() override;
+        void OnHostKey(uint32_t usage, bool down) override;
+
+        // While Press a key listens, and until the key it wrote is let go -- its press must not
+        // reach the UI once listening ends.
+        [[nodiscard]] bool WantsComputerKeys() const override { return m_Listening || m_WrittenKeyDown.has_value(); }
 
     private:
         // A matrix cell -- the address a write needs.
@@ -118,6 +129,10 @@ namespace nazg
         void DrawKeyLine(const Keycode& current);
         void DrawComposer(const Keycode& current);
 
+        // Press a key heard `usage` with the modifiers `held`: what it sends written, listening over.
+        // A key with no keycode, or the one the key holds already, leaves it listening, saying so.
+        void WriteHostKey(uint32_t usage, uint8_t held);
+
         // Writes `keycode` to the selected key, unless a write is still running. `advance`: a pick
         // or an expression entered, after which the next key is selected if the setting asks --
         // never a composer button, which shapes the key in place.
@@ -139,6 +154,14 @@ namespace nazg
         std::string m_ExpressionFor;
         std::string m_ExpressionError;   // why Enter wrote nothing, outlining the box
         bool        m_ExpressionEditing = false;   // the box had the keyboard last frame
+
+        // Press a key: listening for the computer's next key; the modifiers held now, QMK's bits by
+        // side; whether they have been pressed alone so far, so one let go alone is the key written;
+        // and the key written while it is still down, its usage.
+        bool                    m_Listening     = false;
+        uint8_t                 m_HeldMods      = 0;
+        bool                    m_ModifierAlone = false;
+        std::optional<uint32_t> m_WrittenKeyDown;
 
         Task<void>  m_Write;
         bool        m_IsWriting = false;

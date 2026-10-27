@@ -297,8 +297,12 @@ key after each pick, as Vial does, turn on **Move to the next key after a pick**
 
 **The picker** has tabs, each a kind of key:
 
-- **Keys**: letters, digits, punctuation, *Shifted* symbols (`!`, `@`... in one click), editing
-  keys, modifiers, navigation, F1-F24, numpad, international keys, Transparent and None.
+- **Basic**: a full-size keyboard, drawn in your host layout (Settings) -- its legends and its
+  shape: ISO with its L-shaped Enter for French or German, ANSI for US, JIS for Japanese. Click a
+  key to pick it. The key the selected key sends is outlined.
+- **Extra**: every other key a keyboard sends -- Transparent (▽) and None (✕) first, then
+  *Shifted* symbols (`!`, `@`... in one click), F13-F24, the rarer numpad keys, international
+  keys, the rarer HID keys, and the punctuation of the other keyboard shapes.
 - **Layers**: Hold, Toggle, To, Tap tog, Once, Base, Set base for each layer; one-shot modifiers;
   layer lock, tri layer.
 - **Media & mouse**: media, volume, brightness, system and app keys; mouse movement, buttons,
@@ -314,7 +318,7 @@ key after each pick, as Vial does, turn on **Move to the next key after a pick**
 - **Firmware**: Boot, Reboot, Clear EEPROM, Debug.
 
 The **search box** looks through every tab, by name, by QMK name (`KC_ESC`) or by label. Hover a
-tile to see its QMK name. **While the tooltip shows, the selected key previews what the click
+key or a tile to see its QMK name. **While the tooltip shows, the selected key previews what the click
 would write**, outlined in blue.
 
 ![The Esc tile hovered: Caps Lock previews Esc, in blue](user-manual/keymap-preview.png)
@@ -329,12 +333,18 @@ offered anyway, and their tooltip says what they need.
 - **Its keycode in QMK's words, editable.** Type anything QMK understands and press Enter:
   `LT(1,KC_SPC)`, `MT(MOD_LCTL,KC_A)`, `C(S(KC_T))`, `OSM(MOD_LSFT)`, `MO(2)`, or a hex value.
   What Nazg cannot read is outlined in red. This is how to enter keys no tab lists.
+- **Press a key**: then press a key on the computer's keyboard, and it is written to the selected
+  key. Ctrl, Shift, Alt or Win held with it are sent with it (`LCTL(KC_B)`); a modifier pressed
+  and let go alone is written itself. Click it again to stop listening. It reads what the computer
+  receives: typed on the board being changed, a key sends what it holds now, so a keycode no key
+  of the board sends any more is picked in **Basic**, or typed on another keyboard.
 - **When held**: *Nothing*, *Modifiers ▾* or *Layer ▾*. This makes the key a tap-hold key: it
   types itself when tapped, and holds a modifier or a layer when held.
 - **Sent with ▾**: Ctrl, Shift, Alt, Win (or Cmd, Super...), left or right. This sends the key
   with modifiers, for example Ctrl+C in one key. **None** goes back to the plain key.
 
-The key's hold and modifiers are **kept when you pick another tile**. With "When held: Layer 1"
+The key's hold and modifiers are **kept when you pick another tile** -- but not Shift alone: a
+shifted symbol picked over becomes the plain key you pick. With "When held: Layer 1"
 set, picking Space writes `LT(1,KC_SPC)` in one step.
 
 **Knobs.** A VIA knob is drawn as a round key, with its press on top and its two turns under

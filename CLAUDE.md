@@ -78,7 +78,9 @@ exists, where, and how far it has been proven.
   tests check every keycode and theme.
 - **Sections** (`ui/NazgSection.h`; the column planned by `PlanSections()`):
   - **Keymap** -- edit one key, written and read back; the keycode picker (tabs, search, 1u
-    tiles, the key line with the Any entry and When held / Sent with). Knobs too (ui-design.md,
+    tiles; Basic a full-size keyboard in the host layout's shape -- ANSI, ISO, JIS -- and Extra the
+    rest as its keycaps, built 2026-10-26, tried by Rico 2026-10-27; the key line with the Any entry,
+    Press a key and When held / Sent with). Knobs too (ui-design.md,
     "Knobs"): a VIA knob a round key with its press and turns stacked, Vial's direction keys with a
     ↺ / ↻ badge; the panel's action cards, written at once -- turns through the encoder map read
     with the board (`adapters/vial/NazgEncoderMap.*`), "?" when the firmware keeps none.

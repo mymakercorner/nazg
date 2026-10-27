@@ -78,9 +78,9 @@ namespace nazg
         // place in memory, so the file is handed to the browser as a download; natively, none.
         std::function<void(const std::string& path)> fileSaved;
 
-        // While the live test reads the computer's keys (ui-design.md, "The key test"): the window
-        // takes the keyboard -- Win and Alt+Tab reach Nazg, Alt+F4 no longer closes it -- and gives
-        // it back after.
+        // While the live test reads the computer's keys (ui-design.md, "The key test"), or Keymap's
+        // Press a key waits for one: the window takes the keyboard -- Win and Alt+Tab reach Nazg,
+        // Alt+F4 no longer closes it -- and gives it back after.
         std::function<void(bool take)> takeKeyboard;
 
         // A web page shown in the user's browser -- in a browser, a new tab.
@@ -135,7 +135,7 @@ namespace nazg
         void OnDevicesChanged();
 
         // A key of the computer's, pressed or released, as USB numbers it -- the page above the
-        // usage (model/NazgHostKeys.h). The Matrix view's live test reads them.
+        // usage (model/NazgHostKeys.h). The Matrix view's live test reads them, and Keymap's Press a key.
         void OnHostKey(uint32_t usage, bool down);
 
         // The window asked to close: unsaved changes are asked about first.

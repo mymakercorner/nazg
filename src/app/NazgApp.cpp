@@ -532,8 +532,8 @@ namespace nazg
 
     void App::OnHostKey(uint32_t usage, bool down)
     {
-        if (m_Board.matrix)
-            m_Board.matrix->OnHostKey(usage, down);
+        for (const auto& section : m_Board.sections)
+            section->OnHostKey(usage, down);
     }
 
     void App::OnDevicesChanged()
@@ -749,17 +749,19 @@ namespace nazg
 
         // The matrix live test asks for every key of the board to be pressed, and they all type
         // into Nazg: with keyboard navigation on, an arrow then Space would click whatever has
-        // focus, and Alt would open the menu bar. Off while the test runs.
+        // focus, and Alt would open the menu bar. Off while the test runs, and while Keymap's Press
+        // a key waits for one.
         ImGuiIO& io = ImGui::GetIO();
-        // On the computer's keys, the window takes the keyboard too: Win and Alt+Tab are keys to test.
-        const bool takeKeyboard = m_Board.matrix && m_Board.matrix->WantsComputerKeys();
+        // On the computer's keys, the window takes the keyboard too: Win and Alt+Tab are keys to read.
+        const bool takeKeyboard = std::any_of(m_Board.sections.begin(), m_Board.sections.end(),
+                                              [](const auto& section) { return section->WantsComputerKeys(); });
         if (takeKeyboard != m_KeyboardTaken && m_Platform.takeKeyboard)
         {
             m_Platform.takeKeyboard(takeKeyboard);
             m_KeyboardTaken = takeKeyboard;
         }
 
-        if (m_Board.matrix && m_Board.matrix->IsLiveTestRunning())
+        if (takeKeyboard || (m_Board.matrix && m_Board.matrix->IsLiveTestRunning()))
             io.ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard;
         else
             io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;

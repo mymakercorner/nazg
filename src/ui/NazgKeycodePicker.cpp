@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cfloat>
+#include <cmath>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -53,8 +54,10 @@ namespace nazg
             return true;
         }
 
-        // What a tile prints: the keycap's legend, with what only the picker needs.
-        KeycodeTile TileFor(const Keycode& keycode, const LegendContext& context, bool dropHeader, bool selected)
+        // What a tile prints: the keycap's legend, with what only the picker needs. `shiftAlone`: a
+        // tile's -- Extra's keycaps print every level of the key, as Basic's do (Rico, 2026-10-27).
+        KeycodeTile TileFor(const Keycode& keycode, const LegendContext& context, bool dropHeader, bool selected,
+                            bool shiftAlone = true)
         {
             KeycodeTile  tile;
             KeycapLegend legend = LegendFor(keycode, context);
@@ -70,7 +73,7 @@ namespace nazg
             // Shift alone with a character key: its Shift character alone, as VIA's tiles -- the
             // board keeps "Shift+" over the pair, one rule for every modifier (short-forms.md, rule 7).
             if (const auto* modified = std::get_if<ModifiedKey>(&keycode);
-                modified != nullptr && (modified->mods == Mod::LeftShift || modified->mods == Mod::RightShift) &&
+                shiftAlone && modified != nullptr && (modified->mods == Mod::LeftShift || modified->mods == Mod::RightShift) &&
                 !legend.shifted.empty())
             {
                 legend.plain = legend.shifted;
@@ -116,28 +119,119 @@ namespace nazg
                 ImGui::SetTooltip("%s -- %s", group.title.c_str(), group.more.c_str());
         }
 
-        // The groups on one grid of cells: a title box takes two, a tile one, and no empty cell
+        // The full-size keyboard's width, in key units (FullSizeKeyboard()), and the unit Basic draws
+        // it at, and Extra its keys: a 1u key the tiles' size at most -- 44 px before their zoom --
+        // smaller to fit the panel's width, down to a floor past which the panel scrolls sideways
+        // (ui-design.md, "The Keys tab as a keyboard"). Pixels before DPI scaling.
+        constexpr float c_KeyboardUnits = 22.5f;
+        constexpr float c_DrawnUnitMax  = 44.0f * c_TileZoom;
+        constexpr float c_DrawnUnitMin  = 30.0f;
+
+        // Room is kept for a vertical scrollbar whether it shows or not, so the keys keep their size
+        // when it comes and goes.
+        float DrawnUnit()
+        {
+            const ImGuiStyle& style = ImGui::GetStyle();
+            const float room  = ImGui::GetContentRegionAvail().x - (ImGui::GetScrollMaxY() > 0.0f ? 0.0f : style.ScrollbarSize);
+            const float scale = style.FontScaleDpi;
+            return std::clamp(std::floor(room / c_KeyboardUnits), c_DrawnUnitMin * scale, c_DrawnUnitMax * scale);
+        }
+
+        // What the board makes of a keycode in the picker: a lighting key that may do nothing on
+        // its firmware, and why the caller refuses it, if it does -- either drawn faint.
+        struct Availability
+        {
+            LightingNote               note;
+            std::optional<std::string> refused;
+
+            [[nodiscard]] bool IsFaint() const { return note.mayDoNothing || refused.has_value(); }
+        };
+
+        Availability AvailabilityOf(const Keycode& keycode, const KeycodePickerInput& input)
+        {
+            return { input.keyboard != nullptr ? LightingNoteOf(keycode, *input.keyboard) : LightingNote{},
+                     input.unavailable ? input.unavailable(keycode) : std::nullopt };
+        }
+
+        // What the mouse does with a key of the picker -- a tile or a keycap, the item just drawn
+        // over it: hover gives QMK's name, and the board previews what a click would write, the key
+        // line's hold or modifiers kept; a click picks it, unless refused. True while it is hovered.
+        bool HandleKey(const Keycode& keycode, bool clicked, const Availability& availability, KeycodePickerState& state,
+                       const KeycodePickerInput& input, KeycodePickerEvents& events)
+        {
+            const std::string key      = FormatKeycode(keycode);
+            const Keycode     composed = input.current ? ComposeWithKey(keycode, *input.current, input.version) : keycode;
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+            {
+                std::string more = availability.note.text.empty() ? std::string() : "\n" + availability.note.text;
+                if (availability.refused)
+                    more += "\n" + *availability.refused;
+                if (composed == keycode)
+                    ImGui::SetTooltip("%s%s", KeycodeHoverText(keycode, input.version).c_str(), more.c_str());
+                else
+                    ImGui::SetTooltip("%s\n%s, keeping the key's %s%s", FormatKeycode(composed).c_str(), key.c_str(),
+                                      std::holds_alternative<ModifiedKey>(composed) ? "modifiers" : "hold", more.c_str());
+
+                if (input.current && state.justPicked != key)
+                    events.preview = composed;
+            }
+
+            const bool hovered = ImGui::IsItemHovered();
+            if (hovered && state.justPicked && *state.justPicked != key)
+                state.justPicked.reset();
+            if (clicked && !availability.refused)
+            {
+                events.picked    = keycode;
+                events.preview.reset();
+                state.justPicked = key;
+            }
+            return hovered;
+        }
+
+        // The groups on one grid of cells: a title box takes two, a key one, and no empty cell
         // parts two groups on a row -- the box does. A group that does not fit the rest of a row
-        // starts the next; one longer than a row wraps, its rows starting under its first tile,
-        // its box spanning them all (Rico, 2026-10-04).
-        void DrawGroups(const std::vector<CatalogueGroup>& groups, KeycodePickerState& state,
+        // starts the next; one longer than a row wraps, its rows starting under its first key,
+        // its box spanning them all (Rico, 2026-10-04). The keys are tiles, or keycaps at the Basic
+        // keyboard's unit, a unit apart, each inside its cell with its gap all round as on a board
+        // (Rico, 2026-10-26, for Extra).
+        void DrawGroups(const std::vector<CatalogueGroup>& groups, CatalogueLook look, KeycodePickerState& state,
                         const KeycodePickerInput& input, KeycodePickerEvents& events)
         {
-            const float scale  = ImGui::GetStyle().FontScaleDpi * c_TileZoom;
-            const float tileW  = c_TileWidth * scale;
-            const float tileH  = c_TileHeight * scale;
-            const float gapX   = c_TileGap * scale;
-            const float cell   = tileW + gapX;
-            const float rowH   = tileH + c_RowGap * scale;
-            const int   cells  = std::max(c_MinCells, static_cast<int>((ImGui::GetContentRegionAvail().x + gapX) / cell));
+            const bool  keycaps = look == CatalogueLook::Keycaps;
+            const float zoom    = ImGui::GetStyle().FontScaleDpi * c_TileZoom;
+            const float unit    = keycaps ? DrawnUnit() : 0.0f;
+
+            // A cell is a key and its gaps: a tile's to its right and under it, a keycap's all round.
+            const float  itemW  = keycaps ? unit : c_TileWidth * zoom;
+            const float  itemH  = keycaps ? unit : c_TileHeight * zoom;
+            const float  gapX   = keycaps ? 0.0f : c_TileGap * zoom;
+            const float  rowGap = keycaps ? 0.0f : c_RowGap * zoom;
+            const float  inset  = keycaps ? c_KeyGap * unit : 0.0f;
+            const float  cell   = itemW + gapX;
+            const float  rowH   = itemH + rowGap;
+            const int    cells  = std::max(c_MinCells, static_cast<int>((ImGui::GetContentRegionAvail().x + gapX) / cell));
             const ImVec2 origin = ImGui::GetCursorScreenPos();
 
-            bool anyHovered = false;
-            int  row = 0, column = 0;
-            for (size_t index = 0; index < groups.size(); ++index)
+            // Where each key and title box goes, first: keycaps are drawn together, as a board's.
+            struct Placed
             {
-                const CatalogueGroup& group = groups[index];
-                const int             count = static_cast<int>(group.keycodes.size());
+                const Keycode* keycode;
+                ImVec2         p0;
+                bool           dropHeader;
+            };
+            struct Label
+            {
+                const CatalogueGroup* group;
+                ImVec2                p0;
+                ImVec2                p1;
+            };
+            std::vector<Placed> placed;
+            std::vector<Label>  labels;
+
+            int row = 0, column = 0;
+            for (const CatalogueGroup& group : groups)
+            {
+                const int count = static_cast<int>(group.keycodes.size());
 
                 int start = column;
                 if (column > 0 && start + std::min(c_LabelCells + count, cells) > cells)
@@ -149,77 +243,75 @@ namespace nazg
                 int       at    = start + c_LabelCells;
 
                 const bool dropHeader = SharesHeader(group.keycodes, input.context);
-
-                ImGui::PushID(static_cast<int>(index));
-                for (int tileIndex = 0; tileIndex < count; ++tileIndex)
+                for (const Keycode& keycode : group.keycodes)
                 {
                     if (at + 1 > cells)
                     {
                         ++row;
                         at = start + c_LabelCells;
                     }
-
-                    const Keycode& keycode = group.keycodes[static_cast<size_t>(tileIndex)];
-                    const ImVec2   p0(origin.x + static_cast<float>(at) * cell, origin.y + static_cast<float>(row) * rowH);
-
-                    ImGui::PushID(tileIndex);
-                    ImGui::SetCursorScreenPos(p0);
-                    const bool clicked = ImGui::InvisibleButton("##tile", ImVec2(tileW, tileH));
-                    const bool hovered = ImGui::IsItemHovered();
-                    const std::string key = FormatKeycode(keycode);
-
-                    const bool selected = input.current && *input.current == keycode;
-                    KeycodeTile        tile = TileFor(keycode, input.context, dropHeader, selected);
-                    const LightingNote note = input.keyboard != nullptr ? LightingNoteOf(keycode, *input.keyboard)
-                                                                        : LightingNote{};
-                    const std::optional<std::string> refused = input.unavailable ? input.unavailable(keycode) : std::nullopt;
-                    tile.hovered = hovered && !refused;
-                    tile.isFaint = note.mayDoNothing || refused.has_value();
-                    DrawKeycodeTile(tile, { p0.x, p0.y, p0.x + tileW, p0.y + tileH });
-
-                    // What a click writes, the key line's hold or modifiers kept.
-                    const Keycode composed =
-                        input.current ? ComposeWithKey(keycode, *input.current, input.version) : keycode;
-                    if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
-                    {
-                        std::string more = note.text.empty() ? std::string() : "\n" + note.text;
-                        if (refused)
-                            more += "\n" + *refused;
-                        if (composed == keycode)
-                            ImGui::SetTooltip("%s%s", KeycodeHoverText(keycode, input.version).c_str(), more.c_str());
-                        else
-                            ImGui::SetTooltip("%s\n%s, keeping the key's %s%s", FormatKeycode(composed).c_str(),
-                                              key.c_str(),
-                                              std::holds_alternative<ModifiedKey>(composed) ? "modifiers" : "hold",
-                                              more.c_str());
-
-                        if (input.current && state.justPicked != key)
-                            events.preview = composed;
-                    }
-                    if (hovered)
-                    {
-                        anyHovered = true;
-                        if (state.justPicked && *state.justPicked != key)
-                            state.justPicked.reset();
-                    }
-                    if (clicked && !refused)
-                    {
-                        events.picked    = keycode;
-                        events.preview.reset();
-                        state.justPicked = key;
-                    }
-                    ImGui::PopID();
+                    placed.push_back({ &keycode,
+                                       ImVec2(origin.x + static_cast<float>(at) * cell, origin.y + static_cast<float>(row) * rowH),
+                                       dropHeader });
                     ++at;
                 }
-                ImGui::PopID();
 
-                const ImVec2 labelP0(origin.x + static_cast<float>(start) * cell, origin.y + static_cast<float>(first) * rowH);
-                const ImVec2 labelP1(labelP0.x + c_LabelCells * cell - gapX,
-                                     origin.y + static_cast<float>(row + 1) * rowH - c_RowGap * scale);
-                DrawGroupLabel(group, labelP0, labelP1);
-
+                labels.push_back({ &group,
+                                   ImVec2(origin.x + static_cast<float>(start) * cell + inset,
+                                          origin.y + static_cast<float>(first) * rowH + inset),
+                                   ImVec2(origin.x + static_cast<float>(start + c_LabelCells) * cell - gapX - inset,
+                                          origin.y + static_cast<float>(row + 1) * rowH - rowGap - inset) });
                 column = at;
             }
+
+            // The keycaps, as the board draws them, with the tiles' legends but every level of a key.
+            if (keycaps)
+            {
+                BoardDescription board;
+                for (const Placed& each : placed)
+                {
+                    const Keycode& keycode = *each.keycode;
+                    KeycodeTile    tile    = TileFor(keycode, input.context, each.dropHeader, false, false);
+                    BoardKey       key;
+                    key.geometry.x  = (each.p0.x - origin.x) / unit;
+                    key.geometry.y  = (each.p0.y - origin.y) / unit;
+                    key.legends     = std::move(tile.legend);
+                    key.fill        = tile.fill;
+                    key.fallthrough = tile.mark;
+                    if (input.current && IsSentBy(keycode, *input.current))
+                        key.marks |= Mark::Selected;
+                    if (AvailabilityOf(keycode, input).IsFaint())
+                        key.marks |= Mark::Dimmed;
+                    board.keys.push_back(std::move(key));
+                }
+                DrawKeycaps(board, origin, unit);
+            }
+
+            bool anyHovered = false;
+            for (size_t index = 0; index < placed.size(); ++index)
+            {
+                const Keycode&     keycode = *placed[index].keycode;
+                const ImVec2       p0(placed[index].p0.x + inset, placed[index].p0.y + inset);
+                const ImVec2       size(itemW - 2 * inset, itemH - 2 * inset);
+                const Availability availability = AvailabilityOf(keycode, input);
+
+                ImGui::PushID(static_cast<int>(index));
+                ImGui::SetCursorScreenPos(p0);
+                const bool clicked = ImGui::InvisibleButton("##key", size);
+                if (!keycaps)
+                {
+                    KeycodeTile tile = TileFor(keycode, input.context, placed[index].dropHeader,
+                                               input.current && *input.current == keycode);
+                    tile.hovered = ImGui::IsItemHovered() && !availability.refused;
+                    tile.isFaint = availability.IsFaint();
+                    DrawKeycodeTile(tile, { p0.x, p0.y, p0.x + size.x, p0.y + size.y });
+                }
+                anyHovered = HandleKey(keycode, clicked, availability, state, input, events) || anyHovered;
+                ImGui::PopID();
+            }
+
+            for (const Label& label : labels)
+                DrawGroupLabel(*label.group, label.p0, label.p1);
 
             if (!anyHovered)
                 state.justPicked.reset();
@@ -227,7 +319,80 @@ namespace nazg
             // Claim the space drawn into, so the child scrolls.
             ImGui::SetCursorScreenPos(origin);
             ImGui::Dummy(ImVec2(static_cast<float>(cells) * cell - gapX,
-                                groups.empty() ? 0.0f : static_cast<float>(row + 1) * rowH - c_RowGap * scale));
+                                groups.empty() ? 0.0f : static_cast<float>(row + 1) * rowH - rowGap));
+        }
+
+        // The Basic tab: a full-size keyboard in the host layout's shape, its legends by each key's
+        // side as the board's are. The key the selected key sends is outlined, its tap under a hold
+        // too; each key picks as a tile does.
+        void DrawKeyboard(const std::vector<CatalogueKey>& keys, KeycodePickerState& state, const KeycodePickerInput& input,
+                          KeycodePickerEvents& events)
+        {
+            const float  unit   = DrawnUnit();
+            const float  gap    = c_KeyGap * unit;
+            const ImVec2 origin = ImGui::GetCursorScreenPos();
+
+            BoardDescription board;
+            for (const CatalogueKey& key : keys)
+            {
+                BoardKey described;
+                described.geometry = key.geometry;
+                board.keys.push_back(std::move(described));
+            }
+
+            const LegendContext& context = input.context;
+            const float          line    = SideLine(board.keys);
+            float                width   = 0.0f;
+            float                height  = 0.0f;
+            for (size_t index = 0; index < keys.size(); ++index)
+            {
+                const Keycode&            keycode  = keys[index].keycode;
+                const via::DefinitionKey& geometry = keys[index].geometry;
+                const LegendContext       sided{ context.layout,   context.names,          SideOf(geometry, line),
+                                                 context.lighting, context.customKeycodes, context.tapDances };
+
+                BoardKey& described = board.keys[index];
+                described.legends   = LegendFor(keycode, sided);
+                described.fill      = KeycapClassOf(keycode, geometry);
+                if (input.current && IsSentBy(keycode, *input.current))
+                    described.marks |= Mark::Selected;
+                if (AvailabilityOf(keycode, input).IsFaint())
+                    described.marks |= Mark::Dimmed;
+
+                width  = std::max(width, geometry.x + geometry.width);
+                height = std::max(height, geometry.y + geometry.height);
+            }
+            DrawKeycaps(board, origin, unit);
+
+            // An item over each rectangle of a key's face: ISO's Enter has two.
+            bool anyHovered = false;
+            for (size_t index = 0; index < keys.size(); ++index)
+            {
+                const Keycode&            keycode      = keys[index].keycode;
+                const via::DefinitionKey& geometry     = keys[index].geometry;
+                const Availability        availability = AvailabilityOf(keycode, input);
+
+                const auto face = [&](const char* id, float x, float y, float w, float h)
+                {
+                    ImGui::SetCursorScreenPos(ImVec2(origin.x + x * unit + gap, origin.y + y * unit + gap));
+                    const bool clicked = ImGui::InvisibleButton(id, ImVec2(w * unit - 2 * gap, h * unit - 2 * gap));
+                    anyHovered         = HandleKey(keycode, clicked, availability, state, input, events) || anyHovered;
+                };
+
+                ImGui::PushID(static_cast<int>(index));
+                face("##key", geometry.x, geometry.y, geometry.width, geometry.height);
+                if (geometry.HasSecondRectangle())
+                    face("##second", geometry.x + geometry.secondX, geometry.y + geometry.secondY, geometry.secondWidth,
+                         geometry.secondHeight);
+                ImGui::PopID();
+            }
+
+            if (!anyHovered)
+                state.justPicked.reset();
+
+            // Claim the space drawn into, so the child scrolls.
+            ImGui::SetCursorScreenPos(origin);
+            ImGui::Dummy(ImVec2(width * unit, height * unit));
         }
 
         // A search through every tab: a group per tab with what matches, titled with its name.
@@ -354,8 +519,8 @@ namespace nazg
         const bool  fits = ImGui::CalcTextSize(c_SearchHint).x + 2 * style.FramePadding.x <= searchW;
         ImGui::InputTextWithHint("##search", fits ? c_SearchHint : "Search", state.search, sizeof(state.search));
 
-        // The tiles, scrolling under the tabs.
-        ImGui::BeginChild("##tiles", ImVec2(0.0f, 0.0f), ImGuiChildFlags_None);
+        // The keys, scrolling under the tabs -- sideways too, should the keyboard reach its floor.
+        ImGui::BeginChild("##tiles", ImVec2(0.0f, 0.0f), ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar);
         if (state.search[0] != '\0')
         {
             if (state.searched != state.search || state.searchedTabs != &input.tabs)
@@ -368,13 +533,17 @@ namespace nazg
             if (results.empty())
                 ImGui::TextDisabled("Nothing matches. Type a QMK expression in the key line for anything not listed.");
             else
-                DrawGroups(results, state, input, events);
+                DrawGroups(results, CatalogueLook::Tiles, state, input, events);
         }
         else
         {
             const auto tab = std::find_if(input.tabs.begin(), input.tabs.end(),
                                           [&](const CatalogueTab& each) { return each.id == state.tab; });
-            DrawGroups(tab != input.tabs.end() ? tab->groups : input.tabs.front().groups, state, input, events);
+            const CatalogueTab& shown = tab != input.tabs.end() ? *tab : input.tabs.front();
+            if (shown.look == CatalogueLook::Keyboard)
+                DrawKeyboard(shown.keyboard, state, input, events);
+            else
+                DrawGroups(shown.groups, shown.look, state, input, events);
         }
         ImGui::EndChild();
 

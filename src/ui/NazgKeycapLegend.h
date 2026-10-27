@@ -52,6 +52,16 @@ namespace nazg
         uint8_t dead = 0;
     };
 
+    // The keyboard a layout is typed on, as QMK's keymap extras draw it: ANSI; ISO, its Enter an
+    // L and a key beside the left Shift; or JIS, ISO's Enter with five keys of its own -- the
+    // picker's Basic tab draws it (ui-design.md, "The Keys tab as a keyboard").
+    enum class KeyboardShape : uint8_t
+    {
+        Ansi,
+        Iso,
+        Jis,
+    };
+
     // A host keyboard layout: the positions whose legend depends on it. Everything else
     // -- Enter, F1, arrows, keypad -- types the same on every layout and is labelled
     // from the legend set.
@@ -60,6 +70,7 @@ namespace nazg
         std::string_view            id;        // QMK's name, stable: "french_mac_iso"
         std::string_view            name;      // for people: "French (Mac ISO)"
         std::span<const HostLegend> legends;
+        KeyboardShape               shape = KeyboardShape::Ansi;
 
         [[nodiscard]] const HostLegend* Find(std::string_view key) const noexcept;
 
