@@ -302,7 +302,12 @@ key after each pick, as Vial does, turn on **Move to the next key after a pick**
   key to pick it. The key the selected key sends is outlined.
 - **Extra**: every other key a keyboard sends -- Transparent (▽) and None (✕) first, then
   *Shifted* symbols (`!`, `@`... in one click), F13-F24, the rarer numpad keys, international
-  keys, the rarer HID keys, and the punctuation of the other keyboard shapes.
+  keys, the rarer HID keys, and the punctuation of the other keyboard shapes. A shifted key shows
+  every symbol of its key, as in Basic; its group, or its tooltip (`LSFT(KC_1)`), says it is
+  shifted.
+
+    ![The Extra tab on a US layout: ISO keys last](user-manual/keymap-extra.png)
+
 - **Layers**: Hold, Toggle, To, Tap tog, Once, Base, Set base for each layer; one-shot modifiers;
   layer lock, tri layer.
 - **Media & mouse**: media, volume, brightness, system and app keys; mouse movement, buttons,
@@ -321,7 +326,7 @@ The **search box** looks through every tab, by name, by QMK name (`KC_ESC`) or b
 key or a tile to see its QMK name. **While the tooltip shows, the selected key previews what the click
 would write**, outlined in blue.
 
-![The Esc tile hovered: Caps Lock previews Esc, in blue](user-manual/keymap-preview.png)
+![Esc hovered in Basic: Caps Lock previews Esc, in blue](user-manual/keymap-preview.png)
 
 Only what the board can use is offered: no lighting keys on a board without lighting, no more
 macro keys than it has macros. Keys the board cannot tell about, such as audio or Unicode, are
