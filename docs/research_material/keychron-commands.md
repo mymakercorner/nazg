@@ -67,6 +67,28 @@ command set (`0xA9`) is **the same on both branches**: version byte `0x04`, the 
 and the same layouts. Between them only the internal EEPROM layout and some key action
 details changed.
 
+**A K10 HE ANSI read on 2026-10-29** (borrowed by Rico, the colleague's model) runs firmware **no
+published branch has**: `3434:0EA7`, `bcdDevice` 1.0.0 (the source says 1.1.1), `0xA1`
+`v1.0.0 2026-07-17-17:42:44`, VIA protocol 12. Its replies:
+
+| Request | Reply (bytes 0-8) | Against the source |
+|---|---|---|
+| `0xA0` | `A0 04 00 02` | `[1]` is 4, where every branch sends 2 |
+| `0xA2` | `A2 00 09 53 00 15 3F F1 11` | bits 0 and 3 (layer, analog matrix) as documented; `[3]` `0x53`, not `0x03`; `[4..8]` unknown |
+| `0xA3` | `A3 02 00` | default layer 2 (the Windows base layer) |
+| `0xA7 0x01` | `A7 01 00 03 00 00` | answers, unlike `hall_effect_playground`; version 3, not 2; no misc bits |
+| `0xA9 0x01` | `A9 01 04 00 1E` | version 4 as documented, then an undocumented `0x1E` |
+| `0xA9 0x10` | `A9 10 00 03 D4 03 14 14` | profile 0 of 3, 980 bytes, 20 DKS, 20 SOCD: as documented |
+| `02 03 00` (matrix) | twice, all keys up | still the double answer |
+
+So the published source describes neither this board nor, probably, the colleague's: what Nazg
+builds on Keychron's commands must be checked on the board, not only read from the fork.
+
+**Its wiring differs too**, which explains the keys the colleague's board never lit. Read from its
+keymap: Right Shift at (4, 13), Right Alt, Right Win, Fn and Right Ctrl at (5, 9)-(5, 12), Numpad .
+at (5, 18) -- the published ANSI file has (4, 12), (5, 10)-(5, 13) and (5, 19). With those six moved,
+all 104 keys match the keymap and light in Nazg's key test (Rico, 2026-10-29).
+
 ### Unsolicited reports
 
 *A trap for any client, not just one speaking Keychron's commands.* On `2025q3` builds, the
