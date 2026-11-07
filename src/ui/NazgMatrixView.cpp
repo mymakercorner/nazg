@@ -217,7 +217,7 @@ namespace nazg
 
         // The layer shown's legends: layer 0's on the switches and in Wiring, so each key is
         // recognised; on the computer's keys, the layer whose keys are tested.
-        DescribeLegends(board, m_Keyboard, IsLiveShown() ? ShownLayer() : 0, m_Legends);
+        DescribeLegends(board, m_Keyboard, IsLiveShown() ? ShownLayer() : 0, m_Legends, SpaceBar::Named);
 
         // The live test is a view of its own: only what the board reports, no wiring.
         const bool isLive = IsLiveTestRunning();
@@ -263,6 +263,12 @@ namespace nazg
         else if (events.hoveredLabel)
         {
             hovered = FocusOfLabel(*events.hoveredLabel, m_Keyboard.definition.matrixRows);
+        }
+        else if (events.overBoard && !events.hoveredKey)
+        {
+            // In a gap between keycaps, or between a label and its keys: the last focus stays, or
+            // every key brightens for the frames the pointer crosses it (tester-feedback.md, 5).
+            hovered = m_Hovered;
         }
         m_Hovered = hovered;
 

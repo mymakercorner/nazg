@@ -620,6 +620,9 @@ the other and back.
   board. **Hatched** keys send nothing the computer hears (layer keys, empty keys, Boot, macros)
   and cannot be tested this way. Keys sending the same thing light together, marked **?**. While
   this test runs, Nazg takes the whole keyboard, so Win and Alt+Tab are tested rather than acted on.
+  **It hears every keyboard, not only this one**: the computer does not say which keyboard a key
+  came from, so a key pressed on a laptop's own keyboard, or on another keyboard plugged in, lights
+  here too. Type only on the board under test, or use Switches, which asks the board itself.
 
     ![Testing the computer's keys: layer 1 followed while F5 is held, its tab violet](user-manual/matrix-computer-keys.png)
 
@@ -659,7 +662,9 @@ matrix.
 it turns the keyboard's typing off, and it comes back on when you leave. The strip has:
 
 - **Key presses**: what is pressed now, and every key seen pressed, from the board, QMK's matrix
-  or the controller.
+  or the controller. QMK's matrix and the controller are two separate reads of the same switches:
+  on a healthy board they look the same, and a key lit in one and not the other points at the
+  mapping between the controller's connectors and QMK's rows and columns.
 - **Signal levels**: each key's readings against its threshold, and Nazg's verdict on the keys at
   risk: keys that may type by themselves, or may miss presses. Click a key for its levels and last
   presses.

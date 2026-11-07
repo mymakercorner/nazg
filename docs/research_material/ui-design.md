@@ -2754,6 +2754,11 @@ in a browser; GitHub and Markdown previews show only its source.
   up (2026-09-29); VIA's screen order zigzags too, wherever a row is staggered. On a regular
   board the links are the straight line through the row.
 - **Hover a ruler label**: that whole row or column.
+- **Between two keys the focus stays** (2026-11-07, a tester's report: every key brightened
+  as the pointer crossed a gap): it changes on another key or label, and goes when the pointer
+  leaves the board.
+- **The space bar says Space** here and in Diagnostics, where keys are found by name, not by
+  shape -- blank everywhere else (2026-11-07, agreed 2026-10-27; tester-feedback.md, 4).
 - **Click** pins the selection, to move the mouse away.
 - **Positions with no key** — what the grid showed and the board alone cannot: with a row
   selected, the columns with no key in it are **struck through** in the column ruler, and

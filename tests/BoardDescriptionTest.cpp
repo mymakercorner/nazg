@@ -225,6 +225,14 @@ namespace
         Check(legendOf(2).cylindrical.full == "Control", "on the right half, the plain keycap word");
         Check(legendOf(1).placement == nazg::PlacementClass::Blank, "the space bar is blank");
 
+        // Named where keys are found by name: the matrix and diagnostics views. KC_NO stays blank.
+        keyboard.keymap.Set(0, 0, 2, nazg::NamedKey{ "KC_NO" });
+        nazg::DescribeLegends(board, keyboard, 0, nazg::LegendSettings{}, nazg::SpaceBar::Named);
+        Check(legendOf(1).cylindrical.full == "Space" && legendOf(1).placement != nazg::PlacementClass::Blank,
+              "the space bar named when asked");
+        Check(legendOf(2).placement == nazg::PlacementClass::Blank, "KC_NO stays blank when the space bar is named");
+        keyboard.keymap.Set(0, 0, 2, nazg::NamedKey{ "KC_RCTL" });
+
         // The lighting keys' headers follow the board's lighting systems.
         keyboard.keymap.Set(0, 0, 0, nazg::NamedKey{ "UG_TOGG" });
         keyboard.definition.lighting = "qmk_backlight_rgblight";

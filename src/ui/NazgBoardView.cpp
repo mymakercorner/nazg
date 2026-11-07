@@ -919,6 +919,7 @@ namespace nazg
                 (void)DrawKey(drawList, origin, unit, key, canHover, KeyPass::Legends);
         DrawTags(drawList, board, origin, unit);
         DrawEdgeLabels(drawList, board, corner, origin, unit, leftMargin, canHover, events);
+        events.overBoard = canHover && ImGui::IsMouseHoveringRect(corner, ImVec2(corner.x + size.x, corner.y + size.y));
 
         // Claim the space drawn into, so the child scrolls around the board.
         ImGui::Dummy(size);

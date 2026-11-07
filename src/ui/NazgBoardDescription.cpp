@@ -133,7 +133,7 @@ namespace nazg
     }
 
     void DescribeLegends(BoardDescription& board, const Keyboard& keyboard, uint8_t layer,
-                         const LegendSettings& settings)
+                         const LegendSettings& settings, SpaceBar spaceBar)
     {
         const float              line     = SideLine(board.keys);
         const uint8_t            lighting = LightingSystemsOf(keyboard);
@@ -178,7 +178,15 @@ namespace nazg
             }
 
             const ResolvedKey resolved = ResolveKey(keyboard, geometry, layer);
-            key.legends     = LegendFor(resolved.keycode, context);
+            KeycapLegend      legend   = LegendFor(resolved.keycode, context);
+            if (spaceBar == SpaceBar::Named && legend.placement == PlacementClass::Blank &&
+                IsNamed(resolved.keycode, "KC_SPC"))
+            {
+                legend.placement   = PlacementClass::Modifier;
+                legend.cylindrical = { "Space", "" };
+                legend.spherical   = { "SPACE", "" };
+            }
+            key.legends     = std::move(legend);
             key.fallthrough = resolved.fallthrough;
         }
     }

@@ -216,6 +216,10 @@ namespace nazg
         std::optional<size_t> hoveredLabel;   // indices into BoardDescription::labels
         std::optional<size_t> clickedLabel;
 
+        // The pointer anywhere on the board -- plate, edge labels, the gaps between keycaps -- so a
+        // section can keep a hover's focus while it crosses from one key to the next.
+        bool overBoard = false;
+
         // What the board took, plate and edge labels included, in pixels: a splitter under it
         // moves from there. `fullWidth` is the board's own, wider than `width` while the window
         // is too narrow and it scrolls; `floorWidth` the board's at its legibility floor.
@@ -253,8 +257,18 @@ namespace nazg
     // side of the board and the board's lighting. Matrix views fill layer 0's, to find the keys by.
     // A knob's come from the encoder map: a Vial direction key wears its turn's keycode, a VIA
     // knob its KnobLegend.
+    //
+    // The space bar is blank, as on real sets -- its shape says what it is -- except where keys are
+    // found by name rather than by shape: the matrix and diagnostics views ask for it Named
+    // (tester-feedback.md, 4).
+    enum class SpaceBar : uint8_t
+    {
+        Blank,
+        Named,
+    };
+
     void DescribeLegends(BoardDescription& board, const Keyboard& keyboard, uint8_t layer,
-                         const LegendSettings& settings);
+                         const LegendSettings& settings, SpaceBar spaceBar = SpaceBar::Blank);
 
     // The lighting systems a board has, LightingSystem bits, for the lighting keys' headers
     // (ui-design.md, "Where the definition says it"): from Vial's or VIA V2's `lighting`, VIA V3's

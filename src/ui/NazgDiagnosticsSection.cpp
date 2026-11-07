@@ -605,7 +605,7 @@ namespace nazg
             }
         }
 
-        DescribeLegends(board, m_Keyboard, 0, m_Legends);
+        DescribeLegends(board, m_Keyboard, 0, m_Legends, SpaceBar::Named);
         if (m_Keys.empty() || m_KeysSelection != m_Keyboard.layoutSelection)
             FindKeys(board);
 
@@ -913,6 +913,19 @@ namespace nazg
         if (const int chosen = Segments({ "Board", "QMK matrix", "Controller" }, static_cast<int>(m_View)); chosen >= 0)
             m_View = static_cast<View>(chosen);
         ImGui::Separator();
+
+        // Two independent reads of the same switches, alike on a healthy board: said, or the second
+        // looks like a duplicate (tester-feedback.md, 7).
+        if (m_View == View::QmkMatrix)
+            ColouredText(PanelColour::Muted, "QMK's matrix: each key at the row and column the firmware gives it. "
+                                             "Controller reads the controller's connectors themselves. On a healthy "
+                                             "board the two agree; a key lit in one and not the other points at the "
+                                             "mapping between them.");
+        else if (m_View == View::Controller)
+            ColouredText(PanelColour::Muted, "The controller's connectors, read straight from them, before QMK maps "
+                                             "them to its rows and columns. QMK matrix reads the firmware's own. On a "
+                                             "healthy board the two agree; a key lit in one and not the other points "
+                                             "at the mapping between them.");
 
         size_t seen = 0;
         for (const Key& key : m_Keys)
