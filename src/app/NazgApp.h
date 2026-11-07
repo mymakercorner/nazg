@@ -50,7 +50,8 @@ namespace nazg
         std::optional<std::filesystem::path> dataFolder;
         std::string                          dataFolderError;
 
-        // The display's content scale, which the interface's sizes follow.
+        // The display's content scale at start, which the interface's sizes follow; the shell
+        // tells App a new one through OnDisplayScaleChanged().
         float displayScale = 1.0f;
 
         // The OS's modifier names, for a first launch (ui-design.md, "Modifier names follow a
@@ -122,6 +123,11 @@ namespace nazg
         // The whole window, between ImGui's NewFrame() and Render(). The window's minimum size,
         // or none to keep the last one -- while the window has no size, minimized.
         [[nodiscard]] std::optional<MinimumSize> Frame();
+
+        // The content scale of the display the window is on, when it may have changed: the window
+        // moved to another display, or the display's scaling changed. Between frames; the same
+        // scale again does nothing (ui-design.md, "Open points").
+        void OnDisplayScaleChanged(float scale);
 
         // The file dialogs' answers: the files to import; where to export, none when cancelled.
         void OnImportChosen(std::vector<std::string> paths);

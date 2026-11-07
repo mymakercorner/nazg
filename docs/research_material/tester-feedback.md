@@ -7,12 +7,12 @@ says so.
 
 *First round: a long report on `0.1.0-test.5` / `0.1.0-test.6`, from a tester with a Leyden Jar
 board who runs Nazg on Windows 10, Windows 11 and in a browser (2026-10-27). Analysed and agreed
-the same day; built since: items 1, 4, 5, 7 and 8 (2026-11-07), as the table says.*
+the same day; built since: items 1, 2, 4, 5, 7 and 8 (2026-11-07), as the table says.*
 
 | # | What | Kind | Verdict | Done |
 |---|---|---|---|---|
 | 1 | Does not start on Windows 10; Windows 11 and the browser are fine | Bug, blocking | Likely cause found in SDL's source (corrected 2026-11-07), unproven on his machine | 2026-11-07, awaiting his retest |
-| 2 | Wrong sizes on a second monitor of another scale | Bug, known | Confirms the deferred item, and worse than it says | no |
+| 2 | Wrong sizes on a second monitor of another scale | Bug, known | Confirms the deferred item, and worse than it says | 2026-11-07, the scale followed; small windows not |
 | 3 | Key names beside the signal levels | Feature | The strongest request of the round | no |
 | 4 | The space bar is unlabelled in the matrix and diagnostics views | Bug, small | True where there is no keymap to read it from | 2026-11-07 |
 | 5 | Wiring flashes when the pointer moves between keys | Bug, small | True, mechanism found | 2026-11-07 |
@@ -103,6 +103,12 @@ another scale, always".
 - his larger suggestion, "auto-resized to fit the layout, with scroll bars for small screens or when
   the program is not maximized", which is a separate question about what Nazg does in a small
   window, and does not depend on the first.
+
+**Built** (2026-11-07): the first half -- the scale of the display the window is on, asked every
+frame, so Nazg started on his 150 % screen and a window dragged there both follow it (ui-design.md,
+"Open points"). Seen following Windows' scaling changed while it ran (Rico); unseen on two
+monitors: he is the test. The second half, a small window, is not
+started.
 
 ## 3. Key names beside the signal levels
 

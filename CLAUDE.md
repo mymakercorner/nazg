@@ -200,9 +200,9 @@ one board to unlock).
   the picker says an import is for another keyboard and why it must not be used (a tester's K10 HE
   reports `3434:0EA7`, which no published file carries; via-registry.md).
 - **Deferred**: library export / import (a web-build need).
-- **Deferred**: following a display scale change while Nazg runs -- the scale is read once, from
-  the primary display, so a window moved to a monitor of another scale keeps its sizes. The fix and
-  how to try it: ui-design.md, "Open points" (2026-10-24; Rico has no second monitor).
+- **Built**: the display scale followed (2026-11-07, a tester's two monitors) -- the scale of the
+  display the window is on, asked every frame (ui-design.md, "Open points"). Seen following
+  Windows' scaling changed while Nazg ran (Rico); two monitors wait for the tester.
 - **Deferred, very low priority**: the HID console (ui-design.md, "The console") -- QMK Toolbox's
   job, not to be taken from it (Rico, 2026-10-18).
 - **A tester's report on `0.1.0-test.6`, analysed and agreed** (2026-10-27):

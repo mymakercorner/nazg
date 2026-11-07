@@ -2984,10 +2984,10 @@ look is built** (Rico, 2026-10-03): they are judged on the real thing, not on a 
   choice: a Shift-only hold shows the character it types ("!" for Shift+1), letters staying
   "Shift+A".
 - **Plugin delivery** — see "Plugins".
-- **The display's scale is read once, at start** (looked at 2026-10-24; Rico: what is built is
-  fine for now, and he has no second monitor to try it on). Two scales, both handled at start:
+- **The display's scale follows the window's display** (built 2026-11-07, after a tester's report
+  on two monitors of 300 % and 150 %: tester-feedback.md, 2). Two scales:
   - **The UI scale** -- the OS's content scale, Windows' 125% or 150%, GNOME's and KDE's scaling:
-    `Main.cpp` reads `SDL_GetDisplayContentScale()`, App applies it once, `ApplyWindowSizes()`
+    `Main.cpp` reads `SDL_GetDisplayContentScale()`, App applies it, `ApplyWindowSizes()`
     (`ui/NazgTheme.cpp`) -- `ScaleAllSizes()` for every padding, spacing and rounding, and
     `FontScaleDpi`, which ImGui 1.92 multiplies every font size by. Nazg's own drawing multiplies
     its pixel constants by `FontScaleDpi`, about 45 places; keep it so.
@@ -2996,18 +2996,22 @@ look is built** (Rico, 2026-10-03): they are judged on the real thing, not on a 
     and ImGui 1.92 draws its glyphs at it, so text is sharp with nothing of Nazg's. macOS: content
     scale 1, density 2; Windows: the other way round.
 
-  **What is missing**: the scale comes from the **primary** display (`SDL_GetPrimaryDisplay()`),
-  not the one the window opens on, and nothing follows `SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED`.
-  On Windows, a window dragged between a 100% and a 150% monitor, a scaling changed while Nazg
-  runs, or a window placed back on a secondary monitor of another scale keeps the sizes it started
-  with -- the text still sharp, only too small or too large. **The fix**: `Main.cpp` takes the
-  scale of the window's own display (`SDL_GetDisplayForWindow()`) and passes the event on; App
-  gets `OnDisplayScaleChanged(scale)`, which starts from a fresh style, applies the sizes and the
-  theme's colours again (a fresh style resets them), and lets the window's minimum size follow,
-  as it does every frame. **To try it** needs two monitors of different scales, or changing
-  Windows' scaling while Nazg runs. **Unseen too**: the web build on a high-DPI display, a
-  browser's zoom (Ctrl + / -, which should scale Nazg as any page), and scaling on Linux at all --
-  the KDE tester's run said nothing of it.
+  **How it follows**: every frame, before ImGui's, `Main.cpp` asks the content scale of the display
+  the window is on (`WindowContentScale()`: `SDL_GetDisplayForWindow()`, never
+  `SDL_GetWindowDisplayScale()`, which multiplies in the pixel density) and hands it to
+  `App::OnDisplayScaleChanged()`, which does nothing for the same scale. Asked rather than taken
+  from SDL's scale events: those wait in the queue while Windows runs its own loop during a drag,
+  and the window opening on its saved display needs no event of its own. A new scale starts from a
+  fresh `ImGuiStyle` -- `ScaleAllSizes()` multiplies every size the style holds, those
+  `ApplyWindowSizes()` does not set too, so applying it twice would compound -- and the theme's
+  colours are put back the next frame. Everything else already followed: the column's width and the
+  board's height are kept unscaled, the window's minimum size is worked out every frame, ImGui 1.92
+  draws fonts at the new size on demand, and SDL keeps the window's saved size when it places it on
+  another display. Settings' About says the scale in use.
+  **Seen** (Rico, 2026-11-07): Windows' scaling changed while Nazg ran, back and forth -- the sizes
+  follow at once, the theme kept. Two monitors of different scales need the tester. **Unseen too**: the
+  web build on a high-DPI display, a browser's zoom (which should scale Nazg as any page), and
+  scaling on Linux at all -- the KDE tester's run said nothing of it.
 - **Dragging the window jitters on a 60 Hz display** (Rico, 2026-10-06, on Windows; smooth at
   144 Hz, and Visual Studio or the Claude app stay smooth on the same screen). Found by bisecting:
   - **Not Nazg's code.** A bare SDL3 window with an SDL_GPU swapchain, presenting every frame,

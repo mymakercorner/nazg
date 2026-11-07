@@ -369,6 +369,15 @@ namespace
         SDL_DestroySurface(icon);
     }
 
+    // The content scale of the display the window is on -- Windows' 150 %, a desktop's scaling --
+    // never the pixel density (macOS Retina, a browser's zoom), which ImGui's backend reads on its
+    // own: SDL_GetWindowDisplayScale() multiplies the two. 0 when SDL cannot tell, which App ignores.
+    float WindowContentScale(SDL_Window* window)
+    {
+        const SDL_DisplayID display = SDL_GetDisplayForWindow(window);
+        return display != 0 ? SDL_GetDisplayContentScale(display) : 0.0f;
+    }
+
     // A failure before the first frame, logged and shown: Nazg has no console, so without the
     // message box a user sees nothing at all (tester-feedback.md, 1). Called before anything is
     // cleaned up, while SDL_GetError() still says why. SDL allows the box before SDL_Init().
@@ -392,7 +401,8 @@ int main(int, char**)
         return 1;
     }
 
-    // Create the window, sized in logical units scaled by the display's content scale.
+    // Create the window, sized in logical units scaled by the display's content scale: the primary
+    // display's until the window is placed, then the frame loop follows the one it is on.
     const float mainScale = SDL_GetDisplayContentScale(SDL_GetPrimaryDisplay());
 
 #if defined(__EMSCRIPTEN__)
@@ -491,8 +501,7 @@ int main(int, char**)
     std::snprintf(line, sizeof(line), "SDL %d.%d.%d, Dear ImGui %s", SDL_MAJOR_VERSION, SDL_MINOR_VERSION,
                   SDL_MICRO_VERSION, IMGUI_VERSION);
     platform.about.emplace_back(line);
-    std::snprintf(line, sizeof(line), "GPU backend: %s, display scale %.2f", pGpuDriver != nullptr ? pGpuDriver : "unknown",
-                  mainScale);
+    std::snprintf(line, sizeof(line), "GPU backend: %s", pGpuDriver != nullptr ? pGpuDriver : "unknown");
     platform.about.emplace_back(line);
 
     // Must outlive any open dialog: main() scope.
@@ -640,6 +649,12 @@ int main(int, char**)
             // Before the minimized early-out below, otherwise board work stalls for as long as
             // the window stays minimized.
             app.BeforeFrame();
+
+            // The scale of the display the window is on, asked every frame rather than on SDL's
+            // scale events: those wait in the queue while Windows runs its own loop during a drag,
+            // and the window opening on its saved display is covered too. App does nothing for
+            // the same scale again.
+            app.OnDisplayScaleChanged(WindowContentScale(pWindow));
 
             if ((SDL_GetWindowFlags(pWindow) & SDL_WINDOW_MINIMIZED) != 0)
             {

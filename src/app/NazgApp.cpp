@@ -767,6 +767,20 @@ namespace nazg
             io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     }
 
+    // ImGui's ScaleAllSizes() multiplies every size the style holds, those ApplyWindowSizes() does
+    // not set included, so a second scale is applied to a fresh style -- or they compound. A fresh
+    // style has ImGui's colours: the theme's are put back on the next frame.
+    void App::OnDisplayScaleChanged(float scale)
+    {
+        if (scale <= 0.0f || std::fabs(scale - m_Platform.displayScale) < 0.001f)
+            return;
+
+        m_Platform.displayScale = scale;
+        ImGui::GetStyle()       = ImGuiStyle();
+        ApplyWindowSizes(scale);
+        m_AppliedTheme.reset();
+    }
+
     std::optional<App::MinimumSize> App::Frame()
     {
         // The look, as the settings say, changed in Settings.
@@ -1175,6 +1189,8 @@ namespace nazg
         std::snprintf(line, sizeof(line), "Nazg %s", NAZG_VERSION);
         view.about.emplace_back(line);
         view.about.insert(view.about.end(), m_Platform.about.begin(), m_Platform.about.end());
+        std::snprintf(line, sizeof(line), "Display scale: %.2f", m_Platform.displayScale);
+        view.about.emplace_back(line);
         std::snprintf(line, sizeof(line), "Frame: %.3f ms (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
         view.about.emplace_back(line);
 
