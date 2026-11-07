@@ -188,8 +188,10 @@ The window is divided into five areas.
   *Save to file...* and *Load from file...*, *Change definition...* and *Forget choice* (VIA
   boards), and **All keyboards** (back to the list). With *Advanced tools* on in Settings, it
   also has an *Advanced* submenu.
-- The protocol, *VIA* or *Vial*. Hover it to see which definition draws the board, and which
-  version of QMK's keycodes it uses.
+- The protocol, *VIA* or *Vial*. Hover it, or the board's name, to see which definition draws the
+  board: its name, where it comes from, its file and version (the VIA or community bundle it is
+  from, or when you imported it), whether you chose it or it is the only match, and how many
+  other definitions match the board. Below that, which version of QMK's keycodes it uses.
 - **Locked** / **Unlocked**, on Vial boards that have a lock (see "Vial's lock").
 - **Settings**.
 

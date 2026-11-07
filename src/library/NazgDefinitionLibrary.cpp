@@ -439,7 +439,13 @@ namespace nazg
         std::vector<DefinitionCandidate> candidates;
         for (const LibraryEntry& entry : m_Entries)
             if (entry.vendorId == vendorId && entry.productId == productId)
-                candidates.push_back({ DefinitionRef::User(entry.id), via::ParseDefinition(Read(entry)), entry.origin });
+            {
+                DefinitionCandidate candidate{ DefinitionRef::User(entry.id), via::ParseDefinition(Read(entry)), entry.origin };
+                candidate.file = Utf8FromPath(FileOf(entry).filename());
+                if (!entry.added.empty())
+                    candidate.version = "imported " + entry.added.substr(0, 10);   // the date of ISO 8601
+                candidates.push_back(std::move(candidate));
+            }
         return candidates;
     }
 

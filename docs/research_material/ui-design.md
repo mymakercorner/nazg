@@ -2500,6 +2500,13 @@ The board's name in the header is a menu, as in ZMK Studio and VIA:
 
 - **Switch to** — the other keyboards plugged in, one click each: the usual reason to go back.
 - **Change definition… / Forget choice** — VIA boards only; they leave the board screen.
+  Each candidate there says its file and version as well as its source.
+
+Hovering the name, or the protocol beside it, says which definition draws the board, a line
+each: its name; where it comes from; its file and that file's version -- a bundle's path with
+the-via/keyboards commit or the community release tag, a user definition's stored file and the
+day it was imported; why this one -- chosen and remembered, or the only one for the VID:PID; and
+how many other definitions match (2026-11-07, a user's report: tester-feedback.md, second round).
 - **Advanced** — only with *Advanced tools* on in Settings: **Export definition…** (the
   definition drawing the board, byte for byte, for investigation and debugging). The picture
   shows it open, with **Show matrix…**, which left it for the column's Tools group (2026-10-09,

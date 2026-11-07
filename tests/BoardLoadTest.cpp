@@ -158,6 +158,8 @@ namespace
               "the user definition first, VIA's after it");
         Check(load.bundled.size() == 1 && load.bundled[0].ref == load.candidates[1].ref,
               "the official one is kept apart too, for the list to be rebuilt");
+        Check(load.candidates[1].file == "v3/1298469376.json" && load.candidates[1].version.empty(),
+              "the official one says its file; a bundle without a manifest, no commit");
         Check(channel.RequestCount() == 2, "the probe and the protocol: no keymap is read yet");
     }
 

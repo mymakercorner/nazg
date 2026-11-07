@@ -24,6 +24,15 @@ namespace nazg
         return "official definition, from VIA";
     }
 
+    std::string DescribeDefinitionFile(const DefinitionCandidate& candidate)
+    {
+        if (candidate.file.empty() || candidate.version.empty())
+            return candidate.file + candidate.version;
+        // A bundle's file is "from" the bundle; a user's file says when it was imported.
+        const bool isBundled = candidate.ref.kind != DefinitionRef::Kind::User;
+        return candidate.file + (isBundled ? ", from " : ", ") + candidate.version;
+    }
+
     DefinitionPickerAction DrawDefinitionPicker(const std::vector<DefinitionCandidate>& candidates,
                                                 const std::optional<DefinitionRef>&     current,
                                                 const DeviceIdentity&                   device,
@@ -78,6 +87,8 @@ namespace nazg
             ImGui::BeginGroup();
             ImGui::TextUnformatted(candidate.definition.name.empty() ? "(unnamed)" : candidate.definition.name.c_str());
             ImGui::TextDisabled("%s", DescribeDefinitionSource(candidate).c_str());
+            if (const std::string file = DescribeDefinitionFile(candidate); !file.empty())
+                ImGui::TextDisabled("%s", file.c_str());
             if (isCurrent)
                 ImGui::TextDisabled("in use now");
             if (ImGui::Button(isCurrent ? "Keep this one" : "Use this one"))

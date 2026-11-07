@@ -103,6 +103,12 @@ namespace nazg
         via::KeyboardDefinition definition;
         std::string             origin;   // a user definition's: where it was imported from; a community one's: its publisher
         std::string             status;   // a community definition's: "unverified" -- from its publisher's file -- or "verified"
+
+        // Which file, and which version of it, for troubleshooting a mismatch (tester-feedback.md,
+        // second round): a bundle's path and the bundle's commit or release; a user definition's
+        // stored file and when it was imported. Either may be empty when unknown.
+        std::string file;      // "v3/3389265408.json", "boards/geonworks/...", "7-r2.json"
+        std::string version;   // "the-via/keyboards 1a2b3c4", "nazg-community-definitions v2026.10.11", "imported 2026-10-12"
     };
 
     // Puts candidates in the order a picker offers them: user definitions, then community

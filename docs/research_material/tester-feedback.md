@@ -230,3 +230,35 @@ re-implemented from the wire format precisely to avoid inheriting vial-gui's GPL
 (CLAUDE.md, Conventions), and "a replacement for Vial's own app" is a different undertaking from "a
 client that speaks Vial" -- it would inherit their roadmap and their users' expectations along with
 the name.
+
+---
+
+# Second round
+
+*A user's request, passed on by Rico (2026-11-07), built the same day.*
+
+| # | What | Kind | Verdict | Done |
+|---|---|---|---|---|
+| 12 | Which definition file and version was loaded | Feature | Half there: said, but hidden and without a version | 2026-11-07 |
+
+## 12. Which definition, which file, which version
+
+> "It would help to show which definition file and version was loaded, especially when both a
+> community definition and a user definition match a board. That could make mismatches easier to
+> troubleshoot."
+
+**What existed.** A tooltip on the board's name: "Definition: *name* -- *source*" (user, imported
+from a path; community, published by someone, unverified; official, from VIA; from the board on
+Vial). Change definition... listed every candidate with its source, the one in use marked. **What
+was missing**: no file, no version -- a definition has none of its own, but each source has one:
+the-via/keyboards commit the official bundle is pinned to, the community release tag, a user
+file's revision and import date -- no word on why that definition and not another, nor that
+others matched. And the manual sent users to hover the **protocol**, which had no tooltip: the
+likeliest reason it was never found.
+
+**Built**: each candidate carries its file and version (`DefinitionCandidate::file`, `version`,
+filled where it is made: `NazgBoardLoad.cpp`, `DefinitionLibrary::Candidates()`). The tooltip --
+on the name and now on the protocol too -- says the name, the source, the file and version, why
+(chosen and remembered, or the only one for the VID:PID) and how many other definitions match,
+pointing at Change definition...; the picker shows the file and version on every candidate. No new
+line on the screen itself (first-glance simplicity). Seen on Rico's boards the same day.

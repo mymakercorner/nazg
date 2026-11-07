@@ -592,8 +592,14 @@ namespace nazg
                 ImGui::EndMenu();
             }
 
+            // The protocol says the same as the name when hovered: the manual sends users there to
+            // see which definition draws the board (tester-feedback.md, second round).
             if (!view.protocol.empty())
+            {
                 ImGui::TextDisabled("%s", view.protocol.c_str());
+                if (!view.details.empty())
+                    ImGui::SetItemTooltip("%s", view.details.c_str());
+            }
         }
 
         // On the right: the lock state on boards that have one, then the settings button.

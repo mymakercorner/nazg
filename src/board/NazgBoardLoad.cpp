@@ -32,10 +32,19 @@ namespace nazg
                 const uint16_t viaProtocol = co_await protocol.GetProtocolVersion();
                 officialBytes = bundles.official->Find(identity.vendorId, identity.productId, viaProtocol);
                 if (officialBytes)
-                    official = DefinitionCandidate{
-                        DefinitionRef::Official(via::DefinitionPath(identity.vendorId, identity.productId, viaProtocol)),
-                        via::ParseDefinition(*officialBytes), {} };
+                {
+                    const std::string path = via::DefinitionPath(identity.vendorId, identity.productId, viaProtocol);
+                    official = DefinitionCandidate{ DefinitionRef::Official(path), via::ParseDefinition(*officialBytes), {} };
+                    official->file = path;
+                    if (const auto& manifest = bundles.official->Manifest(); manifest && !manifest->commit.empty())
+                        official->version = "the-via/keyboards " + manifest->commit.substr(0, 7);
+                }
             }
+
+            std::string communityVersion;
+            if (bundles.community != nullptr)
+                if (const auto& manifest = bundles.community->Manifest(); manifest && !manifest->release.empty())
+                    communityVersion = "nazg-community-definitions " + manifest->release;
 
             // The community's: every definition for this VID:PID -- vendors' made-up ids collide.
             // One that does not parse is left out; the bundle's CI should have refused it.
@@ -47,7 +56,9 @@ namespace nazg
                         DefinitionCandidate candidate{ DefinitionRef::Community(entry->path),
                                                        via::ParseDefinition(*bundles.community->Bytes(entry->path)),
                                                        entry->publisher };
-                        candidate.status = entry->status;
+                        candidate.status  = entry->status;
+                        candidate.file    = entry->path;
+                        candidate.version = communityVersion;
                         load.bundled.push_back(std::move(candidate));
                     }
                     catch (const std::exception& failure)

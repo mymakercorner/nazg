@@ -101,6 +101,8 @@ namespace
         Check(candidates.size() == 1 && candidates[0].ref == nazg::DefinitionRef::User(1) &&
                   candidates[0].definition.name == "ISO Macro" && candidates[0].origin == "D:/boards/iso_macro.json",
               "it is a candidate for its VID:PID, parsed");
+        Check(candidates[0].file == "1-r1.json" && candidates[0].version == "imported 2026-09-24",
+              "with its stored file and the day it was imported");
         Check(library.Candidates(0x4D65, 0x1201).empty(), "and for nothing else");
     }
 

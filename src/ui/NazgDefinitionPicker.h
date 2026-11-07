@@ -40,4 +40,9 @@ namespace nazg
 
     // "user definition, imported from D:/d60b.json" or "official definition, from VIA".
     [[nodiscard]] std::string DescribeDefinitionSource(const DefinitionCandidate& candidate);
+
+    // Its file and that file's version: "boards/geonworks/sebas/Sebas_60_solder.json, from
+    // nazg-community-definitions v2026.10.11", "7-r2.json, imported 2026-10-12". Empty when
+    // neither is known.
+    [[nodiscard]] std::string DescribeDefinitionFile(const DefinitionCandidate& candidate);
 }

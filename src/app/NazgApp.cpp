@@ -77,10 +77,22 @@ namespace nazg
                      device.serialNumber };
         }
 
-        std::string DescribeInUse(const DefinitionCandidate& candidate)
+        // The definition drawing a VIA board, a line each: its name, where it comes from, its file
+        // and that file's version, and why this one -- enough to troubleshoot a mismatch when
+        // several match (tester-feedback.md, second round).
+        std::string DescribeInUse(const DefinitionCandidate& candidate, bool wasChosen, const DeviceIdentity& device)
         {
-            return (candidate.definition.name.empty() ? "(unnamed)" : candidate.definition.name) + " -- " +
-                   DescribeDefinitionSource(candidate);
+            std::string text = (candidate.definition.name.empty() ? "(unnamed)" : candidate.definition.name) + "\n" +
+                               DescribeDefinitionSource(candidate);
+            if (const std::string file = DescribeDefinitionFile(candidate); !file.empty())
+                text += "\n" + file;
+
+            char why[96];
+            if (wasChosen)
+                std::snprintf(why, sizeof(why), "chosen for this board, and remembered");
+            else
+                std::snprintf(why, sizeof(why), "the only definition for %04X:%04X", device.vendorId, device.productId);
+            return text + "\n" + why;
         }
     }
 
@@ -309,6 +321,9 @@ namespace nazg
         state.path     = path;
         state.identity = identity;
 
+        // Kept for saying why the definition drawing the board is the one: chosen, or the only one.
+        const std::optional<DefinitionRef> remembered = chosen;
+
         try
         {
             HidDeviceChannel channel = co_await HidDeviceChannel::Open(m_Transport, path);
@@ -332,8 +347,9 @@ namespace nazg
             state.definitionSource = load.isVial ? "from the board (Vial)" : std::string();
             if (load.used)
             {
-                state.inUse            = state.candidates[*load.used].ref;
-                state.definitionSource = DescribeInUse(state.candidates[*load.used]);
+                const DefinitionCandidate& used = state.candidates[*load.used];
+                state.inUse                     = used.ref;
+                state.definitionSource          = DescribeInUse(used, remembered && *remembered == used.ref, identity);
             }
 
             state.activeSection = 0;
@@ -906,8 +922,15 @@ namespace nazg
                 // Always at hand, so a wrong definition is plain to see -- and cheap to undo: the
                 // keymap lives in the board, the definition only draws it.
                 header.protocol  = m_Board.isVia ? "VIA" : "Vial";
-                header.details   = "Definition: " + m_Board.definitionSource + "\nQMK keycodes " +
-                                 qmk::KeycodeVersionName(m_Board.keyboard->keycodeVersion);
+                header.details = "Definition: " + m_Board.definitionSource;
+                if (m_Board.isVia && m_Board.candidates.size() > 1)
+                {
+                    const size_t others = m_Board.candidates.size() - 1;
+                    header.details += "\n" + std::to_string(others) +
+                                      (others == 1 ? " other definition matches" : " other definitions match") +
+                                      " this board: Change definition... in this menu";
+                }
+                header.details += std::string("\n\nQMK keycodes ") + qmk::KeycodeVersionName(m_Board.keyboard->keycodeVersion);
                 header.isVia     = m_Board.isVia;
                 header.hasChoice = m_Board.isVia && m_Library.library &&
                                    m_Library.library->FindChoice(m_Board.identity) != nullptr;
