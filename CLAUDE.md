@@ -206,20 +206,20 @@ one board to unlock).
   Windows' scaling changed while Nazg ran (Rico); two monitors wait for the tester.
 - **Deferred, very low priority**: the HID console (ui-design.md, "The console") -- QMK Toolbox's
   job, not to be taken from it (Rico, 2026-10-18).
-- **A tester's report on `0.1.0-test.6`, analysed and agreed** (2026-10-27):
-  [tester-feedback.md](docs/research_material/tester-feedback.md) -- eleven items with the verdict
-  and the proposal for each. First of them, built 2026-11-07 and awaiting his retest: **Nazg does
-  not start on his Windows 10 machine**. Not the debug layer, as first judged -- SDL goes on without
-  it -- but most likely SDL refusing D3D12 on an older GPU because Nazg offered DXIL shaders where
-  ImGui uses DXBC, with no Vulkan to fall back on; startup failures now show a message box. Then the display scale on a second monitor (the deferred
-  item, worse than it reads: Nazg *started* on that screen is wrong too), and key names beside the
-  signal levels in Diagnostics.
+- **A tester's report on `0.1.0-test.6`** (2026-10-27): [tester-feedback.md](docs/research_material/tester-feedback.md)
+  -- items 1 to 8 built and released in `0.1.0-test.7`; **item 9** (the Device information always
+  on screen) asked back to him, nothing built until he answers -- possibly a Recalibrate button
+  (the Leyden Jar's unused Reboot, `0x8A`). Its second round, item 12 (which definition file and
+  version draws a board), released too. Still open: what Nazg does in a small window (item 2's
+  second half).
 
-**Next**: the testers' reports on the sixth test build, `0.1.0-test.6` (2026-10-27), which carries
-the picker's Basic tab drawn as a keyboard and the key test's choice of test with its layers --
-both answers to reports on test.5, so what it asks first is whether the layer following reads right
-on a tester's own layers. The manual's two key-test pictures still show the previous design (Rico to
-retake, as he did the picker's). `0.1.0-test.5` (2026-10-24) was the first **in a browser**, at
+**Next**: the testers' reports on the seventh test build, `0.1.0-test.7` (2026-11-07), almost all
+of it answers to the Leyden Jar tester's report on test.6: first, **does it start on his Windows 10
+machine** -- the shader-format fix, unproven there, or the new message box's text if not; then the
+display scale on his two monitors, Signal levels with the key names, the pressed key followed, and
+his answers on item 9. The user who asked which definition is loaded: does the tooltip answer it.
+`0.1.0-test.6` (2026-10-27) carried the picker's Basic tab as a keyboard and the key test's choice
+of test with its layers. `0.1.0-test.5` (2026-10-24) was the first **in a browser**, at
 https://mymakercorner.com/nazg/ -- put online by publishing it -- beside the
 Windows zip, the AppImage, the macOS app and the manual page, a GitHub pre-release. `0.1.0-test.4`,
 the same day, was the first for macOS and the first built by GitHub from its tag. Above all the app on a colleague's Apple Silicon
