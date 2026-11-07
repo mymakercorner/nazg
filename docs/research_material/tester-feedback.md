@@ -132,6 +132,14 @@ is wrong, and watching its numbers -- and Nazg makes him alternate between two s
 
 Keeping the separate views is still worth it for a board at rest; the point is what greets him.
 
+**Found on a closer look** (2026-11-07): Signal levels already lights the key being pressed. What
+loses him is the **Levels** button: it puts the tool's numbers on the keys *instead of* their
+legends (`DescribeLevels()`), so the key he watches has no name. **Mockup**, first draft for Rico:
+[ui-design/levels-on-keys.html](ui-design/levels-on-keys.html) (ui-design.md, "Signal levels, third
+round") -- where the name goes, the panel following the key pressed, the legend, and the default.
+**Chosen by Rico** (2026-11-07): the name above the numbers, the panel following the key pressed,
+the legend a sample key, Levels kept as left for the session, Key presses still first. Not built yet.
+
 ## 4. The space bar has no legend
 
 > "I suggest noting 'Space' or 'Spacebar' especially on the matrix views and diagnostic pages."

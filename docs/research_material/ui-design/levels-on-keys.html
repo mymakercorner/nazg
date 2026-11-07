@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- Mockup: the key's name beside its levels in Diagnostics' Signal levels (tester-feedback.md, 3 and 6;
+     ui-design.md, "Plugins"; the rounds before are diagnostics-section.html and key-health.html).
+
+     First draft (2026-11-07). A tester adjusting a Leyden Jar board: "the user would have to count
+     ('this is the 15th key from the left which needs adjustment')" -- with Levels on, each key wears
+     the tool's numbers INSTEAD of its legend (DescribeLevels(), NazgDiagnosticsSection.cpp), so the
+     key he is looking at has no name. And: Signal levels opens on the bars, the numbers a second
+     click away, which he expected to be the view itself.
+
+     The board: Rico's F77, its own definition, layer 0, its bins and thresholds as it reported them
+     (recorded 2026-10-17). Each key's resting level, how much it wanders and its usual press come
+     from the 4-minute recording; the readings here are simulated from them, one every 155 ms as the
+     F77 gives them -- a press overshooting on its first reading, as a Model F does. The tool's three
+     numbers are computed as Nazg computes them: highest and lowest, each the median of three readings
+     in a row on one side of the threshold. The five keys the recording never saw past their
+     threshold get a made-up press, 6 past it.
+
+     Press a key: hold it with the mouse, or press the same key on your own keyboard.
+
+     The variants:
+     - the numbers on the keys: the numbers alone (as built); the name above them, the board its
+       usual size; the name beside them, the board drawn larger (scrolling); or the names alone, the
+       numbers only in the panel;
+     - the panel following the key pressed, or not;
+     - the legend: a sample key in the panel's first line, or the button's tooltip (as built);
+     - what Diagnostics shows when opened again: the numbers off (as built), as left for the session,
+       as left and kept in settings.json, or always on -- with "Leave and come back" and "Restart
+       Nazg" to try each;
+     - which mode it opens on: Key presses (as built) or Signal levels. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Levels on keys mockup</title>
+<style>
+:root{--window:#f3f3f5;--menubar:#e3e4e9;--text:#1d1e22;--muted:#6b6e78;--control:#ffffff;--border:#c8cad2;--accent:#3b82f6;--accent-text:#fff;--panel:#f8f8fa;--column:#ebecf0;--selected:rgba(59,130,246,.16);
+--plate:#d3d4d8;--key:#ffffff;--keyline:#b4b7c2;--ok:#15803d;--warn:#c2410c;--err:#dc2626;--press:#3b82f6;--seen:#dcfce7;--seenline:#86efac}
+:root[data-theme="dark"]{--window:#0f0f11;--menubar:#24252b;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--accent:#4296fa;--accent-text:#fff;--panel:#16171b;--column:#16171b;--selected:rgba(66,150,250,.22);
+--plate:#1c1d23;--key:#3a3c48;--keyline:#4b4e5c;--ok:#4ade80;--warn:#fb923c;--err:#f87171;--press:#4296fa;--seen:#1c3a27;--seenline:#2f7a4a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--window);color:var(--text);font-family:Arimo,"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+.controls{display:flex;flex-wrap:wrap;gap:8px 22px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.group .name{color:var(--muted);margin-right:4px}
+button{font:inherit;padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--control);color:var(--text);cursor:pointer}
+button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+.toast{color:var(--accent);font-size:12px;align-self:center}
+.stage{padding:16px;overflow-x:auto}
+.frame{margin:0 auto;width:1160px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--window)}
+.menubar{display:flex;gap:18px;align-items:center;background:var(--menubar);padding:5px 14px}
+.menubar .board{font-weight:600}
+.muted{color:var(--muted)}
+.menubar .right{margin-left:auto;color:var(--muted)}
+.body{display:flex;min-height:560px}
+.col{flex:none;width:180px;background:var(--column);border-right:1px solid var(--border);padding:6px 5px;display:flex;flex-direction:column;gap:1px}
+.col .hdr{font-weight:700;font-size:12px;padding:6px 10px 2px}
+.col .sep{border-top:1px solid var(--border);margin:5px 4px}
+.entry{padding:7px 10px;border-radius:6px;color:var(--muted)}
+.entry.on{background:var(--selected);color:var(--text);box-shadow:inset 3px 0 0 var(--accent)}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;padding:10px 14px 14px;gap:10px}
+.strip{display:flex;gap:3px;align-items:center;padding:4px 0}
+.strip button{padding:2px 10px;font-size:12px}
+.seg{display:inline-flex}
+.seg button{border-radius:0;padding:2px 9px;font-size:12px;margin-left:-1px}
+.seg button:first-child{border-radius:6px 0 0 6px;margin-left:0}
+.seg button:last-child{border-radius:0 6px 6px 0}
+.boardarea{display:flex;justify-content:center;overflow-x:auto}
+.boardarea.wide{justify-content:flex-start}
+svg{display:block;overflow:visible}
+.panel{border:1px solid var(--border);border-radius:6px;background:var(--panel)}
+.mline{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;padding:6px 12px;border-bottom:1px solid var(--border)}
+.mline .title{font-weight:700}
+.mline .desc{color:var(--muted);font-size:12px}
+.mline .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.margins{font-size:12px;color:var(--muted);display:flex;gap:4px;align-items:center}
+.margins input{width:34px;font:inherit;padding:1px 4px;border:1px solid var(--border);border-radius:4px;background:var(--control);color:var(--text)}
+.divider{width:1px;align-self:stretch;background:var(--border)}
+.out{font-size:12px;color:var(--warn)}
+.follow{display:flex;align-items:center;gap:18px;padding:10px 12px;border-bottom:1px solid var(--border)}
+.follow .key{font-weight:700;font-size:18px;min-width:120px}
+.follow .num{display:flex;flex-direction:column;align-items:flex-start;font-variant-numeric:tabular-nums}
+.follow .num b{font-size:18px}
+.follow .num span{font-size:11px;color:var(--muted)}
+.follow.big .key{font-size:22px}
+.follow.big .num b{font-size:22px}
+.rest{padding:10px 12px;color:var(--muted);font-size:12px;line-height:1.5;height:150px}
+.rest .ph{border:1px dashed var(--border);border-radius:6px;padding:10px 12px;height:100%}
+.notes{max-width:1160px;margin:0 auto;padding:4px 16px 30px;color:var(--muted);line-height:1.55}
+.notes b{color:var(--text);font-weight:600}
+.notes p{margin:0 0 8px}
+.tip{position:fixed;z-index:9;max-width:360px;padding:6px 9px;border:1px solid var(--border);border-radius:6px;background:var(--control);color:var(--text);font-size:12px;line-height:1.45;box-shadow:0 2px 8px rgba(0,0,0,.15);pointer-events:none;display:none;white-space:pre-line}
+</style>
+</head>
+<body>
+<div class="controls" id="controls"></div>
+<div class="stage"><div class="frame" id="frame"></div></div>
+<div class="notes" id="notes"></div>
+<div class="tip" id="tip"></div>
+<script>
+// Rico's F77 (recorded 2026-10-17): its definition, layer 0, bins and thresholds; per key, from the
+// recording: [resting median, lowest at rest, highest at rest, usual press] -- null: never past.
+const F77 = {"name":"leyden_jar/F77","labels":["Split Backspace",["Right Shift","No Split","HHKB Split","Non-HHKB Split"],["Enter","ANSI Enter","Tie Enter","ISO Enter"],"Split Space","Split Left Shift (ISO)","Keypad 2U Plus","Keypad 2U Enter","Keypad 2U Zero"],"keymap":[[{"x":2.5},"4,0","6,0","6,1","4,2","6,2","4,3","6,3","4,4","6,4","4,5","6,5","4,6","6,6",{"w":2},"6,7\n\n\n0,0",{"x":0.25},"6,8","4,9","6,9\n\n\n5,0",{"x":0.25},"4,7\n\n\n0,1","6,7\n\n\n0,1",{"x":4,"h":2},"5,9\n\n\n5,1"],[{"x":2.5,"w":1.5},"5,0","4,1","5,1","7,2","5,2","7,3","5,3","7,4","5,4","7,5","5,5","5,6","5,7",{"w":1.5},"7,7\n\n\n2,0",{"x":0.25},"5,8","7,9","5,9\n\n\n5,0",{"x":1,"w":1.5},"7,7\n\n\n2,1",{"x":1.75,"w":1.25,"h":2,"w2":1.5,"h2":1,"x2":-0.25},"2,7\n\n\n2,2"],[{"x":2.5,"w":1.75},"7,0","7,1","2,1","0,2","2,2","0,3","2,3","2,4","0,4","0,5","2,5","2,6",{"w":2.25},"2,7\n\n\n2,0",{"x":0.25},"2,8","7,8","2,9\n\n\n6,0",{"x":0.25},"7,6\n\n\n2,1",{"w":1.25},"2,7\n\n\n2,1",{"x":0.75},"7,6\n\n\n2,2",{"x":2,"h":2},"1,9\n\n\n6,1"],[{"w":1.25},"2,0\n\n\n4,1","0,0\n\n\n4,1",{"x":0.25,"w":2.25},"2,0\n\n\n4,0","1,1","0,1","1,2","3,2","1,3","1,4","3,4","3,5","1,5","0,6",{"w":2.75},"1,7\n\n\n1,0",{"x":0.25},"0,8","0,9","1,9\n\n\n6,0",{"x":0.25,"w":1.75},"0,7\n\n\n1,1","1,7\n\n\n1,1",{"x":0.25},"0,7\n\n\n1,2",{"w":1.75},"1,7\n\n\n1,2"],[{"x":2.5,"w":1.5},"3,0","1,0",{"w":1.5},"3,1",{"w":7},"3,3\n\n\n3,0",{"w":1.5},"1,6","3,7",{"w":1.5},"3,8",{"x":0.25},"1,8","3,9\n\n\n7,0","3,10\n\n\n7,0",{"x":0.25,"w":2},"3,10\n\n\n7,1"],[{"y":0.25,"x":6.5,"w":5.5},"3,3\n\n\n3,1",{"w":1.5},"3,6\n\n\n3,1"]],"kc":{"0,0":"KC_NUBS","0,1":"KC_X","0,2":"KC_D","0,3":"KC_G","0,4":"KC_K","0,5":"KC_L","0,6":"KC_SLSH","0,7":"MO(1)","0,8":"KC_P0","0,9":"KC_UP","1,0":"KC_LGUI","1,1":"KC_Z","1,2":"KC_C","1,3":"KC_B","1,4":"KC_N","1,5":"KC_DOT","1,6":"KC_RALT","1,7":"KC_RSFT","1,8":"KC_LEFT","1,9":"KC_PDOT","2,0":"KC_LSFT","2,1":"KC_S","2,2":"KC_F","2,3":"KC_H","2,4":"KC_J","2,5":"KC_SCLN","2,6":"KC_QUOT","2,7":"KC_ENT","2,8":"KC_P1","2,9":"KC_P3","3,0":"KC_LCTL","3,1":"KC_LALT","3,2":"KC_V","3,3":"KC_SPC","3,4":"KC_M","3,5":"KC_COMM","3,6":"KC_SPC","3,7":"KC_NUM","3,8":"MO(1)","3,9":"KC_DOWN","3,10":"KC_RGHT","4,0":"KC_ESC","4,1":"KC_Q","4,2":"KC_3","4,3":"KC_5","4,4":"KC_7","4,5":"KC_9","4,6":"KC_MINS","4,7":"KC_BSLS","4,9":"KC_P8","5,0":"KC_TAB","5,1":"KC_W","5,2":"KC_R","5,3":"KC_Y","5,4":"KC_I","5,5":"KC_P","5,6":"KC_LBRC","5,7":"KC_RBRC","5,8":"KC_P4","5,9":"KC_P6","6,0":"KC_1","6,1":"KC_2","6,2":"KC_4","6,3":"KC_6","6,4":"KC_8","6,5":"KC_0","6,6":"KC_EQL","6,7":"KC_BSPC","6,8":"KC_P7","6,9":"KC_P9","7,0":"KC_CAPS","7,1":"KC_A","7,2":"KC_E","7,3":"KC_T","7,4":"KC_U","7,5":"KC_O","7,6":"KC_NUHS","7,7":"KC_BSLS","7,8":"KC_P2","7,9":"KC_P5"},"thresholds":[384,394,397],"refs":[374,384,387],"binOf":{"0,0":1,"0,1":1,"0,2":1,"0,3":1,"0,4":1,"0,5":1,"0,6":1,"0,7":1,"0,8":1,"0,9":1,"1,0":2,"1,1":1,"1,2":2,"1,3":2,"1,4":2,"1,5":2,"1,6":2,"1,7":1,"1,8":2,"1,9":2,"2,0":1,"2,1":1,"2,2":2,"2,3":2,"2,4":2,"2,5":2,"2,6":1,"2,7":1,"2,8":1,"2,9":1,"3,0":1,"3,1":1,"3,2":1,"3,3":1,"3,4":1,"3,5":1,"3,6":0,"3,7":1,"3,8":1,"3,9":1,"3,10":1,"4,0":1,"4,1":2,"4,2":2,"4,3":2,"4,4":1,"4,5":2,"4,6":2,"4,7":1,"4,9":1,"5,0":1,"5,1":2,"5,2":2,"5,3":2,"5,4":2,"5,5":2,"5,6":1,"5,7":2,"5,8":1,"5,9":2,"6,0":1,"6,1":2,"6,2":2,"6,3":2,"6,4":2,"6,5":2,"6,6":2,"6,7":2,"6,8":1,"6,9":1,"7,0":1,"7,1":2,"7,2":2,"7,3":2,"7,4":2,"7,5":2,"7,6":1,"7,7":2,"7,8":2,"7,9":2},"rows":8,"cols":11,"stats":{"0,0":[380,380,383,null],"0,1":[385,385,388,416],"0,2":[384,384,387,418],"0,3":[383,382,386,416],"0,4":[383,382,386,404],"0,5":[384,383,386,415],"0,6":[383,383,386,418],"0,7":[380,380,383,null],"0,8":[384,382,386,420],"0,9":[384,383,387,414],"1,0":[386,385,391,406],"1,1":[385,385,391,422],"1,2":[386,386,391,406],"1,3":[386,385,388,423],"1,4":[387,386,395,416],"1,5":[387,386,389,415],"1,6":[386,385,388,415],"1,7":[385,385,387,411],"1,8":[386,386,389,416],"1,9":[386,386,389,413],"2,0":[384,383,389,419],"2,1":[385,385,388,414],"2,2":[388,386,391,405],"2,3":[388,386,391,421],"2,4":[388,387,390,427],"2,5":[387,386,390,416],"2,6":[385,384,388,418],"2,7":[383,383,386,414],"2,8":[384,384,388,420],"2,9":[384,384,387,425],"3,0":[383,382,385,408],"3,1":[383,382,385,418],"3,2":[382,382,383,407],"3,3":[385,384,387,412],"3,4":[383,382,385,409],"3,5":[382,381,384,418],"3,6":[378,377,379,null],"3,7":[379,379,381,409],"3,8":[380,380,387,404],"3,9":[380,379,381,413],"3,10":[382,382,384,420],"4,0":[385,385,390,418],"4,1":[387,386,390,429],"4,2":[386,386,389,424],"4,3":[387,386,390,422],"4,4":[385,385,390,408],"4,5":[386,385,388,419],"4,6":[386,385,389,427],"4,7":[382,382,385,null],"4,9":[385,384,388,406],"5,0":[385,384,388,422],"5,1":[386,386,390,424],"5,2":[387,386,390,414],"5,3":[386,386,389,419],"5,4":[386,385,389,420],"5,5":[386,385,389,406],"5,6":[385,385,389,416],"5,7":[386,385,388,420],"5,8":[384,383,386,404],"5,9":[386,386,389,417],"6,0":[385,385,387,430],"6,1":[386,386,388,422],"6,2":[388,387,390,420],"6,3":[388,387,390,422],"6,4":[388,387,390,423],"6,5":[388,388,390,426],"6,6":[388,387,390,428],"6,7":[386,386,389,424],"6,8":[385,385,389,428],"6,9":[385,385,389,417],"7,0":[386,385,388,423],"7,1":[389,388,391,427],"7,2":[387,386,390,430],"7,3":[387,386,390,427],"7,4":[387,386,391,424],"7,5":[387,387,395,437],"7,6":[383,382,390,null],"7,7":[387,386,390,418],"7,8":[387,386,390,422],"7,9":[387,386,390,427]}};
+
+// ---------------------------------------------------------------------------------------------
+// KLE, as in the other section mockups.
+function parseKle(rows) {
+  const keys = [];
+  let x = 0, y = 0, rx = 0, ry = 0, r = 0, p = {};
+  const pair = s => { const m = /^\s*(\d+)\s*,\s*(\d+)\s*$/.exec(s || ''); return m ? [+m[1], +m[2]] : null; };
+  for (const row of rows) {
+    if (!Array.isArray(row)) continue;
+    for (const item of row) {
+      if (typeof item === 'object') {
+        if ('r' in item) r = item.r;
+        if ('rx' in item || 'ry' in item) { if ('rx' in item) rx = item.rx; if ('ry' in item) ry = item.ry; x = rx; y = ry; }
+        if ('x' in item) x += item.x;
+        if ('y' in item) y += item.y;
+        for (const k of ['w', 'h', 'x2', 'y2', 'w2', 'h2', 'd']) if (k in item) p[k] = item[k];
+        continue;
+      }
+      const w = p.w || 1, h = p.h || 1;
+      const labels = String(item).split('\n');
+      const cell = pair(labels[0]), option = pair(labels[3]);
+      if (cell || p.d)
+        keys.push({ x, y, w, h, x2: p.x2 || 0, y2: p.y2 || 0, w2: p.w2 || w, h2: p.h2 || h, decal: !!p.d,
+                    cell, g: option ? option[0] : -1, o: option ? option[1] : 0 });
+      x += w;
+      p = {};
+    }
+    y += 1;
+    x = rx;
+  }
+  return keys;
+}
+function boundsOf(keys) {
+  const b = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+  for (const k of keys)
+    for (const [x, y, w, h] of [[k.x, k.y, k.w, k.h], [k.x + k.x2, k.y + k.y2, k.w2, k.h2]]) {
+      b.x0 = Math.min(b.x0, x); b.y0 = Math.min(b.y0, y); b.x1 = Math.max(b.x1, x + w); b.y1 = Math.max(b.y1, y + h);
+    }
+  return b;
+}
+const NAMED = { ESC: 'Esc', GRV: '`', MINS: '-', EQL: '=', BSPC: 'Bksp', INS: 'Ins', HOME: 'Home', PGUP: 'PgUp', NUM: 'Num',
+  PSLS: '/', PAST: '*', PMNS: '-', TAB: 'Tab', LBRC: '[', RBRC: ']', ENT: 'Enter', DEL: 'Del', END: 'End', PGDN: 'PgDn',
+  P7: '7', P8: '8', P9: '9', PPLS: '+', CAPS: 'Caps', SCLN: ';', QUOT: "'", BSLS: '\\', NUHS: '#', P4: '4', P5: '5', P6: '6',
+  LSFT: 'Shift', NUBS: '\\', COMM: ',', DOT: '.', SLSH: '/', RSFT: 'Shift', UP: '↑', P1: '1', P2: '2', P3: '3', PENT: 'Enter',
+  LCTL: 'Ctrl', LGUI: 'Win', LALT: 'Alt', SPC: 'Space', RALT: 'AltGr', RGUI: 'Win', APP: 'Menu', RCTL: 'Ctrl', LEFT: '←',
+  DOWN: '↓', RGHT: '→', RIGHT: '→', P0: '0', PDOT: '.', PCMM: ',', PSCR: 'PrtSc', SCRL: 'ScrLk', PAUS: 'Pause', NO: '' };
+// Space named here: matrix and diagnostics views name it (tester-feedback.md, 4).
+const legendOf = kc => { if (/^MO\(/.test(kc)) return 'Fn'; const n = kc.replace(/^KC_/, ''); return n in NAMED ? NAMED[n] : n; };
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+const KEYS = parseKle(F77.keymap).filter(k => !k.decal && !(k.g >= 0 && k.o !== 0));
+KEYS.forEach(k => {
+  const cell = k.cell.join(',');
+  const [rest, lo, hi, press] = F77.stats[cell] || [380, 378, 382, null];
+  k.kc = F77.kc[cell] || 'KC_NO';
+  k.bin = F77.binOf[cell];
+  k.th = F77.thresholds[k.bin];
+  k.rest = rest ?? k.th - 12; k.lo = lo ?? k.rest - 1; k.hi = hi ?? k.rest + 1;
+  k.press = press ?? k.th + 6;
+  k.madeUp = press === null;
+});
+const BINS = F77.thresholds.length;
+
+// ---------------------------------------------------------------------------------------------
+// The readings: one every 155 ms per key, kept since Clear. Highest and lowest as the tool and Nazg
+// take them: the median of three readings in a row, all at or past the threshold, or all below it.
+const READING_MS = 155;
+const held = new Set();      // keys down: the mouse, or the computer's keyboard
+let last = null;             // the key pressed last, which the panel follows
+function resetReadings() {
+  KEYS.forEach(k => { k.hist = []; k.max = null; k.min = null; k.heldFor = 0; k.seen = false; k.now = k.rest; });
+}
+function reading(k) {
+  if (held.has(k)) {
+    // A Model F's first reading of a press overshoots (key-health.html, the F77's J: 438 then 427).
+    const v = k.heldFor === 0 ? k.press + 9 : k.press + Math.round((Math.random() - 0.5) * 2);
+    k.heldFor++;
+    return v;
+  }
+  k.heldFor = 0;
+  return Math.max(k.lo, Math.min(k.hi, k.rest + Math.round((Math.random() - 0.5) * (k.hi - k.lo + 1))));
+}
+function tick() {
+  for (const k of KEYS) {
+    const v = reading(k);
+    k.now = v;
+    k.hist.push(v);
+    if (k.hist.length > 3) k.hist.shift();
+    if (v >= k.th) k.seen = true;
+    if (k.hist.length === 3) {
+      const med = [...k.hist].sort((a, b) => a - b)[1];
+      if (k.hist.every(x => x >= k.th)) k.max = k.max === null ? med : Math.max(k.max, med);
+      if (k.hist.every(x => x < k.th)) k.min = k.min === null ? med : Math.min(k.min, med);
+    }
+  }
+  redrawLive();
+}
+
+// ---------------------------------------------------------------------------------------------
+const state = {
+  onKeys: 'Name above the numbers', follow: 'On', legend: 'Sample key', reopen: 'As left, this session',
+  opensOn: 'Key presses', theme: 'Light',
+  mode: 'Signal levels', levels: false, view: 'Board', toast: ''
+};
+const namesOnly = () => state.onKeys === 'Names only, numbers in the panel';
+const wide = () => state.onKeys === 'Name beside them, board larger';
+const numbersOnKeys = () => state.mode === 'Signal levels' && state.levels && !namesOnly();
+const following = () => state.mode === 'Signal levels' && (state.follow === 'On' || namesOnly());
+
+// The key's text: its numbers in one of three arrangements, or its legend.
+function keyText(k, x, y, w, h, u) {
+  const name = legendOf(k.kc);
+  const lv = (cls, tx, ty, v, fs, anchor, bold) => v === null || v === undefined ? ''
+    : `<text class="lv ${cls}" x="${tx}" y="${ty}" style="font-size:${fs}px${bold ? ';font-weight:700' : ''}"${anchor ? ` text-anchor="${anchor}"` : ''}>${v}</text>`;
+  const bin = BINS > 1 ? k.bin : null;
+  if (!numbersOnKeys()) {
+    const fs = Math.round(u * 0.28);
+    return `<text class="t" x="${x + w / 2}" y="${y + h / 2 + fs * 0.35}" style="font-size:${fs}px">${esc(name)}</text>`;
+  }
+  const pad = Math.max(3, u * 0.09);
+  if (state.onKeys === 'Numbers alone (as built)') {
+    // Max top left, now middle left, min bottom left, the bin bottom right.
+    const fs = Math.max(8, Math.round(u * 0.22));
+    return lv('ex', x + pad, y + pad + fs * 0.85, k.max, fs) + lv('', x + pad, y + h / 2 + fs * 0.35, k.now, fs)
+         + lv('ex', x + pad, y + h - pad, k.min, fs) + lv('bn', x + w - pad, y + h - pad, bin, fs, 'end');
+  }
+  if (state.onKeys === 'Name above the numbers') {
+    // The name on the first line; now in bold with the highest at its right; the bin with the lowest.
+    const fs = Math.max(8, Math.round(u * 0.21)), row = (h - 2 * pad) / 3;
+    return `<text class="nm" x="${x + pad}" y="${y + pad + row * 0.8}" style="font-size:${fs}px">${esc(name)}</text>`
+         + lv('', x + pad, y + pad + row * 1.85, k.now, fs, '', true) + lv('ex', x + w - pad, y + pad + row * 1.85, k.max, fs, 'end')
+         + lv('bn', x + pad, y + h - pad, bin, fs) + lv('ex', x + w - pad, y + h - pad, k.min, fs, 'end');
+  }
+  // The tester's shape: the name on the left, the numbers right-aligned, the board drawn larger.
+  const fs = Math.max(9, Math.round(u * 0.17)), nfs = Math.max(10, Math.round(u * 0.18));
+  return `<text class="nm" x="${x + pad}" y="${y + h / 2 + nfs * 0.35}" style="font-size:${nfs}px">${esc(name)}</text>`
+       + lv('bn', x + pad, y + h - pad, bin, fs)
+       + lv('ex', x + w - pad, y + pad + fs * 0.85, k.max, fs, 'end') + lv('', x + w - pad, y + h / 2 + fs * 0.35, k.now, fs, 'end', true)
+       + lv('ex', x + w - pad, y + h - pad, k.min, fs, 'end');
+}
+function svgStyle() {
+  return `<style>.plate{fill:var(--plate)}.k{fill:var(--key);stroke:var(--keyline)}.k.none{fill:none;stroke-dasharray:3 3;opacity:.55}`
+    + `.k.seen{fill:var(--seen);stroke:var(--seenline)}`
+    + `.k.live{fill:color-mix(in srgb, var(--press) 30%, var(--key));stroke:var(--press);stroke-width:2.5}`
+    + `.k.last{stroke:var(--accent);stroke-width:2.5}`
+    + `.lv{font-family:Arimo,Arial;pointer-events:none;fill:var(--text);font-variant-numeric:tabular-nums}.lv.ex{fill:var(--muted)}.lv.bn{fill:var(--ok)}`
+    + `.nm{font-family:Arimo,Arial;fill:var(--text);pointer-events:none;font-weight:600}`
+    + `.t{font-family:Arimo,Arial;fill:var(--text);text-anchor:middle;pointer-events:none}`
+    + `.ruler{font:11px Arimo,Arial;fill:var(--muted);text-anchor:middle}</style>`;
+}
+function keyClass(k) {
+  if (held.has(k)) return 'k live';
+  let c = 'k';
+  if (k.seen) c += ' seen';
+  if (following() && last === k) c += ' last';
+  return c;
+}
+function tipOf(k) {
+  return `${legendOf(k.kc) || 'no key'} · row ${k.cell[0]}, column ${k.cell[1]}${BINS > 1 ? ` · bin ${k.bin}` : ''}\n`
+       + `threshold ${k.th} · at rest about ${k.rest}${k.madeUp ? ' · its press made up' : ''}`;
+}
+function boardSvg() {
+  const bd = boundsOf(KEYS), avail = 1160 - 180 - 28 - 30;
+  const u = numbersOnKeys() && wide() ? 72 : Math.min(44, Math.floor(avail / (bd.x1 - bd.x0 + 0.7)));
+  const m = u * 0.35, gap = Math.max(1, u * 0.06);
+  const W2 = (bd.x1 - bd.x0) * u + 2 * m, H = (bd.y1 - bd.y0) * u + 2 * m;
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${W2}" height="${H}">${svgStyle()}<rect class="plate" width="100%" height="100%" rx="12"/><g transform="translate(${m} ${m})">`;
+  KEYS.forEach((k, i) => {
+    const rect = (x, y, w, h) => `<rect class="${keyClass(k)}" data-key="${i}" data-tip="${esc(tipOf(k))}" x="${x}" y="${y}" width="${w}" height="${h}" rx="${Math.max(2, u * 0.1)}"/>`;
+    const x = (k.x - bd.x0) * u + gap, y = (k.y - bd.y0) * u + gap, w = k.w * u - 2 * gap, h = k.h * u - 2 * gap;
+    s += rect(x, y, w, h);
+    if (k.w2 !== k.w || k.h2 !== k.h || k.x2 || k.y2) s += rect((k.x + k.x2 - bd.x0) * u + gap, (k.y + k.y2 - bd.y0) * u + gap, k.w2 * u - 2 * gap, k.h2 * u - 2 * gap);
+    s += keyText(k, x, y, w, h, u);
+  });
+  return s + `</g></svg>`;
+}
+function gridSvg() {
+  const big = numbersOnKeys() && wide(), cw = big ? 72 : 48, ch = big ? 60 : 44, lab = 34;
+  const W2 = lab + F77.cols * cw + 10, H = lab + F77.rows * ch + 10;
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${W2}" height="${H}">${svgStyle()}<rect class="plate" width="100%" height="100%" rx="12"/>`;
+  for (let c = 0; c < F77.cols; c++) s += `<text class="ruler" x="${lab + c * cw + cw / 2}" y="${lab - 10}">C${c}</text>`;
+  for (let r = 0; r < F77.rows; r++) s += `<text class="ruler" x="${lab / 2 + 2}" y="${lab + r * ch + ch / 2 + 4}">R${r}</text>`;
+  const at = new Map(KEYS.map((k, i) => [k.cell.join(','), i]));
+  for (let r = 0; r < F77.rows; r++) for (let c = 0; c < F77.cols; c++) {
+    const i = at.get(`${r},${c}`), x = lab + c * cw + 2, y = lab + r * ch + 2;
+    if (i === undefined) { s += `<rect class="k none" x="${x}" y="${y}" width="${cw - 4}" height="${ch - 4}" rx="4"/>`; continue; }
+    const k = KEYS[i];
+    s += `<rect class="${keyClass(k)}" data-key="${i}" data-tip="${esc(tipOf(k))}" x="${x}" y="${y}" width="${cw - 4}" height="${ch - 4}" rx="4"/>`
+       + keyText(k, x, y, cw - 4, ch - 4, big ? 68 : 42);
+  }
+  return s + `</svg>`;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The panel.
+function sampleKey() {
+  // The legend: one key, words where the numbers go, in the arrangement shown.
+  const w = 132, h = 50, pad = 5, fs = 10;
+  const t = (x, y, s, cls, anchor, bold) => `<text class="lv ${cls}" x="${x}" y="${y}" style="font-size:${fs}px${bold ? ';font-weight:700' : ''}"${anchor ? ` text-anchor="${anchor}"` : ''}>${s}</text>`;
+  let inner = '';
+  if (state.onKeys === 'Numbers alone (as built)')
+    inner = t(pad, pad + 9, 'highest', 'ex') + t(pad, h / 2 + 4, 'now', '') + t(pad, h - pad, 'lowest', 'ex') + (BINS > 1 ? t(w - pad, h - pad, 'bin', 'bn', 'end') : '');
+  else if (state.onKeys === 'Name above the numbers')
+    inner = `<text class="nm" x="${pad}" y="${pad + 10}" style="font-size:${fs}px">key</text>` + t(pad, h / 2 + 5, 'now', '', '', true) + t(w - pad, h / 2 + 5, 'highest', 'ex', 'end')
+          + (BINS > 1 ? t(pad, h - pad, 'bin', 'bn') : '') + t(w - pad, h - pad, 'lowest', 'ex', 'end');
+  else
+    inner = `<text class="nm" x="${pad}" y="${h / 2 + 4}" style="font-size:11px">key</text>` + (BINS > 1 ? t(pad, h - pad, 'bin', 'bn') : '')
+          + t(w - pad, pad + 9, 'highest', 'ex', 'end') + t(w - pad, h / 2 + 4, 'now', '', 'end', true) + t(w - pad, h - pad, 'lowest', 'ex', 'end');
+  return `<svg width="${w}" height="${h}" style="margin:-3px 0">${svgStyle()}<rect class="k" x="0.5" y="0.5" width="${w - 1}" height="${h - 1}" rx="5"/>${inner}</svg>`;
+}
+function scaleSvg(k) {
+  // The key's readings on one line: at rest (its band), the threshold, its highest, now.
+  const W = 260, H = 26, lo = 350, hi = Math.max(440, k.press + 15), X = v => 6 + (v - lo) / (hi - lo) * (W - 12);
+  let s = `<svg width="${W}" height="${H}"><line x1="6" y1="13" x2="${W - 6}" y2="13" stroke="var(--border)" stroke-width="2"/>`
+    + `<rect x="${X(k.lo)}" y="8" width="${Math.max(2, X(k.hi) - X(k.lo))}" height="10" rx="2" fill="var(--muted)" opacity=".45"/>`
+    + `<line x1="${X(k.th)}" y1="2" x2="${X(k.th)}" y2="24" stroke="var(--warn)" stroke-width="2"/>`;
+  if (k.max !== null) s += `<circle cx="${X(k.max)}" cy="13" r="4" fill="none" stroke="var(--press)" stroke-width="2"/>`;
+  s += `<circle cx="${X(k.now)}" cy="13" r="5" fill="${k.now >= k.th ? 'var(--press)' : 'var(--text)'}"/></svg>`;
+  return s;
+}
+function followHtml() {
+  if (!last)
+    return `<div class="follow${namesOnly() ? ' big' : ''}" id="follow"><span class="muted">Press a key: its levels show here, live, as long as you hold it -- and stay once you let go.</span></div>`;
+  const k = last, v = x => x === null ? '–' : x;
+  const num = (value, word, cls) => `<div class="num"><b${cls ? ` style="color:var(${cls})"` : ''}>${v(value)}</b><span>${word}</span></div>`;
+  return `<div class="follow${namesOnly() ? ' big' : ''}" id="follow"><span class="key">${esc(legendOf(k.kc) || 'no key')}</span>`
+    + num(k.now, 'now', k.now >= k.th ? '--press' : '') + num(k.max, 'highest') + num(k.min, 'lowest')
+    + num(k.th, 'threshold', '--warn') + (BINS > 1 ? num(k.bin, 'bin', '--ok') : '')
+    + `<div style="margin-left:auto">${scaleSvg(k)}<div class="muted" style="font-size:11px">at rest · threshold · highest ○ · now ●</div></div></div>`;
+}
+function panelHtml() {
+  if (state.mode === 'Key presses')
+    return `<div class="mline"><span class="title">Key presses</span><span class="desc">press keys on the keyboard: each lights while it is down</span>`
+      + `<span class="right"><span class="seg"><button class="on">Board</button><button>QMK matrix</button><button>Controller</button></span></span></div>`
+      + `<div class="rest"><div class="ph">As built: every key seen pressed ticked green. Choose <b>Signal levels</b> in the strip.</div></div>`
+      + `<div class="mline" style="border-top:1px solid var(--border);border-bottom:none"><span class="out">Key output off: the keyboard types nothing while Diagnostics shows</span></div>`;
+  const viewSeg = `<span class="seg">${['Board', 'Controller'].map(v => `<button class="${state.view === v ? 'on' : ''}" data-view="${v}">${v}</button>`).join('')}</span>`;
+  const levelsTip = 'The Leyden Jar tool\'s numbers on the keys: the highest reading past the threshold, the reading now, the lowest below it, and the bin';
+  const levelsButton = namesOnly() ? '' : `<button class="${state.levels ? 'on' : ''}" data-act="levels"${state.legend === 'Tooltip (as built)' ? ` title="${levelsTip}"` : ''}>Levels</button>`;
+  const legend = state.levels && !namesOnly() && state.legend === 'Sample key' ? `<span class="muted" style="font-size:12px">each key:</span>${sampleKey()}` : '';
+  let h = `<div class="mline"><span class="title">Signal levels</span><span class="desc">press each key down firmly and hold it a moment, one after the other</span>`
+    + `<span class="right"><span class="margins">Threshold margin, rest <input value="3"> press <input value="3"></span><span class="divider"></span>${legend}${levelsButton}${viewSeg}</span></div>`;
+  if (following()) h += followHtml();
+  h += `<div class="rest"><div class="ph">As built, unchanged by this mockup: the summary (good, at risk, failing, to do -- each a filter), then <b>Keys</b> and <b>Whole board</b> as tabs `
+    + `sharing one place -- the keys at risk as bars, the weakest first -- and a key's last presses when one is clicked. `
+    + `${following() ? 'The line above takes some of their height: the panel keeps one height, the list scrolling inside it.' : ''}</div></div>`;
+  return h + `<div class="mline" style="border-top:1px solid var(--border);border-bottom:none"><span class="out">Key output off: the keyboard types nothing while Diagnostics shows</span></div>`;
+}
+function columnHtml() {
+  const vial = ['Keymap', 'Layout', 'Macros', 'Tap Dance', 'Combos', 'Key Overrides', 'QMK Settings'];
+  return `<div class="col"><div class="hdr">Vial</div>${vial.map(e => `<div class="entry">${e}</div>`).join('')}`
+    + `<div class="sep"></div><div class="hdr">Tools</div><div class="entry">Device</div><div class="entry on">Diagnostics</div><div class="entry">Matrix</div></div>`;
+}
+function boardHtml() { return state.view === 'Board' || state.mode === 'Key presses' ? boardSvg() : gridSvg(); }
+function render() {
+  document.documentElement.dataset.theme = state.theme.toLowerCase();
+  renderControls();
+  const strip = ['Key presses', 'Signal levels', 'Device'].map(m => `<button class="${state.mode === m ? 'on' : ''}" data-mode="${m}">${m}</button>`).join('');
+  document.getElementById('frame').innerHTML =
+    `<div class="menubar"><span class="board">Model F Labs F77 ▾</span><span class="muted">Vial</span><span class="right">Settings</span></div>`
+  + `<div class="body">${columnHtml()}<div class="main"><div class="strip">${strip}</div>`
+  + `<div class="boardarea${numbersOnKeys() && wide() ? ' wide' : ''}" id="boardarea">${boardHtml()}</div><div class="panel" id="panel">${panelHtml()}</div></div></div>`;
+}
+function redrawLive() {
+  const b = document.getElementById('boardarea');
+  if (b) b.innerHTML = boardHtml();
+  const f = document.getElementById('follow');
+  if (f) f.outerHTML = followHtml();
+}
+
+// ---------------------------------------------------------------------------------------------
+// The variants, and the two actions that show what each "when opened again" choice does.
+function reopen(restart) {
+  if (state.reopen === 'Off: click Levels (as built)') state.levels = false;
+  else if (state.reopen === 'As left, this session') state.levels = restart ? false : state.levels;
+  else if (state.reopen === 'Always on') state.levels = true;
+  // 'As left, kept in settings': unchanged, even after a restart.
+  state.mode = state.opensOn;
+  held.clear(); last = null; resetReadings();
+  state.toast = `${restart ? 'Nazg started again' : 'Diagnostics shown again'}: ${state.mode}${state.mode === 'Signal levels' && !namesOnly() ? `, the numbers ${state.levels ? 'on' : 'off'}` : ''}`
+              + (state.opensOn === 'Key presses' && !namesOnly() ? ` (Levels ${state.levels ? 'on' : 'off'} once Signal levels is chosen)` : '');
+  render();
+}
+function renderControls() {
+  const c = document.getElementById('controls');
+  c.innerHTML = '';
+  [['onKeys', 'The numbers on the keys', ['Numbers alone (as built)', 'Name above the numbers', 'Name beside them, board larger', 'Names only, numbers in the panel']],
+   ['follow', 'Panel follows the key pressed', ['On', 'Off']],
+   ['legend', 'Legend', ['Sample key', 'Tooltip (as built)']],
+   ['reopen', 'Numbers when shown again', ['Off: click Levels (as built)', 'As left, this session', 'As left, kept in settings', 'Always on']],
+   ['opensOn', 'Opens on', ['Key presses', 'Signal levels']],
+   ['theme', 'Theme', ['Light', 'Dark']]].forEach(([k, name, values]) => {
+    const g = document.createElement('div'); g.className = 'group';
+    g.innerHTML = `<span class="name">${name}</span>`;
+    values.forEach(v => {
+      const bt = document.createElement('button'); bt.textContent = v;
+      if (state[k] === v) bt.className = 'on';
+      bt.onclick = () => { state[k] = v; state.toast = ''; render(); };
+      g.appendChild(bt);
+    });
+    c.appendChild(g);
+  });
+  const g = document.createElement('div'); g.className = 'group';
+  g.innerHTML = `<span class="name">Try</span>`;
+  [['Leave and come back', false], ['Restart Nazg', true]].forEach(([label, restart]) => {
+    const bt = document.createElement('button'); bt.textContent = label; bt.onclick = () => reopen(restart); g.appendChild(bt);
+  });
+  const bt = document.createElement('button'); bt.textContent = 'Clear readings'; bt.onclick = () => { resetReadings(); last = null; render(); }; g.appendChild(bt);
+  c.appendChild(g);
+  if (state.toast) { const t = document.createElement('span'); t.className = 'toast'; t.textContent = state.toast; c.appendChild(t); }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Pressing: the mouse on a key, or the same key on the computer's keyboard.
+const frame = document.getElementById('frame');
+frame.addEventListener('click', e => {
+  const t = e.target.closest('[data-view], [data-act], [data-mode]');
+  if (!t) return;
+  if (t.dataset.act === 'levels') state.levels = !state.levels;
+  if (t.dataset.view) state.view = t.dataset.view;
+  if (t.dataset.mode && t.dataset.mode !== 'Device') state.mode = t.dataset.mode;
+  render();
+});
+function press(k) { held.add(k); last = k; redrawLive(); }
+function release(k) { held.delete(k); redrawLive(); }
+let mouseKey = null;
+frame.addEventListener('mousedown', e => {
+  const r = e.target.closest('#boardarea rect[data-key]');
+  if (!r) return;
+  mouseKey = KEYS[+r.dataset.key]; press(mouseKey); e.preventDefault();
+});
+addEventListener('mouseup', () => { if (mouseKey) { release(mouseKey); mouseKey = null; } });
+const CODE_TO_KC = c => {
+  if (/^Key[A-Z]$/.test(c)) return 'KC_' + c.slice(3);
+  if (/^Digit\d$/.test(c)) return 'KC_' + c.slice(5);
+  if (/^F\d+$/.test(c)) return 'KC_' + c;
+  if (/^Numpad\d$/.test(c)) return 'KC_P' + c.slice(6);
+  return { Escape: 'KC_ESC', Backquote: 'KC_GRV', Minus: 'KC_MINS', Equal: 'KC_EQL', Backspace: 'KC_BSPC', Tab: 'KC_TAB',
+    BracketLeft: 'KC_LBRC', BracketRight: 'KC_RBRC', Enter: 'KC_ENT', CapsLock: 'KC_CAPS', Semicolon: 'KC_SCLN', Quote: 'KC_QUOT',
+    Backslash: 'KC_BSLS', IntlBackslash: 'KC_NUBS', Comma: 'KC_COMM', Period: 'KC_DOT', Slash: 'KC_SLSH', ShiftLeft: 'KC_LSFT',
+    ShiftRight: 'KC_RSFT', ControlLeft: 'KC_LCTL', ControlRight: 'KC_RCTL', AltLeft: 'KC_LALT', AltRight: 'KC_RALT',
+    MetaLeft: 'KC_LGUI', MetaRight: 'KC_RGUI', ContextMenu: 'KC_APP', Space: 'KC_SPC', ArrowUp: 'KC_UP', ArrowDown: 'KC_DOWN',
+    ArrowLeft: 'KC_LEFT', ArrowRight: 'KC_RGHT', Insert: 'KC_INS', Delete: 'KC_DEL', Home: 'KC_HOME', End: 'KC_END',
+    PageUp: 'KC_PGUP', PageDown: 'KC_PGDN', NumLock: 'KC_NUM', NumpadDivide: 'KC_PSLS', NumpadMultiply: 'KC_PAST',
+    NumpadSubtract: 'KC_PMNS', NumpadAdd: 'KC_PPLS', NumpadEnter: 'KC_PENT', NumpadDecimal: 'KC_PDOT' }[c];
+};
+addEventListener('keydown', e => {
+  const kc = CODE_TO_KC(e.code), k = kc && KEYS.find(x => x.kc === kc);
+  if (!k) return;
+  e.preventDefault();
+  if (!held.has(k)) press(k);
+});
+addEventListener('keyup', e => {
+  const kc = CODE_TO_KC(e.code), k = kc && KEYS.find(x => x.kc === kc);
+  if (k) release(k);
+});
+addEventListener('blur', () => { held.clear(); redrawLive(); });
+const tip = document.getElementById('tip');
+frame.addEventListener('mousemove', e => {
+  const r = e.target.closest('rect[data-tip]');
+  if (r) { tip.textContent = r.dataset.tip; tip.style.display = 'block'; } else tip.style.display = 'none';
+  tip.style.left = Math.min(e.clientX + 14, innerWidth - 380) + 'px'; tip.style.top = (e.clientY + 18) + 'px';
+});
+frame.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+
+document.getElementById('notes').innerHTML = `
+<p><b>Press a key</b>: hold it with the mouse, or press the same key on your own keyboard. The readings are simulated from Rico's F77
+recording, one every 155 ms: a press overshoots on its first reading, then holds at the key's usual level. <b>Highest</b> and
+<b>lowest</b> fill in as the tool's do -- only once three readings in a row stay on one side of the threshold, so a quick tap shows
+"now" but leaves "highest" empty: hold a key a moment, as the panel asks.</p>
+<p><b>The numbers on the keys</b>, with Levels on: <b>alone</b> -- as built, the name gone, which is the tester's complaint;
+<b>the name above them</b> -- the board its usual size, now in bold beside the highest, the bin beside the lowest;
+<b>the name beside them</b> -- the tester's own shape, the name on the left and the numbers right-aligned, which a 1u key cannot
+hold at the usual size, so the board is drawn larger and scrolls; <b>the names alone</b> -- no numbers on the keys at all, no Levels
+button: the panel's line carries the key pressed.</p>
+<p><b>The panel following the key pressed</b>: the key's name and its numbers, large, while it is held and after -- what the tester
+does, pressing Q while watching its levels, without reading a key's corner. The line under it puts the readings on one scale: the
+band where the key rests, the threshold, the highest, now. It takes some of the list's height.</p>
+<p><b>The legend</b>: a sample key in the panel's first line, words where the numbers go, in the arrangement chosen -- always on screen,
+where a tooltip cannot be read while looking at another key (the tester).</p>
+<p><b>When shown again</b> -- Rico's call, since numbers by default reverses his 2026-10-17 choice (verdicts and words for everyone,
+numbers behind the button): <b>off</b>, as built; <b>as left, this session</b> -- one click per session; <b>as left, kept in
+settings.json</b> -- an expert clicks once, ever; <b>always on</b>. <b>Opens on</b>: Key presses, as built, or Signal levels.
+"Leave and come back" and "Restart Nazg" show what each does.</p>
+<p><b>Controller</b> shows the same choices on the controller's grid. Space is named here, as Matrix and Diagnostics now name it.</p>`;
+
+resetReadings();
+render();
+setInterval(tick, READING_MS);
+</script>
+</body>
+</html>

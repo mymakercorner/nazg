@@ -491,6 +491,32 @@ decisions above:
   get and set keyboard value with ids from 0x81; vial-qmk gates only VIA's matrix state, macro
   buffer and bootloader jump.
 
+**Signal levels, third round: the key's name beside its levels** (mockup, first draft, 2026-11-07,
+for Rico to choose from; tester-feedback.md, 3 and 6):
+[ui-design/levels-on-keys.html](ui-design/levels-on-keys.html). A tester adjusting his board had to
+count keys -- with Levels on, the numbers replace the legend, so the key under his eyes has no
+name -- and found the numbers a second click away. The F77's definition, its readings simulated from
+its recording, a key pressed with the mouse or the computer's own keyboard. Its variants: the
+numbers alone (as built), the name above them, the name beside them on a larger, scrolling board
+(the tester's shape), or names alone with the numbers in the panel; the panel following the key
+pressed, large, with its readings on one scale; the legend as a sample key always on screen, or the
+button's tooltip (as built); and what Diagnostics shows when opened again -- the numbers off (as
+built), as left for the session, as left and kept in settings.json, or always on, which would
+reverse the 2026-10-17 choice of words before numbers -- and whether it opens on Key presses (as
+built) or Signal levels.
+
+**Rico's choices** (2026-11-07, after trying it: "a great improvement"):
+- **The name above the numbers**, the board its usual size: the name on the first line, then now in
+  bold with the highest at its right, then the bin with the lowest.
+- **The panel follows the key pressed**: its name and now, highest, lowest, threshold and bin in
+  large type, with its readings on one scale -- while it is held and after. It takes some of the
+  list's height.
+- **The legend a sample key** in the panel's first line, words where the numbers go -- the button's
+  tooltip is dropped.
+- **Levels as left, for the session**: shown again, Diagnostics keeps the numbers on or off as they
+  were; Nazg starts with them off -- the 2026-10-17 default of words first stands.
+- **Diagnostics still opens on Key presses.**
+
 **Open: how third-party plugins are delivered.**
 
 | | For | Against |
