@@ -14,12 +14,12 @@ the same day; built since: items 1 to 8 (2026-11-07), as the table says.*
 | 1 | Does not start on Windows 10; Windows 11 and the browser are fine | Bug, blocking | Likely cause found in SDL's source (corrected 2026-11-07), unproven on his machine | 2026-11-07, awaiting his retest |
 | 2 | Wrong sizes on a second monitor of another scale | Bug, known | Confirms the deferred item, and worse than it says | 2026-11-07, the scale followed; small windows not |
 | 3 | Key names beside the signal levels | Feature | The strongest request of the round | 2026-11-07, from a mockup |
-| 4 | The space bar is unlabelled in the matrix and diagnostics views | Bug, small | True where there is no keymap to read it from | 2026-11-07 |
-| 5 | Wiring flashes when the pointer moves between keys | Bug, small | True, mechanism found | 2026-11-07 |
+| 4 | The space bar is unlabelled in the matrix and diagnostics views | Bug, small | True where there is no keymap to read it from | 2026-11-07, seen on Rico's F77 |
+| 5 | Wiring flashes when the pointer moves between keys | Bug, small | True, mechanism found | 2026-11-07, seen on Rico's F77 |
 | 6 | The Levels button is a second way to the same thing | Design | Right about the default, wrong about removing it | 2026-11-07, kept for the session |
-| 7 | QMK matrix and Controller show the same thing | Not a bug | Expected; nothing says why both exist | 2026-11-07, a line said |
+| 7 | QMK matrix and Controller show the same thing | Not a bug | Expected; nothing says why both exist | 2026-11-07, a line said, seen on Rico's F77 |
 | 8 | The key test counts any keyboard's keys | Limitation | True, not cheaply fixable, undocumented | 2026-11-07, in the manual |
-| 9 | The Device information always visible | Design | Reasonable, weigh against the panel's room | no |
+| 9 | The Device information always visible | Design | Mostly answered by 3; two questions back to him | asked |
 | 10 | Remove the key test; all Tools top-level; hide Diagnostics | Declined | See below | n/a |
 | 11 | Offer Nazg to the Vial people | Not a code question | Rico's alone | n/a |
 
@@ -213,6 +213,16 @@ against the room the panel has once the combined view is in it, and against the 
 existing for every board, not only Leyden Jar ones.
 
 **Proposed**: decide it after item 3 is built, with the real layout in front of you.
+
+**Weighed with item 3 built** (2026-11-07): his first words, "the individual key levels and binning",
+are what the line following the pressed key now shows -- now, highest, lowest, threshold, bin -- and
+Levels puts each key's bin under its name. What stays on Device alone: what does not change while he
+works (protocols, wiring, sizes, Vial, USB) and the two actions, rare, and Erase not to be undone --
+not beside controls clicked all the time. The one fact worth having in Signal levels: **every bin's
+calibration side by side**, one muted line. **Asked first** (Rico): does the new Signal levels give
+him what he wanted; and is it the bootloader and the erase he wants at hand, or a way to
+**recalibrate** after adjusting a key -- the controller sets its thresholds at power-up, and the
+Leyden Jar's Reboot command (`0x8A`) is not used by Nazg yet. Nothing built until he answers.
 
 ## 10. Declined, and why
 

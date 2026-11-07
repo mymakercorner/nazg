@@ -1,6 +1,6 @@
 # Nazg user manual
 
-*For Nazg 0.1.0-test.6. Nazg is a test build: things will be missing or wrong. Please say so
+*For Nazg 0.1.0-test.7. Nazg is a test build: things will be missing or wrong. Please say so
 (see "Reporting a problem", at the end).*
 
 Nazg configures keyboards running **VIA** or **Vial** firmware: the keymap, knobs, layout options,
