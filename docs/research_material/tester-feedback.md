@@ -7,11 +7,11 @@ says so.
 
 *First round: a long report on `0.1.0-test.5` / `0.1.0-test.6`, from a tester with a Leyden Jar
 board who runs Nazg on Windows 10, Windows 11 and in a browser (2026-10-27). Analysed and agreed
-the same day; nothing below is built yet.*
+the same day; built since: item 1 (2026-11-07), as the table says.*
 
 | # | What | Kind | Verdict | Done |
 |---|---|---|---|---|
-| 1 | Does not start on Windows 10; Windows 11 and the browser are fine | Bug, blocking | Cause found in the source, unproven on his machine | no |
+| 1 | Does not start on Windows 10; Windows 11 and the browser are fine | Bug, blocking | Likely cause found in SDL's source (corrected 2026-11-07), unproven on his machine | 2026-11-07, awaiting his retest |
 | 2 | Wrong sizes on a second monitor of another scale | Bug, known | Confirms the deferred item, and worse than it says | no |
 | 3 | Key names beside the signal levels | Feature | The strongest request of the round | no |
 | 4 | The space bar is unlabelled in the matrix and diagnostics views | Bug, small | True where there is no keymap to read it from | no |
@@ -31,38 +31,58 @@ the same day; nothing below is built yet.*
 > works fine on my Win 11 computer. There are no special OS or antivirus restrictions. The web
 > browsing version works fine on the Win 10 and 11."
 
-**The likely cause, from the source.** `Main.cpp`, the GPU device:
+`Main.cpp` created the GPU device with
 
 ```cpp
 SDL_CreateGPUDevice(SPIRV | DXIL | MSL | METALLIB, true, nullptr)
 ```
 
-The second argument is SDL's `debug_mode`, hard-coded `true` in every build, Release included. On
-Windows that asks D3D12 for its **debug layer**, which exists only where the "Graphics Tools"
-optional feature is installed -- usually not on a clean machine. Where it is refused, the device is
-not created, and the next lines do `SDL_LogError` then `return 1`. Nazg is a windowed application,
-so **nothing reaches the user**: no window, no message, no log. The web build never takes that path
--- Emscripten goes through `SDL_GL_CreateContext` and WebGL 2 -- which is why the browser works on
-the same machine.
+**The first verdict was wrong** (2026-10-27): it blamed `debug_mode` (the `true`), on the theory
+that D3D12 refuses a device when its debug layer is not installed. SDL does not: when the layer is
+missing it logs "Validation layers not found, continuing without validation" and goes on
+(`SDL_gpu_d3d12.c`, `D3D12_CreateDevice`; Vulkan the same).
 
-Unproven: nobody has seen the error text on his machine, because there is no way for him to see it.
-Item 1b is what makes it provable.
+**The likely cause, read in SDL 3.4.16** (2026-11-07). The shader formats Nazg offered were not the
+ones ImGui uses: `imgui_impl_sdlgpu3` gives D3D12 its **DXBC** shaders, never DXIL. SDL's
+`D3D12_PrepareDriver` refuses D3D12 when:
 
-**Proposed, in this order:**
+- DXIL is offered without DXBC and the GPU lacks **Shader Model 6.0**;
+- **Tier 2 resource binding** is missing, unless the app sets
+  `SDL_PROP_GPU_DEVICE_CREATE_D3D12_ALLOW_FEWER_RESOURCE_SLOTS_BOOLEAN` (SDL_gpu.h names Intel's
+  Haswell and Broadwell graphics as the case).
 
-1. **`debug_mode` false in Release** (`#ifdef NDEBUG`, or the build type). The debug layer costs
-   performance wherever it does work, so this is right regardless of the Windows 10 story.
-2. **Say something when startup fails.** All five `return 1` paths in `Main.cpp` -- `SDL_Init`,
-   `SDL_CreateWindow`, `SDL_CreateGPUDevice`, `SDL_ClaimWindowForGPUDevice`, the data folder -- are
-   silent. `SDL_ShowSimpleMessageBox` with `SDL_GetError()` turns "it does not run" into a report
-   worth having, for this failure and every later one.
-3. **A runtime fallback to `imgui_impl_opengl3`** where SDL_GPU gives no device. CLAUDE.md calls
-   OpenGL "the fallback if it causes trouble", but today that is a compile-time choice: on the
-   desktop there is no path from a failed `SDL_CreateGPUDevice` to a GL context. The web build
-   already runs the same `App` on that renderer, so the work is in the shell only. Bigger than 1
-   and 2; do it only if 1 does not fix his machine.
+On Windows 11 with neither DXIL nor Tier 2 asked for, it skips the checks altogether. A Windows 10
+machine with an older GPU fails both, and if it has no Vulkan driver either -- Haswell has none on
+Windows -- no device is created. `main()` then logged and returned 1, and a windowed application's
+log reaches no one: no window, no message. The browser works on the same machine because it draws
+through WebGL.
 
-Then ask him to run it again -- he is the only known reproduction.
+Still unproven: it needs his Windows 10 machine to have such a GPU, and that is not known. A crash,
+a missing DLL or another refusal would look the same to him.
+
+**Built** (2026-11-07, `Main.cpp`):
+
+1. **The shader formats ImGui really ships** -- SPIR-V, DXBC, MSL, metallib, no DXIL -- and
+   **fewer resource slots allowed** on D3D12 (ImGui uses no storage resources), through
+   `SDL_CreateGPUDeviceWithProperties`.
+2. **Debug mode only in Debug builds** (`NDEBUG`): the validation layers cost performance
+   wherever they are installed.
+3. **A message box on every startup failure** (`ReportStartupFailure`): `SDL_Init`,
+   `SDL_CreateWindow`, `SDL_CreateGPUDevice`, `SDL_ClaimWindowForGPUDevice`, and the web build's
+   `SDL_GL_CreateContext`, each with `SDL_GetError()`. The data folder was never one of them: App
+   reports that one itself. Seen with a GPU driver forced that does not exist (`SDL_GPU_DRIVER=metal`
+   on Windows).
+
+**Not built**: a runtime fallback to `imgui_impl_opengl3` where SDL_GPU gives no device -- today
+a compile-time choice, the work in the shell only. Only if his retest still fails on the GPU device.
+
+**Before the next build reaches him**, the release he has can already say why: SDL writes its log to
+the console of whatever started it, so from `cmd` in the unzipped folder,
+`set SDL_LOGGING=app=info,gpu=info` then `nazg.exe` prints SDL's reason (for example
+"D3D12: DXIL is not supported and DXBC is not being provided", or "Tier 2 Resource Binding is not
+supported"). If nothing prints at all, it is a crash, not a refusal.
+
+Then ask him to run the next build -- he is the only known reproduction.
 
 ## 2. The display scale on a second monitor
 

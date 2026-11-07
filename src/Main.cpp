@@ -369,13 +369,26 @@ namespace
         SDL_DestroySurface(icon);
     }
 
+    // A failure before the first frame, logged and shown: Nazg has no console, so without the
+    // message box a user sees nothing at all (tester-feedback.md, 1). Called before anything is
+    // cleaned up, while SDL_GetError() still says why. SDL allows the box before SDL_Init().
+    void ReportStartupFailure(const char* call)
+    {
+        const std::string error = SDL_GetError();
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s failed: %s", call, error.c_str());
+
+        const std::string text = std::string("Nazg could not start.\n\n") + call + " failed:\n" +
+                                 (error.empty() ? "no reason given" : error);
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Nazg", text.c_str(), nullptr);
+    }
+
 }
 
 int main(int, char**)
 {
     if (!SDL_Init(SDL_INIT_VIDEO))
     {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_Init() failed: %s", SDL_GetError());
+        ReportStartupFailure("SDL_Init()");
         return 1;
     }
 
@@ -398,7 +411,7 @@ int main(int, char**)
                                            windowFlags);
     if (pWindow == nullptr)
     {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_CreateWindow() failed: %s", SDL_GetError());
+        ReportStartupFailure("SDL_CreateWindow()");
         SDL_Quit();
         return 1;
     }
@@ -407,7 +420,7 @@ int main(int, char**)
     SDL_GLContext glContext = SDL_GL_CreateContext(pWindow);
     if (glContext == nullptr)
     {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_GL_CreateContext() failed: %s", SDL_GetError());
+        ReportStartupFailure("SDL_GL_CreateContext()");
         SDL_DestroyWindow(pWindow);
         SDL_Quit();
         return 1;
@@ -417,16 +430,27 @@ int main(int, char**)
     const char* const pGpuDriver = "WebGL 2";
 #else
     // Create the GPU device. SDL picks the backend per platform: Metal on macOS,
-    // D3D12 on Windows, Vulkan on Linux. We accept every shader format so SDL is free
-    // to choose; ImGui ships its own precompiled shaders, so we supply none ourselves.
-    SDL_GPUDevice* pGpuDevice = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV |
-                                                    SDL_GPU_SHADERFORMAT_DXIL |
-                                                    SDL_GPU_SHADERFORMAT_MSL |
-                                                    SDL_GPU_SHADERFORMAT_METALLIB,
-                                                    true, nullptr);
+    // D3D12 on Windows, Vulkan on Linux. The shader formats are the ones ImGui's precompiled
+    // shaders come in (imgui_impl_sdlgpu3_shaders.h) -- DXBC for D3D12, not DXIL: SDL asks a
+    // D3D12 GPU for Shader Model 6 only when DXIL is offered, and refuses it without. ImGui uses
+    // no storage resources, so Tier 1 resource binding is enough, which lets Intel's Haswell and
+    // Broadwell graphics in (SDL_gpu.h). Debug builds only ask for the validation layers.
+    const SDL_PropertiesID gpuProperties = SDL_CreateProperties();
+    SDL_SetBooleanProperty(gpuProperties, SDL_PROP_GPU_DEVICE_CREATE_SHADERS_SPIRV_BOOLEAN, true);
+    SDL_SetBooleanProperty(gpuProperties, SDL_PROP_GPU_DEVICE_CREATE_SHADERS_DXBC_BOOLEAN, true);
+    SDL_SetBooleanProperty(gpuProperties, SDL_PROP_GPU_DEVICE_CREATE_SHADERS_MSL_BOOLEAN, true);
+    SDL_SetBooleanProperty(gpuProperties, SDL_PROP_GPU_DEVICE_CREATE_SHADERS_METALLIB_BOOLEAN, true);
+    SDL_SetBooleanProperty(gpuProperties, SDL_PROP_GPU_DEVICE_CREATE_D3D12_ALLOW_FEWER_RESOURCE_SLOTS_BOOLEAN, true);
+#if defined(NDEBUG)
+    SDL_SetBooleanProperty(gpuProperties, SDL_PROP_GPU_DEVICE_CREATE_DEBUGMODE_BOOLEAN, false);
+#else
+    SDL_SetBooleanProperty(gpuProperties, SDL_PROP_GPU_DEVICE_CREATE_DEBUGMODE_BOOLEAN, true);
+#endif
+    SDL_GPUDevice* pGpuDevice = SDL_CreateGPUDeviceWithProperties(gpuProperties);
+    SDL_DestroyProperties(gpuProperties);
     if (pGpuDevice == nullptr)
     {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_CreateGPUDevice() failed: %s", SDL_GetError());
+        ReportStartupFailure("SDL_CreateGPUDevice()");
         SDL_DestroyWindow(pWindow);
         SDL_Quit();
         return 1;
@@ -434,7 +458,7 @@ int main(int, char**)
 
     if (!SDL_ClaimWindowForGPUDevice(pGpuDevice, pWindow))
     {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_ClaimWindowForGPUDevice() failed: %s", SDL_GetError());
+        ReportStartupFailure("SDL_ClaimWindowForGPUDevice()");
         SDL_DestroyGPUDevice(pGpuDevice);
         SDL_DestroyWindow(pWindow);
         SDL_Quit();

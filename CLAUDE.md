@@ -205,12 +205,12 @@ one board to unlock).
   how to try it: ui-design.md, "Open points" (2026-10-24; Rico has no second monitor).
 - **Deferred, very low priority**: the HID console (ui-design.md, "The console") -- QMK Toolbox's
   job, not to be taken from it (Rico, 2026-10-18).
-- **A tester's report on `0.1.0-test.6`, analysed and agreed, nothing built**
-  (2026-10-27): [tester-feedback.md](docs/research_material/tester-feedback.md) -- eleven items with
-  the verdict and the proposal for each. First of them: **Nazg does not start on his Windows 10
-  machine**, the cause most likely `SDL_CreateGPUDevice`'s `debug_mode` hard-coded `true` in
-  `Main.cpp`, asking D3D12 for a debug layer that is not installed -- and every startup failure
-  there exits silently, so he saw nothing. Then the display scale on a second monitor (the deferred
+- **A tester's report on `0.1.0-test.6`, analysed and agreed** (2026-10-27):
+  [tester-feedback.md](docs/research_material/tester-feedback.md) -- eleven items with the verdict
+  and the proposal for each. First of them, built 2026-11-07 and awaiting his retest: **Nazg does
+  not start on his Windows 10 machine**. Not the debug layer, as first judged -- SDL goes on without
+  it -- but most likely SDL refusing D3D12 on an older GPU because Nazg offered DXIL shaders where
+  ImGui uses DXBC, with no Vulkan to fall back on; startup failures now show a message box. Then the display scale on a second monitor (the deferred
   item, worse than it reads: Nazg *started* on that screen is wrong too), and key names beside the
   signal levels in Diagnostics.
 
