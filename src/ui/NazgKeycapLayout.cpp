@@ -557,13 +557,17 @@ namespace nazg
             if (legend.text.empty())
                 continue;
 
-            const Line  fitted = TextChain({ legend.text, "" }, size, LegendWeight::Regular, width, line, measurer).front();
-            const float w      = placer.Width(fitted.text, size, LegendWeight::Regular);
+            const LegendWeight weight = legend.role == LegendRole::Reading ? LegendWeight::Bold : LegendWeight::Regular;
+            const LegendInk    ink    = legend.role == LegendRole::Value   ? LegendInk::Value
+                                        : legend.role == LegendRole::Bound ? LegendInk::Muted
+                                                                           : LegendInk::Legend;
+
+            const Line  fitted = TextChain({ legend.text, "" }, size, weight, width, line, measurer).front();
+            const float w      = placer.Width(fitted.text, size, weight);
             const size_t column = slot % 3;
             const float  x      = column == 0 ? box.x0 : column == 1 ? (box.x0 + box.x1 - w) / 2.0f : box.x1 - w;
 
-            placer.InRoom(fitted.text, x, rowTop[slot / 3], line, size, LegendWeight::Regular,
-                          legend.role == LegendRole::Value ? LegendInk::Value : LegendInk::Legend, fitted.cut);
+            placer.InRoom(fitted.text, x, rowTop[slot / 3], line, size, weight, ink, fitted.cut);
         }
 
         return out;

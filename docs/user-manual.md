@@ -669,7 +669,13 @@ it turns the keyboard's typing off, and it comes back on when you leave. The str
   mapping between the controller's connectors and QMK's rows and columns.
 - **Signal levels**: each key's readings against its threshold, and Nazg's verdict on the keys at
   risk: keys that may type by themselves, or may miss presses. Click a key for its levels and last
-  presses.
+  presses. **The key you press is followed**: it is selected, so its last presses show, and its
+  name and numbers -- the reading now, its highest and lowest, its threshold and bin -- appear in
+  large type under the panel's first line, with its readings on one scale, while you hold it and
+  after. **Click a key**, on the board or in the list, to see one you cannot press; the next key
+  you press takes its place. **Levels** puts the numbers on every key, under
+  its name: the reading now in bold with the highest beside it, the bin with the lowest; a sample key
+  beside the button says which is which. Nazg keeps Levels as you left it until it closes.
 
     ![Signal levels: 28 keys good, F selected](user-manual/diagnostics-signal-levels.png)
 

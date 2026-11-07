@@ -352,6 +352,7 @@ namespace nazg
         bool                   m_ShowAllHidDevices = false;   // the keyboard list shows only keyboards unless asked
         bool                   m_ShowSettings      = false;   // Settings in place of the main area
         SafeMargins            m_SafeMargins;                 // the diagnostics', changed by an expert: never saved
+        bool                   m_LevelsOnKeys      = false;   // the diagnostics' Levels, as left this session (Rico, 2026-11-07)
         bool                   m_OpenLoneBoard     = true;    // until the first list is in
         bool                   m_BoardUnplugged    = false;   // the open board's path is no longer listed
         std::optional<ThemeId> m_AppliedTheme;                // set when the theme changes

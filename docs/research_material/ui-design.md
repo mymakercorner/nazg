@@ -517,6 +517,25 @@ built) or Signal levels.
   were; Nazg starts with them off -- the 2026-10-17 default of words first stands.
 - **Diagnostics still opens on Key presses.**
 
+*Built 2026-11-07* (`ui/NazgDiagnosticsSection.*`): the name on the keys' first line, the reading
+now in bold (`LegendRole::Reading`), highest and lowest muted (`LegendRole::Bound`), the bin in the
+value colour; the panel's line under its first one, following the key the board reports pressed;
+the sample key drawn beside Levels while it is on, the button's tooltip gone; Levels kept by App for
+the session (`App::m_LevelsOnKeys`, beside the threshold margins).
+
+**One key in focus** (Rico, 2026-11-07, after trying it on his F77): a press selects the key, so the
+panel's line and the key's last presses show the same one -- one hand on the board under test, none
+free for the mouse. A click, on the board, in the list or on the whole board's dots, selects a key
+too -- one that cannot or need not be pressed -- and the next new press moves the focus again. **No
+pin**: a first build had a click pin the key, presses left aside until it was clicked again, as
+Wiring pins; trying it, Rico found presses no longer followed and took it for a fault -- dropped the
+same day. Only a **new press** moves the focus -- not pressed at the last look, pressed now -- so a
+stuck key, reading pressed at rest, takes it once and not every frame; the first build followed any
+key reading pressed, which a stuck key would have held.
+
+*Seen on Rico's F77* (2026-11-07): the names over the numbers, the line and the key's presses
+following each press, a click selecting, the next press moving on -- "it works perfectly".
+
 **Open: how third-party plugins are delivered.**
 
 | | For | Against |

@@ -66,6 +66,7 @@ namespace nazg
                            const Keyboard&       keyboard,
                            const LegendSettings& legends,
                            SafeMargins&          safeMargins,
+                           bool&                 levelsOnKeys,
                            DeviceIdentity        identity);
 
         DiagnosticsSection(const DiagnosticsSection&)            = delete;
@@ -184,6 +185,8 @@ namespace nazg
         void DrawBar(size_t key, ImVec2 at, float room);
         void DrawWholeBoard();
         void DrawKeyLevels();
+        void DrawFollowLine();
+        void ClickKey(size_t key);
         void DrawDevicePanel();
         void DrawEraseQuestion();
 
@@ -201,7 +204,7 @@ namespace nazg
 
         Mode m_Mode          = Mode::KeyPresses;
         View m_View          = View::Board;   // Signal levels has no QMK matrix: it shows the board there
-        bool m_LevelsOnKeys  = false;         // the Levels button
+        bool& m_LevelsOnKeys;                 // the Levels button: App's, kept as left for the session
         bool m_HiddenThisFrame = false;       // WhileHidden() was called: nothing starts this frame
 
         // The board, open while the section shows.
@@ -236,7 +239,8 @@ namespace nazg
         size_t                             m_JudgedReadings = 0;
         double                             m_JudgedAt       = 0.0;
 
-        std::optional<size_t>     m_Selected;   // into m_Keys
+        std::optional<size_t>     m_Selected;   // into m_Keys: the key in focus -- pressed last, or clicked
+        std::vector<uint8_t>      m_WasPressed;         // parallel to m_Keys: pressed at the last look, for a new press
         std::optional<size_t>     m_HoveredKey;
         std::optional<int>        m_HoveredColumn;
         std::optional<KeyVerdict> m_Filter;

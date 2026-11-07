@@ -46,6 +46,50 @@ namespace nazg
             return (colour & ~IM_COL32_A_MASK) | (static_cast<ImU32>(std::lround(alpha * strength)) << IM_COL32_A_SHIFT);
         }
 
+        // The legend of Levels on the keys, always on screen -- a tooltip cannot be read while looking
+        // at another key (tester-feedback.md, 3): one key, words where the numbers go, as the keys
+        // place them (Rico, 2026-11-07).
+        ImVec2 SampleKeySize()
+        {
+            const float line = ImGui::GetFontSize() * 0.85f * 1.2f;
+            return ImVec2(120.0f * ImGui::GetFontSize() / 13.0f, 3 * line + 8.0f * ImGui::GetFontSize() / 13.0f);
+        }
+
+        void DrawSampleKey(bool bins)
+        {
+            const ImVec2 size = SampleKeySize();
+            const ImVec2 at   = ImGui::GetCursorScreenPos();
+            const float  u    = ImGui::GetFontSize() / 13.0f;
+            const float  fs   = ImGui::GetFontSize() * 0.85f;
+            const float  line = fs * 1.2f;
+            const float  pad  = 4.0f * u;
+
+            ImDrawList* const          drawList = ImGui::GetWindowDrawList();
+            const BoardColours::Keycap cap      = BoardColours::Fill(KeyFill::Alpha, 0.0f);
+            drawList->AddRectFilled(at, ImVec2(at.x + size.x, at.y + size.y), cap.face, 4.0f * u);
+            drawList->AddRect(at, ImVec2(at.x + size.x, at.y + size.y), BoardColours::Outline(), 4.0f * u);
+
+            ImFont* const regular = ImGui::GetFont();
+            PushHeaderFont();
+            ImFont* const bold = ImGui::GetFont();
+            ImGui::PopFont();
+
+            const auto put = [&](const char* text, int row, bool right, ImU32 colour, ImFont* font)
+            {
+                const float width = font->CalcTextSizeA(fs, FLT_MAX, 0.0f, text).x;
+                const float x     = right ? at.x + size.x - pad - width : at.x + pad;
+                drawList->AddText(font, fs, ImVec2(x, at.y + pad + row * line), colour, text);
+            };
+            put("key", 0, false, cap.legend, regular);
+            put("now", 1, false, cap.legend, bold);
+            put("highest", 1, true, BoardColours::Legend(LegendInk::Muted, KeyFill::Alpha), regular);
+            if (bins)
+                put("bin", 2, false, BoardColours::Legend(LegendInk::Value, KeyFill::Alpha), regular);
+            put("lowest", 2, true, BoardColours::Legend(LegendInk::Muted, KeyFill::Alpha), regular);
+
+            ImGui::Dummy(size);
+        }
+
         ImU32 RestColour() { return ImGui::GetColorU32(ImGuiCol_TextDisabled); }
         ImU32 PressColour() { return BoardColours::Highlighted(); }
         ImU32 TextColour() { return ImGui::GetColorU32(ImGuiCol_Text); }
@@ -214,9 +258,9 @@ namespace nazg
 
     DiagnosticsSection::DiagnosticsSection(HidTransport& transport, std::string path, const Keyboard& keyboard,
                                            const LegendSettings& legends, SafeMargins& safeMargins,
-                                           DeviceIdentity identity)
+                                           bool& levelsOnKeys, DeviceIdentity identity)
         : m_Transport(transport), m_Path(std::move(path)), m_Keyboard(keyboard), m_Legends(legends),
-          m_SafeMargins(safeMargins), m_Identity(std::move(identity))
+          m_SafeMargins(safeMargins), m_Identity(std::move(identity)), m_LevelsOnKeys(levelsOnKeys)
     {
     }
 
@@ -506,7 +550,15 @@ namespace nazg
         m_Health         = {};
         m_JudgedReadings = 0;
         m_Selected.reset();
+        std::fill(m_WasPressed.begin(), m_WasPressed.end(), uint8_t{ 0 });
         m_Filter.reset();
+    }
+
+    // A click puts a key in focus, one that cannot or need not be pressed; the next new press moves it
+    // again. A click pinning it, presses left aside, surprised Rico (2026-11-07): dropped.
+    void DiagnosticsSection::ClickKey(size_t key)
+    {
+        m_Selected = key;
     }
 
     bool DiagnosticsSection::IsPressedNow(size_t key) const
@@ -562,6 +614,7 @@ namespace nazg
             }
             m_Keys.push_back(std::move(key));
         }
+        m_WasPressed.assign(m_Keys.size(), 0);
     }
 
     std::optional<size_t> DiagnosticsSection::KeyAt(uint8_t row, uint8_t column) const
@@ -757,8 +810,14 @@ namespace nazg
                 // "pressed or not" (Rico, 2026-10-17); a problem keeps its own colour.
                 if (described.condition == KeyCondition::None && m_Health.keys[*key].stats.seen)
                     described.marks |= Mark::Checked;
-                if (IsPressedNow(*key))
+                // A new press puts the key in focus -- the panel's line and its levels; a key reading
+                // pressed at rest, stuck, takes it once, not every frame (Rico, 2026-11-07).
+                const bool pressed = IsPressedNow(*key);
+                if (pressed)
                     described.marks |= Mark::Pressed;
+                if (pressed && !m_WasPressed[*key])
+                    m_Selected = key;
+                m_WasPressed[*key] = pressed;
                 if (m_Selected == key)
                     described.marks |= Mark::Selected;
                 if (m_HoveredKey == key ||
@@ -770,7 +829,9 @@ namespace nazg
             if (!numbers)
                 continue;
 
-            // Max top left, now middle left, min bottom left, the bin bottom right with several.
+            // The key's name first, so the key under the eyes is named (tester-feedback.md, 3); then
+            // the reading now in bold, its highest at the right; the bin, with several, and its lowest
+            // (Rico, 2026-11-07, levels-on-keys.html).
             std::optional<size_t> position;
             if (controller)
                 position = size_t{ described.geometry.column } * rows + described.geometry.row;
@@ -778,22 +839,24 @@ namespace nazg
                 position = size_t{ m_Keys[*key].controllerColumn } * rows + m_Keys[*key].controllerRow;
 
             described.legends = SlotLegends{};
+            if (key)
+                described[LegendSlot::TopLeft] = { m_Keys[*key].name, LegendRole::Label };
             if (!position || *position >= m_Tool.size())
                 continue;
             const ToolLevels& tool = m_Tool[*position];
-            const auto        put  = [&described](LegendSlot slot, std::optional<uint16_t> value)
+            const auto        put  = [&described](LegendSlot slot, std::optional<uint16_t> value, LegendRole role)
             {
                 if (value)
-                    described[slot] = { std::to_string(*value), LegendRole::Value };
+                    described[slot] = { std::to_string(*value), role };
             };
-            put(LegendSlot::TopLeft, tool.Max());
-            put(LegendSlot::MiddleLeft, tool.Now());
-            put(LegendSlot::BottomLeft, tool.Min());
+            put(LegendSlot::MiddleLeft, tool.Now(), LegendRole::Reading);
+            put(LegendSlot::MiddleRight, tool.Max(), LegendRole::Bound);
+            put(LegendSlot::BottomRight, tool.Min(), LegendRole::Bound);
             if (m_Info.thresholds.size() > 1)
             {
                 const size_t column = *position / rows;
                 const size_t row    = *position % rows;
-                put(LegendSlot::BottomRight, m_Info.bins[column][row]);
+                put(LegendSlot::BottomLeft, m_Info.bins[column][row], LegendRole::Value);
             }
         }
     }
@@ -821,7 +884,7 @@ namespace nazg
             ImGui::SetTooltip("No key at R%d C%d", geometry.row, geometry.column);
 
         if (m_Mode == Mode::SignalLevels && events.clickedKey && key)
-            m_Selected = m_Selected == key ? std::nullopt : key;
+            ClickKey(*key);
     }
 
     std::string DiagnosticsSection::TooltipOf(size_t key) const
@@ -970,9 +1033,10 @@ namespace nazg
         const float spacing = ImGui::GetStyle().ItemSpacing.x;
         const float field   = 70 * u;
         const float divider = 4 * spacing + 1.0f;
+        const float legend  = m_LevelsOnKeys ? ImGui::CalcTextSize("each key:").x + SampleKeySize().x + 2 * spacing : 0.0f;
         const float width   = SegmentsWidth({ "Board", "Controller" }) + ImGui::CalcTextSize("Threshold margin").x +
                             ImGui::CalcTextSize("rest").x + ImGui::CalcTextSize("press").x + 2 * field + divider +
-                            ButtonWidth("Levels") + 6 * spacing;
+                            legend + ButtonWidth("Levels") + 6 * spacing;
         RightAlign(width);
         {
             const char* explained = "How close to its threshold a key may get before it is at risk, each side's.";
@@ -1006,14 +1070,23 @@ namespace nazg
             ImGui::Dummy(ImVec2(1.0f, ImGui::GetFrameHeight()));
             ImGui::SameLine(0.0f, 2 * spacing);
 
+            // With the numbers on the keys, what each one is says itself beside the button.
+            if (m_LevelsOnKeys)
+            {
+                ColouredText(PanelColour::Muted, "each key:");
+                ImGui::SameLine();
+                DrawSampleKey(m_Info.thresholds.size() > 1);
+                ImGui::SameLine();
+            }
             if (ToggleButton("Levels", m_LevelsOnKeys))
                 m_LevelsOnKeys = !m_LevelsOnKeys;
-            ImGui::SetItemTooltip("The Leyden Jar tool's numbers on the keys: the highest reading above the threshold,\n"
-                                  "the reading now, the lowest below it, and the bin");
             ImGui::SameLine();
         }
         if (const int chosen = Segments({ "Board", "Controller" }, m_View == View::Controller ? 1 : 0); chosen >= 0)
             m_View = chosen == 1 ? View::Controller : View::Board;
+        ImGui::Separator();
+
+        DrawFollowLine();
         ImGui::Separator();
 
         DrawSummary();
@@ -1043,6 +1116,111 @@ namespace nazg
         ImGui::EndChild();
 
         DrawKeyOutputLine();
+    }
+
+    // The key in focus -- pressed or clicked last (Rico, 2026-11-07, levels-on-keys.html):
+    // its name and its numbers large -- what the tester did, pressing Q while watching its levels,
+    // without reading a key's corner -- while it is held and after, then its readings on one scale:
+    // where it rests, the threshold, its highest, now.
+    void DiagnosticsSection::DrawFollowLine()
+    {
+        if (!m_Selected || *m_Selected >= m_Keys.size())
+        {
+            ImGui::AlignTextToFramePadding();
+            ColouredText(PanelColour::Muted, "Press a key, or click one: its levels show here, and stay once it is let go.");
+            return;
+        }
+
+        const float u = Unit();
+        const Key&  k = m_Keys[*m_Selected];
+        std::optional<uint16_t> now, highest, lowest;
+        if (k.isMapped)
+        {
+            const size_t position = size_t{ k.controllerColumn } * m_Info.details.controllerRows + k.controllerRow;
+            if (position < m_Tool.size())
+            {
+                now     = m_Tool[position].Now();
+                highest = m_Tool[position].Max();
+                lowest  = m_Tool[position].Min();
+            }
+        }
+        const bool pressed = IsPressedNow(*m_Selected);
+
+        // The name, then each number large over its word.
+        const float big = ImGui::GetStyle().FontSizeBase * 1.45f;
+        ImGui::BeginGroup();
+        PushHeaderFont(big);
+        ImGui::TextUnformatted(k.name.c_str());
+        ImGui::PopFont();
+        ImGui::EndGroup();
+        ImGui::SameLine(0.0f, 0.0f);
+        ImGui::Dummy(ImVec2(std::max(0.0f, 110 * u - ImGui::GetItemRectSize().x), 1.0f));
+
+        const auto number = [&](std::optional<int> value, const char* word, std::optional<ImU32> colour)
+        {
+            ImGui::SameLine(0.0f, 22 * u);
+            ImGui::BeginGroup();
+            PushHeaderFont(big);
+            const std::string text = value ? std::to_string(*value) : "–";
+            if (colour)
+                ImGui::PushStyleColor(ImGuiCol_Text, *colour);
+            ImGui::TextUnformatted(text.c_str());
+            if (colour)
+                ImGui::PopStyleColor();
+            ImGui::PopFont();
+            ColouredText(PanelColour::Muted, "%s", word);
+            ImGui::EndGroup();
+        };
+        const auto asInt = [](std::optional<uint16_t> value) { return value ? std::optional<int>(*value) : std::nullopt; };
+        number(asInt(now), "now", pressed ? std::optional<ImU32>(PressColour()) : std::nullopt);
+        number(asInt(highest), "highest", std::nullopt);
+        number(asInt(lowest), "lowest", std::nullopt);
+        number(k.threshold, "threshold", U32(PanelColour::Warning));
+        if (m_Info.thresholds.size() > 1)
+            number(k.bin, "bin", BoardColours::Legend(LegendInk::Value, KeyFill::Alpha));
+
+        // Its readings on one line, at the right: the resting band, the threshold, the highest ring,
+        // now the dot -- filled in the pressed colour once past.
+        const float  width = 240 * u, height = 24 * u;
+        const float  words = ImGui::CalcTextSize("rest · threshold · highest ○ · now ●").x;
+        RightAlign(std::max(width, words));
+        ImGui::BeginGroup();
+        const ImVec2 at = ImGui::GetCursorScreenPos();
+        ImGui::Dummy(ImVec2(width, height));
+        ColouredText(PanelColour::Muted, "rest · threshold · highest ○ · now ●");
+        ImGui::EndGroup();
+
+        std::optional<int> restLow, restHigh;
+        if (*m_Selected < m_Health.keys.size())
+            if (const KeyStats& st = m_Health.keys[*m_Selected].stats; st.restMedian)
+            {
+                restLow  = *st.restMedian - std::max(1, st.restSpread / 2);
+                restHigh = *st.restMedian + std::max(1, st.restSpread / 2);
+            }
+
+        int lo = k.threshold, hi = k.threshold;
+        for (const std::optional<int> value : { asInt(now), asInt(highest), asInt(lowest), restLow, restHigh })
+            if (value)
+            {
+                lo = std::min(lo, *value);
+                hi = std::max(hi, *value);
+            }
+        lo -= 8;
+        hi += 8;
+        const auto x = [&](int level) { return at.x + 6 * u + (width - 12 * u) * static_cast<float>(level - lo) / static_cast<float>(hi - lo); };
+        const float cy = at.y + height / 2;
+
+        ImDrawList* const drawList = ImGui::GetWindowDrawList();
+        drawList->AddLine(ImVec2(at.x + 6 * u, cy), ImVec2(at.x + width - 6 * u, cy), GridColour(), 2 * u);
+        if (restLow)
+            drawList->AddRectFilled(ImVec2(x(*restLow), cy - 5 * u), ImVec2(std::max(x(*restHigh), x(*restLow) + 2 * u), cy + 5 * u),
+                                    Faded(RestColour(), 0.6f), 2 * u);
+        drawList->AddLine(ImVec2(x(k.threshold), at.y + 1 * u), ImVec2(x(k.threshold), at.y + height - 1 * u),
+                          U32(PanelColour::Warning), 2 * u);
+        if (highest)
+            drawList->AddCircle(ImVec2(x(*highest), cy), 4.5f * u, PressColour(), 0, 2 * u);
+        if (now)
+            drawList->AddCircleFilled(ImVec2(x(*now), cy), 5 * u, pressed ? PressColour() : TextColour());
     }
 
     // Good, at risk, failing, to check -- only when there is one -- and to do: the counts, each but
@@ -1227,7 +1405,7 @@ namespace nazg
                 const size_t     key    = *row.key;
                 const JudgedKey& judged = m_Health.keys[key];
                 if (ImGui::Selectable("##key", m_Selected == key, 0, ImVec2(rowWidth, rowH)))
-                    m_Selected = m_Selected == key ? std::nullopt : std::optional(key);
+                    ClickKey(key);
                 const bool hovered = ImGui::IsItemHovered();
                 if (hovered)
                     m_HoveredKey = key;
@@ -1551,7 +1729,7 @@ namespace nazg
                               judged.reasons.empty() ? "" : ": ", ReasonsOf(judged, "; ").c_str());
             m_HoveredKey = *under;
             if (ImGui::IsItemClicked())
-                m_Selected = m_Selected == under ? std::nullopt : under;
+                ClickKey(*under);
         }
         ColouredText(PanelColour::Muted, "Healthy keys crowd far from the threshold on both rows. A dot in the orange zone "
                                          "is at risk; a hollow dot on the pressed row never got past the threshold.");

@@ -7,16 +7,16 @@ says so.
 
 *First round: a long report on `0.1.0-test.5` / `0.1.0-test.6`, from a tester with a Leyden Jar
 board who runs Nazg on Windows 10, Windows 11 and in a browser (2026-10-27). Analysed and agreed
-the same day; built since: items 1, 2, 4, 5, 7 and 8 (2026-11-07), as the table says.*
+the same day; built since: items 1 to 8 (2026-11-07), as the table says.*
 
 | # | What | Kind | Verdict | Done |
 |---|---|---|---|---|
 | 1 | Does not start on Windows 10; Windows 11 and the browser are fine | Bug, blocking | Likely cause found in SDL's source (corrected 2026-11-07), unproven on his machine | 2026-11-07, awaiting his retest |
 | 2 | Wrong sizes on a second monitor of another scale | Bug, known | Confirms the deferred item, and worse than it says | 2026-11-07, the scale followed; small windows not |
-| 3 | Key names beside the signal levels | Feature | The strongest request of the round | no |
+| 3 | Key names beside the signal levels | Feature | The strongest request of the round | 2026-11-07, from a mockup |
 | 4 | The space bar is unlabelled in the matrix and diagnostics views | Bug, small | True where there is no keymap to read it from | 2026-11-07 |
 | 5 | Wiring flashes when the pointer moves between keys | Bug, small | True, mechanism found | 2026-11-07 |
-| 6 | The Levels button is a second way to the same thing | Design | Right about the default, wrong about removing it | no |
+| 6 | The Levels button is a second way to the same thing | Design | Right about the default, wrong about removing it | 2026-11-07, kept for the session |
 | 7 | QMK matrix and Controller show the same thing | Not a bug | Expected; nothing says why both exist | 2026-11-07, a line said |
 | 8 | The key test counts any keyboard's keys | Limitation | True, not cheaply fixable, undocumented | 2026-11-07, in the manual |
 | 9 | The Device information always visible | Design | Reasonable, weigh against the panel's room | no |
@@ -138,7 +138,8 @@ legends (`DescribeLevels()`), so the key he watches has no name. **Mockup**, fir
 [ui-design/levels-on-keys.html](ui-design/levels-on-keys.html) (ui-design.md, "Signal levels, third
 round") -- where the name goes, the panel following the key pressed, the legend, and the default.
 **Chosen by Rico** (2026-11-07): the name above the numbers, the panel following the key pressed,
-the legend a sample key, Levels kept as left for the session, Key presses still first. Not built yet.
+the legend a sample key, Levels kept as left for the session, Key presses still first. Built the same
+day.
 
 ## 4. The space bar has no legend
 

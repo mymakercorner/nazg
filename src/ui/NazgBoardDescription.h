@@ -47,8 +47,10 @@ namespace nazg
     // -- were dropped with their role (ui-design.md, "Second legends: functional only").
     enum class LegendRole : uint8_t
     {
-        Label,   // what the key does
-        Value,   // a reading: a signal level, a bin number
+        Label,     // what the key does
+        Value,     // a reading: a signal level, a bin number
+        Reading,   // the reading now, in bold, beside its bounds (Diagnostics' Levels)
+        Bound,     // a reading's highest or lowest, muted
     };
 
     struct Legend

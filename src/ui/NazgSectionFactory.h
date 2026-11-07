@@ -36,6 +36,7 @@ namespace nazg
         const std::optional<vial::UnlockStatus>& lock;               // a Vial board's
         const bool&                              advancedTools;
         SafeMargins&                             safeMargins;        // the diagnostics', for the session
+        bool&                                    levelsOnKeys;       // the diagnostics' Levels, for the session
         const bool&                              moveToNextKey;      // Keymap's, after a pick
         bool&                                    hostLayoutChosen;   // Macros asks until it is
     };
