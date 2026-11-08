@@ -538,6 +538,14 @@ add_executable(nazg-validate src/cli/ValidateDefinitions.cpp)
 target_link_libraries(nazg-validate PRIVATE nazg_core)
 target_link_options(nazg-validate PRIVATE ${NAZG_NODE_LINK_OPTIONS})
 
+# nazg-probe-keychron: Keychron's commands against a real board, read-only -- the adapter's own
+# code over the real transport, which no scripted test can prove. Not built for the web, which
+# has no command-line device access. Needs a board, so nothing in CI runs it.
+if(NOT EMSCRIPTEN)
+    add_executable(nazg-probe-keychron src/cli/ProbeKeychron.cpp)
+    target_link_libraries(nazg-probe-keychron PRIVATE nazg_core)
+endif()
+
 # Make nazg the solution's startup project so F5 runs the app, not ALL_BUILD.
 # Must be set on the directory holding the top-level project().
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT nazg)
