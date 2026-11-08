@@ -131,6 +131,13 @@ exists, where, and how far it has been proven.
   - **A board's own menus** (VIA V3 custom menus, Board group) -- submenus in the strip, lines in two
     columns, showIf, sliders tied by constraints, Keymap's picker under the lines, written at once
     (`ui/NazgCustomMenuSection.*`, `adapters/via/NazgViaCustomMenu.*`). Read per submenu when shown.
+  - **Switches** (Board group, a Hall-effect Keychron found by probing `0xA9`; 2026-11-08,
+    `ui/NazgSwitchesSection.*`, the writes in `adapters/keychron`) -- the three profiles in the strip,
+    picking one makes the board use it; the Actuation Distance on every key, RT on Rapid Trigger keys;
+    the selection or every key edited, (Press) Trigger and (Release) Reset Distance apart, the
+    Launcher's words; selecting by click or by pressing the key; written at once, saved, read back;
+    Test keys with raw values. Round two: DKS, toggle, gamepad, SOCD, calibration (ui-design.md,
+    "The Switches section").
   - Every planned section is built; `PlaceholderSection` stays as the fallback for a new kind.
   - Shared panel parts: `ui/NazgKeycodePicker.*`, `ui/NazgKeyLine.*` (Sent with and its popup),
     `ui/NazgSlotParts.*` (what the slot sections repeat: reading, Save / Revert, a tag's words).
@@ -160,6 +167,7 @@ one board to unlock).
 | Combos and the combo term, read and written (Model F) | |
 | Key overrides, read and written (Model F) | |
 | | Alt repeat keys -- no board at hand has them |
+| Keychron's profile read and decoded on the K10 HE, read-only (2026-11-08, `nazg-probe-keychron`) | The Switches section, and every Keychron write: travel, save, select, reset |
 | Audio planned from a definition, and a firmware without audio said (Concordia, a test definition) | Audio and Clicky read or written, Play a sound -- no board at hand has audio built in |
 | Saved layouts on the Model F (Rico, 2026-10-18): Save; its own file loaded back as "the same"; a changed key found and written back; a .vil from Vial loaded; Nazg's file loaded in Vial; the Concordia's file asked about, its keymap left out. Save on the Concordia (probe). Unlock and apply, a macro and Boot written once unlocked; an ordinary key applied locked (F77 in secure mode). A file the VIA app wrote, loaded and applied on a VIA board (Rico) | |
 | A board's own menus: a few EC features (Concordia Type C); all 35909 registry controls parse (test) | |

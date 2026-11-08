@@ -129,6 +129,11 @@ namespace nazg
                     sections.push_back({ SectionKind::CustomMenu, SectionGroup::Board, menu.label, IconOfMenu(menu.label), index });
             }
 
+        // A Hall-effect Keychron's switch settings: the board's own commands, so in the Board group, after
+        // its definition's menus (ui-design.md, "The Switches section"). Found by probing, on any build.
+        if (report.hasKeychronAnalogMatrix)
+            sections.push_back({ SectionKind::Switches, SectionGroup::Board, "Switches", Icon::ArrowBarToDown });
+
         // The tools, last -- the matrix view joins them after these, on every board. Device
         // on every board (Rico, 2026-10-18), a keymap-only board's column with it. The Leyden Jar's
         // shows whatever the setting (Rico, 2026-10-17): only its boards answer for it.

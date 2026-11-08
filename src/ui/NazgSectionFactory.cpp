@@ -18,6 +18,7 @@
 #include "ui/NazgMacrosSection.h"
 #include "ui/NazgPlaceholderSection.h"
 #include "ui/NazgQmkSettingsSection.h"
+#include "ui/NazgSwitchesSection.h"
 #include "ui/NazgTapDanceSection.h"
 
 namespace nazg
@@ -60,6 +61,8 @@ namespace nazg
         case SectionKind::CustomMenu:
             return std::make_unique<CustomMenuSection>(transport, path, keyboard, legends, context.advancedTools,
                                                        planned.customMenu);
+        case SectionKind::Switches:
+            return std::make_unique<SwitchesSection>(transport, path, keyboard, legends);
         case SectionKind::Device:
             return std::make_unique<DeviceSection>(transport, path, keyboard, legends, context.lock);
         case SectionKind::Diagnostics:

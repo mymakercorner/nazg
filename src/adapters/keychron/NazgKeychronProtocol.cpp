@@ -26,6 +26,10 @@ namespace nazg::keychron
         constexpr size_t  c_ProfileChunkAt  = 6;
         constexpr uint8_t c_ProfileChunkMax = 26;
 
+        // AMC_SET_TRAVAL names its keys from byte 8, three bytes -- 24 columns -- a row.
+        constexpr size_t c_TravelRowsAt     = 8;
+        constexpr size_t c_TravelColumnsMax = 24;
+
         // One analog_key_config_t, one okmc_config_t, one socd_config_t.
         constexpr size_t c_KeyConfigSize = 4;
         constexpr size_t c_DksSlotSize   = 19;
@@ -242,22 +246,27 @@ namespace nazg::keychron
             throw std::invalid_argument("Keychron: profile " + std::to_string(profile) + " of " +
                                         std::to_string(geometry.profileCount));
 
+        // Every chunk asked as one series: 38 requests for a K10 HE's profile, which must not wait
+        // a frame each (DeviceChannel::RequestSeries()).
+        std::vector<std::vector<uint8_t>> frames;
+        std::vector<uint8_t>              sizes;
+        for (size_t offset = 0; offset < geometry.profileSize; offset += c_ProfileChunkMax)
+        {
+            const uint8_t size =
+                static_cast<uint8_t>(std::min<size_t>(c_ProfileChunkMax, geometry.profileSize - offset));
+            const uint16_t at = static_cast<uint16_t>(offset);
+            frames.push_back(MakeRequest(Command::AnalogMatrix, static_cast<uint8_t>(Analog::GetProfileRaw),
+                                         { profile, LowByte(at), HighByte(at), size }));
+            sizes.push_back(size);
+        }
+
+        const std::vector<std::vector<uint8_t>> replies = co_await SendFrames(std::move(frames), c_EchoedGroup);
+
         std::vector<uint8_t> bytes;
         bytes.reserve(geometry.profileSize);
-
-        while (bytes.size() < geometry.profileSize)
-        {
-            const uint16_t offset = static_cast<uint16_t>(bytes.size());
-            const uint8_t  size =
-                static_cast<uint8_t>(std::min<size_t>(c_ProfileChunkMax, geometry.profileSize - bytes.size()));
-
-            const std::vector<uint8_t> reply =
-                co_await Ask(Command::AnalogMatrix, static_cast<uint8_t>(Analog::GetProfileRaw),
-                             { profile, LowByte(offset), HighByte(offset), size });
-
-            bytes.insert(bytes.end(), reply.begin() + c_ProfileChunkAt,
-                         reply.begin() + c_ProfileChunkAt + size);
-        }
+        for (size_t index = 0; index < replies.size(); ++index)
+            bytes.insert(bytes.end(), replies[index].begin() + c_ProfileChunkAt,
+                         replies[index].begin() + c_ProfileChunkAt + sizes[index]);
         co_return bytes;
     }
 
@@ -309,6 +318,106 @@ namespace nazg::keychron
         const uint32_t bits = ReadLittleEndian32(reply, 9);
         std::memcpy(&value.scaleFactor, &bits, sizeof(float));
         co_return value;
+    }
+
+    Task<void> Protocol::SelectProfile(uint8_t profile)
+    {
+        RequireSuccess(co_await Ask(Command::AnalogMatrix, static_cast<uint8_t>(Analog::SelectProfile), { profile }),
+                       "selecting the profile");
+    }
+
+    Task<void> Protocol::SetKeysTravel(uint8_t profile, const KeyConfig& config, const std::vector<KeyPosition>& keys)
+    {
+        if (config.mode == KeyMode::FollowProfile)
+            throw std::invalid_argument("Keychron: a key's travel is written with a mode of its own");
+
+        // [2] profile, [3] mode, [4] actuation point, [5] press and [6] release sensitivity, [7] 0 for
+        // keys rather than the profile's global, then from [8] three bytes a row, one bit a column.
+        std::vector<uint8_t> request = MakeRequest(Command::AnalogMatrix, static_cast<uint8_t>(Analog::SetTravel),
+                                                   { profile, static_cast<uint8_t>(config.mode), config.actuationPoint,
+                                                     config.pressSensitivity, config.releaseSensitivity, 0 });
+        for (const KeyPosition key : keys)
+        {
+            if (key.column >= c_TravelColumnsMax || c_TravelRowsAt + 3u * key.row + 2u >= via::c_ReportSize)
+                throw std::invalid_argument("Keychron: key (" + std::to_string(key.row) + ", " +
+                                            std::to_string(key.column) + ") is past what one write can name");
+            request[c_TravelRowsAt + 3u * key.row + key.column / 8u] |= static_cast<uint8_t>(1u << (key.column % 8u));
+        }
+
+        RequireSuccess(co_await SendFrame(std::move(request), true, c_EchoedGroup), "writing the travel");
+    }
+
+    Task<void> Protocol::SaveProfile(uint8_t profile)
+    {
+        RequireSuccess(co_await Ask(Command::AnalogMatrix, static_cast<uint8_t>(Analog::SaveProfile), { profile }),
+                       "saving the profile");
+    }
+
+    Task<void> Protocol::ResetProfile(uint8_t profile)
+    {
+        RequireSuccess(co_await Ask(Command::AnalogMatrix, static_cast<uint8_t>(Analog::ResetProfile), { profile }),
+                       "resetting the profile");
+    }
+
+    KeyConfig EffectiveConfig(const Profile& profile, KeyPosition key, uint8_t columns)
+    {
+        const size_t index = static_cast<size_t>(key.row) * columns + key.column;
+        if (key.column >= columns || index >= profile.keys.size())
+            throw std::invalid_argument("Keychron: key (" + std::to_string(key.row) + ", " +
+                                        std::to_string(key.column) + ") is outside the profile");
+
+        const KeyConfig& own    = profile.keys[index];
+        const KeyConfig& global = profile.global;
+
+        KeyConfig config          = own;
+        config.mode               = own.mode != KeyMode::FollowProfile ? own.mode : global.mode;
+        config.actuationPoint     = own.actuationPoint ? own.actuationPoint : global.actuationPoint;
+        config.pressSensitivity   = own.pressSensitivity ? own.pressSensitivity : global.pressSensitivity;
+        config.releaseSensitivity = own.releaseSensitivity ? own.releaseSensitivity : global.releaseSensitivity;
+        // A global word saying follow is no setting: the firmware repairs it to regular at power-up.
+        if (config.mode == KeyMode::FollowProfile)
+            config.mode = KeyMode::Regular;
+        return config;
+    }
+
+    std::vector<TravelWrite> PlanTravelWrites(const Profile& profile, uint8_t columns,
+                                              const std::vector<KeyPosition>& keys, const TravelChange& change)
+    {
+        std::vector<TravelWrite> writes;
+        for (const KeyPosition key : keys)
+        {
+            const KeyConfig now = EffectiveConfig(profile, key, columns);
+
+            // What the write carries: the four fields, nothing advanced.
+            KeyConfig written;
+            written.mode               = change.mode.value_or(now.mode);
+            written.actuationPoint     = change.actuationPoint.value_or(now.actuationPoint);
+            written.pressSensitivity   = change.pressSensitivity.value_or(now.pressSensitivity);
+            written.releaseSensitivity = change.releaseSensitivity.value_or(now.releaseSensitivity);
+
+            const auto same = std::find_if(writes.begin(), writes.end(),
+                                           [&](const TravelWrite& write) { return write.config == written; });
+            if (same != writes.end())
+                same->keys.push_back(key);
+            else
+                writes.push_back({ written, { key } });
+        }
+        return writes;
+    }
+
+    void ApplyTravelWrite(Profile& profile, uint8_t columns, const TravelWrite& write)
+    {
+        for (const KeyPosition key : write.keys)
+        {
+            const size_t index = static_cast<size_t>(key.row) * columns + key.column;
+            if (key.column >= columns || index >= profile.keys.size())
+                continue;
+            KeyConfig& own         = profile.keys[index];
+            own.mode               = write.config.mode;
+            own.actuationPoint     = write.config.actuationPoint;
+            own.pressSensitivity   = write.config.pressSensitivity;
+            own.releaseSensitivity = write.config.releaseSensitivity;
+        }
     }
 
     Profile DecodeProfile(const std::vector<uint8_t>& raw, uint8_t rows, uint8_t columns,

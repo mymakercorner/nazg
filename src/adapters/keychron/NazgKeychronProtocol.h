@@ -243,6 +243,49 @@ namespace nazg::keychron
         uint16_t               crc16 = 0; // the firmware never computes it
     };
 
+    // A key's matrix position.
+    struct KeyPosition
+    {
+        uint8_t row    = 0;
+        uint8_t column = 0;
+
+        bool operator==(const KeyPosition&) const = default;
+    };
+
+    // What a key does, its zeroes filled from the profile's global word: mode Regular or
+    // RapidTrigger, never FollowProfile. What a key is told apart by -- never whether its own word
+    // is 0, which a board the Launcher touched never has (keychron-commands.md, "Rapid Trigger is
+    // written per key"). The advanced mode is kept as the key has it.
+    [[nodiscard]] KeyConfig EffectiveConfig(const Profile& profile, KeyPosition key, uint8_t columns);
+
+    // A change asked of some keys: the fields set, the rest kept as each key has them.
+    struct TravelChange
+    {
+        std::optional<KeyMode> mode;
+        std::optional<uint8_t> actuationPoint;     // 0.1 mm
+        std::optional<uint8_t> pressSensitivity;   // (Press) Trigger Distance
+        std::optional<uint8_t> releaseSensitivity; // (Release) Reset Distance
+    };
+
+    // One AMC_SET_TRAVAL for keys: the settings, written explicitly, and the keys that take them.
+    struct TravelWrite
+    {
+        KeyConfig                config;   // mode and the three distances; the advanced fields unused
+        std::vector<KeyPosition> keys;
+    };
+
+    // The writes that apply `change` to `keys`: each key's effective settings with the change on
+    // top, keys ending alike in one write -- a change of one field on keys that differ elsewhere
+    // takes as many writes as the results differ. Every field is written explicitly, as Keychron's
+    // Launcher does; none is left at 0 to follow the profile.
+    [[nodiscard]] std::vector<TravelWrite> PlanTravelWrites(const Profile& profile, uint8_t columns,
+                                                            const std::vector<KeyPosition>& keys,
+                                                            const TravelChange& change);
+
+    // What the firmware does with a write, applied to the profile Nazg keeps: the four fields set,
+    // the advanced mode left alone.
+    void ApplyTravelWrite(Profile& profile, uint8_t columns, const TravelWrite& write);
+
     // 0xA9 0x20 / 0x21: travel -> an analog axis. x is 0.1 mm, y is the output, 0-127.
     struct CurvePoint
     {
@@ -319,6 +362,28 @@ namespace nazg::keychron
         // 0xA9 0x30 / 0x42.
         [[nodiscard]] Task<RealtimeTravel>  GetRealtimeTravel(uint8_t row, uint8_t column);
         [[nodiscard]] Task<CalibratedValue> GetCalibratedValue(uint8_t row, uint8_t column);
+
+        // ---- writes ----
+        //
+        // NONE OF THESE HAS MET A BOARD YET: the layouts are the source's (keychron-commands.md,
+        // "Actuation and rapid trigger"). Each throws ProtocolError when the firmware answers a
+        // non-zero status.
+
+        // 0xA9 0x11: the board types with `profile` from now on. Stored at once.
+        [[nodiscard]] Task<void> SelectProfile(uint8_t profile);
+
+        // 0xA9 0x14 for `keys` of `profile`: mode, actuation point and both sensitivities, in RAM --
+        // the board uses them at once if the profile is current, and forgets them at power-up
+        // unless SaveProfile() follows. The keys go as one bit per column of each row, so at most
+        // 8 rows of 24 columns: std::invalid_argument past that, or for a mode of FollowProfile.
+        [[nodiscard]] Task<void> SetKeysTravel(uint8_t profile, const KeyConfig& config,
+                                               const std::vector<KeyPosition>& keys);
+
+        // 0xA9 0x1F: stores `profile` as it is in RAM.
+        [[nodiscard]] Task<void> SaveProfile(uint8_t profile);
+
+        // 0xA9 0x1E: `profile` back to the board's defaults. Stored at once.
+        [[nodiscard]] Task<void> ResetProfile(uint8_t profile);
 
     private:
         // A request for one of the grouped commands: the id, the sub-id, then the arguments from

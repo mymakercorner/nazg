@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "adapters/NazgProtocolError.h"
+#include "adapters/keychron/NazgKeychronProtocol.h"
 #include "adapters/leydenjar/NazgLeydenJarProtocol.h"
 #include "adapters/via/NazgViaLoader.h"
 #include "adapters/vial/NazgEncoderMap.h"
@@ -94,6 +95,12 @@ namespace nazg
             // Any VIA or Vial board can be asked: one that is not a Leyden Jar refuses.
             leydenjar::Protocol leydenJar(protocol.Channel());
             keyboard.report.isLeydenJar = (co_await leydenJar.Probe()).has_value();
+
+            // Nor is a board that is no Keychron: 0xA0 answers 0xFF. A Keychron is then asked for its
+            // analog matrix, which only the Hall-effect ones have.
+            keychron::Protocol keychron(protocol.Channel());
+            if ((co_await keychron.Probe()).has_value())
+                keyboard.report.hasKeychronAnalogMatrix = co_await keychron.SupportsAnalogMatrix();
 
             // A board's own menus may hang on its firmware version -- the column leaves out
             // those it is too old for. A board that does not answer is version 0, QMK's default.

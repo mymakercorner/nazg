@@ -365,7 +365,8 @@ function gaugeHtml() {
 function wordsOf(e) {
   if (!e) return '';
   if (e.mode === 1) return `Pressed when it goes down past ${mm(e.act)} mm, released when it comes back above ${mm(Math.max(0, e.act - 3))} mm.`;
-  return `Pressed first at ${mm(e.act)} mm, the Actuation Distance. Then released as soon as it comes up ${mm(e.rel)} mm, the Reset Distance, and pressed again as soon as it goes down ${mm(e.press)} mm, the Trigger Distance, wherever it is -- until it comes back above ${mm(Math.max(0, e.act - 3))} mm.`;
+  // Step by step, the sliders naming the settings (Rico, 2026-11-08: the first wording was unclear).
+  return `Pressed at ${mm(e.act)} mm. From there, at any depth: released as soon as it comes up ${mm(e.rel)} mm, pressed again as soon as it goes down ${mm(e.press)} mm. Back above ${mm(Math.max(0, e.act - 3))} mm, it starts over.`;
 }
 function slider(label, field, min, max, list, tip) {
   const v = common(list, field), shown = v === null ? '' : `${mm(v)} mm`;

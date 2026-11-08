@@ -100,6 +100,29 @@ namespace
         Check(NamesOf(nazg::PlanSections(keyboard)).size() == 3, "no Leyden Jar, no Diagnostics");
     }
 
+    // A Hall-effect Keychron: Switches in the Board group, after the definition's own menus.
+    void TestKeychronHallEffectBoard()
+    {
+        std::printf("a Hall-effect Keychron\n");
+
+        Keyboard keyboard;
+        keyboard.report.viaProtocol             = 12;
+        keyboard.report.macroCount              = 16;
+        keyboard.report.hasKeychronAnalogMatrix = true;
+        keyboard.definition.customMenus.push_back({});
+        keyboard.definition.customMenus.back().label = "Lighting";
+
+        const std::vector<PlannedSection> sections = nazg::PlanSections(keyboard);
+        Check(NamesOf(sections) == std::vector<std::string>{ "Keymap", "Macros", "Lighting", "Switches", "Device" },
+              "Switches after the board's own Lighting menu, before Device");
+        Check(sections[3].kind == SectionKind::Switches && sections[3].group == SectionGroup::Board &&
+                  sections[3].icon == Icon::ArrowBarToDown,
+              "in the Board group, with the travel icon");
+
+        keyboard.report.hasKeychronAnalogMatrix = false;
+        Check(NamesOf(nazg::PlanSections(keyboard)).size() == 4, "no analog matrix, no Switches");
+    }
+
     // NEVEREST 60: VIA's sections, then cipulot's eight menus in the definition's order.
     void TestViaBoardWithMenus()
     {
@@ -182,6 +205,7 @@ int main()
     TestVialBoard();
     TestViaBoardWithMenus();
     TestLeydenJarBoard();
+    TestKeychronHallEffectBoard();
     TestMenuIcons();
     TestMonograms();
 

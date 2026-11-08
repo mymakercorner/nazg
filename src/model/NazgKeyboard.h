@@ -100,6 +100,11 @@ namespace nazg
         // the Diagnostics section.
         bool isLeydenJar = false;
 
+        // The board answers Keychron's analog matrix commands (adapters/keychron, 0xA9) -- a Hall-effect
+        // Keychron: it gets the Switches section. Found by probing, never from Keychron's feature bits,
+        // which under-report (keychron-commands.md, "Implications", 1).
+        bool hasKeychronAnalogMatrix = false;
+
         // VIA's keyboard value 4, VIA_FIRMWARE_VERSION -- what a custom menu's conditions call
         // {id_firmware_version}. Read only for a board with custom menus; 0 when it does not answer,
         // as QMK's default.

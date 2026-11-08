@@ -33,6 +33,7 @@ namespace nazg
         AltRepeatKey,
         QmkSettings,
         CustomMenu,     // one of a VIA V3 definition's own menus
+        Switches,       // a Hall-effect Keychron's: actuation, Rapid Trigger, profiles, in the Board group
         Device,         // every board's: its bootloader, its keymap and macros reset, in the Tools group
         Diagnostics,    // the Leyden Jar controller's, in the Tools group
     };

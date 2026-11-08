@@ -567,7 +567,7 @@ namespace nazg
             const size_t column = slot % 3;
             const float  x      = column == 0 ? box.x0 : column == 1 ? (box.x0 + box.x1 - w) / 2.0f : box.x1 - w;
 
-            placer.InRoom(fitted.text, x, rowTop[slot / 3], line, size, weight, ink, fitted.cut);
+            placer.InRoom(fitted.text, x, rowTop[slot / 3], line, size, weight, ink, fitted.cut, legend.category);
         }
 
         return out;

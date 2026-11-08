@@ -2511,6 +2511,50 @@ play the switches.
 - **(Press) Trigger Distance and (Release) Reset Distance set apart**, always. A single Sensitivity,
   or the Launcher's Basic / Advanced switch, were the others.
 
+*Built 2026-11-08* (`ui/NazgSwitchesSection.*`; the writes in `adapters/keychron`, planned by
+`PlanTravelWrites()`), **not yet tried on a board**:
+- **Found by probing** at every load: `0xA0`, then `0xA9 0x01` (`BoardReport::hasKeychronAnalogMatrix`),
+  the section in the Board group after the definition's menus.
+- **Every key written explicitly**, as the Launcher does: a change applies on top of each key's
+  settings as it behaves (`EffectiveConfig()`), and keys ending alike go in one `AMC_SET_TRAVAL`. Then
+  `AMC_SAVE_PROFILE`, then the profile read back and compared.
+- **The board stays open while the section shows**, one request at a time from the frame: the
+  switches every 20 ms (VIA's matrix state) for selecting by pressing, the profile in use every
+  second, the key followed while testing (`0xA9 0x30`), its scale factor once (`0xA9 0x42`). A write
+  waits for the reading in flight; a write asked just before leaving is still made.
+- **The keys' names on the board's default layer** (`0xA3`: 2, Windows', on the K10 HE).
+- **Full travel measured** once a followed key reads the firmware's clamp three times in a row --
+  (F + 1) x 6 - 1 in 1/60 mm, **with the sensor past the key's calibrated bottom** -- else the
+  curve's last x; for the session only. The first build took the 1/60 field alone, and a key held
+  still at 2.58 mm (155 = 25 x 6 + 5) measured the K10 HE at 2.5 mm (Rico, 2026-11-08).
+- **The keys' colours are the mockup's** (Rico, 2026-11-08, after the first build drew both values in
+  the green of a reading): the name in the legend's ink, the Actuation Distance muted, RT in
+  Behaviour's violet, solved for the face as a header is -- a slot legend may now carry a category
+  (`Legend::category`).
+- **Rapid Trigger said step by step** (Rico, 2026-11-08: the first wording, naming the settings in
+  the sentence, was unclear): "Pressed at 1.7 mm. From there, at any depth: released as soon as it
+  comes up 0.4 mm, pressed again as soon as it goes down 0.4 mm. Back above 1.4 mm, it starts over."
+  -- what starting over means goes without saying (Rico). The mockup says the same.
+- **Keys differing are said by what differs** (Rico, 2026-11-08): "All 104 keys differ in their
+  Actuation Distance. Setting it sets it on all of them." -- where the first build said "The keys do
+  not all do the same", unclear, and said it on Gaming, whose keys all looked alike: they differed
+  only in the Trigger and Reset Distances of Regular keys, which do nothing. Those count only on
+  Rapid Trigger keys.
+- **The keys apart are named and selected in one click** (Rico, 2026-11-08: Gaming's Caps Lock, the
+  one key at another distance, was hard to find among 104): "Most are Regular, 1.7 mm; Caps Lock is
+  not. [Select it]" -- up to five names, else a count; the button selects them. **Each key's
+  settings in a tooltip**, all of them, where the key holds one. Offered and not chosen: drawing the
+  values that differ from most in bold on the board.
+- **The Test column is as wide as what it holds** (Rico, 2026-11-08: its words collided): the bar
+  and its widest words, the raw values' table beside them when shown; the words at "pressed" and
+  "released above", 0.3 mm apart -- less than a line -- pushed apart, the lines left true.
+- **The test shows the travel to 0.01 mm**, from the 1/60 mm field, capped at full travel: in
+  0.1 mm a Regular key at 1.7 seemed to release at 1.3, a 0.4 gap, where the firmware releases just
+  below 1.4 (Rico, 2026-11-08; keychron-commands.md, "Actuation and rapid trigger").
+- **The sensitivities run 0.1 to 2.0 mm**, as the mockup had them; the Launcher's range is to check.
+- **Not built from the mockup**: selecting by drawing a box (the board reports clicks, not drags);
+  renaming a profile.
+
 Left for the build, not the mockup: whether "every key" writes each key, as the Launcher does, or
 the profile's global and 0 into the keys (untested: nothing has been written to a board yet); the
 sensitivity's range (0.1-2.0 mm in the mockup; the firmware takes up to 3.9); and how Nazg notices

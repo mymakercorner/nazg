@@ -319,6 +319,8 @@ set(NAZG_SOURCES
   src/ui/NazgLightingSection.cpp
   src/ui/NazgAudioSection.h
   src/ui/NazgAudioSection.cpp
+  src/ui/NazgSwitchesSection.h
+  src/ui/NazgSwitchesSection.cpp
   src/ui/NazgDefinitionPicker.h
   src/ui/NazgDefinitionPicker.cpp
 )

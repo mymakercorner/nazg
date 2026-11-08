@@ -83,6 +83,7 @@ namespace
         channel.ReplyUnhandled();
         channel.Reply({ 0x0C, 4 });
         channel.ReplyUnhandled();   // not a Leyden Jar
+        channel.ReplyUnhandled();   // not a Keychron
     }
 
     void TestNoDefinition()
@@ -117,7 +118,8 @@ namespace
         Check(load.exportable.empty(), "a user definition's export is the library's copy, not the load's");
         Check(load.keyboard->report.macroCount == 4 && !load.keyboard->report.isVial, "the board report is read");
         Check(!load.keyboard->report.isLeydenJar, "the Leyden Jar's probe refused: not one");
-        Check(channel.RequestCount() == 9, "probe, load, report, the Leyden Jar's probe: nine exchanges");
+        Check(!load.keyboard->report.hasKeychronAnalogMatrix, "0xA0 refused: no Keychron, no analog matrix");
+        Check(channel.RequestCount() == 10, "probe, load, report, the Leyden Jar's and Keychron's probes: ten exchanges");
     }
 
     void TestRememberedChoice()

@@ -510,7 +510,11 @@ silently into its 6 bits.
 How the keys then behave (`action_regular_trigger.c`, `action_rapid_trigger.c`):
 
 - **Regular**: pressed at the actuation point, released 0.3 mm above it. The 0.3 mm is fixed
-  and not settable.
+  and not settable. Exactly (`update_key_config()`, `regular_trigger_action()`): pressed once the
+  travel reaches the actuation point, released once it is **strictly below** that point - 0.3 mm,
+  both compared in 1/60 mm. A key at 1.7 mm releases at 1.38 mm, which the 0.1 mm field floors to
+  **1.3**: watched in 0.1 mm, the gap looks like 0.4 (Rico, on the K10 HE, 2026-11-08). A client
+  should show the travel from the 1/60 mm field when it shows where a key releases.
 - **Rapid trigger**: first pressed at the actuation point. Then the key releases as soon as it
   rises by the release sensitivity, and presses again as soon as it goes down by the press
   sensitivity, wherever it is in its travel. It releases fully back above the actuation point

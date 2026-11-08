@@ -503,6 +503,117 @@ namespace
         }
     }
 
+    // The writes have met no board: these pin the request layout the source reads
+    // (analog_matrix.c, set_travel()), not a reply recorded from one.
+    void TestWrites()
+    {
+        std::printf("the writes, as the source reads them\n");
+
+        {
+            FakeDeviceChannel  channel;
+            keychron::Protocol protocol(channel);
+
+            channel.Reply({ 0xA9, 0x14, 0x00 });
+            keychron::KeyConfig config;
+            config.mode               = keychron::KeyMode::RapidTrigger;
+            config.actuationPoint     = 5;
+            config.pressSensitivity   = 2;
+            config.releaseSensitivity = 3;
+            // W, A, S, D on the K10 HE: (2, 2), (3, 1), (3, 2), (3, 3); and Numpad + at (2, 20).
+            Run(protocol.SetKeysTravel(0, config, { { 2, 2 }, { 3, 1 }, { 3, 2 }, { 3, 3 }, { 2, 20 } }));
+
+            const std::vector<uint8_t>& request = channel.RequestAt(0);
+            Check(request[0] == 0xA9 && request[1] == 0x14, "AMC_SET_TRAVAL");
+            Check(request[2] == 0 && request[3] == 2, "profile 0, mode 2 (rapid trigger)");
+            Check(request[4] == 5 && request[5] == 2 && request[6] == 3,
+                  "actuation, then press and release sensitivity, in 0.1 mm");
+            Check(request[7] == 0, "0: the keys named, not the profile's global");
+            Check(request[8 + 3 * 2] == 0x04 && request[8 + 3 * 2 + 2] == 0x10,
+                  "row 2: column 2 in its first byte, column 20 in its third");
+            Check(request[8 + 3 * 3] == 0x0E, "row 3: columns 1, 2 and 3");
+            Check(request[8] == 0 && request[8 + 3 * 5] == 0, "rows without a key named stay 0");
+        }
+        {
+            FakeDeviceChannel  channel;
+            keychron::Protocol protocol(channel);
+
+            channel.Reply({ 0xA9, 0x14, 0x01 });
+            keychron::KeyConfig config;
+            config.mode           = keychron::KeyMode::Regular;
+            config.actuationPoint = 17;
+            Check(Throws<ProtocolError>([&] { Run(protocol.SetKeysTravel(0, config, { { 0, 0 } })); }),
+                  "a non-zero status is refused");
+            Check(Throws<std::invalid_argument>([&] { Run(protocol.SetKeysTravel(0, config, { { 0, 24 } })); }),
+                  "a column past 23 cannot be named in one write");
+            config.mode = keychron::KeyMode::FollowProfile;
+            Check(Throws<std::invalid_argument>([&] { Run(protocol.SetKeysTravel(0, config, { { 0, 0 } })); }),
+                  "a key is written with a mode of its own");
+        }
+        {
+            FakeDeviceChannel  channel;
+            keychron::Protocol protocol(channel);
+
+            channel.Reply({ 0xA9, 0x11, 0x00 });
+            channel.Reply({ 0xA9, 0x1F, 0x00 });
+            channel.Reply({ 0xA9, 0x1E, 0x00 });
+            Run(protocol.SelectProfile(1));
+            Run(protocol.SaveProfile(1));
+            Run(protocol.ResetProfile(2));
+            Check(channel.RequestAt(0)[1] == 0x11 && channel.RequestAt(0)[2] == 1, "AMC_SELECT_PROFILE, the profile");
+            Check(channel.RequestAt(1)[1] == 0x1F && channel.RequestAt(1)[2] == 1, "AMC_SAVE_PROFILE, the profile");
+            Check(channel.RequestAt(2)[1] == 0x1E && channel.RequestAt(2)[2] == 2, "AMC_RESET_PROFILE, the profile");
+        }
+    }
+
+    // Planning a change on the three states profile 0 was read in (2026-11-08).
+    void TestPlanTravel()
+    {
+        std::printf("planning a change: keys told apart by what they do\n");
+
+        const keychron::KeyConfig regular = keychron::DecodeKeyConfig(0x00010445u);   // regular, 1.7, 0.4, 0.4
+
+        keychron::Profile asItCame;
+        asItCame.global = regular;
+        asItCame.keys.assign(static_cast<size_t>(c_Rows) * c_Cols, keychron::KeyConfig{});
+
+        keychron::Profile untickedAgain = asItCame;
+        for (keychron::KeyConfig& key : untickedAgain.keys)
+            key = regular;
+
+        const keychron::KeyPosition w{ 2, 2 }, a{ 3, 1 };
+        Check(keychron::EffectiveConfig(asItCame, w, c_Cols) == keychron::EffectiveConfig(untickedAgain, w, c_Cols),
+              "a key at 0 and a key holding the global word do the same, and read the same");
+        Check(keychron::EffectiveConfig(asItCame, w, c_Cols).mode == keychron::KeyMode::Regular &&
+                  keychron::EffectiveConfig(asItCame, w, c_Cols).actuationPoint == 17,
+              "a key at 0 takes the profile's 1.7 mm");
+
+        // Rapid trigger on W and A: one write, every field explicit.
+        keychron::TravelChange change;
+        change.mode = keychron::KeyMode::RapidTrigger;
+        std::vector<keychron::TravelWrite> writes = keychron::PlanTravelWrites(asItCame, c_Cols, { w, a }, change);
+        Check(writes.size() == 1 && writes[0].keys.size() == 2, "two keys alike: one write");
+        Check(writes[0].config.mode == keychron::KeyMode::RapidTrigger && writes[0].config.actuationPoint == 17 &&
+                  writes[0].config.pressSensitivity == 4 && writes[0].config.releaseSensitivity == 4,
+              "the rest of each key's settings written as they are, not left at 0");
+
+        // W apart (rapid, 0.5 mm), then a new actuation for W and A: the sensitivities differ no
+        // more, the modes still do -- two writes.
+        keychron::Profile apart = untickedAgain;
+        keychron::ApplyTravelWrite(apart, c_Cols, { keychron::DecodeKeyConfig(0x00010216u), { w } });
+        Check(keychron::EffectiveConfig(apart, w, c_Cols).mode == keychron::KeyMode::RapidTrigger &&
+                  keychron::EffectiveConfig(apart, w, c_Cols).actuationPoint == 5,
+              "a write applied lands on its key");
+        keychron::TravelChange deeper;
+        deeper.actuationPoint = 20;
+        writes = keychron::PlanTravelWrites(apart, c_Cols, { w, a }, deeper);
+        Check(writes.size() == 2, "keys left differing by the change take a write each");
+        Check(writes[0].config.actuationPoint == 20 && writes[1].config.actuationPoint == 20,
+              "both at the new actuation point");
+
+        Check(Throws<std::invalid_argument>([&] { (void)keychron::EffectiveConfig(apart, { 6, 0 }, c_Cols); }),
+              "a key outside the matrix is refused");
+    }
+
     void TestTopLevel()
     {
         std::printf("the top-level commands\n");
@@ -549,6 +660,8 @@ int main()
     TestSlotLayouts();
     TestCurveAndTravel();
     TestLiveReadout();
+    TestWrites();
+    TestPlanTravel();
     TestTopLevel();
 
     return TestResult();

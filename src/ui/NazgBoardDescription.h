@@ -57,6 +57,10 @@ namespace nazg
     {
         std::string text;   // empty: the slot is empty
         LegendRole  role = LegendRole::Label;
+
+        // A command category's colour instead of the role's ink, solved for the face as a header's
+        // -- the Switches section's RT in Behaviour's violet, what layer keys wear. None: the ink.
+        CommandCategory category = CommandCategory::None;
     };
 
     using SlotLegends = std::array<Legend, c_LegendSlotCount>;
