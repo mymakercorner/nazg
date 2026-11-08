@@ -87,7 +87,126 @@ builds on Keychron's commands must be checked on the board, not only read from t
 **Its wiring differs too**, which explains the keys the colleague's board never lit. Read from its
 keymap: Right Shift at (4, 13), Right Alt, Right Win, Fn and Right Ctrl at (5, 9)-(5, 12), Numpad .
 at (5, 18) -- the published ANSI file has (4, 12), (5, 10)-(5, 13) and (5, 19). With those six moved,
-all 104 keys match the keymap and light in Nazg's key test (Rico, 2026-10-29).
+all 104 keys match the keymap and light in Nazg's key test (Rico, 2026-10-29). Re-read on
+2026-11-08 straight from the board: layer 0 at (4, 13) is `KC_RSFT` and at (5, 18) `KC_KP_DOT`,
+so the moved keys are the board's, not a mis-drawn definition.
+
+### The 2026-11-08 read: the profile decoded
+
+*The same board, read again with a read-only probe (hidapi driven from Python, the whole of
+profile 0 pulled with `0xA9 0x12`). Every reply above reproduced byte for byte. What is new:*
+
+**The profile layout is proven.** The computed size for 6 x 21, D = S = 20 is 980 bytes, which is
+what `0xA9 0x10` reports, and the 980 bytes decode as the tables below say. `global` read
+`45 04 01 00` -- u32 LE `0x00010445` -- giving mode 1 (regular), `act_pt` 17, `rpd_trig_sen` 4,
+`rpd_trig_sen_deact` 4, `adv_mode` 0, `adv_mode_data` 0. **Keychron's own Launcher shows 1.7 mm
+actuation for this profile** (Rico, 2026-11-08), so `act_pt` is read right. The DKS and SOCD
+slots were all zero, `name` empty, and `crc16` `0000` -- confirming the firmware never computes it.
+
+So `analog_key_config_t`'s `mode`, `act_pt` and both sensitivities are **confirmed on hardware**.
+Still derived only: `adv_mode` and `adv_mode_data`, zero everywhere on this board, and the whole of
+`okmc_config_t` and `socd_config_t`, whose slots are all empty.
+
+**`key_config` is confirmed too, and its indexing with it** -- by luck, a few hours later. The
+first read had all 126 entries at 0, every key following the profile, which proves nothing about
+the per-key struct. Rico then **ticked Rapid Trigger in Keychron's Launcher**, and a second read
+found **104 of them at `0x00010446`**: mode 2, rapid trigger, with the same 1.7 / 0.4 / 0.4,
+differing from `global` in the mode bits alone. The 22 entries still at 0 are **exactly** the 22
+matrix positions that `0xA9 0x42` reports no calibration for, and 104 is what the K10 HE ANSI
+definition draws. A wrong stride or a wrong offset would have scattered those zeroes, so this pins
+the layout *and* `key_config[r][c]` at 4 + 4(r·C + c), row-major.
+
+### Rapid Trigger is written per key, not to the profile
+
+*A trap for the UI, found in that same pair of reads (2026-11-08).*
+
+`global` is **byte-identical** before and after the Launcher turned Rapid Trigger on: `0x00010445`,
+mode 1, regular. What changed is the 104 keys, each written to mode 2. So Keychron's own app does
+not express "rapid trigger on" by setting the profile's mode at all -- it writes every key
+individually and leaves `global` saying regular.
+
+Rico then unticked it, which gave the reverse transition. All three states, same profile:
+
+| Read | `global` | The 104 keys | Bytes changed |
+|---|---|---|---|
+| 1, as the board came | `00010445`, regular 1.7 | all 126 at `00000000`, follow the profile | -- |
+| 2, Rapid Trigger ticked | `00010445` **unchanged** | `00010446`, rapid trigger | 312 |
+| 3, unticked again | `00010445` **unchanged** | `00010445`, regular -- `global`'s own word | 104 |
+
+**Turning it off does not put the keys back to "follow the profile".** It writes `global`'s word
+into each of them, so state 3 behaves exactly like state 1 while looking nothing like it: 104
+explicit per-key settings in place of 104 zeroes. Only 104 bytes moved -- one per key, the low byte
+holding the mode bits. **The all-zero state is the factory's, and a board never returns to it.**
+
+Three consequences for a client:
+
+- **Reading `global.mode` to answer "is rapid trigger on?" gives the wrong answer** on any board a
+  user has configured in the Launcher -- it said "regular" throughout, including while every key
+  on the board was in rapid trigger. The honest reading is the keys', with `global` as what a key
+  set to 0 falls back to.
+- **104 keys all saying the same thing is the normal state of a configured board**, not 104
+  deliberate per-key overrides. A UI that lists exceptions to the profile would show every key as
+  an exception, and would still do so after the user turned the feature back off. Nazg should fold
+  "every key alike" into one statement and keep the per-key view for keys that genuinely differ --
+  comparing each key's *effective* settings, not whether its word is zero.
+- **"Follow the profile" is not a state a client can restore by writing 0 and expecting the
+  Launcher's agreement.** Whether the firmware accepts a 0 written back is untested: it would be a
+  write, and nothing has been written to a board yet.
+
+Whether the Launcher also rewrites the profile on merely opening it is **not known**: both writes
+followed a deliberate change.
+
+**Full travel on this board is 3.5 mm, not the source's 4.0** (`FULL_TRAVEL_UNIT` 40) --
+**measured, not inferred**. The space bar was polled with `0xA9 0x30` while Rico pressed it slowly
+to the bottom and released, three times (2257 samples, 2026-11-08): the travel swept every value
+from 0.0 to 3.5 mm and **stopped dead at 35**, 966 samples sitting there while the key was held
+down. Never 36, never 40.
+
+Everything else on this board is that 35 rather than the source's 40, in the same proportions:
+
+| | Source default | This board | As a fraction of full travel |
+|---|---|---|---|
+| Curve x | 0, 10, 30, 40 | 0, **8**, **26**, **35** | 0, 25%, 75%, 100% -- floored |
+| Curve y | 0, 31, 95, 127 | 0, 31, 95, 127 | unchanged: the y axis is the output, not a distance |
+| `global.act_pt` | 20 | **17** | 50% -- floor(0.5 x 35) |
+
+So the defaults are the source's *fractions* of whatever the board's full travel is, floored, and
+only the distance axis moves.
+
+**The two units do not keep a fixed ratio at the bottom.** The live readout's 1/60 mm field reached
+**215**, where 6 x 35 would be 210: the wire's 0.1 mm value is floor(215 / 6) = 35, so the true
+travel is about 3.58 mm and the 0.1 mm field is the floored one. A client should show the 0.1 mm
+field and use the 1/60 mm one only for a fine readout. The source's "240 at the bottom" is likewise
+that board's number, not every board's.
+
+**A key can read past its own calibration.** The ADC went to 1763 against a calibrated bottom of
+1857, and the travel still read 35 -- the firmware clamps at full travel rather than reporting more.
+
+**No command reports a board's full travel**, which is the awkward part: a client cannot hard-code
+40, and the only exact source is a key pressed to the bottom, which needs the user. **The best
+estimate without touching the board is the curve's last x** (`0xA9 0x20`), 35 here and 40 on a
+4.0 mm board -- but the curve is user-editable, so it is a hint, not an authority. Offering 4.0 mm
+on this board would let a user set an actuation point the switch can never reach.
+
+**The feature bits under-report. Do not gate a section on them** -- see
+[implication 1](#implications-for-the-nazg-backend). `0xA2` reports `0x09`: default layer and
+analog matrix only, with bit 7 (Keychron RGB) clear and `0xA7 0x01` reporting **no** misc bits at
+all. Yet both groups answer:
+
+| Request | Reply | Though |
+|---|---|---|
+| `0xA8 0x01` | `A8 01 00 01` -- RGB protocol 1 | feature bit 7 is clear |
+| `0xA7 0x12` | `A7 12 00 03` -- NKRO on, settable | misc bit 7 is clear |
+| `0xA7 0x05` | `FF` | misc bit 2 is clear -- genuinely absent |
+
+Only `0xFF` is a reliable "not there". NKRO being settable also contradicts what `2025q3` does
+(`APDAPTIVE_NKRO_ENABLE`), which this firmware is not.
+
+**Odds and ends.** `0xA9 0x41` answered `A9 41 03 00`: both rest and bottom calibrated, state 0
+(off). `0xA9 0x42` on an unpopulated matrix position -- (0, 1) on this board -- returns rest 0,
+bottom 0 and a nonsense scale factor, which is a usable test for "no key here". Its scale factor
+varies per key (10.11 to 10.52 over the keys sampled) and `span / scale` is not constant, so it is
+not a plain travel divisor; what it scales is unknown.
 
 ### Unsolicited reports
 
@@ -252,6 +371,12 @@ gamepad, profiles and calibration (`analog_matrix/analog_matrix.c`, `analog_matr
 **Distances on the wire are in 0.1 mm**, from 0 to 4.0 mm (`FULL_TRAVEL_UNIT` 40).
 Internally the firmware works in sixths of that (`TRAVEL_SCALE` 6, 1/60 mm, 240 at the bottom),
 and only the live readout exposes that unit.
+
+**The 40 is not universal.** A K10 HE tops out at 35, measured with the live readout on a key held
+to the bottom, and its curve and defaults are the source's fractions of that (see
+"The 2026-11-08 read"). No command reports a board's full travel, so a client must not hard-code
+the maximum -- offering 4.0 mm there would let a user set an actuation point the switch never
+reaches.
 
 ### Sub-commands
 
@@ -493,8 +618,13 @@ rest, `0x02` bottom), `[3]` the state (0 off, 1 power-up, 2 rest, 3 bottom, 4 st
 1. **A Keychron extension of the VIA branch, found by probing.** After the VIA load: `0xA0`
    (`0xFF` means not Keychron), then `0xA2` for the feature bits, `0xA7 0x01` for the misc bits
    (`0xFF` on `hall_effect_playground` builds), and on an HE board `0xA9 0x01` (version `0x04`)
-   and `0xA9 0x10` for the profile geometry. Each section appears only when its bit says the
-   feature is there, so a stock VIA board looks exactly as it does now.
+   and `0xA9 0x10` for the profile geometry. A stock VIA board answers `0xFF` to `0xA0` and looks
+   exactly as it does now.
+
+   **Probe each group; do not gate it on the feature bits.** They under-report: the K10 HE read on
+   2026-11-08 answers `0xA8` with bit 7 clear and `0xA7 0x12` with every misc bit clear (see
+   "The 2026-11-08 read"). **Only `0xFF` means a group is absent** -- for `0xA9` sub-ids, the
+   request echoed unchanged. Take the bits as a hint for what to probe first, never as the answer.
 
 2. **Read past unsolicited reports -- done (2026-10-16).** A request carries a reply check
    from the protocol (`ReplyCheck`, `transport/NazgHidTransport.h`); the transport keeps reading
@@ -515,8 +645,15 @@ rest, `0x02` bottom), `[3]` the state (0 off, 1 power-up, 2 rest, 3 bottom, 4 st
    layouts above, and check the computed size against the reported one first. Keychron's
    `via_json` definitions give the matrix, so a board without a definition cannot be read.
 
-5. **Prove the bitfield layouts on a board before writing anything.** A reset profile has known
-   values. Reading it from a tester's board settles the layout before any write depends on it.
+5. **The profile layout is proven, `key_config` and its indexing included.** A K10 HE's profile 0
+   decoded exactly on 2026-11-08 -- `act_pt` agreeing with Keychron's Launcher, and the per-key
+   entries landing on exactly the 104 positions the board has keys at. The adapter's own code read
+   it over the real transport (`nazg-probe-keychron`), not only a scripted channel. What no board
+   has shown yet: `adv_mode` / `adv_mode_data`, and a populated DKS or SOCD slot. Those still want
+   a board before a write depends on them.
+
+   **A board the Launcher has touched is not in its default state** (see "The 2026-11-08 read"):
+   it rewrites every key. Read the profile; never assume one.
 
 6. **Calibration last, behind a confirmation**, and only once the rest has been seen on a
    board. A wrong calibration makes the keys misfire until it is redone, and it is a tester's
@@ -527,6 +664,16 @@ rest, `0x02` bottom), `[3]` the state (0 off, 1 power-up, 2 rest, 3 bottom, 4 st
 
 8. **Mixed RGB effects are RGB Matrix mode numbers**, with the naming trap VIA's lighting
    already has.
+
+9. **Every travel control's maximum is the board's, and the board will not say what it is.**
+   A K10 HE tops out at 3.5 mm, not the source's 4.0 (Units; "The 2026-11-08 read"), so an
+   actuation or sensitivity slider that runs to 4.0 lets a user ask for a point the switch never
+   reaches. Nothing reports it: the exact value needs a key held to the bottom, and the curve's
+   last x is only a hint. **The travel maximum therefore belongs in the capability model**, read
+   once when the board is opened and carried in the `BoardReport` beside the profile geometry,
+   the way the matrix size already is -- not a constant in the UI. How Nazg settles it on a board
+   that has never been pressed is an open question: the curve's last x, a per-board table, or
+   asking the user to bottom out one key the first time.
 
 ---
 
