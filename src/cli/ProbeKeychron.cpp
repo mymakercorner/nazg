@@ -7,9 +7,14 @@
 // marks derived rather than seen.
 //
 //   nazg-probe-keychron [--matrix <rows>x<columns>] [--profile <n>|all] [--travel <row>,<col>]
+//                       [--record <file>]
 //
 // --profile all reads every profile: Keychron's Launcher calls them Default, Gaming and Gamepad,
 // and what its presets hold -- and whether their name fields are empty -- is what it shows.
+//
+// --record writes every request to the Keychron board and its reply, as hex, to <file>: a test
+// fixture (tests/data/keychron/README.md). It also reads the board's keymap and its switch matrix,
+// through VIA's commands, so the fixture holds those too.
 //
 // READ-ONLY. It sends nothing that changes the board: no write, no save, no calibration, and
 // never 0xAA or 0xAB, which the adapter does not even name. --travel polls one key for a few
@@ -24,6 +29,8 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <optional>
+#include <stdexcept>
 #include <string>
 #include <thread>
 #include <utility>
@@ -49,8 +56,67 @@ namespace
         int      profile   = -1;   // -1: the current one; c_AllProfiles: every one
         int      travelRow = -1;
         int      travelCol = -1;
-        uint16_t vendorId  = 0;    // 0: ask every board plugged in
-        uint16_t productId = 0;
+        uint16_t    vendorId  = 0;    // 0: ask every board plugged in
+        uint16_t    productId = 0;
+        std::string recordTo;         // empty: nothing recorded
+    };
+
+    std::string Hex(const std::vector<uint8_t>& bytes)
+    {
+        std::string text;
+        char        byte[4];
+        for (size_t i = 0; i < bytes.size(); ++i)
+        {
+            std::snprintf(byte, sizeof byte, i ? " %02X" : "%02X", bytes[i]);
+            text += byte;
+        }
+        return text;
+    }
+
+    // A channel passing everything to the real one, and writing each request and its reply to a
+    // file: "> " the request, "< " the reply, one report a line. Reports the protocol's reply check
+    // read past are not seen here, so a replay meets only the replies.
+    class RecordingChannel : public nazg::DeviceChannel
+    {
+    public:
+        RecordingChannel(nazg::DeviceChannel& inner, std::FILE* file) noexcept : m_Inner(inner), m_File(file) {}
+
+        Task<std::vector<uint8_t>> Request(std::vector<uint8_t> payload, nazg::ReplyCheck isReply = {}) override
+        {
+            const std::vector<uint8_t> request = payload;
+            std::vector<uint8_t>       reply   = co_await m_Inner.Request(std::move(payload), std::move(isReply));
+            Write(request, reply);
+            co_return reply;
+        }
+
+        Task<std::vector<std::vector<uint8_t>>> RequestSeries(std::vector<std::vector<uint8_t>> payloads,
+                                                              std::vector<nazg::ReplyCheck>     checks) override
+        {
+            const std::vector<std::vector<uint8_t>> requests = payloads;
+            std::vector<std::vector<uint8_t>>       replies =
+                co_await m_Inner.RequestSeries(std::move(payloads), std::move(checks));
+            for (size_t i = 0; i < replies.size() && i < requests.size(); ++i)
+                Write(requests[i], replies[i]);
+            co_return replies;
+        }
+
+        // The probe never sends without a reply; refused rather than recorded half.
+        Task<void> Send(std::vector<uint8_t>) override
+        {
+            throw std::logic_error("nazg-probe-keychron: a report sent without a reply cannot be recorded");
+            co_return;
+        }
+
+        void SetFarewell(std::vector<uint8_t> payload) override { m_Inner.SetFarewell(std::move(payload)); }
+
+    private:
+        void Write(const std::vector<uint8_t>& request, const std::vector<uint8_t>& reply)
+        {
+            std::fprintf(m_File, "> %s\n< %s\n", Hex(request).c_str(), Hex(reply).c_str());
+        }
+
+        nazg::DeviceChannel& m_Inner;
+        std::FILE*           m_File;
     };
 
     constexpr int c_AllProfiles = -2;
@@ -192,7 +258,41 @@ namespace
             std::printf("\nNo Keychron board answered.\n");
             co_return 1;
         }
-        keychron::Protocol protocol(channel);
+
+        // Recording: everything from here goes through the recorder, the identity asked again so
+        // the fixture holds it too.
+        std::FILE*                        file = nullptr;
+        std::optional<RecordingChannel>   recorder;
+        if (!options.recordTo.empty())
+        {
+            file = std::fopen(options.recordTo.c_str(), "w");
+            if (!file)
+            {
+                std::fprintf(stderr, "Cannot write %s.\n", options.recordTo.c_str());
+                co_return 1;
+            }
+            std::fprintf(file, "# nazg-probe-keychron --record: each request, then the board's reply\n");
+            recorder.emplace(channel, file);
+            keychron::Protocol again(*recorder);
+            if (!co_await again.Probe())
+            {
+                std::fclose(file);
+                std::fprintf(stderr, "The board stopped answering 0xA0.\n");
+                co_return 1;
+            }
+        }
+        // Closes the file on every path out of here, a throw included.
+        struct Closer
+        {
+            std::FILE* file;
+            ~Closer()
+            {
+                if (file)
+                    std::fclose(file);
+            }
+        } closer{ file };
+
+        keychron::Protocol protocol(recorder ? static_cast<nazg::DeviceChannel&>(*recorder) : channel);
 
         std::printf("\n--- the board ---\n");
         std::printf("  Keychron protocol %u, command set %u\n", identity->protocolVersion, identity->commandSet);
@@ -280,6 +380,26 @@ namespace
             co_await PrintProfile(protocol, geometry, options, wanted);
         }
 
+        // ---- recording: the keymap and the switch matrix too, through VIA's commands ----
+        if (recorder)
+        {
+            const uint16_t viaProtocol = co_await protocol.GetProtocolVersion();
+            const uint8_t  layers      = co_await protocol.GetLayerCount();
+            const uint16_t size        = static_cast<uint16_t>(layers * options.rows * options.columns * 2u);
+            const std::vector<uint8_t> keymap = co_await protocol.GetKeymapBuffer(0, size);
+            std::printf("\n--- recorded ---\n");
+            std::printf("  VIA protocol %u, %u layers, the keymap's %zu bytes\n", viaProtocol, layers, keymap.size());
+
+            const nazg::via::SwitchMatrixState state = co_await protocol.GetSwitchMatrixState(
+                nazg::via::SwitchMatrixFormatFor(viaProtocol), options.rows, options.columns);
+            size_t pressed = 0;
+            for (uint8_t row = 0; row < options.rows; ++row)
+                for (uint8_t column = 0; column < options.columns; ++column)
+                    pressed += state.IsPressed(row, column) ? 1u : 0u;
+            std::printf("  the switch matrix: %zu pressed\n", pressed);
+            std::printf("  every exchange written to %s\n", options.recordTo.c_str());
+        }
+
         // ---- one key, live ----
         if (options.travelRow >= 0)
         {
@@ -319,7 +439,8 @@ namespace
     {
         std::fprintf(stderr,
                      "usage: nazg-probe-keychron [--matrix <rows>x<columns>] [--profile <n>|all]\n"
-                     "                           [--travel <row>,<col>] [--device <vid>:<pid>]\n");
+                     "                           [--travel <row>,<col>] [--device <vid>:<pid>]\n"
+                     "                           [--record <file>]\n");
         return 2;
     }
 }
@@ -351,6 +472,10 @@ int main(int argc, char** argv)
                 return Usage();
             options.vendorId  = static_cast<uint16_t>(vendor);
             options.productId = static_cast<uint16_t>(product);
+        }
+        else if (argument == "--record" && i + 1 < argc)
+        {
+            options.recordTo = argv[++i];
         }
         else if (argument == "--travel" && i + 1 < argc)
         {

@@ -365,9 +365,9 @@ namespace nazg::keychron
 
         // ---- writes ----
         //
-        // NONE OF THESE HAS MET A BOARD YET: the layouts are the source's (keychron-commands.md,
-        // "Actuation and rapid trigger"). Each throws ProtocolError when the firmware answers a
-        // non-zero status.
+        // All four made on a K10 HE V3 (2026-11-08) by the Switches section, each read back: the
+        // layouts are the source's (keychron-commands.md, "Actuation and rapid trigger"). Each
+        // throws ProtocolError when the firmware answers a non-zero status.
 
         // 0xA9 0x11: the board types with `profile` from now on. Stored at once.
         [[nodiscard]] Task<void> SelectProfile(uint8_t profile);
@@ -382,7 +382,8 @@ namespace nazg::keychron
         // 0xA9 0x1F: stores `profile` as it is in RAM.
         [[nodiscard]] Task<void> SaveProfile(uint8_t profile);
 
-        // 0xA9 0x1E: `profile` back to the board's defaults. Stored at once.
+        // 0xA9 0x1E: `profile` back to its own preset, which the firmware keeps per profile on the
+        // K10 HE V3 -- not one set of defaults, as the published source has. Stored at once.
         [[nodiscard]] Task<void> ResetProfile(uint8_t profile);
 
     private:

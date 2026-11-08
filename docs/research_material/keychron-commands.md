@@ -288,10 +288,15 @@ The same read found Gaming changed since the first one -- `global` still rapid t
 reset Gaming too: **Gaming's preset is `global` rapid trigger and every key at 0**, and the state
 first read -- Caps Lock's 2.4 mm included -- was someone's configuration. So this firmware,
 unlike the published source's single `profile_reset()` default, keeps a preset per profile: regular
-for 0, rapid trigger for 1, the gamepad keys for 2. Whether the preset lives in the firmware or the
-Launcher writes it after resetting is not known -- the Launcher was the one resetting. Nazg's own
-`AMC_RESET_PROFILE` has still met no board; its question says only "the settings the board was made
-with", not what they are.
+for 0, rapid trigger for 1, the gamepad keys for 2.
+
+**The presets are the firmware's**, not the Launcher's: Nazg's own Reset, which sends
+`AMC_RESET_PROFILE` and nothing else, brought them back (Rico, 2026-11-08, read with the probe before
+and after each step). Gaming, with one key written explicitly, came back to rapid trigger 1.7 and
+every key at 0. Gamepad, its W (2, 2) written out of gamepad mode by Nazg, came back with W at
+`03400000` again -- the left stick's Y up -- and the other 24 gamepad keys untouched. Each reset left
+the other two profiles byte for byte as they were. Not shown: whether the reset puts back a changed
+`global` -- neither profile's had changed, and Nazg writes keys only.
 
 ### Unsolicited reports
 
@@ -476,7 +481,7 @@ full travel, whatever switch is fitted ([How travel is computed](#how-travel-is-
 | `0x14` | `AMC_SET_TRAVAL` (sic) | see [Actuation](#actuation-and-rapid-trigger) | status |
 | `0x15` | `AMC_SET_ADVANCE_MODE` | see [Advanced modes](#advanced-modes) | status |
 | `0x16` | `AMC_SET_SOCD` | see [SOCD](#socd) | status |
-| `0x1E` | `AMC_RESET_PROFILE` | `[2]` profile | status — back to the board's defaults, **stored at once** |
+| `0x1E` | `AMC_RESET_PROFILE` | `[2]` profile | status — back to that profile's own preset (the firmware keeps one per profile on the K10 HE V3; the published source has one default), **stored at once** |
 | `0x1F` | `AMC_SAVE_PROFILE` | `[2]` profile | status — **stores the profile** |
 | `0x20` | `AMC_GET_CURVE` | — | `[2..9]` four points, x then y — **no status** |
 | `0x21` | `AMC_SET_CURVE` | `[2..9]` four points | status — stored at once |

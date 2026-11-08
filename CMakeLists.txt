@@ -478,6 +478,8 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(vial_protocol      tests/VialProtocolTest.cpp)
     nazg_add_test(leyden_jar_protocol tests/LeydenJarProtocolTest.cpp)
     nazg_add_test(keychron_protocol  tests/KeychronProtocolTest.cpp)
+    nazg_add_test(keychron_recording tests/KeychronRecordingTest.cpp
+                  ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/keychron/k10-he-v3-ansi-0ea7-2026-11-08.txt)
     nazg_add_test(key_health         tests/KeyHealthTest.cpp ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/leyden-jar)
     nazg_add_test(unsolicited_report tests/UnsolicitedReportTest.cpp)
     nazg_add_test(definition         tests/DefinitionTest.cpp)

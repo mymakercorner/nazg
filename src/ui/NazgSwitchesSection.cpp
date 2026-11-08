@@ -931,8 +931,9 @@ namespace nazg
 
         ImGui::PushTextWrapPos(0.0f);
         // Each profile goes back to its own preset -- Default to Regular, Gaming to Rapid Trigger,
-        // Gamepad to its gamepad keys -- not to one set of defaults (seen through Keychron's
-        // Launcher on the K10 HE V3, 2026-11-08): what it will be is the board's to say.
+        // Gamepad to its gamepad keys -- not to one set of defaults. The firmware keeps them: Nazg's
+        // own reset brought them back on the K10 HE V3 (2026-11-08). What it will be is the board's
+        // to say.
         ImGui::Text("%s goes back to the settings the board was made with for it. Every change made to its keys "
                     "since is lost: their distances, Rapid Trigger, and any advanced key or SOCD pair.",
                     ProfileName(m_ShownProfile).c_str());
