@@ -84,6 +84,26 @@ published branch has**: `3434:0EA7`, `bcdDevice` 1.0.0 (the source says 1.1.1), 
 So the published source describes neither this board nor, probably, the colleague's: what Nazg
 builds on Keychron's commands must be checked on the board, not only read from the fork.
 
+**Keychron's Launcher (v1.5.3) names it "Keychron K10 HE V3 ANSI RGB"** (Rico's screenshot,
+2026-11-08), which explains the unpublished firmware and the new PID: it is a third version of the
+board. Its HE Mode page:
+
+- **The three profiles, named "Default", "Gaming" and "Gamepad"**, listed beside the board, each
+  with a "..." menu, and the hint "press fn + p + z / x / c" to switch to profile 1 / 2 / 3. Profile
+  0's `name` read empty, so the names are presumably the Launcher's own for an empty name.
+  **Fn + P + X switches the profile on this board** (Rico, 2026-11-08), as the source has it: the
+  profile in use can change under a client's feet, from the keyboard. **The Launcher follows it at
+  once**, its highlight moving without a reload. So either the firmware reports the switch
+  unrequested, or the Launcher keeps asking: not yet told apart. A read-only probe listening while
+  the shortcut is pressed would show which. The
+  presets behind "Gaming" and "Gamepad" (profiles 1 and 2) have never been read.
+- **Calibration** and **Reset** buttons under the profiles.
+- Tabs: Actuation Distance, One Key Multiple Commands (DKS), **Long-Press Switch**, SOCD, Gamepad
+  Analog, Curve, **PDO**, **Turbocharged**. The three in bold are in no published source, so this
+  firmware has more advanced modes than the `adv_mode` values documented below.
+- Rapid Trigger with Basic and Advanced sensitivity (probably one value, then press and release apart).
+- What the keys show: No Data, Actuation Distance or Rapid Trigger; Select All and Clear.
+
 **Its wiring differs too**, which explains the keys the colleague's board never lit. Read from its
 keymap: Right Shift at (4, 13), Right Alt, Right Win, Fn and Right Ctrl at (5, 9)-(5, 12), Numpad .
 at (5, 18) -- the published ANSI file has (4, 12), (5, 10)-(5, 13) and (5, 19). With those six moved,
@@ -173,20 +193,22 @@ Everything else on this board is that 35 rather than the source's 40, in the sam
 So the defaults are the source's *fractions* of whatever the board's full travel is, floored, and
 only the distance axis moves.
 
-**The two units do not keep a fixed ratio at the bottom.** The live readout's 1/60 mm field reached
-**215**, where 6 x 35 would be 210: the wire's 0.1 mm value is floor(215 / 6) = 35, so the true
-travel is about 3.58 mm and the 0.1 mm field is the floored one. A client should show the 0.1 mm
-field and use the 1/60 mm one only for a fine readout. The source's "240 at the bottom" is likewise
-that board's number, not every board's.
+**The 215 is the firmware's clamp, not a deeper key** (explained 2026-11-08 from the source, see
+[How travel is computed](#how-travel-is-computed)). The live readout's 1/60 mm field reached **215**
+where 6 x 35 would be 210. `convert_to_travel()` clamps at (F + 1) x 6 - 1, F being the firmware's
+`FULL_TRAVEL_UNIT`. That is 215 exactly for F = 35, and 245 for the source's 40. So the 1/60 field
+pinned at that value means "at or past full travel", and **the value it is pinned at reveals F**.
+A client should show the 0.1 mm field and use the 1/60 mm one only for a fine readout.
 
 **A key can read past its own calibration.** The ADC went to 1763 against a calibrated bottom of
-1857, and the travel still read 35 -- the firmware clamps at full travel rather than reporting more.
+1857, and the travel still read 35. The firmware clamps rather than report more.
 
 **No command reports a board's full travel**, which is the awkward part: a client cannot hard-code
-40, and the only exact source is a key pressed to the bottom, which needs the user. **The best
-estimate without touching the board is the curve's last x** (`0xA9 0x20`), 35 here and 40 on a
-4.0 mm board -- but the curve is user-editable, so it is a hint, not an authority. Offering 4.0 mm
-on this board would let a user set an actuation point the switch can never reach.
+40. The curve's last x (`0xA9 0x20`) is the estimate that needs no user: 35 here, 40 on a board
+built to the source. The curve is user-editable, though, so it is a hint, not an authority. **The
+exact value is any key pressed to the bottom**: its 1/60 field pins at (F + 1) x 6 - 1. It is one
+value per firmware, not per switch (below). Offering 4.0 mm on this board would let a user set an
+actuation point the firmware never reports.
 
 **The feature bits under-report. Do not gate a section on them** -- see
 [implication 1](#implications-for-the-nazg-backend). `0xA2` reports `0x09`: default layer and
@@ -205,8 +227,12 @@ Only `0xFF` is a reliable "not there". NKRO being settable also contradicts what
 **Odds and ends.** `0xA9 0x41` answered `A9 41 03 00`: both rest and bottom calibrated, state 0
 (off). `0xA9 0x42` on an unpopulated matrix position -- (0, 1) on this board -- returns rest 0,
 bottom 0 and a nonsense scale factor, which is a usable test for "no key here". Its scale factor
-varies per key (10.11 to 10.52 over the keys sampled) and `span / scale` is not constant, so it is
-not a plain travel divisor; what it scales is unknown.
+varies per key (10.11 to 10.52 over the keys sampled), and `span / scale` is not constant. The
+source explains both: the scale is F divided by the key's calibrated span measured through a
+polynomial, not through the raw ADC difference
+([How travel is computed](#how-travel-is-computed)). Values near 10 rather than near 1 suggest this
+firmware's polynomial gives millimetres where the source's gives 0.1 mm: its constants differ, and
+they are not published.
 
 ### Unsolicited reports
 
@@ -375,8 +401,9 @@ and only the live readout exposes that unit.
 **The 40 is not universal.** A K10 HE tops out at 35, measured with the live readout on a key held
 to the bottom, and its curve and defaults are the source's fractions of that (see
 "The 2026-11-08 read"). No command reports a board's full travel, so a client must not hard-code
-the maximum -- offering 4.0 mm there would let a user set an actuation point the switch never
-reaches.
+the maximum -- offering 4.0 mm there would let a user set an actuation point the firmware never
+reports. **It is the firmware's number, not the switch's**: every key's calibrated bottom reads
+full travel, whatever switch is fitted ([How travel is computed](#how-travel-is-computed)).
 
 ### Sub-commands
 
@@ -579,20 +606,70 @@ would follow the selected key or a handful of them, not every key at once.
 counts as pressed by its own mode (actuation, rapid trigger, toggle). The rows are big-endian,
 as in VIA.
 
+### How travel is computed
+
+*Read 2026-11-08 at `hall_effect_playground` `bc56b3c6`, `analog_matrix.c`: `convert_to_travel()`,
+`update_scale_factor()`. The K10 HE's own firmware is unpublished, but its clamp at 215 fits this
+code exactly with F = 35, so the structure is taken to be the same with other constants.*
+
+A Hall sensor's reading does not move linearly with the magnet's distance, so the firmware maps a
+raw value through a cubic polynomial, `TRAVEL_POLYNOMIAL`. Its constants were fitted to one
+reference switch: rest at ADC 3121, bottom at 1940, about 4.0 mm. Per key, it then:
+
+1. shifts the reading by the key's own rest value against the reference's (`offset = rest - 3121`);
+2. takes `P(x) - P(3121)`, the distance from rest along the reference curve;
+3. multiplies by the key's **scale factor**, F / (P(bottom - offset) - P(3121)), where F is
+   `FULL_TRAVEL_UNIT`;
+4. clamps at (F + 1) x 6 - 1 sixtieths.
+
+**So every key's calibrated bottom reads F, whatever the switch.** The firmware never measures
+millimetres. It measures the fraction of each key's own calibrated travel, and calls F of them
+"full travel". This bears on boards with different switch types:
+
+- **Mixing switches works without the client knowing.** A 4.0 mm switch on a firmware built for
+  3.5 mm (F = 35), once calibrated, still reads 0 to 3.5 "mm". An actuation point of 1.7 is half
+  its travel, about 1.94 mm physically.
+- **The millimetres are exact only for the switch the polynomial was fitted to.** Elsewhere they
+  are its fraction of travel, bent by a curve fitted to another magnet. A client should say
+  "mm" as the firmware does, but cannot promise physical distances on a mixed board.
+- **The maximum of every travel control is F, one value per firmware**, not per key. A per-key
+  maximum is not needed.
+- **A key fitted with a new switch reads wrong until it is calibrated again**, because its scale
+  factor still describes the old one. Auto-calibration (below) repairs that as the key is used.
+  A manual calibration repairs it at once.
+
 ### Calibration
 
-Calibration is two values per key: the raw value at rest and at the bottom. The board **takes
-the rest values itself at every power-up**, which is why keys must not be held while it is
-plugged in. A manual calibration redoes both (`set_calibrate()`, `calibrate()`):
+Calibration is two values per key: the raw value at rest and at the bottom. They are kept in
+EEPROM, and three things change them.
 
-1. `[0xA9, 0x40, 2]`: the board samples every key at rest (8 scans), so nothing may be touched.
-   It then moves itself to state 3.
-2. The user presses **every key to the bottom**. `AMC_GET_CALIBRATE_STATE` shows which ones are
-   done.
-3. Three seconds after the last key, the board stores the values and stops. Alternatively,
-   `[0xA9, 0x40, 4]` stores and stops early: the keys not pressed keep their old bottom value.
+**At power-up the board takes the rest values itself**: 8 scans, averaged, minus a 20-count dead
+zone. That is why keys must not be held while it is plugged in. A key reading out of range (above
+3500, or below 3000 - 900/5) makes the whole power-up calibration invalid, and the old values
+stay. A key held at power-up is marked, so auto-calibration waits for its release.
 
-Any other value is refused. `AMC_GET_CALIBRATE_STATE` answers `[2]` the calibrated bits (`0x01`
+**Auto-calibration runs all the time** (`auto_caliration_check()`, sic, on every scan). It watches
+each key for full presses: down past ADC 2200, then back to a steady rest within a second. Each
+such press adds confidence, more for a deeper press (a span over 900, 1000 or 1100). Once a key
+reaches 12, its rest and bottom are replaced if they moved (rest by more than 10, bottom by more
+than 30). They are written to EEPROM if they differ from the stored ones by more than 15 or 50.
+**So a board calibrates itself while it is typed on**, a few deep presses per key. The manual
+calibration is for doing it at once: after a switch change, or when keys misfire.
+
+**A manual calibration** (`set_calibrate()`, `calibrate()`) redoes both values:
+
+1. `[0xA9, 0x40, 2]`: **every key's values are cleared in RAM**, and the board samples every key
+   at rest (8 scans), so nothing may be touched. It then moves itself to state 3.
+2. The user presses **every key to the bottom**. A key counts once 8 samples average deeper than
+   rest - 800. Its bottom is that average plus a jitter margin, and it is stored only if deeper than
+   the bottom it already has. `AMC_GET_CALIBRATE_STATE` shows which keys are done.
+3. Three seconds after **every** key is done, the board stores the values and stops.
+   Alternatively, `[0xA9, 0x40, 4]` stores and stops early: the keys not pressed get their old
+   bottom value back.
+
+Any other value is refused. **Between steps 1 and 3 the keys not yet pressed have no bottom
+value**, so the board is not usable for typing until it stops. A client should keep the user in
+the calibration until it ends, with a visible way to stop it (`0x40 4`). `AMC_GET_CALIBRATE_STATE` answers `[2]` the calibrated bits (`0x01`
 rest, `0x02` bottom), `[3]` the state (0 off, 1 power-up, 2 rest, 3 bottom, 4 storing), and
 `[4 + 3r .. 6 + 3r]` row r's keys already pressed to the bottom, u24 LE.
 
@@ -671,9 +748,10 @@ rest, `0x02` bottom), `[3]` the state (0 off, 1 power-up, 2 rest, 3 bottom, 4 st
    reaches. Nothing reports it: the exact value needs a key held to the bottom, and the curve's
    last x is only a hint. **The travel maximum therefore belongs in the capability model**, read
    once when the board is opened and carried in the `BoardReport` beside the profile geometry,
-   the way the matrix size already is -- not a constant in the UI. How Nazg settles it on a board
-   that has never been pressed is an open question: the curve's last x, a per-board table, or
-   asking the user to bottom out one key the first time.
+   the way the matrix size already is -- not a constant in the UI. It is one value per firmware,
+   not per switch: calibration scales every key to it, so a board with mixed switches still has
+   one maximum ("How travel is computed"). The curve's last x estimates it without the user, and
+   any key's live readout pinned at (F + 1) x 6 - 1 settles it exactly.
 
 ---
 

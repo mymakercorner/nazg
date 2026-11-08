@@ -2439,6 +2439,85 @@ As built (2026-10-18), where it differs from the mockup or adds to it:
   changes not written in other sections; **after the bootloader** the list says where it went, as
   Diagnostics does.
 
+## The Switches section
+
+*Keychron's Hall-effect boards, begun 2026-11-08 on the K10 HE ANSI Rico borrowed. The wire is
+keychron-commands.md, `0xA9`. Found by probing (implication 1 there), so it shows on any board
+that answers `0xA9`, Advanced tools or not: setting the switches is an owner's job.*
+
+**Round one, chosen by Rico (2026-11-08): actuation, Rapid Trigger and the three profiles.** These
+are the fields proven on the board. DKS, toggle and gamepad keys, SOCD, the gamepad curve and
+calibration are round two. The mockup shows them only as faint entries, to judge where they would
+go.
+
+What the mockup builds on, from keychron-commands.md:
+
+- **Keys are compared by what they do, never by whether their word is 0.** A board the Launcher
+  has touched has all 104 keys written explicitly. Untouched and "Rapid Trigger off again" behave
+  alike, so they must read alike: every key 1.7, and the editor saying "All 104 keys". **No list of
+  the keys' settings** (Rico, 2026-11-08): the first draft had one, "What the keys do", a line per
+  distinct setting. It grew with every key tuned on its own, and it repeated what the keys already
+  show.
+- **Every travel control runs to the board's full travel**: 3.5 mm on the K10 HE, estimated from the
+  gamepad curve's last x and measured by the first key read at the bottom. It is one value per
+  firmware even with mixed switches, because calibration scales each key to it ("How travel is
+  computed"). The tooltip says that "1.7 mm" on a longer switch is the same share of its travel.
+- **Written at once**, a slider once let go, each write followed by `AMC_SAVE_PROFILE`.
+- **The names are exactly the Launcher's** (Rico, 2026-11-08), capitals included: **Actuation
+  Distance**, **(Press) Trigger Distance**, **(Release) Reset Distance**. An owner coming from
+  Keychron's app finds the same words, as QMK Settings keeps QMK's names.
+- **Selecting is Keychron's** (Rico, 2026-11-08): many keys selected at once and tuned together, with
+  the mouse and the keyboard. A click selects or unselects a key, with no Ctrl, so a selection is
+  built up click by click. A box drawn over the board selects the keys in it, or unselects them when
+  all were selected. A key pressed on the board selects or unselects it too; Nazg reads it from VIA's
+  matrix state, which every Keychron answers. **Select All** and **Clear**, the Launcher's words,
+  sit on the editor's first line. **A key pressed selects or unselects it** (Rico, 2026-11-08,
+  chosen over "only shows it in Live"), except while testing (next).
+- **Testing is asked for** (Rico, 2026-11-08): the panel's right column shows only a **Test keys**
+  button until clicked. While testing, a key pressed on the board is followed there, with its travel
+  and the points where it is pressed and released, and the selection is left alone. Stop ends the
+  test. The first draft followed every press at all times, which fought with selecting by pressing.
+  Only while testing does Nazg poll a key's travel (`0xA9 0x30`, the key the matrix state reports
+  pressed), so the board is not polled for nothing.
+- **Raw values in the test, for everyone** (Rico, 2026-11-08): a checkbox beside Stop adds what the
+  firmware reads for the key: the sensor now, the calibrated rest and bottom, and the scale factor
+  (`0xA9 0x30`, `0x42`). A tooltip on each says what it is. **The travel in the firmware's 1/60 mm
+  is left out** (Rico, 2026-11-08): it repeats the travel already shown, and its cap at the bottom
+  (215, 3.58 mm on a 3.5 mm board) would read as a key going past full travel.
+  Not behind Advanced tools: they are a test's numbers, as Diagnostics' Levels are, and the test is
+  already asked for.
+
+The mockup, first round (2026-11-08):
+[ui-design/switches-section.html](ui-design/switches-section.html). It uses the board's corrected
+0EA7 definition and the three states of profile 1 read on the board: as it came, Rapid Trigger
+ticked in the Launcher, unticked again. A made-up fourth state has WASD and the space bar apart.
+Keys on the computer's own keyboard are the K10's keys: they select, or with Test keys on they
+play the switches.
+
+**Rico's choices** (2026-11-08), the mockup's variants removed:
+- **The profiles in the strip**, as Keymap's layers: the whole set of settings, which round two's
+  Hall-effect sections (advanced keys, SOCD) will share, the column listing them. Gamepad's curve and
+  calibration are not per profile, so there the strip is absent. Profiles on the panel's first line,
+  with modes in the strip, was the other way.
+- **Picking a profile makes the board use it** (`AMC_SELECT_PROFILE`), as Fn + P + Z/X/C and the
+  Launcher do: what is shown is always what is in use. "Only shows it", with a "Use on the board"
+  button, was the other way.
+- **The profiles carry the Launcher's names**, Default, Gaming and Gamepad, wherever the board's
+  name field is empty, as on every profile read so far. A name written on the board wins.
+- **The Actuation Distance on every key**, with RT on Rapid Trigger keys, as the Launcher shows
+  them. Colour by actuation, and only the keys that differ, were the others.
+- **The selection is edited, or every key when nothing is selected**: Nazg's usual way. Two tabs,
+  Whole profile and Selected keys, was the other.
+- **(Press) Trigger Distance and (Release) Reset Distance set apart**, always. A single Sensitivity,
+  or the Launcher's Basic / Advanced switch, were the others.
+
+Left for the build, not the mockup: whether "every key" writes each key, as the Launcher does, or
+the profile's global and 0 into the keys (untested: nothing has been written to a board yet); the
+sensitivity's range (0.1-2.0 mm in the mockup; the firmware takes up to 3.9); and how Nazg notices
+a profile switched from the keyboard. Fn + P + Z/X/C does switch it on the K10 HE V3, and
+Keychron's Launcher follows at once (Rico, 2026-11-08), so Nazg must too: by a report the firmware
+sends, if it sends one, or else by reading `0xA9 0x10` again while the section shows.
+
 ## The common screens
 
 **1. No board open.** The keyboards found, each with its protocol and *Open*. No section

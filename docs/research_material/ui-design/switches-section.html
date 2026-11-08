@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- Mockup: a Keychron Hall-effect board's switch settings -- actuation point, Rapid Trigger and the
+     three profiles (ui-design.md, "The Switches section"; the wire is keychron-commands.md, 0xA9).
+
+     First round (2026-11-08), scope chosen by Rico: actuation, Rapid Trigger, profiles. DKS, toggle,
+     gamepad, SOCD and calibration are round two: they show here only as faint entries, to judge where
+     they would go.
+
+     The board: the K10 HE ANSI Rico borrowed, its corrected 0EA7 definition (dist/k10_he_0EA7/), the
+     Windows base layer's legends. Its profile 0 in the three states read on 2026-11-08 -- as it came,
+     Rapid Trigger ticked in Keychron's Launcher, unticked again -- byte for byte (global 0x00010445;
+     the 104 keys 0, 0x00010446 or 0x00010445), plus one made-up state with keys that differ. Profiles
+     2 and 3 were never read: they show the board's defaults. Full travel 3.5 mm, the board's curve's
+     last x; pressing any key to the bottom "measures" it, as the live readout's clamp would.
+
+     Press keys on your own keyboard: they are the K10's keys. They select, or -- with Test keys on --
+     play the K10's switches, travelling down while held and up when let go, pressed and released by
+     the settings of their key, with the raw values on request. Selecting is Keychron's (Rico,
+     2026-11-08): a click selects or unselects a key, a box drawn over several selects them (or
+     unselects them when all were), a key pressed on the board selects or unselects it too, and
+     Select All / Clear.
+
+     Settled by Rico (2026-11-08), the variants removed: the profiles in the strip, picking one makes
+     the board use it, the Actuation Distance on every key, the selection edited or else every key,
+     and Rapid Trigger's (Press) Trigger Distance and (Release) Reset Distance set apart. The profiles
+     carry the Launcher's names, Default, Gaming and Gamepad, where the board's name field is empty.
+
+     The names are exactly Keychron's Launcher's (Rico, 2026-11-08): Actuation Distance, (Press)
+     Trigger Distance, (Release) Reset Distance. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Switches section mockup</title>
+<style>
+:root{--window:#f3f3f5;--menubar:#e3e4e9;--text:#1d1e22;--muted:#6b6e78;--control:#ffffff;--border:#c8cad2;--accent:#3b82f6;--accent-text:#fff;--panel:#f8f8fa;--column:#ebecf0;--selected:rgba(59,130,246,.16);
+--plate:#d3d4d8;--key:#ffffff;--keyline:#b4b7c2;--ok:#15803d;--warn:#c2410c;--err:#dc2626;--press:#3b82f6;--rt:#7c3aed;--heat:#f59e0b;--sel:#f59e0b}
+:root[data-theme="dark"]{--window:#0f0f11;--menubar:#24252b;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--accent:#4296fa;--accent-text:#fff;--panel:#16171b;--column:#16171b;--selected:rgba(66,150,250,.22);
+--plate:#1c1d23;--key:#3a3c48;--keyline:#4b4e5c;--ok:#4ade80;--warn:#fb923c;--err:#f87171;--press:#4296fa;--rt:#a78bfa;--heat:#fbbf24;--sel:#fbbf24}
+*{box-sizing:border-box}
+body{margin:0;background:var(--window);color:var(--text);font-family:Arimo,"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+.controls{display:flex;flex-wrap:wrap;gap:8px 22px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.group .name{color:var(--muted);margin-right:4px}
+button{font:inherit;padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--control);color:var(--text);cursor:pointer}
+button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+button:disabled{opacity:.45;cursor:default}
+.toast{color:var(--accent);font-size:12px;align-self:center}
+.stage{padding:16px;overflow-x:auto}
+.frame{margin:0 auto;width:1160px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--window);user-select:none}
+.menubar{display:flex;gap:18px;align-items:center;background:var(--menubar);padding:5px 14px}
+.menubar .board{font-weight:600}
+.muted{color:var(--muted)}
+.menubar .right{margin-left:auto;color:var(--muted)}
+.body{display:flex;min-height:600px}
+.col{flex:none;width:180px;background:var(--column);border-right:1px solid var(--border);padding:6px 5px;display:flex;flex-direction:column;gap:1px}
+.col .hdr{font-weight:700;font-size:12px;padding:6px 10px 2px}
+.col .sep{border-top:1px solid var(--border);margin:5px 4px}
+.entry{padding:7px 10px;border-radius:6px;color:var(--muted)}
+.entry.on{background:var(--selected);color:var(--text);box-shadow:inset 3px 0 0 var(--accent)}
+.entry.later{opacity:.45;font-style:italic}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;padding:10px 14px 14px;gap:10px}
+.strip{display:flex;gap:3px;align-items:center;padding:4px 0;min-height:30px}
+.strip button{padding:2px 10px;font-size:12px}
+.strip button.later{opacity:.45;font-style:italic;cursor:default}
+.strip .dot{color:var(--ok);margin-right:4px}
+.strip button.on .dot{color:var(--accent-text)}
+.seg{display:inline-flex}
+.seg button{border-radius:0;padding:2px 10px;margin-left:-1px}
+.seg button:first-child{border-radius:6px 0 0 6px;margin-left:0}
+.seg button:last-child{border-radius:0 6px 6px 0}
+.seg.mixed button{border-style:dashed}
+.boardarea{display:flex;justify-content:center;position:relative}
+svg{display:block;overflow:visible}
+.panel{border:1px solid var(--border);border-radius:6px;background:var(--panel)}
+.mline{display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap;padding:6px 12px;border-bottom:1px solid var(--border);min-height:36px}
+.mline .title{font-weight:700}
+.mline .right{margin-left:auto;display:flex;gap:10px;align-items:center}
+.mline select,.mline input[type=text]{font:inherit;padding:2px 6px;border:1px solid var(--border);border-radius:6px;background:var(--control);color:var(--text)}
+.link{color:var(--accent);cursor:pointer}
+.inuse{color:var(--ok);font-size:12px}
+.tabs{display:flex;gap:0;padding:0 12px;border-bottom:1px solid var(--border)}
+.tabs div{padding:6px 12px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs div.on{color:var(--text);border-bottom-color:var(--accent);font-weight:600}
+.cols{display:flex;gap:0;min-height:206px}
+.cols>div{padding:10px 12px}
+.editor{flex:1;min-width:0}
+.erow{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.erow .lab{width:170px;color:var(--muted)}
+.erow input[type=range]{width:230px}
+.erow .val{width:62px;font-variant-numeric:tabular-nums;font-weight:600}
+.erow .val.mixed{color:var(--muted);font-weight:400;font-style:italic}
+.target{font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:10px;min-height:26px}
+.target .sub{font-weight:400;color:var(--muted);font-size:12px}
+.words{color:var(--muted);font-size:12px;line-height:1.5;max-width:470px}
+.gauge{width:330px;border-left:1px solid var(--border)}
+.gauge .h{font-size:12px;color:var(--muted);margin-bottom:4px}
+.gauge .kname{font-weight:700;font-size:15px}
+.notes{max-width:1160px;margin:0 auto;padding:4px 16px 30px;color:var(--muted);line-height:1.55}
+.notes b{color:var(--text);font-weight:600}
+.notes p{margin:0 0 8px}
+.tip{position:fixed;z-index:9;max-width:380px;padding:6px 9px;border:1px solid var(--border);border-radius:6px;background:var(--control);color:var(--text);font-size:12px;line-height:1.45;box-shadow:0 2px 8px rgba(0,0,0,.15);pointer-events:none;display:none;white-space:pre-line}
+.box{position:absolute;border:1px dashed var(--accent);background:var(--selected);pointer-events:none;display:none}
+</style>
+</head>
+<body>
+<div class="controls" id="controls"></div>
+<div class="stage"><div class="frame" id="frame"></div></div>
+<div class="notes" id="notes"></div>
+<div class="tip" id="tip"></div>
+<script>
+// The K10 HE ANSI, corrected 0EA7 definition (dist/k10_he_0EA7/k10_he_ansi_0EA7.json): its KLE.
+const KLE = [[{"c":"#777777"},"0,0",{"x":1,"c":"#cccccc"},"0,2","0,3","0,4","0,5",{"x":0.5},"0,6","0,7","0,8","0,9",{"x":0.5},"0,10","0,11","0,12","0,13",{"x":0.25},"0,14","0,15","0,16"],[{"y":0.25},"1,0","1,1","1,2","1,3","1,4","1,5","1,6","1,7","1,8","1,9","1,10","1,11","1,12",{"w":2},"1,13",{"x":0.25},"1,14","1,15","1,16",{"x":0.25},"1,17","1,18","1,19","1,20"],[{"w":1.5},"2,0","2,1","2,2","2,3","2,4","2,5","2,6","2,7","2,8","2,9","2,10","2,11","2,12",{"w":1.5},"2,13",{"x":0.25},"2,14","2,15","2,16",{"x":0.25},"2,17","2,18","2,19",{"h":2},"2,20"],[{"w":1.75},"3,0","3,1","3,2","3,3","3,4","3,5","3,6","3,7","3,8","3,9","3,10","3,11",{"w":2.25,"c":"#777777"},"3,12",{"x":3.5,"c":"#cccccc"},"3,17","3,18","3,19"],[{"w":2.25},"4,0","4,2","4,3","4,4","4,5","4,6","4,7","4,8","4,9","4,10","4,11",{"w":2.75},"4,13",{"x":1.25},"4,15",{"x":1.25},"4,17","4,18","4,19",{"h":2},"4,20"],[{"w":1.25},"5,0",{"w":1.25},"5,1",{"w":1.25},"5,2",{"w":6.25},"5,6",{"w":1.25},"5,9",{"w":1.25},"5,10",{"w":1.25},"5,11",{"w":1.25},"5,12",{"x":0.25},"5,14","5,15","5,16",{"x":0.25,"w":2},"5,17","5,18"]];
+
+// The Windows base layer's legends, and the KeyboardEvent.code that plays each key.
+const LEGEND = {
+ '0,0':['Esc','Escape'],'0,2':['F1','F1'],'0,3':['F2','F2'],'0,4':['F3','F3'],'0,5':['F4','F4'],'0,6':['F5','F5'],'0,7':['F6','F6'],'0,8':['F7','F7'],'0,9':['F8','F8'],
+ '0,10':['F9','F9'],'0,11':['F10','F10'],'0,12':['F11','F11'],'0,13':['F12','F12'],'0,14':['PrtSc','PrintScreen'],'0,15':['Cortana','ScrollLock'],'0,16':['Light','Pause'],
+ '1,0':['`','Backquote'],'1,1':['1','Digit1'],'1,2':['2','Digit2'],'1,3':['3','Digit3'],'1,4':['4','Digit4'],'1,5':['5','Digit5'],'1,6':['6','Digit6'],'1,7':['7','Digit7'],
+ '1,8':['8','Digit8'],'1,9':['9','Digit9'],'1,10':['0','Digit0'],'1,11':['-','Minus'],'1,12':['=','Equal'],'1,13':['Backspace','Backspace'],'1,14':['Ins','Insert'],
+ '1,15':['Home','Home'],'1,16':['PgUp','PageUp'],'1,17':['Num','NumLock'],'1,18':['/','NumpadDivide'],'1,19':['*','NumpadMultiply'],'1,20':['-','NumpadSubtract'],
+ '2,0':['Tab','Tab'],'2,1':['Q','KeyQ'],'2,2':['W','KeyW'],'2,3':['E','KeyE'],'2,4':['R','KeyR'],'2,5':['T','KeyT'],'2,6':['Y','KeyY'],'2,7':['U','KeyU'],'2,8':['I','KeyI'],
+ '2,9':['O','KeyO'],'2,10':['P','KeyP'],'2,11':['[','BracketLeft'],'2,12':[']','BracketRight'],'2,13':['\\','Backslash'],'2,14':['Del','Delete'],'2,15':['End','End'],
+ '2,16':['PgDn','PageDown'],'2,17':['7','Numpad7'],'2,18':['8','Numpad8'],'2,19':['9','Numpad9'],'2,20':['+','NumpadAdd'],
+ '3,0':['Caps','CapsLock'],'3,1':['A','KeyA'],'3,2':['S','KeyS'],'3,3':['D','KeyD'],'3,4':['F','KeyF'],'3,5':['G','KeyG'],'3,6':['H','KeyH'],'3,7':['J','KeyJ'],'3,8':['K','KeyK'],
+ '3,9':['L','KeyL'],'3,10':[';','Semicolon'],'3,11':["'",'Quote'],'3,12':['Enter','Enter'],'3,17':['4','Numpad4'],'3,18':['5','Numpad5'],'3,19':['6','Numpad6'],
+ '4,0':['Shift','ShiftLeft'],'4,2':['Z','KeyZ'],'4,3':['X','KeyX'],'4,4':['C','KeyC'],'4,5':['V','KeyV'],'4,6':['B','KeyB'],'4,7':['N','KeyN'],'4,8':['M','KeyM'],
+ '4,9':[',','Comma'],'4,10':['.','Period'],'4,11':['/','Slash'],'4,13':['Shift','ShiftRight'],'4,15':['↑','ArrowUp'],'4,17':['1','Numpad1'],'4,18':['2','Numpad2'],
+ '4,19':['3','Numpad3'],'4,20':['Enter','NumpadEnter'],
+ '5,0':['Ctrl','ControlLeft'],'5,1':['Win','MetaLeft'],'5,2':['Alt','AltLeft'],'5,6':['Space','Space'],'5,9':['Alt','AltRight'],'5,10':['Win','MetaRight'],
+ '5,11':['Fn','ContextMenu'],'5,12':['Ctrl','ControlRight'],'5,14':['←','ArrowLeft'],'5,15':['↓','ArrowDown'],'5,16':['→','ArrowRight'],'5,17':['0','Numpad0'],'5,18':['.','NumpadDecimal']};
+
+function parseKle(rows) {
+  const keys = []; let y = 0;
+  for (const row of rows) {
+    let x = 0, p = {};
+    for (const item of row) {
+      if (typeof item === 'object') { if ('x' in item) x += item.x; if ('y' in item) y += item.y; if ('w' in item) p.w = item.w; if ('h' in item) p.h = item.h; continue; }
+      const w = p.w || 1, h = p.h || 1;
+      keys.push({ x, y, w, h, cell: item, name: (LEGEND[item] || ['?'])[0], code: (LEGEND[item] || [])[1] });
+      x += w; p = {};
+    }
+    y += 1;
+  }
+  return keys;
+}
+const KEYS = parseKle(KLE);
+const BY_CODE = new Map(KEYS.map((k, i) => [k.code, i]));
+
+// ---------------------------------------------------------------------------------------------
+// The profile, as analog_key_config_t decodes: mode 0 follow / 1 regular / 2 rapid trigger; the
+// three distances in 0.1 mm, 0 following the profile.
+const FULL = 35;                 // the curve's last x on the K10 HE
+const G0 = { mode: 1, act: 17, press: 4, rel: 4 };   // global 0x00010445: regular, 1.7, 0.4, 0.4
+const ZERO = { mode: 0, act: 0, press: 0, rel: 0 };
+function allKeys(cfg) { return KEYS.map(() => ({ ...cfg })); }
+const STATES = {
+  'As it came (all 0)': () => allKeys(ZERO),
+  'Rapid Trigger ticked in the Launcher': () => allKeys({ mode: 2, act: 17, press: 4, rel: 4 }),
+  'Unticked again': () => allKeys({ ...G0 }),
+  'Some keys apart (made up)': () => {
+    const keys = allKeys({ ...G0 });
+    for (const c of ['2,2', '3,1', '3,2', '3,3']) keys[KEYS.findIndex(k => k.cell === c)] = { mode: 2, act: 5, press: 2, rel: 2 };
+    keys[KEYS.findIndex(k => k.cell === '5,6')] = { mode: 1, act: 25, press: 4, rel: 4 };
+    return keys;
+  },
+};
+function freshProfiles(stateName) {
+  return [
+    { name: '', global: { ...G0 }, keys: STATES[stateName]() },
+    { name: '', global: { ...G0 }, keys: allKeys(ZERO) },
+    { name: '', global: { ...G0 }, keys: allKeys(ZERO) },
+  ];
+}
+
+const state = {
+  where: 'Profiles in the strip', pick: 'Picking uses it', onKeys: 'Actuation on every key',
+  scope: 'Nothing selected: every key', sens: 'Press and release apart', testing: false, raw: false, boardState: 'As it came (all 0)', theme: 'Light',
+  profile: 0, inUse: 0, mode: 'Actuation', tab: 'Whole profile', toast: '', renaming: false, measured: false,
+};
+let profiles = freshProfiles(state.boardState);
+let selected = new Set();
+
+function eff(i, p = profiles[state.profile]) {
+  const k = p.keys[i], g = p.global;
+  return { mode: k.mode || g.mode, act: k.act || g.act, press: k.press || g.press, rel: k.rel || g.rel };
+}
+const mm = v => (v / 10).toFixed(1);
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+// The Launcher's names where the board's name field is empty, as on every profile read so far.
+function profileName(i) { return profiles[i].name || ['Default', 'Gaming', 'Gamepad'][i]; }
+
+// The keys folded by what they do -- their EFFECTIVE settings, not whether their word is 0: the
+// three states read on the board must read alike when they behave alike (keychron-commands.md).
+function groups() {
+  const m = new Map();
+  KEYS.forEach((k, i) => {
+    const e = eff(i), id = `${e.mode}|${e.act}|${e.mode === 2 ? e.press + '|' + e.rel : ''}`;
+    if (!m.has(id)) m.set(id, { e, keys: [] });
+    m.get(id).keys.push(i);
+  });
+  return [...m.values()].sort((a, b) => b.keys.length - a.keys.length);
+}
+function describe(e, short) {
+  if (e.mode === 1) return short ? `Regular, ${mm(e.act)} mm` : `Regular · Actuation Distance ${mm(e.act)} mm`;
+  const s = e.press === e.rel && state.sens === 'One sensitivity' ? `Sensitivity ${mm(e.press)} mm` : `Trigger Distance ${mm(e.press)} mm · Reset Distance ${mm(e.rel)} mm`;
+  return short ? `Rapid Trigger, ${mm(e.act)} mm` : `Rapid Trigger · Actuation Distance ${mm(e.act)} mm · ${s}`;
+}
+function names(list, max = 12) {
+  const n = list.map(i => KEYS[i].name);
+  return n.length > max ? n.slice(0, max).join(' ') + ` … ${n.length - max} more` : n.join(' ');
+}
+
+// What the editor acts on.
+function target() {
+  if (state.scope === 'Nothing selected: every key') return selected.size ? [...selected] : KEYS.map((_, i) => i);
+  return state.tab === 'Whole profile' ? KEYS.map((_, i) => i) : [...selected];
+}
+function common(list, f) {
+  const v = list.map(i => eff(i)[f]);
+  return v.every(x => x === v[0]) ? v[0] : null;
+}
+function apply(field, value, list) {
+  const p = profiles[state.profile];
+  for (const i of list) {
+    const e = eff(i), k = p.keys[i];
+    // Written as the Launcher does: every key explicit. Whether to write the profile's global and 0
+    // into the keys instead is in the notes.
+    Object.assign(k, e, { [field]: value });
+    if (field === 'press' && state.sens === 'One sensitivity') k.rel = value;
+  }
+  state.toast = `Written to ${profileName(state.profile)} and saved (AMC_SET_TRAVAL, then AMC_SAVE_PROFILE)`;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The switches simulated: each key's travel, and pressed or not by its own settings
+// (action_regular_trigger.c, action_rapid_trigger.c).
+const sim = KEYS.map(() => ({ travel: 0, down: false, pressed: false, peak: 0, trough: 0 }));
+let followed = null;   // the key the gauge shows: the last pressed, else the selection's first
+const SPEED = FULL / 220 * 16;   // full travel in ~220 ms
+function step() {
+  let moved = false;
+  sim.forEach((s, i) => {
+    const goal = s.down ? FULL : 0;
+    if (s.travel === goal) return;
+    s.travel = s.down ? Math.min(FULL, s.travel + SPEED) : Math.max(0, s.travel - SPEED);
+    if (s.travel >= FULL && !state.measured) { state.measured = true; state.toast = 'Full travel measured: 3.5 mm (the live readout pinned at 215)'; renderControls(); redrawPanelHead(); }
+    const e = eff(i), act = e.act, off = Math.max(0, act - 3);
+    if (e.mode === 1) {
+      if (!s.pressed && s.travel >= act) s.pressed = true;
+      else if (s.pressed && s.travel < off) s.pressed = false;
+    } else {
+      if (s.travel < off) { s.pressed = false; s.peak = 0; s.trough = 0; }
+      else if (!s.pressed && (s.trough === 0 ? s.travel >= act : s.travel >= s.trough + e.press)) { s.pressed = true; s.peak = s.travel; }
+      else if (s.pressed) {
+        s.peak = Math.max(s.peak, s.travel);
+        if (s.travel <= s.peak - e.rel && s.travel < FULL * 0.95 - e.rel) { s.pressed = false; s.trough = s.travel; }
+      } else s.trough = Math.min(s.trough, s.travel);
+    }
+    moved = true;
+  });
+  if (moved) redrawLive();
+}
+setInterval(step, 16);
+
+// ---------------------------------------------------------------------------------------------
+// The board.
+let U = 39, M = 14, GAP = 2, BD = null;
+function bounds() {
+  let x1 = 0, y1 = 0;
+  for (const k of KEYS) { x1 = Math.max(x1, k.x + k.w); y1 = Math.max(y1, k.y + k.h); }
+  return { x1, y1 };
+}
+function svgStyle() {
+  return `<style>.plate{fill:var(--plate)}.k{fill:var(--key);stroke:var(--keyline)}`
+    + `.k.sel{stroke:var(--sel);stroke-width:2.5}.k.dim{opacity:.55}`
+    + `.lg{font-family:Arimo,Arial;fill:var(--text);pointer-events:none}`
+    + `.vl{font-family:Arimo,Arial;fill:var(--muted);pointer-events:none;font-variant-numeric:tabular-nums}`
+    + `.vl.b{fill:var(--text);font-weight:700}.rt{font-family:Arimo,Arial;fill:var(--rt);font-weight:700;pointer-events:none}`
+    + `.fill{fill:var(--press);opacity:.22;pointer-events:none}.fill.on{opacity:.5}.ring{fill:none;stroke:var(--press);stroke-width:2.5;pointer-events:none}</style>`;
+}
+function heat(act) {
+  // Shallow actuation strong, deep light: the eye goes to the hair-trigger keys.
+  const t = 1 - (act - 1) / (FULL - 1);
+  return `color-mix(in srgb, var(--heat) ${Math.round(75 * t * t)}%, var(--key))`;
+}
+function keySvg(k, i, majority) {
+  const x = k.x * U + GAP, y = k.y * U + GAP, w = k.w * U - 2 * GAP, h = k.h * U - 2 * GAP, e = eff(i), s = sim[i];
+  const differs = !majority.has(i);
+  const show = state.onKeys !== 'Only keys that differ' || differs;
+  const fill = state.onKeys === 'Colour by actuation' ? ` style="fill:${heat(e.act)}"` : '';
+  const dim = '';
+  const tip = `${k.name} (${k.cell.replace(',', ', ')})\n${describe(e)}` + (profiles[state.profile].keys[i].mode === 0 ? '\nLeft to the profile' : '');
+  let t = `<rect class="k${selected.has(i) ? ' sel' : ''}${dim}" data-key="${i}" data-tip="${esc(tip)}" x="${x}" y="${y}" width="${w}" height="${h}" rx="4"${fill}/>`;
+  const fs = k.name.length > 4 ? 9 : 11;
+  t += `<text class="lg" x="${x + 4}" y="${y + 12}" style="font-size:${fs}px">${esc(k.name)}</text>`;
+  if (show) {
+    t += `<text class="vl${differs && state.onKeys === 'Only keys that differ' ? ' b' : ''}" x="${x + 4}" y="${y + h - 5}" style="font-size:10px">${mm(e.act)}</text>`;
+    if (e.mode === 2) t += `<text class="rt" x="${x + w - 4}" y="${y + h - 5}" text-anchor="end" style="font-size:9px">RT</text>`;
+  }
+  if (s.travel > 0) t += `<rect class="fill${s.pressed ? ' on' : ''}" x="${x + 1}" y="${y + 1}" width="${w - 2}" height="${(h - 2) * s.travel / FULL}" rx="3"/>`;
+  if (s.pressed) t += `<rect class="ring" x="${x}" y="${y}" width="${w}" height="${h}" rx="4"/>`;
+  return t;
+}
+function boardSvg() {
+  BD = bounds();
+  const avail = 1160 - 180 - 28 - 2 * M - 8;
+  U = Math.floor(avail / BD.x1);
+  const W = BD.x1 * U + 2 * M, H = BD.y1 * U + 2 * M;
+  const g = groups(), majority = new Set(g[0].keys);
+  let s = `<svg id="board" xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${svgStyle()}<rect class="plate" width="100%" height="100%" rx="12" data-plate="1"/><g transform="translate(${M} ${M})" id="keys">`;
+  KEYS.forEach((k, i) => { s += keySvg(k, i, majority); });
+  return s + `</g></svg><div class="box" id="box"></div>`;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The panel.
+function travelBar(e, s, k, narrow) {
+  // The key's travel top to bottom: rest at the top, full travel at the bottom.
+  const W = narrow ? 150 : 200, H = 150, x0 = 46, bw = 34, top = 8, Y = v => top + v / FULL * (H - 16);
+  let t = `<svg width="${W}" height="${H}">`;
+  for (let v = 0; v <= FULL; v += 5) t += `<text x="${x0 - 8}" y="${Y(v) + 4}" text-anchor="end" style="font:10px Arimo,Arial;fill:var(--muted)">${mm(v)}</text>`
+    + `<line x1="${x0 - 4}" x2="${x0}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--border)"/>`;
+  t += `<rect x="${x0}" y="${Y(0)}" width="${bw}" height="${Y(FULL) - Y(0)}" rx="4" fill="var(--key)" stroke="var(--keyline)"/>`;
+  if (s) t += `<rect x="${x0 + 1}" y="${Y(0) + 1}" width="${bw - 2}" height="${Math.max(0, Y(s.travel) - Y(0) - 1)}" rx="3" fill="var(--press)" opacity="${s.pressed ? .55 : .25}"/>`;
+  const used = [];
+  const line = (v, col, dash, label) => { let ty = Y(v) + 4; while (used.some(u => Math.abs(u - ty) < 11)) ty += 11; used.push(ty); return `<line x1="${x0 - 2}" x2="${x0 + bw + 6}" y1="${Y(v)}" y2="${Y(v)}" stroke="${col}" stroke-width="2"${dash ? ' stroke-dasharray="4 3"' : ''}/>`
+    + `<text x="${x0 + bw + 10}" y="${ty}" style="font:11px Arimo,Arial;fill:${col}">${label}</text>`; };
+  t += line(e.act, 'var(--accent)', false, `pressed ${mm(e.act)}`);
+  t += line(Math.max(0, e.act - 3), 'var(--muted)', true, `released ${mm(Math.max(0, e.act - 3))}`);
+  if (e.mode === 2 && s && s.trough > 0 && !s.pressed) t += line(s.trough + e.press, 'var(--rt)', true, `again ${mm(s.trough + e.press)}`);
+  if (e.mode === 2 && s && s.pressed && s.peak > e.act) t += line(s.peak - e.rel, 'var(--rt)', true, `lets go ${mm(s.peak - e.rel)}`);
+  return t + `</svg>`;
+}
+// A key's calibration, simulated near what the K10 HE answered (0xA9 0x30 and 0x42, 2026-11-08):
+// rest about 2900, bottom about 1860, a scale factor near 10.3.
+const CAL = KEYS.map((k, i) => { const j = (i * 37 % 23) - 11; return { rest: 2905 + j * 4, bottom: 1857 + j * 3, scale: 10.11 + (i * 13 % 42) / 100 }; });
+function rawOf(i) {
+  const c = CAL[i], s = sim[i], f = s.travel / FULL;
+  const adc = Math.round(c.rest - (c.rest - c.bottom) * (1 - Math.pow(1 - f, 1.6)) - (s.travel >= FULL ? 60 : 0));
+  return { adc, rest: c.rest, bottom: c.bottom, sixtieths: s.travel >= FULL ? (FULL + 1) * 6 - 1 : Math.round(s.travel * 6), scale: c.scale };
+}
+function rawHtml(i) {
+  const v = rawOf(i), row = (name, value, tip) => `<tr data-tip="${esc(tip)}"><td class="muted">${name}</td><td style="text-align:right;font-variant-numeric:tabular-nums">${value}</td></tr>`;
+  return `<table style="font-size:12px;border-spacing:8px 1px;margin:4px -8px 0;white-space:nowrap">`
+    + row('Sensor now', v.adc, 'The raw ADC reading: it falls as the magnet comes closer.')
+    + row('At rest', v.rest, 'Calibrated: taken at every power-up, and kept up to date while the board is typed on.')
+    + row('At the bottom', v.bottom, 'Calibrated: what this key reads pressed fully down.')
+    + row('Scale factor', v.scale.toFixed(2), "Turns this key's readings into the board's travel, from its calibration.")
+    + `</table>`;
+}
+function gaugeHtml() {
+  if (!state.testing)
+    return `<div class="gauge" id="gauge"><div class="h" style="display:flex;align-items:center">Test<button style="margin-left:auto" data-act="test">Test keys</button></div>`
+      + `<div class="muted" style="font-size:12px;line-height:1.5;margin-top:6px">Press keys on the board to see how far they go, and where they are pressed and released with these settings. While testing, pressing a key does not select it.</div></div>`;
+  const i = followed !== null ? followed : (selected.size ? [...selected][0] : null);
+  const head = `<div class="h" style="display:flex;align-items:center;gap:8px">Test<label style="margin-left:auto;font-size:12px;color:var(--text)"><input type="checkbox" data-act="raw"${state.raw ? ' checked' : ''}> Raw values</label><button class="on" data-act="test">Stop</button></div>`;
+  if (i === null) return `<div class="gauge" id="gauge">${head}<div class="muted" style="font-size:12px;line-height:1.5;margin-top:6px">Press a key on the board.<br><br><i>In this mockup: press keys on your own keyboard.</i></div></div>`;
+  const s = sim[i], e = eff(i);
+  return `<div class="gauge" id="gauge">${head}<div><span class="kname">${esc(KEYS[i].name)}</span> <span class="muted">${mm(Math.floor(s.travel))} mm${s.pressed ? ' · <b style="color:var(--press)">pressed</b>' : ''}</span></div>`
+    + (state.raw ? `<div style="display:flex;gap:4px;align-items:flex-start">${travelBar(e, s, KEYS[i], true)}${rawHtml(i)}</div>` : travelBar(e, s, KEYS[i])) + `</div>`;
+}
+function wordsOf(e) {
+  if (!e) return '';
+  if (e.mode === 1) return `Pressed when it goes down past ${mm(e.act)} mm, released when it comes back above ${mm(Math.max(0, e.act - 3))} mm.`;
+  return `Pressed first at ${mm(e.act)} mm, the Actuation Distance. Then released as soon as it comes up ${mm(e.rel)} mm, the Reset Distance, and pressed again as soon as it goes down ${mm(e.press)} mm, the Trigger Distance, wherever it is -- until it comes back above ${mm(Math.max(0, e.act - 3))} mm.`;
+}
+function slider(label, field, min, max, list, tip) {
+  const v = common(list, field), shown = v === null ? '' : `${mm(v)} mm`;
+  return `<div class="erow"><span class="lab"${tip ? ` data-tip="${esc(tip)}"` : ''}>${label}</span>`
+    + `<input type="range" min="${min}" max="${max}" step="1" value="${v === null ? Math.round((min + max) / 2) : v}" data-field="${field}">`
+    + `<span class="val${v === null ? ' mixed' : ''}" data-val="${field}">${v === null ? 'mixed' : shown}</span></div>`;
+}
+function selectHow() {
+  return `Click keys on the board to select or unselect them, or draw a box over several`
+    + ` -- or press them on the keyboard.`;
+}
+function editorHtml() {
+  const list = target();
+  if (!list.length) return `<div class="editor"><div class="target">No key selected<span style="margin-left:auto;display:flex;gap:6px"><button data-act="selall">Select All</button><button disabled>Clear</button></span></div><div class="words">${selectHow()}</div></div>`;
+  const all = list.length === KEYS.length;
+  const mode = common(list, 'mode');
+  const head = all ? `All ${KEYS.length} keys` : `${list.length} key${list.length > 1 ? 's' : ''}: <span class="sub">${esc(names(list, 10))}</span>`;
+  const clear = `<span class="right" style="margin-left:auto;display:flex;gap:6px"><button data-act="selall"${selected.size === KEYS.length ? ' disabled' : ''}>Select All</button><button data-act="clear"${selected.size ? '' : ' disabled'}>Clear</button></span>`;
+  let s = `<div class="editor"><div class="target">${head}${clear}</div>`;
+  s += `<div class="erow"><span class="lab">Mode</span><span class="seg${mode === null ? ' mixed' : ''}">`
+     + `<button class="${mode === 1 ? 'on' : ''}" data-mode="1">Regular</button><button class="${mode === 2 ? 'on' : ''}" data-mode="2">Rapid Trigger</button></span>`
+     + (mode === null ? `<span class="muted" style="font-size:12px">mixed</span>` : '') + `</div>`;
+  s += slider('Actuation Distance', 'act', 1, FULL, list, 'How far the key goes down before it counts as pressed the first time.');
+  if (mode === 2) {
+    if (state.sens === 'One sensitivity') s += slider('Sensitivity', 'press', 1, 20, list, 'How far the key must go down to be pressed again, and come up to be released.');
+    else s += slider('(Press) Trigger Distance', 'press', 1, 20, list, '(Press) Going down by this much presses it again.') + slider('(Release) Reset Distance', 'rel', 1, 20, list, '(Release) Coming up by this much releases it.');
+  }
+  const e0 = mode !== null && common(list, 'act') !== null ? eff(list[0]) : null;
+  s += `<div class="words">${e0 ? wordsOf(e0) : 'The selected keys do not all do the same: a change sets only what you change, on all of them.'}</div></div>`;
+  return s;
+}
+function profileLine() {
+  const p = state.profile, using = state.inUse === p;
+  let s = '';
+  if (state.where === 'Modes in the strip') {
+    s += `<span class="muted">Profile</span><select id="profsel">${[0, 1, 2].map(i => `<option value="${i}"${i === p ? ' selected' : ''}>${esc(profileName(i))}${state.inUse === i ? '  ●' : ''}</option>`).join('')}</select>`;
+  } else s += `<span class="title">${esc(profileName(p))}</span>`;
+  if (state.renaming) s += `<input type="text" id="rename" maxlength="30" value="${esc(profiles[p].name)}" placeholder="Profile ${p + 1}"> <span class="link" data-act="renamed">OK</span>`;
+  if (using) s += `<span class="inuse" data-tip="The board types with this profile now. Fn + P + Z, X or C, or the PROF keys, switch it from the keyboard.">● the board uses it</span>`;
+  else if (state.pick === 'Picking only shows it' || state.where === 'Modes in the strip') s += `<button data-act="use">Use on the board</button>`;
+  const ft = state.measured ? 'measured' : 'estimated';
+  const fttip = state.measured
+    ? 'Read from a key pressed fully down.\n\nEvery key is calibrated to this travel, whatever its switch: with a longer switch fitted, 1.7 mm is the same share of its travel, so a little deeper in fact.'
+    : "Estimated from the board's gamepad curve: no command reports it. Pressing any key fully down measures it.\n\nEvery key is calibrated to this travel, whatever its switch: with a longer switch fitted, 1.7 mm is the same share of its travel, so a little deeper in fact.";
+  s += `<span class="right" id="phead"><span class="muted" data-tip="${esc(fttip)}">Full travel ${mm(FULL)} mm <i>(${ft})</i></span>`
+     + `<span class="link" data-act="rename">Rename</span><span class="link" data-act="reset">Reset profile…</span></span>`;
+  return s;
+}
+function redrawPanelHead() { const ml = document.getElementById('pline'); if (ml) ml.innerHTML = profileLine(); }
+function panelHtml() {
+  let s = `<div class="mline" id="pline">${profileLine()}</div>`;
+  if (state.scope === 'Two tabs') s += `<div class="tabs">${['Whole profile', 'Selected keys'].map(t => `<div class="${state.tab === t ? 'on' : ''}" data-tab="${t}">${t === 'Selected keys' ? `Selected keys (${selected.size})` : t}</div>`).join('')}</div>`;
+  return s + `<div class="cols">${editorHtml()}${gaugeHtml()}</div>`;
+}
+
+function columnHtml() {
+  const later = state.where === 'Profiles in the strip' ? ['Advanced keys', 'SOCD', 'Gamepad', 'Calibration'] : [];
+  return `<div class="col"><div class="hdr">VIA</div><div class="entry">Keymap</div><div class="entry">Macros</div>`
+    + `<div class="sep"></div><div class="hdr">Board</div><div class="entry">Lighting</div><div class="entry on">Switches</div>`
+    + later.map(e => `<div class="entry later" data-tip="Round two">${e}</div>`).join('')
+    + `<div class="sep"></div><div class="hdr">Tools</div><div class="entry">Matrix</div><div class="entry">Device</div></div>`;
+}
+function stripHtml() {
+  if (state.where === 'Profiles in the strip')
+    return [0, 1, 2].map(i => `<button class="${state.profile === i ? 'on' : ''}" data-prof="${i}"${state.inUse === i ? ' data-tip="The board uses this profile"' : ''}>${state.inUse === i ? '<span class="dot">●</span>' : ''}${esc(profileName(i))}</button>`).join('');
+  return ['Actuation', 'Advanced keys', 'SOCD', 'Gamepad', 'Calibration'].map((m, n) => `<button class="${n === 0 ? 'on' : 'later'}"${n ? ' data-tip="Round two"' : ''}>${m === 'Actuation' ? 'Actuation & Rapid Trigger' : m}</button>`).join('');
+}
+
+function render() {
+  document.documentElement.dataset.theme = state.theme.toLowerCase();
+  renderControls();
+  document.getElementById('frame').innerHTML =
+    `<div class="menubar"><span class="board">Keychron K10 HE ANSI ▾</span><span class="muted">VIA</span><span class="right">Settings</span></div>`
+  + `<div class="body">${columnHtml()}<div class="main"><div class="strip" id="strip">${stripHtml()}</div>`
+  + `<div class="boardarea" id="boardarea">${boardSvg()}</div><div class="panel" id="panel">${panelHtml()}</div></div></div>`;
+}
+function redrawLive() {
+  const g = groups(), majority = new Set(g[0].keys);
+  const keys = document.getElementById('keys');
+  if (keys) keys.innerHTML = KEYS.map((k, i) => keySvg(k, i, majority)).join('');
+  const gauge = document.getElementById('gauge');
+  if (gauge) gauge.outerHTML = gaugeHtml();
+}
+function redrawPanel() { document.getElementById('panel').innerHTML = panelHtml(); redrawLive(); }
+
+function renderControls() {
+  const c = document.getElementById('controls');
+  c.innerHTML = '';
+  [['boardState', 'Default (profile 1) as read', Object.keys(STATES)],
+   ['theme', 'Theme', ['Light', 'Dark']]].forEach(([k, name, values]) => {
+    const g = document.createElement('div'); g.className = 'group';
+    g.innerHTML = `<span class="name">${name}</span>`;
+    values.forEach(v => {
+      const bt = document.createElement('button'); bt.textContent = v;
+      if (state[k] === v) bt.className = 'on';
+      if (k === 'pick' && state.where === 'Modes in the strip') bt.disabled = true;
+      bt.onclick = () => {
+        state[k] = v; state.toast = '';
+        if (k === 'boardState') { profiles = freshProfiles(v); selected.clear(); state.profile = 0; state.inUse = 0; }
+        render();
+      };
+      g.appendChild(bt);
+    });
+    c.appendChild(g);
+  });
+  if (state.toast) { const t = document.createElement('span'); t.className = 'toast'; t.textContent = state.toast; c.appendChild(t); }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Events.
+const frame = document.getElementById('frame'), tip = document.getElementById('tip');
+let drag = null;
+function boardPoint(ev) {
+  const r = document.getElementById('board').getBoundingClientRect();
+  return { x: (ev.clientX - r.left - M) / U, y: (ev.clientY - r.top - M) / U, r };
+}
+frame.addEventListener('mousedown', ev => {
+  const board = ev.target.closest('#board');
+  if (!board) return;
+  const p = boardPoint(ev);
+  drag = { x0: p.x, y0: p.y, cx: ev.clientX, cy: ev.clientY, key: ev.target.dataset.key, moved: false };
+});
+window.addEventListener('mousemove', ev => {
+  if (!drag) return;
+  if (Math.abs(ev.clientX - drag.cx) + Math.abs(ev.clientY - drag.cy) > 6) drag.moved = true;
+  if (!drag.moved) return;
+  const box = document.getElementById('box'), area = document.getElementById('boardarea').getBoundingClientRect();
+  Object.assign(box.style, { display: 'block', left: Math.min(ev.clientX, drag.cx) - area.left + 'px', top: Math.min(ev.clientY, drag.cy) - area.top + 'px',
+                             width: Math.abs(ev.clientX - drag.cx) + 'px', height: Math.abs(ev.clientY - drag.cy) + 'px' });
+});
+window.addEventListener('mouseup', ev => {
+  if (!drag) return;
+  const d = drag; drag = null;
+  const box = document.getElementById('box'); if (box) box.style.display = 'none';
+  if (d.moved) {
+    const p = boardPoint(ev), x0 = Math.min(d.x0, p.x), x1 = Math.max(d.x0, p.x), y0 = Math.min(d.y0, p.y), y1 = Math.max(d.y0, p.y);
+    const inBox = KEYS.map((k, i) => i).filter(i => { const k = KEYS[i]; return k.x < x1 && k.x + k.w > x0 && k.y < y1 && k.y + k.h > y0; });
+    const all = inBox.every(i => selected.has(i));
+    inBox.forEach(i => all ? selected.delete(i) : selected.add(i));
+  } else if (d.key !== undefined) toggle(+d.key);
+  else return;
+  if (state.scope === 'Two tabs') state.tab = selected.size ? 'Selected keys' : 'Whole profile';
+  followed = null;
+  redrawPanel();
+});
+frame.addEventListener('click', ev => {
+  const t = ev.target;
+  if (t.dataset.prof !== undefined) {
+    state.profile = +t.dataset.prof; state.renaming = false;
+    if (state.pick === 'Picking uses it' && state.inUse !== state.profile) { state.inUse = state.profile; state.toast = `The board now uses ${profileName(state.profile)} (AMC_SELECT_PROFILE, stored at once)`; }
+    render(); return;
+  }
+  if (t.dataset.mode !== undefined && t.closest('.editor')) { apply('mode', +t.dataset.mode, target()); render(); return; }
+  if (t.dataset.tab) { state.tab = t.dataset.tab; redrawPanel(); return; }
+  const act = t.dataset.act;
+  if (act === 'test') {
+    state.testing = !state.testing; followed = null;
+    if (!state.testing) sim.forEach(x => Object.assign(x, { travel: 0, down: false, pressed: false, peak: 0, trough: 0 }));
+    redrawPanel(); return;
+  }
+  if (act === 'raw') { state.raw = t.checked; redrawPanel(); return; }
+  if (act === 'clear') { selected.clear(); if (state.scope === 'Two tabs') state.tab = 'Whole profile'; redrawPanel(); }
+  if (act === 'selall') { KEYS.forEach((k, i) => selected.add(i)); if (state.scope === 'Two tabs') state.tab = 'Selected keys'; redrawPanel(); }
+  if (act === 'use') { state.inUse = state.profile; state.toast = `The board now uses ${profileName(state.profile)} (AMC_SELECT_PROFILE, stored at once)`; render(); }
+  if (act === 'rename') { state.renaming = true; redrawPanelHead(); const r = document.getElementById('rename'); if (r) r.focus(); }
+  if (act === 'renamed') { const r = document.getElementById('rename'); profiles[state.profile].name = r.value.trim(); state.renaming = false; state.toast = 'Name written (AMC_SET_PROFILE_NAME, then AMC_SAVE_PROFILE)'; render(); }
+  if (act === 'reset' && confirm(`Reset ${profileName(state.profile)}?\n\nEvery key goes back to the board's defaults: Regular, actuation distance ${mm(Math.floor(FULL / 2))} mm. This cannot be undone.`)) {
+    profiles[state.profile].keys = allKeys(ZERO); profiles[state.profile].global = { mode: 1, act: Math.floor(FULL / 2), press: 4, rel: 4 };
+    state.toast = 'Profile reset (AMC_RESET_PROFILE, stored at once)'; render();
+  }
+});
+frame.addEventListener('change', ev => {
+  if (ev.target.id === 'profsel') { state.profile = +ev.target.value; render(); }
+});
+frame.addEventListener('input', ev => {
+  const f = ev.target.dataset.field;
+  if (!f) return;
+  // Shown while the slider moves; written once it is let go (the 'change' below), as Lighting does.
+  const v = document.querySelector(`[data-val="${f}"]`); if (v) { v.textContent = `${mm(+ev.target.value)} mm`; v.classList.remove('mixed'); }
+});
+frame.addEventListener('change', ev => {
+  const f = ev.target.dataset.field;
+  if (!f) return;
+  apply(f, +ev.target.value, target());
+  renderControls(); redrawPanel();
+  // keep the board's values in step
+  const g = groups(), majority = new Set(g[0].keys);
+  document.getElementById('keys').innerHTML = KEYS.map((k, i) => keySvg(k, i, majority)).join('');
+});
+frame.addEventListener('mousemove', ev => {
+  const t = ev.target.closest('[data-tip]');
+  if (!t || drag) { tip.style.display = 'none'; return; }
+  tip.textContent = t.dataset.tip;
+  tip.style.display = 'block';
+  tip.style.left = Math.min(ev.clientX + 14, window.innerWidth - 400) + 'px';
+  tip.style.top = ev.clientY + 16 + 'px';
+});
+frame.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+window.addEventListener('keydown', ev => {
+  if (ev.target.tagName === 'INPUT' || ev.target.tagName === 'SELECT') return;
+  const i = BY_CODE.get(ev.code);
+  if (i === undefined) return;
+  ev.preventDefault();
+  if (ev.repeat) return;
+  // Testing: the press is followed in Test, the selection left alone (Rico, 2026-11-08). Otherwise
+  // a key pressed on the board selects or unselects it, as a click does.
+  if (state.testing) { sim[i].down = true; followed = i; return; }
+  toggle(i);
+  if (state.scope === 'Two tabs') state.tab = selected.size ? 'Selected keys' : 'Whole profile';
+  redrawPanel();
+});
+function toggle(i) { selected.has(i) ? selected.delete(i) : selected.add(i); }
+window.addEventListener('keyup', ev => {
+  const i = BY_CODE.get(ev.code);
+  if (i === undefined) return;
+  ev.preventDefault();
+  sim[i].down = false;
+});
+window.addEventListener('blur', () => sim.forEach(s => { s.down = false; }));
+
+document.getElementById('notes').innerHTML = `
+<p><b>Try it</b>: press keys on your own keyboard -- they are the K10's keys. Normally a press selects or unselects the key.
+Click <b>Test keys</b> in the panel's right column and presses play the switch instead, the selection left alone (Rico,
+2026-11-08): each key travels down in about a fifth of a second while held, fills on the board as it goes and is ringed once it
+counts as pressed, and Test follows the last key pressed, with the points where it is pressed and released. Tap a key set to
+Rapid Trigger quickly, or let it go before the bottom, to see it release and press again. <b>Raw values</b> adds what the
+firmware reads for that key (0xA9 0x30 and 0x42): the sensor now, its calibrated rest and bottom, and its scale factor -- simulated here near the K10 HE's own numbers. On the board, testing polls one key
+per request: the key the matrix state reports pressed, then its travel.</p>
+<p><b>Selecting</b> is the Launcher's (Rico): a click selects or
+unselects a key, without Ctrl, so several are built up click by click; a box drawn over the board selects the keys in it, or
+unselects them when they all were; <b>Select All</b> and <b>Clear</b> on the editor's first line. <b>Pressing a key on the
+board</b> selects or unselects it too -- the owner's hand is on the keyboard anyway. Trying a key just set unselects it --
+Rico's choice all the same (2026-11-08): press it again. On the board, Nazg knows the key pressed
+from VIA's matrix state, which every Keychron answers (VIA_INSECURE).</p>
+<p><b>The three states read on the board</b>, under "Default (profile 1) as read": <b>as it came</b>, every key's word 0, following the
+profile; <b>Rapid Trigger ticked</b> in the Launcher, which wrote all 104 keys and left the profile's own setting saying Regular;
+<b>unticked again</b>, the 104 keys now explicitly Regular 1.7 mm. The first and third behave alike and <b>read alike here</b>:
+every key says 1.7, and the editor says "All 104 keys". Nazg compares what each key does, never whether its word is 0, so a
+board the Launcher has touched does not show 104 exceptions. There is no list of the keys' settings: the values are on the keys
+(Rico, 2026-11-08). "Some keys apart" is made up: WASD on Rapid Trigger at 0.5 mm, sensitivity 0.2, the space bar
+deeper.</p>
+<p><b>Settled by Rico</b> (2026-11-08): <b>the profiles in the strip</b>, as Keymap's layers -- the whole set of settings,
+which round two's Hall-effect sections (advanced keys, SOCD) would share; Gamepad's curve and calibration are not per profile, so
+there the strip would be absent. <b>Picking a profile makes the board use it</b>, as Fn + P + Z/X/C and the Launcher do, so what
+is shown is always what is in use. <b>The Actuation Distance on every key</b>, RT on those in Rapid Trigger, as the Launcher.
+<b>The selection is edited, or every key when nothing is selected.</b> <b>(Press) Trigger Distance and (Release) Reset Distance
+apart</b>. Every change is <b>written at once</b>, a slider once let go, then saved (AMC_SAVE_PROFILE).</p>
+<p><b>Full travel</b> bounds every slider, 3.5 mm on this board. No command reports it: Nazg starts from the gamepad curve's last x,
+and the first key read pressed fully down settles it -- press one to the bottom here. It is one value for the whole board even
+with mixed switches, since calibration scales every key to it (keychron-commands.md, "How travel is computed"); the tooltip says
+what that means for a longer switch.</p>
+<p><b>Not decided here, for the build</b>: whether "every key" writes each key, as the Launcher does, or the profile's own setting
+and 0 into every key (untested: nothing has been written to a board yet); the sensitivity's range (0.1-2.0 mm here; the firmware
+takes up to 3.9); how Nazg notices a profile switched from the keyboard.</p>`;
+
+render();
+</script>
+</body>
+</html>
