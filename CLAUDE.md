@@ -167,7 +167,7 @@ one board to unlock).
 | Combos and the combo term, read and written (Model F) | |
 | Key overrides, read and written (Model F) | |
 | | Alt repeat keys -- no board at hand has them |
-| The Switches section on Rico's borrowed K10 HE V3 (2026-11-08): profiles read, picked and followed from Fn + P + X, travel written, saved and read back, the key test with raw values | Reset profile on a board; DKS, SOCD and gamepad keys -- round two |
+| The Switches section on Rico's borrowed K10 HE V3 (2026-11-08): profiles read, picked and followed from Fn + P + X, travel written, saved and read back, the key test with raw values; changes made back and forth with Keychron's Launcher, each shown right by the other (Rico) | Nazg's own Reset profile on a board; DKS, SOCD and gamepad keys -- round two |
 | Audio planned from a definition, and a firmware without audio said (Concordia, a test definition) | Audio and Clicky read or written, Play a sound -- no board at hand has audio built in |
 | Saved layouts on the Model F (Rico, 2026-10-18): Save; its own file loaded back as "the same"; a changed key found and written back; a .vil from Vial loaded; Nazg's file loaded in Vial; the Concordia's file asked about, its keymap left out. Save on the Concordia (probe). Unlock and apply, a macro and Boot written once unlocked; an ordinary key applied locked (F77 in secure mode). A file the VIA app wrote, loaded and applied on a VIA board (Rico) | |
 | A board's own menus: a few EC features (Concordia Type C); all 35909 registry controls parse (test) | |

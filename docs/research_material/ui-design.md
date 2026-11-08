@@ -2512,7 +2512,8 @@ play the switches.
   or the Launcher's Basic / Advanced switch, were the others.
 
 *Built 2026-11-08* (`ui/NazgSwitchesSection.*`; the writes in `adapters/keychron`, planned by
-`PlanTravelWrites()`), **not yet tried on a board**:
+`PlanTravelWrites()`). **Seen working on Rico's borrowed K10 HE V3** the same day, and **alongside
+Keychron's Launcher**: changes made back and forth in both, each shown right by the other (Rico):
 - **Found by probing** at every load: `0xA0`, then `0xA9 0x01` (`BoardReport::hasKeychronAnalogMatrix`),
   the section in the Board group after the definition's menus.
 - **Every key written explicitly**, as the Launcher does: a change applies on top of each key's

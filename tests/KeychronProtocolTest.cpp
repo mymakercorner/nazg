@@ -503,6 +503,39 @@ namespace
         }
     }
 
+    // Words read from the K10 HE's three profiles on 2026-11-08 evening: Gamepad's preset, and Gaming
+    // as found -- not its preset, which a reset showed to be every key at 0.
+    void TestPresetWords()
+    {
+        std::printf("the profiles as read from the board\n");
+
+        // Gamepad, W: the left stick's Y up, value 3. The advanced mode overrides mode 0.
+        const keychron::KeyConfig w = keychron::DecodeKeyConfig(0x03400000u);
+        Check(w.advancedMode == keychron::AdvancedMode::Gamepad && w.advancedData == 3,
+              "0x03400000: gamepad (stored 4), axis 3 -- the advanced fields' layout, seen");
+        Check(w.mode == keychron::KeyMode::FollowProfile && w.actuationPoint == 0, "nothing else set");
+
+        // Gamepad, Home: the Xbox button, value 27 = button 14.
+        Check(keychron::DecodeKeyConfig(0x1B400000u).advancedData == 27, "the top byte holds the button");
+
+        // Gaming as found: rapid trigger and nothing else, every distance following the profile;
+        // Caps Lock with a Reset Distance of its own, 2.4 mm.
+        const keychron::KeyConfig gaming = keychron::DecodeKeyConfig(0x00000002u);
+        Check(gaming.mode == keychron::KeyMode::RapidTrigger && gaming.actuationPoint == 0 &&
+                  gaming.pressSensitivity == 0 && gaming.releaseSensitivity == 0,
+              "a word may set the mode bits alone, every distance following the profile");
+        const keychron::KeyConfig capsLock = keychron::DecodeKeyConfig(0x00060002u);
+        Check(capsLock.releaseSensitivity == 24 && capsLock.pressSensitivity == 0, "Caps Lock: Reset 2.4 mm only");
+
+        keychron::Profile profile;
+        profile.global = keychron::DecodeKeyConfig(0x00010446u);   // rapid trigger, 1.7, 0.4, 0.4
+        profile.keys.assign(static_cast<size_t>(c_Rows) * c_Cols, gaming);
+        profile.keys[3 * c_Cols + 0] = capsLock;
+        const keychron::KeyConfig caps = keychron::EffectiveConfig(profile, { 3, 0 }, c_Cols);
+        Check(caps.actuationPoint == 17 && caps.pressSensitivity == 4 && caps.releaseSensitivity == 24,
+              "Caps Lock effective: 1.7 and 0.4 from the profile, its own 2.4");
+    }
+
     // The writes have met no board: these pin the request layout the source reads
     // (analog_matrix.c, set_travel()), not a reply recorded from one.
     void TestWrites()
@@ -660,6 +693,7 @@ int main()
     TestSlotLayouts();
     TestCurveAndTravel();
     TestLiveReadout();
+    TestPresetWords();
     TestWrites();
     TestPlanTravel();
     TestTopLevel();

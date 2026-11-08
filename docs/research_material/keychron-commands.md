@@ -124,7 +124,8 @@ actuation for this profile** (Rico, 2026-11-08), so `act_pt` is read right. The 
 slots were all zero, `name` empty, and `crc16` `0000` -- confirming the firmware never computes it.
 
 So `analog_key_config_t`'s `mode`, `act_pt` and both sensitivities are **confirmed on hardware**.
-Still derived only: `adv_mode` and `adv_mode_data`, zero everywhere on this board, and the whole of
+Still derived only: `adv_mode` and `adv_mode_data`, zero everywhere in profile 0 -- since seen in the
+Gamepad preset, gamepad mode as documented (see "The three profiles read") -- and the whole of
 `okmc_config_t` and `socd_config_t`, whose slots are all empty.
 
 **`key_config` is confirmed too, and its indexing with it** -- by luck, a few hours later. The
@@ -233,6 +234,64 @@ polynomial, not through the raw ADC difference
 ([How travel is computed](#how-travel-is-computed)). Values near 10 rather than near 1 suggest this
 firmware's polynomial gives millimetres where the source's gives 0.1 mm: its constants differ, and
 they are not published.
+
+### The three profiles read, and Keychron's presets
+
+*Read on 2026-11-08 evening with `nazg-probe-keychron --matrix 6x21 --profile all`, read-only, the
+same K10 HE V3, after a day of Nazg's own writes to profile 0.*
+
+**Every name field is 30 zero bytes**, all three profiles: "Default", "Gaming" and "Gamepad" are the
+Launcher's own names for profiles 0, 1 and 2, not the board's. No DKS or SOCD slot is in use in any.
+
+| Profile | `global` | The keys |
+|---|---|---|
+| 0, Default | regular, 1.7, 0.4, 0.4 | 122 at 0; W A S D explicit regular 1.7 -- Nazg's writes of the day |
+| 1, Gaming (in use) | **rapid trigger**, 1.7, 0.4, 0.4 | 103 at `0x00000002`: rapid trigger, **every distance 0, following `global`**; Caps Lock (3, 0) at `0x00060002`, Reset Distance **2.4 mm**; the 22 positions with no key at 0 -- *not* the preset: a reset changed it (below) |
+| 2, Gamepad | rapid trigger, 1.7, 0.4, 0.4 | 25 keys in **gamepad mode** (`adv_mode` 4), the rest at 0 |
+
+So **a key's word may set only some fields** -- Gaming as found had the mode bits alone on 103 keys,
+and a Reset Distance alone on Caps Lock, every other field at 0 to follow the profile. Not Keychron's
+preset, which a reset showed to be every key at 0 (below), and not Nazg, which writes all four
+fields (`0x00060446` for the same change): **Rico, in the Launcher**, by his own account, Caps Lock's
+2.4 mm at least. So the Launcher too writes 0 for the fields a change leaves alone -- at times: when
+Rico ticked Rapid Trigger on Default that morning it wrote all four into each key ("Rapid Trigger is
+written per key"). Which of its controls writes which form is not known (its Basic and Advanced
+Rapid Trigger, perhaps). Both forms are in the field, and a client must read either.
+
+**The gamepad words confirm the advanced fields' layout.** Each is `0xDD400000`: `adv_mode` 4 in bits
+20-23, gamepad as documented, and the axis or button in the top byte, `mode` 0 under them -- the
+advanced mode overrides it. The preset, by the numbering of "Gamepad" below:
+
+| Keys | Values | As |
+|---|---|---|
+| A, D, S, W | 0, 1, 2, 3 | the left stick: X left, right, Y down, up |
+| Left Ctrl, Right Ctrl | 4, 5 | Z - and +: the triggers |
+| H, K, J, U | 6, 7, 8, 9 | the right stick: RX left, right, RY down, up |
+| / ' ; [ | 13-16 | buttons 0-3: A, B, X, Y |
+| E, Y | 17, 18 | LB, RB |
+| \` , Page Up | 19, 20 | View, Menu |
+| Left Shift, Right Shift | 21, 22 | L3, R3 |
+| Up, Down, Left, Right | 23-26 | the D-pad |
+| Home | 27 | Xbox |
+
+**Nazg's round one shows these keys as Rapid Trigger 1.7** -- their `mode` follows `global` -- though
+they type nothing while gamepad mode holds them. Round two names them.
+
+**The Launcher's Reset left profile 0 at the firmware's defaults** (Rico reset it in the Launcher,
+2026-11-08): regular 1.7 and every key 0 -- the morning's 104 explicit keys gone. Default's preset
+*is* the firmware's defaults.
+
+**A reset brings back the profile's own preset, not one set of defaults.** Rico then reset Gamepad
+in the Launcher, and a read afterwards found it byte for byte as before: its 25 gamepad keys back.
+The same read found Gaming changed since the first one -- `global` still rapid trigger 1.7 / 0.4 /
+0.4, but all 126 keys at 0: the 103 mode-only words and Caps Lock's 2.4 mm Reset Distance gone. Rico had
+reset Gaming too: **Gaming's preset is `global` rapid trigger and every key at 0**, and the state
+first read -- Caps Lock's 2.4 mm included -- was someone's configuration. So this firmware,
+unlike the published source's single `profile_reset()` default, keeps a preset per profile: regular
+for 0, rapid trigger for 1, the gamepad keys for 2. Whether the preset lives in the firmware or the
+Launcher writes it after resetting is not known -- the Launcher was the one resetting. Nazg's own
+`AMC_RESET_PROFILE` has still met no board; its question says only "the settings the board was made
+with", not what they are.
 
 ### Unsolicited reports
 
@@ -729,9 +788,10 @@ rest, `0x02` bottom), `[3]` the state (0 off, 1 power-up, 2 rest, 3 bottom, 4 st
 5. **The profile layout is proven, `key_config` and its indexing included.** A K10 HE's profile 0
    decoded exactly on 2026-11-08 -- `act_pt` agreeing with Keychron's Launcher, and the per-key
    entries landing on exactly the 104 positions the board has keys at. The adapter's own code read
-   it over the real transport (`nazg-probe-keychron`), not only a scripted channel. What no board
-   has shown yet: `adv_mode` / `adv_mode_data`, and a populated DKS or SOCD slot. Those still want
-   a board before a write depends on them.
+   it over the real transport (`nazg-probe-keychron`), not only a scripted channel. `adv_mode` /
+   `adv_mode_data` were seen too, in the Gamepad preset (gamepad mode 4 and its axes and buttons). What
+   no board has shown yet: DKS and toggle keys, a populated DKS or SOCD slot. Those still want a board
+   before a write depends on them.
 
    **A board the Launcher has touched is not in its default state** (see "The 2026-11-08 read"):
    it rewrites every key. Read the profile; never assume one.

@@ -6,7 +6,10 @@
 // prove. For checking a tester's board, and for settling the layouts keychron-commands.md still
 // marks derived rather than seen.
 //
-//   nazg-probe-keychron [--matrix <rows>x<columns>] [--profile <n>] [--travel <row>,<col>]
+//   nazg-probe-keychron [--matrix <rows>x<columns>] [--profile <n>|all] [--travel <row>,<col>]
+//
+// --profile all reads every profile: Keychron's Launcher calls them Default, Gaming and Gamepad,
+// and what its presets hold -- and whether their name fields are empty -- is what it shows.
 //
 // READ-ONLY. It sends nothing that changes the board: no write, no save, no calibration, and
 // never 0xAA or 0xAB, which the adapter does not even name. --travel polls one key for a few
@@ -17,11 +20,13 @@
 //
 // Exit code: 0 when the board answered, 1 when it did not, 2 on a usage error.
 
+#include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include "adapters/keychron/NazgKeychronProtocol.h"
@@ -41,12 +46,14 @@ namespace
     {
         uint8_t  rows      = 0;
         uint8_t  columns   = 0;
-        int      profile   = -1;   // -1: the current one
+        int      profile   = -1;   // -1: the current one; c_AllProfiles: every one
         int      travelRow = -1;
         int      travelCol = -1;
         uint16_t vendorId  = 0;    // 0: ask every board plugged in
         uint16_t productId = 0;
     };
+
+    constexpr int c_AllProfiles = -2;
 
     // VIA's raw HID interface, the one Keychron's commands ride on.
     constexpr uint16_t c_UsagePage = 0xFF60;
@@ -63,6 +70,85 @@ namespace
             std::printf("  advanced %u/%u", static_cast<unsigned>(key.advancedMode),
                         static_cast<unsigned>(key.advancedData));
         std::printf("\n");
+    }
+
+    // One profile decoded: its global word, its name field byte for byte, every key grouped by the
+    // word it holds -- with where each group's keys are -- and the advanced slots in use.
+    Task<void> PrintProfile(keychron::Protocol& protocol, const keychron::ProfileGeometry& geometry,
+                            const Options& options, uint8_t index)
+    {
+        std::printf("\n--- profile %u%s ---\n", index, index == geometry.currentProfile ? " (in use)" : "");
+
+        const std::vector<uint8_t> raw = co_await protocol.GetProfileRaw(index, geometry);
+        const keychron::Profile    profile =
+            keychron::DecodeProfile(raw, options.rows, options.columns, geometry.dksSlots, geometry.socdSlots);
+
+        PrintKeyConfig("global", profile.global);
+
+        // The name field as stored: 30 bytes before the CRC at the profile's end.
+        const size_t nameAt = raw.size() - 2 - 30;
+        bool         empty  = true;
+        for (size_t i = nameAt; i < nameAt + 30; ++i)
+            empty = empty && raw[i] == 0;
+        if (empty)
+            std::printf("  name       (30 zero bytes: the Launcher names it itself)\n");
+        else
+        {
+            std::printf("  name       \"%s\"  bytes:", profile.name.c_str());
+            for (size_t i = nameAt; i < nameAt + 30; ++i)
+                std::printf(" %02X", raw[i]);
+            std::printf("\n");
+        }
+
+        // The keys by word, the largest group first.
+        std::vector<std::pair<uint32_t, std::vector<size_t>>> groups;
+        for (size_t i = 0; i < profile.keys.size(); ++i)
+        {
+            const uint32_t word  = keychron::EncodeKeyConfig(profile.keys[i]);
+            auto           group = std::find_if(groups.begin(), groups.end(),
+                                                [&](const auto& known) { return known.first == word; });
+            if (group == groups.end())
+                groups.push_back({ word, { i } });
+            else
+                group->second.push_back(i);
+        }
+        std::sort(groups.begin(), groups.end(),
+                  [](const auto& a, const auto& b) { return a.second.size() > b.second.size(); });
+
+        std::printf("  the %zu matrix positions, by the word each holds (22 at 0 are no key on a K10 HE ANSI):\n",
+                    profile.keys.size());
+        for (const auto& [word, keys] : groups)
+        {
+            char label[24];
+            std::snprintf(label, sizeof label, "%3zu x %08X", keys.size(), static_cast<unsigned>(word));
+            PrintKeyConfig(label, profile.keys[keys.front()]);
+            if (keys.size() <= 24)
+            {
+                std::printf("               at");
+                for (const size_t i : keys)
+                    std::printf(" (%zu,%zu)", i / options.columns, i % options.columns);
+                std::printf("\n");
+            }
+        }
+
+        for (size_t i = 0; i < profile.dksSlots.size(); ++i)
+        {
+            const keychron::DksSlot& slot = profile.dksSlots[i];
+            if (slot.IsEmpty())
+                continue;
+            std::printf("  DKS %2zu  points %.1f %.1f %.1f %.1f  keycodes %04X %04X %04X %04X\n", i,
+                        slot.shallowPress / 10.0, slot.shallowRelease / 10.0, slot.deepPress / 10.0,
+                        slot.deepRelease / 10.0, slot.keycodes[0], slot.keycodes[1], slot.keycodes[2],
+                        slot.keycodes[3]);
+        }
+        for (size_t i = 0; i < profile.socdSlots.size(); ++i)
+        {
+            const keychron::SocdSlot& slot = profile.socdSlots[i];
+            if (slot.IsEmpty())
+                continue;
+            std::printf("  SOCD %2zu (%u,%u) + (%u,%u)  type %u\n", i, slot.firstRow, slot.firstColumn,
+                        slot.secondRow, slot.secondColumn, static_cast<unsigned>(slot.type));
+        }
     }
 
     Task<int> Probe(HidTransport& transport, Options options)
@@ -176,42 +262,23 @@ namespace
         }
         std::printf("  the size matches %ux%u\n", options.rows, options.columns);
 
-        // ---- one profile, decoded ----
-        const uint8_t wanted = options.profile < 0 ? geometry.currentProfile
-                                                   : static_cast<uint8_t>(options.profile);
-        std::printf("\n--- profile %u ---\n", wanted);
-
-        const std::vector<uint8_t> raw = co_await protocol.GetProfileRaw(wanted, geometry);
-        std::printf("  read %zu bytes\n", raw.size());
-
-        const keychron::Profile profile =
-            keychron::DecodeProfile(raw, options.rows, options.columns, geometry.dksSlots, geometry.socdSlots);
-
-        PrintKeyConfig("global", profile.global);
-        std::printf("  name       %s\n", profile.name.empty() ? "(none)" : profile.name.c_str());
-        std::printf("  crc16      0x%04X\n", profile.crc16);
-
-        size_t touched = 0;
-        for (size_t i = 0; i < profile.keys.size(); ++i)
+        // ---- one profile, or all of them ----
+        if (options.profile == c_AllProfiles)
         {
-            if (profile.keys[i].FollowsProfile())
-                continue;
-            ++touched;
-            if (touched <= 10)
-            {
-                char label[16];
-                std::snprintf(label, sizeof label, "(%zu,%zu)", i / options.columns, i % options.columns);
-                PrintKeyConfig(label, profile.keys[i]);
-            }
+            for (uint8_t index = 0; index < geometry.profileCount; ++index)
+                co_await PrintProfile(protocol, geometry, options, index);
         }
-        std::printf("  %zu of %zu keys set apart from the profile\n", touched, profile.keys.size());
-
-        size_t dksUsed = 0, socdUsed = 0;
-        for (const keychron::DksSlot& slot : profile.dksSlots)
-            dksUsed += slot.IsEmpty() ? 0 : 1;
-        for (const keychron::SocdSlot& slot : profile.socdSlots)
-            socdUsed += slot.IsEmpty() ? 0 : 1;
-        std::printf("  %zu DKS and %zu SOCD slots in use\n", dksUsed, socdUsed);
+        else
+        {
+            const uint8_t wanted = options.profile < 0 ? geometry.currentProfile : static_cast<uint8_t>(options.profile);
+            if (wanted >= geometry.profileCount)
+            {
+                std::fprintf(stderr, "\nThere are %u profiles, 0 to %u.\n", geometry.profileCount,
+                             geometry.profileCount - 1u);
+                co_return 2;
+            }
+            co_await PrintProfile(protocol, geometry, options, wanted);
+        }
 
         // ---- one key, live ----
         if (options.travelRow >= 0)
@@ -251,7 +318,7 @@ namespace
     int Usage()
     {
         std::fprintf(stderr,
-                     "usage: nazg-probe-keychron [--matrix <rows>x<columns>] [--profile <n>]\n"
+                     "usage: nazg-probe-keychron [--matrix <rows>x<columns>] [--profile <n>|all]\n"
                      "                           [--travel <row>,<col>] [--device <vid>:<pid>]\n");
         return 2;
     }
@@ -274,7 +341,8 @@ int main(int argc, char** argv)
         }
         else if (argument == "--profile" && i + 1 < argc)
         {
-            options.profile = std::atoi(argv[++i]);
+            const std::string which = argv[++i];
+            options.profile         = which == "all" ? c_AllProfiles : std::atoi(which.c_str());
         }
         else if (argument == "--device" && i + 1 < argc)
         {
