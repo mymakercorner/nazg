@@ -536,6 +536,43 @@ key reading pressed, which a stuck key would have held.
 *Seen on Rico's F77* (2026-11-07): the names over the numbers, the line and the key's presses
 following each press, a click selecting, the next press moving on -- "it works perfectly".
 
+**Signal levels, fourth round: the keys at rest while another is pressed, and a report** (Rico's
+idea, 2026-11-14; mockup, first draft, the same day, for Rico to choose from):
+[ui-design/diagnostics-report.html](ui-design/diagnostics-report.html). Two things: watch every key
+at rest while another is pressed, to see whether pressing one disturbs the others; and save a
+report as one HTML file -- the key presses as the section shows them, and the keys whose level
+moves abnormally at rest.
+
+*What the F77 says* (the 4-minute recording, `tests/data/leyden-jar/`): with no key pressed, a key
+at rest moves by 0, at most 1. While one key is pressed, the keys on **the same controller column,
+the next controller row** move 2 to 4 towards their threshold -- 122 such pairs, Tab moving Esc, D
+moving F and C, and no pair off the controller's column. Its keys rest 6 to 13 from their
+threshold, so nothing comes close: this is a healthy board's coupling, the measure of what is
+normal. Nothing needs recording anew: Signal levels already keeps every reading of every key.
+
+*The measure proposed*: the readings where one key is pressed alone; for each other key, its
+furthest reading towards its threshold during each press of that key, and over that key's presses
+the median -- one spring's vibration accuses nothing, as the strongest hold decides elsewhere. A new
+reason in the verdicts, judged by the rest margin as the others: **at risk** when a key's press
+leaves another less than the margin from its threshold ("May type by itself when D is pressed"),
+**failing** when it took it past. Chords are left out: neither key moved alone.
+
+*Its variants*: the F77 as recorded, or with two made-up pairs (D bringing F to 1 from its
+threshold, J taking U past it); the finding as a reason in the verdicts only, or also a third tab,
+Other keys, every key moved, the most first; on the board, with a key in focus, the keys whose press
+moves it outlined -- orange when it comes close, grey when safe -- or both ways, or nothing; the
+key's detail a line per key moving it on one scale, or words only; **Save report...** beside Clear
+or in the board menu beside Save to file....
+
+*The report*: plain HTML and inline SVG, no script, readable offline and printable. The keyboard and
+its controller as Device shows them; Signal levels' verdicts on the board and the keys to look at,
+with why; the keys moved by another key's press, with their numbers -- numbers belong in a report,
+which is for whoever repairs or builds the board, as Levels is; the key presses seen, on the board
+and the controller's grid (a variant: the board only); every key's numbers, folded. Variants: the
+pairs that stay safe listed folded or left out; **the readings embedded** as JSON, the format of
+Nazg's test recordings -- a tester's report becoming a recording to replay, about 0.9 MB for 4
+minutes -- or left out, some 60 KB.
+
 **Open: how third-party plugins are delivered.**
 
 | | For | Against |

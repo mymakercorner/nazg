@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- Mockup: Signal levels watching the keys at rest while another is pressed, and a report saved as one
+     HTML file (ui-design.md, "Plugins", "Signal levels, fourth round"; the rounds before are
+     diagnostics-section.html, key-health.html and levels-on-keys.html).
+
+     First draft (2026-11-14), from Rico's two ideas: keep the levels of the keys at rest while another
+     key is pressed, to see whether pressing one disturbs the others; and save a report -- the key
+     presses as the section shows them, and the keys whose level moves abnormally at rest.
+
+     What Rico's F77 says (the 4-minute recording, 2026-10-17, every key pressed slowly): pressing a key
+     moves the keys on the same controller column, the next controller row, 2 to 4 towards their
+     threshold -- 122 pairs, every one of them neighbours on the controller -- against 0 or 1 when no key
+     is pressed. Its keys rest 6 to 13 from their threshold, so nothing comes close: healthy, and the
+     measure of what a healthy board does. Every number here is the recording's, per key and per pair;
+     the verdicts are this mockup's approximation of Nazg's rules. "Made-up coupling" changes two pairs
+     to show what Nazg says when it matters: D brings F to 1 from its threshold, J takes U past it.
+
+     The variants:
+     - the F77 as recorded, or with the two made-up pairs;
+     - where the new finding shows: a reason in the verdicts, as any other (proposed), or also a third
+       tab, Other keys, listing every key moved, the most moved first;
+     - on the board, the key in focus: the keys moving it outlined, those it moves too, or nothing;
+     - the key's own detail: its readings while each other key was pressed on one scale, or words only;
+     - where Save report... sits: beside Clear on the summary line, or in the board menu beside Save to file...;
+     - the report: the key presses as the board only or the board and the controller's grid; the
+       pairs that move a little but stay safe listed (folded) or left out; the readings embedded
+       (Nazg could read them back, a tester's report becoming a recording) or left out. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diagnostics report mockup</title>
+<style>
+:root{--window:#f3f3f5;--menubar:#e3e4e9;--text:#1d1e22;--muted:#6b6e78;--control:#ffffff;--border:#c8cad2;--accent:#3b82f6;--accent-text:#fff;--panel:#f8f8fa;--column:#ebecf0;--selected:rgba(59,130,246,.16);
+--plate:#d3d4d8;--key:#ffffff;--keyline:#b4b7c2;--ok:#15803d;--warn:#c2410c;--err:#dc2626;--press:#3b82f6;
+--good:#cdebd5;--goodline:#86c79a;--risk:#fde2cc;--riskline:#f59e5b;--fail:#fbd0d0;--failline:#ef7a7a;--doc:#ffffff}
+:root[data-theme="dark"]{--window:#0f0f11;--menubar:#24252b;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--accent:#4296fa;--accent-text:#fff;--panel:#16171b;--column:#16171b;--selected:rgba(66,150,250,.22);
+--plate:#1c1d23;--key:#3a3c48;--keyline:#4b4e5c;--ok:#4ade80;--warn:#fb923c;--err:#f87171;--press:#4296fa;
+--good:#1f4a2e;--goodline:#2f7a4a;--risk:#5a3214;--riskline:#c2620f;--fail:#5c1d1d;--failline:#b33a3a;--doc:#18191d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--window);color:var(--text);font-family:Arimo,"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+.controls{display:flex;flex-wrap:wrap;gap:8px 22px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.group .name{color:var(--muted);margin-right:4px}
+button{font:inherit;white-space:nowrap;padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--control);color:var(--text);cursor:pointer}
+button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+.stage{padding:16px;overflow-x:auto}
+.frame{margin:0 auto;width:1160px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--window);position:relative}
+.menubar{display:flex;gap:18px;align-items:center;background:var(--menubar);padding:5px 14px}
+.menubar .board{font-weight:600;cursor:pointer}
+.muted{color:var(--muted)}
+.menubar .right{margin-left:auto;color:var(--muted)}
+.menu{position:absolute;top:28px;left:10px;z-index:5;background:var(--control);border:1px solid var(--border);border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.18);padding:4px;min-width:220px}
+.menu div{padding:5px 12px;border-radius:4px}
+.menu div.act{cursor:pointer}
+.menu div.act:hover{background:var(--selected)}
+.menu .sep{border-top:1px solid var(--border);margin:4px 0;padding:0}
+.menu .new{color:var(--accent);font-weight:600}
+.body{display:flex;min-height:560px}
+.col{flex:none;width:180px;background:var(--column);border-right:1px solid var(--border);padding:6px 5px;display:flex;flex-direction:column;gap:1px}
+.col .hdr{font-weight:700;font-size:12px;padding:6px 10px 2px}
+.col .sep{border-top:1px solid var(--border);margin:5px 4px}
+.entry{padding:7px 10px;border-radius:6px;color:var(--muted)}
+.entry.on{background:var(--selected);color:var(--text);box-shadow:inset 3px 0 0 var(--accent)}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;padding:10px 14px 14px;gap:10px}
+.strip{display:flex;gap:3px;align-items:center;padding:4px 0}
+.strip button{padding:2px 10px;font-size:12px}
+.seg{display:inline-flex}
+.seg button{border-radius:0;padding:2px 9px;font-size:12px;margin-left:-1px}
+.seg button:first-child{border-radius:6px 0 0 6px;margin-left:0}
+.seg button:last-child{border-radius:0 6px 6px 0}
+.boardarea{display:flex;justify-content:center}
+svg{display:block;overflow:visible}
+.panel{border:1px solid var(--border);border-radius:6px;background:var(--panel)}
+.mline{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;padding:6px 12px;border-bottom:1px solid var(--border)}
+.mline .title{font-weight:700}
+.mline .desc{color:var(--muted);font-size:12px}
+.mline .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.margins{font-size:12px;color:var(--muted);display:flex;gap:4px;align-items:center}
+.margins input{width:30px;font:inherit;padding:1px 4px;border:1px solid var(--border);border-radius:4px;background:var(--control);color:var(--text)}
+.divider{width:1px;align-self:stretch;background:var(--border)}
+.out{font-size:12px;color:var(--warn)}
+.chip{display:inline-flex;align-items:center;gap:5px}
+.chip i{width:11px;height:11px;border-radius:3px;display:inline-block;border:1.5px solid}
+.new{outline:2px dashed var(--accent);outline-offset:2px;border-radius:6px}
+.split{display:flex;min-height:250px}
+.split .left{flex:1;padding:8px 12px;border-right:1px solid var(--border);min-width:0}
+.split .right{flex:1;padding:8px 12px;min-width:0}
+.tabs{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.row{display:flex;gap:10px;align-items:center;padding:4px 6px;border-radius:5px;cursor:pointer}
+.row:hover{background:var(--selected)}
+.row.sel{background:var(--selected)}
+.row .kn{font-weight:700;min-width:40px}
+.row .why{flex:1}
+.dot{width:9px;height:9px;border-radius:50%;flex:none}
+.ph{border:1px dashed var(--border);border-radius:6px;padding:8px 10px;color:var(--muted);font-size:12px;line-height:1.5}
+.dtitle{font-weight:700;margin:12px 0 4px}
+.say{font-size:12px;line-height:1.5;margin:4px 0}
+.notes{max-width:1160px;margin:0 auto;padding:4px 16px 30px;color:var(--muted);line-height:1.55}
+.notes b{color:var(--text);font-weight:600}
+.notes p{margin:0 0 8px}
+.tip{position:fixed;z-index:9;max-width:360px;padding:6px 9px;border:1px solid var(--border);border-radius:6px;background:var(--control);color:var(--text);font-size:12px;line-height:1.45;box-shadow:0 2px 8px rgba(0,0,0,.15);pointer-events:none;display:none;white-space:pre-line}
+.saved{color:var(--ok);font-size:12px}
+/* The report: what Nazg writes, one file, printed on paper as well. */
+.doc{margin:0 auto;width:980px;background:var(--doc);border:1px solid var(--border);border-radius:8px;padding:28px 40px 40px;line-height:1.5}
+.filebar{margin:0 auto 8px;width:980px;color:var(--muted);font-size:12px;display:flex;gap:10px;align-items:center}
+.doc h1{font-size:22px;margin:0 0 2px}
+.doc h2{font-size:16px;margin:26px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+.doc .sub{color:var(--muted);margin:0 0 14px}
+.doc table{border-collapse:collapse;width:100%;font-size:12.5px}
+.doc th{text-align:left;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border);padding:4px 8px}
+.doc td{border-bottom:1px solid color-mix(in srgb,var(--border) 55%,transparent);padding:4px 8px;vertical-align:top}
+.doc td.n,.doc th.n{text-align:right;font-variant-numeric:tabular-nums}
+.doc dl{display:grid;grid-template-columns:200px 1fr;gap:2px 12px;margin:0}
+.doc dt{color:var(--muted)}
+.doc dd{margin:0}
+.doc details{margin:10px 0}
+.doc summary{cursor:pointer;color:var(--accent)}
+.doc .counts{display:flex;gap:18px;margin:6px 0 12px}
+.doc .figure{display:flex;justify-content:center;margin:8px 0}
+.doc .verdict{font-weight:600}
+.doc .verdict.fail{color:var(--err)}.doc .verdict.risk{color:var(--warn)}.doc .verdict.good{color:var(--ok)}.doc .verdict.todo{color:var(--muted)}
+.doc .ok{color:var(--ok)}
+.doc code{font-size:12px}
+@media print{.controls,.notes,.filebar{display:none}.stage{padding:0}.doc{border:none;width:auto}}
+</style>
+</head>
+<body>
+<div class="controls" id="controls"></div>
+<div class="stage" id="stage"></div>
+<div class="notes" id="notes"></div>
+<div class="tip" id="tip"></div>
+<script>
+// Rico's F77: its definition and layer 0 (as levels-on-keys.html), and from the 4-minute recording of
+// 2026-10-17 each key's numbers and each pair moving by 2 or more: [pressed, at rest, usual move, most, presses].
+const DEF = {"keymap":[[{"x":2.5},"4,0","6,0","6,1","4,2","6,2","4,3","6,3","4,4","6,4","4,5","6,5","4,6","6,6",{"w":2},"6,7\n\n\n0,0",{"x":0.25},"6,8","4,9","6,9\n\n\n5,0",{"x":0.25},"4,7\n\n\n0,1","6,7\n\n\n0,1",{"x":4,"h":2},"5,9\n\n\n5,1"],[{"x":2.5,"w":1.5},"5,0","4,1","5,1","7,2","5,2","7,3","5,3","7,4","5,4","7,5","5,5","5,6","5,7",{"w":1.5},"7,7\n\n\n2,0",{"x":0.25},"5,8","7,9","5,9\n\n\n5,0",{"x":1,"w":1.5},"7,7\n\n\n2,1",{"x":1.75,"w":1.25,"h":2,"w2":1.5,"h2":1,"x2":-0.25},"2,7\n\n\n2,2"],[{"x":2.5,"w":1.75},"7,0","7,1","2,1","0,2","2,2","0,3","2,3","2,4","0,4","0,5","2,5","2,6",{"w":2.25},"2,7\n\n\n2,0",{"x":0.25},"2,8","7,8","2,9\n\n\n6,0",{"x":0.25},"7,6\n\n\n2,1",{"w":1.25},"2,7\n\n\n2,1",{"x":0.75},"7,6\n\n\n2,2",{"x":2,"h":2},"1,9\n\n\n6,1"],[{"w":1.25},"2,0\n\n\n4,1","0,0\n\n\n4,1",{"x":0.25,"w":2.25},"2,0\n\n\n4,0","1,1","0,1","1,2","3,2","1,3","1,4","3,4","3,5","1,5","0,6",{"w":2.75},"1,7\n\n\n1,0",{"x":0.25},"0,8","0,9","1,9\n\n\n6,0",{"x":0.25,"w":1.75},"0,7\n\n\n1,1","1,7\n\n\n1,1",{"x":0.25},"0,7\n\n\n1,2",{"w":1.75},"1,7\n\n\n1,2"],[{"x":2.5,"w":1.5},"3,0","1,0",{"w":1.5},"3,1",{"w":7},"3,3\n\n\n3,0",{"w":1.5},"1,6","3,7",{"w":1.5},"3,8",{"x":0.25},"1,8","3,9\n\n\n7,0","3,10\n\n\n7,0",{"x":0.25,"w":2},"3,10\n\n\n7,1"],[{"y":0.25,"x":6.5,"w":5.5},"3,3\n\n\n3,1",{"w":1.5},"3,6\n\n\n3,1"]],"kc":{"0,0":"KC_NUBS","0,1":"KC_X","0,2":"KC_D","0,3":"KC_G","0,4":"KC_K","0,5":"KC_L","0,6":"KC_SLSH","0,7":"MO(1)","0,8":"KC_P0","0,9":"KC_UP","1,0":"KC_LGUI","1,1":"KC_Z","1,2":"KC_C","1,3":"KC_B","1,4":"KC_N","1,5":"KC_DOT","1,6":"KC_RALT","1,7":"KC_RSFT","1,8":"KC_LEFT","1,9":"KC_PDOT","2,0":"KC_LSFT","2,1":"KC_S","2,2":"KC_F","2,3":"KC_H","2,4":"KC_J","2,5":"KC_SCLN","2,6":"KC_QUOT","2,7":"KC_ENT","2,8":"KC_P1","2,9":"KC_P3","3,0":"KC_LCTL","3,1":"KC_LALT","3,2":"KC_V","3,3":"KC_SPC","3,4":"KC_M","3,5":"KC_COMM","3,6":"KC_SPC","3,7":"KC_NUM","3,8":"MO(1)","3,9":"KC_DOWN","3,10":"KC_RGHT","4,0":"KC_ESC","4,1":"KC_Q","4,2":"KC_3","4,3":"KC_5","4,4":"KC_7","4,5":"KC_9","4,6":"KC_MINS","4,7":"KC_BSLS","4,9":"KC_P8","5,0":"KC_TAB","5,1":"KC_W","5,2":"KC_R","5,3":"KC_Y","5,4":"KC_I","5,5":"KC_P","5,6":"KC_LBRC","5,7":"KC_RBRC","5,8":"KC_P4","5,9":"KC_P6","6,0":"KC_1","6,1":"KC_2","6,2":"KC_4","6,3":"KC_6","6,4":"KC_8","6,5":"KC_0","6,6":"KC_EQL","6,7":"KC_BSPC","6,8":"KC_P7","6,9":"KC_P9","7,0":"KC_CAPS","7,1":"KC_A","7,2":"KC_E","7,3":"KC_T","7,4":"KC_U","7,5":"KC_O","7,6":"KC_NUHS","7,7":"KC_BSLS","7,8":"KC_P2","7,9":"KC_P5"}};
+const REC = {"board":"F77 Model F Keyboard by Model F Labs (release 2026.06.08)","info":{"version":"0.9.1","beamSpring":false,"logicalRows":8,"logicalColumns":11,"controllerRows":8,"controllerColumns":16,"thresholds":[384,394,397],"referenceLevels":[374,384,387]},"readings":1549,"seconds":240,"keys":{"0,0":{"kc":"KC_NUBS","cc":0,"cr":2,"bin":1,"th":394,"rest":380,"lo":380,"hi":380,"presses":0,"peak":null,"hold":null},"0,1":{"kc":"KC_X","cc":1,"cr":2,"bin":1,"th":394,"rest":385,"lo":385,"hi":386,"presses":1,"peak":416,"hold":null},"0,2":{"kc":"KC_D","cc":2,"cr":2,"bin":1,"th":394,"rest":384,"lo":384,"hi":384,"presses":6,"peak":427,"hold":418},"0,3":{"kc":"KC_G","cc":3,"cr":2,"bin":1,"th":394,"rest":383,"lo":383,"hi":383,"presses":1,"peak":416,"hold":null},"0,4":{"kc":"KC_K","cc":4,"cr":2,"bin":1,"th":394,"rest":383,"lo":383,"hi":383,"presses":3,"peak":405,"hold":404},"0,5":{"kc":"KC_L","cc":5,"cr":2,"bin":1,"th":394,"rest":384,"lo":384,"hi":384,"presses":3,"peak":416,"hold":415},"0,6":{"kc":"KC_SLSH","cc":6,"cr":2,"bin":1,"th":394,"rest":383,"lo":383,"hi":383,"presses":1,"peak":418,"hold":null},"0,7":{"kc":"MO(1)","cc":7,"cr":2,"bin":1,"th":394,"rest":380,"lo":380,"hi":380,"presses":0,"peak":null,"hold":null},"0,8":{"kc":"KC_P0","cc":8,"cr":2,"bin":1,"th":394,"rest":384,"lo":384,"hi":384,"presses":1,"peak":420,"hold":null},"0,9":{"kc":"KC_UP","cc":9,"cr":2,"bin":1,"th":394,"rest":384,"lo":384,"hi":384,"presses":1,"peak":428,"hold":414},"1,0":{"kc":"KC_LGUI","cc":0,"cr":1,"bin":2,"th":397,"rest":386,"lo":386,"hi":386,"presses":2,"peak":406,"hold":null},"1,1":{"kc":"KC_Z","cc":1,"cr":1,"bin":1,"th":394,"rest":385,"lo":385,"hi":385,"presses":1,"peak":422,"hold":null},"1,2":{"kc":"KC_C","cc":2,"cr":1,"bin":2,"th":397,"rest":386,"lo":386,"hi":386,"presses":1,"peak":406,"hold":null},"1,3":{"kc":"KC_B","cc":3,"cr":1,"bin":2,"th":397,"rest":386,"lo":386,"hi":386,"presses":4,"peak":423,"hold":423},"1,4":{"kc":"KC_N","cc":4,"cr":1,"bin":2,"th":397,"rest":387,"lo":386,"hi":387,"presses":3,"peak":425,"hold":null},"1,5":{"kc":"KC_DOT","cc":5,"cr":1,"bin":2,"th":397,"rest":387,"lo":386,"hi":387,"presses":1,"peak":415,"hold":null},"1,6":{"kc":"KC_RALT","cc":6,"cr":1,"bin":2,"th":397,"rest":386,"lo":385,"hi":386,"presses":2,"peak":415,"hold":415},"1,7":{"kc":"KC_RSFT","cc":7,"cr":1,"bin":1,"th":394,"rest":385,"lo":385,"hi":385,"presses":1,"peak":411,"hold":null},"1,8":{"kc":"KC_LEFT","cc":8,"cr":1,"bin":2,"th":397,"rest":386,"lo":386,"hi":387,"presses":1,"peak":416,"hold":null},"1,9":{"kc":"KC_PDOT","cc":9,"cr":1,"bin":2,"th":397,"rest":386,"lo":386,"hi":386,"presses":1,"peak":426,"hold":413},"2,0":{"kc":"KC_LSFT","cc":0,"cr":3,"bin":1,"th":394,"rest":384,"lo":383,"hi":384,"presses":2,"peak":419,"hold":null},"2,1":{"kc":"KC_S","cc":1,"cr":3,"bin":1,"th":394,"rest":385,"lo":385,"hi":386,"presses":4,"peak":427,"hold":414},"2,2":{"kc":"KC_F","cc":2,"cr":3,"bin":2,"th":397,"rest":388,"lo":388,"hi":388,"presses":3,"peak":416,"hold":415},"2,3":{"kc":"KC_H","cc":3,"cr":3,"bin":2,"th":397,"rest":388,"lo":387,"hi":388,"presses":1,"peak":421,"hold":null},"2,4":{"kc":"KC_J","cc":4,"cr":3,"bin":2,"th":397,"rest":388,"lo":388,"hi":388,"presses":3,"peak":438,"hold":427},"2,5":{"kc":"KC_SCLN","cc":5,"cr":3,"bin":2,"th":397,"rest":387,"lo":387,"hi":388,"presses":3,"peak":416,"hold":416},"2,6":{"kc":"KC_QUOT","cc":6,"cr":3,"bin":1,"th":394,"rest":385,"lo":384,"hi":385,"presses":1,"peak":418,"hold":null},"2,7":{"kc":"KC_ENT","cc":7,"cr":3,"bin":1,"th":394,"rest":383,"lo":383,"hi":383,"presses":2,"peak":416,"hold":414},"2,8":{"kc":"KC_P1","cc":8,"cr":3,"bin":1,"th":394,"rest":384,"lo":384,"hi":385,"presses":1,"peak":420,"hold":null},"2,9":{"kc":"KC_P3","cc":9,"cr":3,"bin":1,"th":394,"rest":384,"lo":384,"hi":384,"presses":1,"peak":425,"hold":null},"3,0":{"kc":"KC_LCTL","cc":0,"cr":0,"bin":1,"th":394,"rest":383,"lo":383,"hi":383,"presses":2,"peak":409,"hold":null},"3,1":{"kc":"KC_LALT","cc":1,"cr":0,"bin":1,"th":394,"rest":383,"lo":383,"hi":383,"presses":2,"peak":419,"hold":null},"3,2":{"kc":"KC_V","cc":2,"cr":0,"bin":1,"th":394,"rest":382,"lo":382,"hi":382,"presses":4,"peak":411,"hold":null},"3,3":{"kc":"KC_SPC","cc":3,"cr":0,"bin":1,"th":394,"rest":385,"lo":385,"hi":385,"presses":3,"peak":419,"hold":413},"3,4":{"kc":"KC_M","cc":4,"cr":0,"bin":1,"th":394,"rest":383,"lo":383,"hi":383,"presses":6,"peak":420,"hold":409},"3,5":{"kc":"KC_COMM","cc":5,"cr":0,"bin":1,"th":394,"rest":382,"lo":382,"hi":383,"presses":1,"peak":418,"hold":null},"3,6":{"kc":"KC_SPC","cc":6,"cr":0,"bin":0,"th":384,"rest":378,"lo":378,"hi":378,"presses":0,"peak":null,"hold":null},"3,7":{"kc":"KC_NUM","cc":7,"cr":0,"bin":1,"th":394,"rest":379,"lo":379,"hi":380,"presses":2,"peak":409,"hold":null},"3,8":{"kc":"MO(1)","cc":8,"cr":0,"bin":1,"th":394,"rest":380,"lo":380,"hi":386,"presses":1,"peak":404,"hold":null},"3,9":{"kc":"KC_DOWN","cc":9,"cr":0,"bin":1,"th":394,"rest":380,"lo":380,"hi":380,"presses":1,"peak":413,"hold":null},"3,10":{"kc":"KC_RGHT","cc":15,"cr":0,"bin":1,"th":394,"rest":382,"lo":382,"hi":383,"presses":1,"peak":420,"hold":null},"4,0":{"kc":"KC_ESC","cc":0,"cr":6,"bin":1,"th":394,"rest":385,"lo":385,"hi":386,"presses":2,"peak":421,"hold":null},"4,1":{"kc":"KC_Q","cc":1,"cr":6,"bin":2,"th":397,"rest":387,"lo":386,"hi":387,"presses":1,"peak":429,"hold":null},"4,2":{"kc":"KC_3","cc":2,"cr":6,"bin":2,"th":397,"rest":386,"lo":386,"hi":386,"presses":2,"peak":425,"hold":null},"4,3":{"kc":"KC_5","cc":3,"cr":6,"bin":2,"th":397,"rest":387,"lo":386,"hi":387,"presses":3,"peak":427,"hold":null},"4,4":{"kc":"KC_7","cc":4,"cr":6,"bin":1,"th":394,"rest":385,"lo":385,"hi":386,"presses":3,"peak":419,"hold":408},"4,5":{"kc":"KC_9","cc":5,"cr":6,"bin":2,"th":397,"rest":386,"lo":385,"hi":386,"presses":2,"peak":419,"hold":null},"4,6":{"kc":"KC_MINS","cc":6,"cr":6,"bin":2,"th":397,"rest":386,"lo":386,"hi":386,"presses":2,"peak":428,"hold":null},"4,7":{"kc":"KC_BSLS","cc":7,"cr":6,"bin":1,"th":394,"rest":382,"lo":382,"hi":382,"presses":0,"peak":null,"hold":null},"4,9":{"kc":"KC_P8","cc":9,"cr":6,"bin":1,"th":394,"rest":385,"lo":385,"hi":385,"presses":1,"peak":406,"hold":null},"5,0":{"kc":"KC_TAB","cc":0,"cr":5,"bin":1,"th":394,"rest":385,"lo":384,"hi":385,"presses":2,"peak":423,"hold":null},"5,1":{"kc":"KC_W","cc":1,"cr":5,"bin":2,"th":397,"rest":386,"lo":386,"hi":387,"presses":1,"peak":424,"hold":null},"5,2":{"kc":"KC_R","cc":2,"cr":5,"bin":2,"th":397,"rest":387,"lo":386,"hi":387,"presses":5,"peak":431,"hold":null},"5,3":{"kc":"KC_Y","cc":3,"cr":5,"bin":2,"th":397,"rest":386,"lo":386,"hi":387,"presses":2,"peak":421,"hold":null},"5,4":{"kc":"KC_I","cc":4,"cr":5,"bin":2,"th":397,"rest":386,"lo":386,"hi":386,"presses":1,"peak":420,"hold":null},"5,5":{"kc":"KC_P","cc":5,"cr":5,"bin":2,"th":397,"rest":386,"lo":386,"hi":386,"presses":2,"peak":406,"hold":406},"5,6":{"kc":"KC_LBRC","cc":6,"cr":5,"bin":1,"th":394,"rest":385,"lo":385,"hi":385,"presses":1,"peak":416,"hold":null},"5,7":{"kc":"KC_RBRC","cc":7,"cr":5,"bin":2,"th":397,"rest":386,"lo":385,"hi":386,"presses":1,"peak":420,"hold":null},"5,8":{"kc":"KC_P4","cc":8,"cr":5,"bin":1,"th":394,"rest":384,"lo":383,"hi":386,"presses":1,"peak":404,"hold":null},"5,9":{"kc":"KC_P6","cc":9,"cr":5,"bin":2,"th":397,"rest":386,"lo":386,"hi":386,"presses":1,"peak":417,"hold":417},"6,0":{"kc":"KC_1","cc":0,"cr":7,"bin":1,"th":394,"rest":385,"lo":385,"hi":385,"presses":2,"peak":431,"hold":null},"6,1":{"kc":"KC_2","cc":1,"cr":7,"bin":2,"th":397,"rest":386,"lo":386,"hi":386,"presses":2,"peak":423,"hold":null},"6,2":{"kc":"KC_4","cc":2,"cr":7,"bin":2,"th":397,"rest":388,"lo":387,"hi":388,"presses":2,"peak":420,"hold":null},"6,3":{"kc":"KC_6","cc":3,"cr":7,"bin":2,"th":397,"rest":388,"lo":387,"hi":388,"presses":3,"peak":422,"hold":417},"6,4":{"kc":"KC_8","cc":4,"cr":7,"bin":2,"th":397,"rest":388,"lo":387,"hi":388,"presses":2,"peak":439,"hold":423},"6,5":{"kc":"KC_0","cc":5,"cr":7,"bin":2,"th":397,"rest":388,"lo":388,"hi":389,"presses":3,"peak":427,"hold":426},"6,6":{"kc":"KC_EQL","cc":6,"cr":7,"bin":2,"th":397,"rest":388,"lo":387,"hi":388,"presses":2,"peak":442,"hold":428},"6,7":{"kc":"KC_BSPC","cc":7,"cr":7,"bin":2,"th":397,"rest":386,"lo":386,"hi":387,"presses":2,"peak":426,"hold":null},"6,8":{"kc":"KC_P7","cc":8,"cr":7,"bin":1,"th":394,"rest":385,"lo":385,"hi":385,"presses":1,"peak":428,"hold":null},"6,9":{"kc":"KC_P9","cc":9,"cr":7,"bin":1,"th":394,"rest":385,"lo":385,"hi":385,"presses":1,"peak":417,"hold":null},"7,0":{"kc":"KC_CAPS","cc":0,"cr":4,"bin":1,"th":394,"rest":386,"lo":385,"hi":386,"presses":2,"peak":423,"hold":423},"7,1":{"kc":"KC_A","cc":1,"cr":4,"bin":2,"th":397,"rest":389,"lo":388,"hi":389,"presses":1,"peak":427,"hold":null},"7,2":{"kc":"KC_E","cc":2,"cr":4,"bin":2,"th":397,"rest":387,"lo":387,"hi":387,"presses":3,"peak":430,"hold":430},"7,3":{"kc":"KC_T","cc":3,"cr":4,"bin":2,"th":397,"rest":387,"lo":387,"hi":387,"presses":4,"peak":428,"hold":null},"7,4":{"kc":"KC_U","cc":4,"cr":4,"bin":2,"th":397,"rest":387,"lo":387,"hi":387,"presses":2,"peak":424,"hold":null},"7,5":{"kc":"KC_O","cc":5,"cr":4,"bin":2,"th":397,"rest":387,"lo":387,"hi":388,"presses":1,"peak":437,"hold":null},"7,6":{"kc":"KC_NUHS","cc":6,"cr":4,"bin":1,"th":394,"rest":383,"lo":383,"hi":383,"presses":0,"peak":null,"hold":null},"7,7":{"kc":"KC_BSLS","cc":7,"cr":4,"bin":2,"th":397,"rest":387,"lo":387,"hi":387,"presses":1,"peak":418,"hold":null},"7,8":{"kc":"KC_P2","cc":8,"cr":4,"bin":2,"th":397,"rest":387,"lo":387,"hi":387,"presses":1,"peak":422,"hold":null},"7,9":{"kc":"KC_P5","cc":9,"cr":4,"bin":2,"th":397,"rest":387,"lo":387,"hi":387,"presses":1,"peak":427,"hold":null}},"pairs":[["5,0","4,0",4,4,2],["4,6","5,6",4,4,2],["0,8","2,8",4,4,1],["4,1","5,1",4,4,1],["5,4","4,4",4,4,1],["0,2","1,2",3,3,5],["0,2","2,2",3,3,5],["1,3","0,3",3,3,4],["4,3","5,3",3,3,3],["2,4","0,4",3,3,3],["2,4","7,4",3,4,3],["2,7","0,7",3,3,2],["6,0","4,0",3,3,2],["4,2","5,2",3,3,2],["4,5","5,5",3,3,2],["5,9","4,9",3,3,1],["7,9","2,9",3,3,1],["7,9","5,9",3,3,1],["2,8","7,8",3,3,1],["7,8","2,8",3,3,1],["2,9","0,9",3,3,1],["2,9","7,9",3,3,1],["0,9","2,9",3,3,1],["0,8","1,8",3,3,1],["3,9","1,9",3,3,1],["1,1","0,1",3,3,1],["0,1","2,1",3,3,1],["0,6","2,6",3,3,1],["2,6","0,6",3,3,1],["2,6","7,6",3,3,1],["2,5","7,5",3,3,2],["0,5","2,5",3,3,2],["2,3","7,3",3,3,1],["0,3","2,3",3,3,1],["2,1","0,1",3,3,3],["7,1","2,1",3,3,1],["7,1","5,1",3,3,1],["5,1","4,1",3,3,1],["7,2","2,2",3,3,3],["5,2","4,2",3,3,5],["5,2","7,2",3,3,5],["7,3","5,3",3,3,4],["5,3","4,3",3,3,2],["5,3","7,3",3,3,2],["7,4","5,4",3,3,2],["5,4","7,4",3,3,1],["7,5","2,5",3,3,1],["7,5","5,5",3,3,1],["5,6","4,6",3,3,1],["5,7","4,7",3,3,1],["7,7","2,7",3,3,1],["2,2","0,2",2,3,2],["2,2","7,2",2,2,2],["0,4","2,4",2,2,3],["3,3","1,3",2,2,3],["1,3","3,3",2,2,4],["6,5","4,5",2,2,3],["4,3","6,3",2,2,3],["6,3","4,3",2,2,3],["4,4","5,4",2,2,3],["4,4","6,4",2,2,3],["3,4","1,4",2,2,6],["2,7","7,7",2,3,2],["3,0","1,0",2,2,2],["3,7","1,7",2,2,2],["1,0","0,0",2,2,2],["1,6","0,6",2,2,2],["3,1","1,1",2,2,2],["2,0","0,0",2,3,2],["2,0","7,0",2,2,2],["7,0","2,0",2,2,2],["7,0","5,0",2,3,2],["5,0","7,0",2,2,2],["4,0","5,0",2,2,2],["4,0","6,0",2,2,2],["6,0","6,8",2,4,2],["6,0","6,9",2,4,2],["6,1","4,1",2,2,2],["4,2","6,2",2,2,2],["6,2","4,2",2,2,2],["6,4","4,4",2,3,2],["4,5","6,5",2,2,2],["4,6","6,6",2,2,2],["6,6","4,6",2,2,2],["4,9","5,9",2,2,1],["4,9","6,9",2,2,1],["6,9","4,9",2,2,1],["5,9","7,9",2,2,1],["5,8","7,8",2,2,1],["2,8","0,8",2,2,1],["7,8","5,8",2,2,1],["1,9","0,9",2,2,1],["0,9","1,9",2,2,1],["1,8","0,8",2,2,1],["1,8","3,8",2,2,1],["1,1","3,1",2,2,1],["0,1","1,1",2,2,1],["1,2","0,2",2,2,1],["3,2","1,2",2,2,4],["1,4","0,4",2,2,3],["1,4","3,4",2,2,3],["3,5","1,5",2,2,1],["1,5","0,5",2,2,1],["1,5","3,5",2,2,1],["0,6","1,6",2,2,1],["1,7","0,7",2,2,1],["1,7","3,7",2,2,1],["2,5","0,5",2,2,2],["0,5","1,5",2,2,2],["2,3","0,3",2,2,1],["0,3","1,3",2,2,1],["2,1","7,1",2,2,3],["4,1","6,1",2,2,1],["5,1","7,1",2,2,1],["7,2","5,2",2,2,3],["7,3","2,3",2,2,4],["7,4","2,4",2,2,2],["5,5","4,5",2,2,2],["5,5","7,5",2,2,2],["5,6","7,6",2,2,1],["5,7","7,7",2,2,1],["7,7","5,7",2,2,1]],"jsonBytes":881344};
+
+// ---------------------------------------------------------------------------------------------
+function parseKle(rows) {
+  const keys = [];
+  let x = 0, y = 0, rx = 0, ry = 0, r = 0, p = {};
+  const pair = s => { const m = /^\s*(\d+)\s*,\s*(\d+)\s*$/.exec(s || ''); return m ? [+m[1], +m[2]] : null; };
+  for (const row of rows) {
+    if (!Array.isArray(row)) continue;
+    for (const item of row) {
+      if (typeof item === 'object') {
+        if ('r' in item) r = item.r;
+        if ('rx' in item || 'ry' in item) { if ('rx' in item) rx = item.rx; if ('ry' in item) ry = item.ry; x = rx; y = ry; }
+        if ('x' in item) x += item.x;
+        if ('y' in item) y += item.y;
+        for (const k of ['w', 'h', 'x2', 'y2', 'w2', 'h2', 'd']) if (k in item) p[k] = item[k];
+        continue;
+      }
+      const w = p.w || 1, h = p.h || 1;
+      const labels = String(item).split('\n');
+      const cell = pair(labels[0]), option = pair(labels[3]);
+      if (cell || p.d)
+        keys.push({ x, y, w, h, x2: p.x2 || 0, y2: p.y2 || 0, w2: p.w2 || w, h2: p.h2 || h, decal: !!p.d,
+                    cell, g: option ? option[0] : -1, o: option ? option[1] : 0 });
+      x += w;
+      p = {};
+    }
+    y += 1;
+    x = rx;
+  }
+  return keys;
+}
+function boundsOf(keys) {
+  const b = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+  for (const k of keys)
+    for (const [x, y, w, h] of [[k.x, k.y, k.w, k.h], [k.x + k.x2, k.y + k.y2, k.w2, k.h2]]) {
+      b.x0 = Math.min(b.x0, x); b.y0 = Math.min(b.y0, y); b.x1 = Math.max(b.x1, x + w); b.y1 = Math.max(b.y1, y + h);
+    }
+  return b;
+}
+const NAMED = { ESC: 'Esc', GRV: '`', MINS: '-', EQL: '=', BSPC: 'Bksp', NUM: 'Num', TAB: 'Tab', LBRC: '[', RBRC: ']', ENT: 'Enter',
+  P7: '7', P8: '8', P9: '9', CAPS: 'Caps', SCLN: ';', QUOT: "'", BSLS: '\\', NUHS: '#', P4: '4', P5: '5', P6: '6',
+  LSFT: 'Shift', NUBS: '\\', COMM: ',', DOT: '.', SLSH: '/', RSFT: 'Shift', UP: '↑', P1: '1', P2: '2', P3: '3',
+  LCTL: 'Ctrl', LGUI: 'Win', LALT: 'Alt', SPC: 'Space', RALT: 'AltGr', LEFT: '←', DOWN: '↓', RGHT: '→', P0: '0', PDOT: '.', NO: '' };
+const legendOf = kc => { if (/^MO\(/.test(kc)) return 'Fn'; const n = kc.replace(/^KC_/, ''); return n in NAMED ? NAMED[n] : n; };
+// The name in a sentence: the keypad's and the two Shifts told apart.
+const FULLNAME = { KC_LSFT: 'Left Shift', KC_RSFT: 'Right Shift', KC_P0: 'Keypad 0', KC_P1: 'Keypad 1', KC_P2: 'Keypad 2', KC_P3: 'Keypad 3',
+  KC_P4: 'Keypad 4', KC_P5: 'Keypad 5', KC_P6: 'Keypad 6', KC_P7: 'Keypad 7', KC_P8: 'Keypad 8', KC_P9: 'Keypad 9', KC_PDOT: 'Keypad .',
+  KC_BSLS: 'Backslash', KC_NUBS: 'ISO Backslash', KC_LBRC: '[', KC_RBRC: ']', KC_SCLN: ';', KC_QUOT: "'", KC_COMM: ',', KC_DOT: '.',
+  KC_SLSH: '/', KC_MINS: '-', KC_EQL: '=', KC_ENT: 'Enter', KC_BSPC: 'Backspace', KC_CAPS: 'Caps Lock', KC_NUM: 'Num Lock', KC_SPC: 'Space',
+  KC_LCTL: 'Ctrl', KC_LGUI: 'Win', KC_LALT: 'Alt', KC_RALT: 'AltGr', KC_UP: 'Up', KC_DOWN: 'Down', KC_LEFT: 'Left', KC_RGHT: 'Right' };
+const nameOf = k => FULLNAME[k.kc] || legendOf(k.kc) || `R${k.cell[0]} C${k.cell[1]}`;
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+const KEYS = parseKle(DEF.keymap).filter(k => !k.decal && !(k.g >= 0 && k.o !== 0));
+const byCell = new Map();
+KEYS.forEach((k, i) => {
+  k.i = i;
+  const c = k.cell.join(','), s = REC.keys[c];
+  Object.assign(k, s, { c });
+  byCell.set(c, k);
+});
+const SAFE = 3;   // c_SafeMargin: a key resting closer than this to its threshold may type by itself
+
+// ---------------------------------------------------------------------------------------------
+// The pairs and the verdicts: the recording's, or with the made-up coupling.
+const state = {
+  page: 'Section', board: 'Made-up coupling', where: 'A reason in the verdicts', outline: 'Keys moving it',
+  detail: 'One scale', save: 'Beside Clear', presses: 'Board and controller', safe: 'Folded', readings: 'Embedded', theme: 'Light',
+  tab: 'Keys', selected: '2,2', menu: false, saved: false
+};
+let PAIRS = [], V = new Map();
+function build() {
+  PAIRS = REC.pairs.map(([a, b, typ, most, n]) => ({ a: byCell.get(a), b: byCell.get(b), typ, most, n })).filter(p => p.a && p.b);
+  if (state.board === 'Made-up coupling') {
+    const set = (a, b, typ, most, n) => {
+      const p = PAIRS.find(q => q.a.c === a && q.b.c === b);
+      if (p) Object.assign(p, { typ, most, n }); else PAIRS.push({ a: byCell.get(a), b: byCell.get(b), typ, most, n });
+    };
+    set('0,2', '2,2', 8, 9, 5);    // D brings F to 1 from its threshold
+    set('2,4', '7,4', 11, 12, 3);  // J takes U past its threshold
+  }
+  PAIRS.forEach(p => { p.margin = p.b.th - p.b.rest; p.left = p.margin - p.typ; });
+  PAIRS.sort((x, y) => x.left - y.left || y.typ - x.typ);
+  V = new Map();
+  for (const k of KEYS) {
+    const reasons = [];
+    let verdict = 'good';
+    if (!k.presses) { verdict = 'todo'; reasons.push('Not pressed yet'); }
+    else {
+      if (k.hi >= k.th) { verdict = 'risk'; reasons.push('May type by itself: went past its threshold untouched'); }
+      else if (k.th - k.hi < SAFE) { verdict = 'risk'; reasons.push('May type by itself: rests close to its threshold'); }
+      if (k.peak - k.th < SAFE) { verdict = 'risk'; reasons.push('May miss presses: even its firmest press is only just past its threshold'); }
+    }
+    for (const p of PAIRS.filter(q => q.b === k)) {
+      if (p.left <= 0) { verdict = 'fail'; reasons.unshift(`Types by itself when ${nameOf(p.a)} is pressed: went past its threshold`); }
+      else if (p.left < SAFE) { if (verdict !== 'fail') verdict = 'risk'; reasons.push(`May type by itself when ${nameOf(p.a)} is pressed: it comes close to its threshold`); }
+    }
+    V.set(k, { verdict, reasons: verdict === 'fail' ? [reasons[0]] : reasons });
+  }
+}
+const ORDER = { fail: 0, risk: 1, todo: 2, good: 3 };
+const WORD = { fail: 'failing', risk: 'at risk', todo: 'to do', good: 'good' };
+const COL = { fail: '--err', risk: '--warn', todo: '--muted', good: '--ok' };
+const count = v => KEYS.filter(k => V.get(k).verdict === v).length;
+const movesOf = k => PAIRS.filter(p => p.b === k);
+const movedBy = k => PAIRS.filter(p => p.a === k);
+
+// ---------------------------------------------------------------------------------------------
+// The board, as the section draws it, and the same drawing in the report.
+function svgStyle() {
+  return `<style>.plate{fill:var(--plate)}.k{fill:var(--key);stroke:var(--keyline)}.k.none{fill:none;stroke-dasharray:3 3;opacity:.55}`
+    + `.k.good{fill:var(--good);stroke:var(--goodline)}.k.risk{fill:var(--risk);stroke:var(--riskline)}.k.fail{fill:var(--fail);stroke:var(--failline)}`
+    + `.k.seen{fill:var(--good);stroke:var(--goodline)}`
+    + `.k.sel{stroke:var(--text);stroke-width:3}`
+    + `.k.mover{stroke:var(--warn);stroke-width:2.5;stroke-dasharray:5 3}.k.mover.calm{stroke:var(--muted)}`
+    + `.k.moved{stroke:var(--accent);stroke-width:2.5;stroke-dasharray:2 3}`
+    + `.t{font-family:Arimo,Arial;fill:var(--text);text-anchor:middle;pointer-events:none}`
+    + `.ruler{font:11px Arimo,Arial;fill:var(--muted);text-anchor:middle}</style>`;
+}
+function boardSvg(classOf, u, interactive) {
+  const bd = boundsOf(KEYS);
+  const m = u * 0.35, gap = Math.max(1, u * 0.06);
+  const W = (bd.x1 - bd.x0) * u + 2 * m, H = (bd.y1 - bd.y0) * u + 2 * m;
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${svgStyle()}<rect class="plate" width="100%" height="100%" rx="12"/><g transform="translate(${m} ${m})">`;
+  for (const k of KEYS) {
+    const attrs = interactive ? ` data-key="${k.c}" data-tip="${esc(tipOf(k))}"` : '';
+    const rect = (x, y, w, h) => `<rect class="${classOf(k)}"${attrs} x="${x}" y="${y}" width="${w}" height="${h}" rx="${Math.max(2, u * 0.1)}"/>`;
+    const x = (k.x - bd.x0) * u + gap, y = (k.y - bd.y0) * u + gap, w = k.w * u - 2 * gap, h = k.h * u - 2 * gap;
+    s += rect(x, y, w, h);
+    if (k.w2 !== k.w || k.h2 !== k.h || k.x2 || k.y2) s += rect((k.x + k.x2 - bd.x0) * u + gap, (k.y + k.y2 - bd.y0) * u + gap, k.w2 * u - 2 * gap, k.h2 * u - 2 * gap);
+    const fs = Math.round(u * 0.28);
+    s += `<text class="t" x="${x + w / 2}" y="${y + h / 2 + fs * 0.35}" style="font-size:${fs}px">${esc(legendOf(k.kc))}</text>`;
+  }
+  return s + `</g></svg>`;
+}
+// The controller's own grid: its columns and rows, as Key presses' Controller view.
+function controllerSvg(classOf) {
+  const C = REC.info.controllerColumns, R = REC.info.controllerRows, cw = 50, ch = 34, lab = 30;
+  const at = new Map(KEYS.map(k => [`${k.cc},${k.cr}`, k]));
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${lab + C * cw + 8}" height="${lab + R * ch + 8}">${svgStyle()}<rect class="plate" width="100%" height="100%" rx="10"/>`;
+  for (let c = 0; c < C; c++) s += `<text class="ruler" x="${lab + c * cw + cw / 2}" y="${lab - 10}">${c}</text>`;
+  for (let r = 0; r < R; r++) s += `<text class="ruler" x="${lab / 2 + 2}" y="${lab + r * ch + ch / 2 + 4}">${r}</text>`;
+  for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
+    const k = at.get(`${c},${r}`), x = lab + c * cw + 2, y = lab + r * ch + 2;
+    if (!k) { s += `<rect class="k none" x="${x}" y="${y}" width="${cw - 4}" height="${ch - 4}" rx="4"/>`; continue; }
+    s += `<rect class="${classOf(k)}" x="${x}" y="${y}" width="${cw - 4}" height="${ch - 4}" rx="4"/>`
+       + `<text class="t" x="${x + (cw - 4) / 2}" y="${y + (ch - 4) / 2 + 4}" style="font-size:11px">${esc(legendOf(k.kc))}</text>`;
+  }
+  return s + `</svg>`;
+}
+function tipOf(k) {
+  const v = V.get(k);
+  let t = `${nameOf(k)} · ${WORD[v.verdict]}\n${v.reasons.join('\n')}`;
+  const m = movesOf(k);
+  if (m.length) t += `\nMoved when pressed: ${m.map(p => nameOf(p.a)).join(', ')}`;
+  return t;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The section.
+function sectionClass(k) {
+  let c = 'k ' + (V.get(k).verdict === 'todo' ? '' : V.get(k).verdict);
+  const sel = byCell.get(state.selected);
+  if (sel === k) return c + ' sel';
+  if (sel && state.outline !== 'Nothing') {
+    const p = movesOf(sel).find(q => q.a === k);
+    if (p) return c + ' mover' + (p.left >= SAFE ? ' calm' : '');
+    if (state.outline === 'Both ways' && movedBy(sel).some(q => q.b === k)) return c + ' moved';
+  }
+  return c;
+}
+function summaryHtml() {
+  const chip = v => `<span class="chip"><i style="border-color:var(${COL[v]});background:${v === 'good' ? 'var(--good)' : v === 'risk' ? 'var(--risk)' : v === 'fail' ? 'var(--fail)' : 'transparent'}"></i>${count(v)} ${WORD[v]}</span>`;
+  const save = state.save === 'Beside Clear' ? `<button class="new" data-act="save">Save report...</button>` : '';
+  return `<div class="mline">${['good', 'risk', 'fail', 'todo'].map(chip).join('')}`
+    + `<span class="right">${state.saved ? `<span class="saved">Saved: nazg-F77-2026-11-14.html</span>` : ''}${save}<button>Clear</button></span></div>`;
+}
+function listHtml() {
+  const tabs = state.where === 'A reason in the verdicts' ? ['Keys', 'Whole board'] : ['Keys', 'Whole board', 'Other keys'];
+  let h = `<div class="tabs"><span class="seg">${tabs.map(t => `<button class="${state.tab === t ? 'on' : ''}${t === 'Other keys' ? ' new' : ''}" data-tab="${t}">${t}</button>`).join('')}</span>`
+    + `<span class="muted">${state.tab === 'Other keys' ? 'the keys moved most when another is pressed, first' : 'the weakest first'}</span></div>`;
+  if (state.tab === 'Whole board') return h + `<div class="ph">As built: one dot per key, unchanged by this mockup.</div>`;
+  if (state.tab === 'Other keys') return h + otherKeysHtml();
+  const bad = KEYS.filter(k => ['fail', 'risk'].includes(V.get(k).verdict)).sort((a, b) => ORDER[V.get(a).verdict] - ORDER[V.get(b).verdict]);
+  if (!bad.length) h += `<div class="muted" style="padding:4px 6px">No key looks at risk.</div>`;
+  for (const k of bad) {
+    const v = V.get(k), isNew = v.reasons.some(r => / when .* is pressed/.test(r));
+    h += `<div class="row${state.selected === k.c ? ' sel' : ''}" data-key="${k.c}"><span class="dot" style="background:var(${COL[v.verdict]})"></span>`
+      + `<span class="kn">${esc(nameOf(k))}</span><span class="why${isNew ? ' new' : ''}">${esc(v.reasons[0])}</span></div>`;
+  }
+  const todo = KEYS.filter(k => V.get(k).verdict === 'todo');
+  if (todo.length) h += `<div class="muted" style="padding:6px">Not pressed yet: ${todo.map(k => esc(nameOf(k))).join(', ')}.</div>`;
+  return h;
+}
+// The third tab: every key moved, the most moved first, as a bar of its margin at rest.
+function otherKeysHtml() {
+  const seen = new Set(), rows = [];
+  for (const p of PAIRS) { if (seen.has(p.b)) continue; seen.add(p.b); rows.push(p); }
+  let h = `<div class="muted" style="font-size:11px;margin:0 0 4px 6px">the key at rest · the key pressed · its margin at rest, the part the press takes in colour</div>`;
+  for (const p of rows.slice(0, 9)) {
+    const W = 150, X = v => Math.max(0, Math.min(W, v / Math.max(14, p.margin) * W));
+    const col = p.left <= 0 ? 'var(--err)' : p.left < SAFE ? 'var(--warn)' : 'var(--muted)';
+    h += `<div class="row${state.selected === p.b.c ? ' sel' : ''}" data-key="${p.b.c}"><span class="kn">${esc(nameOf(p.b))}</span>`
+      + `<span class="muted" style="min-width:70px">← ${esc(nameOf(p.a))}</span>`
+      + `<svg width="${W + 4}" height="12"><rect x="0" y="2" width="${X(p.margin)}" height="8" rx="2" fill="var(--border)"/>`
+      + `<rect x="0" y="2" width="${X(Math.min(p.typ, p.margin + 2))}" height="8" rx="2" fill="${col}"/>`
+      + `<line x1="${X(p.margin - SAFE)}" y1="0" x2="${X(p.margin - SAFE)}" y2="12" stroke="var(--warn)" stroke-dasharray="2 2"/></svg>`
+      + `<span class="why muted">${p.left <= 0 ? 'past its threshold' : p.left < SAFE ? 'close to its threshold' : 'safe'}</span></div>`;
+  }
+  return h + `<div class="muted" style="padding:4px 6px">and ${Math.max(0, rows.length - 9)} more, each moved a little and safe.</div>`;
+}
+// The key in focus: its last presses (as built), then what the other keys' presses did to it.
+function detailHtml() {
+  const k = byCell.get(state.selected);
+  if (!k) return `<div class="muted">Click a key, on the board or in the list, to see its levels.</div>`;
+  const v = V.get(k);
+  let h = `<div><b>${esc(nameOf(k))}</b> · <span style="color:var(${COL[v.verdict]})">${WORD[v.verdict]}</span></div>`
+    + `<div class="ph" style="margin-top:6px">As built: its last presses side by side, the threshold dashed, its band at rest.</div>`;
+  const ms = movesOf(k);
+  h += `<div class="new" style="padding:2px 4px;margin-top:10px"><div class="dtitle" style="margin-top:2px">While other keys are pressed</div>`;
+  if (!ms.length) return h + `<div class="say muted">No other key's press moves it.</div></div>`;
+  const worst = ms[0];
+  h += `<div class="say">${worst.left <= 0 ? `It went past its threshold each time ${esc(nameOf(worst.a))} was pressed: it types by itself.`
+      : worst.left < SAFE ? `${esc(nameOf(worst.a))} brings it close to its threshold: it may type by itself while ${esc(nameOf(worst.a))} is held.`
+      : `${ms.map(p => esc(nameOf(p.a))).join(' and ')} move${ms.length > 1 ? '' : 's'} it a little, and it stays well short of its threshold.`}</div>`;
+  if (state.detail === 'One scale') h += scaleSvg(k, ms);
+  return h + `</div>`;
+}
+// One line of levels: the key's band at rest, its threshold, the safe margin before it, and where each
+// key pressed took it -- its usual move, an arrow from its resting level.
+function scaleSvg(k, ms) {
+  const lo = k.rest - 6, hi = k.th + 4, W = 420, L = 110, X = v => L + (v - lo) / (hi - lo) * (W - L - 10);
+  const H = 22 + ms.length * 20;
+  let s = `<svg width="${W}" height="${H + 18}" style="margin-top:4px">`
+    + `<rect x="${X(k.th - SAFE)}" y="4" width="${X(k.th) - X(k.th - SAFE)}" height="${H - 4}" fill="var(--warn)" opacity=".12"/>`
+    + `<rect x="${X(k.lo)}" y="6" width="${Math.max(3, X(k.hi) - X(k.lo))}" height="10" rx="2" fill="var(--muted)" opacity=".45"/>`
+    + `<text x="${L - 8}" y="15" font-size="11" text-anchor="end" fill="var(--muted)">nothing pressed</text>`
+    + `<line x1="${X(k.th)}" y1="2" x2="${X(k.th)}" y2="${H}" stroke="var(--warn)" stroke-width="2" stroke-dasharray="4 3"/>`;
+  ms.forEach((p, i) => {
+    const y = 30 + i * 20, to = k.rest + p.typ, col = p.left <= 0 ? 'var(--err)' : p.left < SAFE ? 'var(--warn)' : 'var(--text)';
+    s += `<text x="${L - 8}" y="${y + 4}" font-size="11" text-anchor="end" fill="var(--text)">${esc(nameOf(p.a))} pressed</text>`
+      + `<line x1="${X(k.rest)}" y1="${y}" x2="${X(to) - 5}" y2="${y}" stroke="${col}" stroke-width="2"/>`
+      + `<path d="M${X(to)} ${y} l-6 -4 v8 z" fill="${col}"/>`;
+  });
+  return s + `<text x="${X(k.th)}" y="${H + 14}" font-size="11" text-anchor="middle" fill="var(--warn)">threshold</text></svg>`;
+}
+function sectionHtml() {
+  const strip = ['Key presses', 'Signal levels', 'Device'].map(m => `<button class="${m === 'Signal levels' ? 'on' : ''}">${m}</button>`).join('');
+  const menu = state.menu ? `<div class="menu"><div class="act">Keyboards</div><div class="sep"></div><div class="act">Save to file...</div><div class="act">Load from file...</div>`
+    + `${state.save === 'Board menu' ? `<div class="act new" data-act="save">Save diagnostics report...</div>` : ''}<div class="sep"></div><div class="act">Export definition...</div></div>` : '';
+  const panel = `<div class="mline"><span class="title">Signal levels</span><span class="desc">press each key down firmly and hold it a moment, one after the other</span>`
+    + `<span class="right"><span class="margins">Threshold margin rest <input value="3"> press <input value="3"></span><span class="divider"></span><button>Levels</button>`
+    + `<span class="seg"><button class="on">Board</button><button>Controller</button></span></span></div>`
+    + summaryHtml()
+    + `<div class="split"><div class="left">${listHtml()}</div><div class="right">${detailHtml()}</div></div>`
+    + `<div class="mline" style="border-top:1px solid var(--border);border-bottom:none"><span class="out">Key output off: the keyboard types nothing while Diagnostics shows</span></div>`;
+  const vial = ['Keymap', 'Layout', 'Macros', 'Tap Dance', 'Combos', 'Key Overrides', 'QMK Settings'];
+  const col = `<div class="col"><div class="hdr">Vial</div>${vial.map(e => `<div class="entry">${e}</div>`).join('')}`
+    + `<div class="sep"></div><div class="hdr">Tools</div><div class="entry">Device</div><div class="entry on">Diagnostics</div><div class="entry">Matrix</div></div>`;
+  return `<div class="frame" id="frame">${menu}<div class="menubar"><span class="board" data-act="menu">leyden_jar/F77 ▾</span><span class="muted">Vial</span><span class="right">Settings</span></div>`
+    + `<div class="body">${col}<div class="main"><div class="strip">Diagnostics ${strip}</div>`
+    + `<div class="boardarea">${boardSvg(sectionClass, 44, true)}</div><div class="panel">${panel}</div></div></div></div>`;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The report: what Save report... writes. Plain HTML and inline SVG, no script, readable offline and printed.
+function reportHtml() {
+  const I = REC.info, bins = I.thresholds.length;
+  const verdictClass = k => 'k ' + (V.get(k).verdict === 'todo' ? '' : V.get(k).verdict);
+  const seenClass = k => k.presses ? 'k seen' : 'k';
+  const seen = KEYS.filter(k => k.presses).length;
+  const vcell = k => `<span class="verdict ${V.get(k).verdict}">${WORD[V.get(k).verdict]}</span>`;
+  const pos = k => `R${k.cell[0]} C${k.cell[1]}`, cpos = k => `${k.cc}, ${k.cr}`;
+  let h = `<div class="filebar">nazg-F77-2026-11-14.html · ${state.readings === 'Embedded' ? `${Math.round(REC.jsonBytes / 1024 + 60)} KB, the readings inside` : 'about 60 KB'} · opened in the browser</div><div class="doc">`
+    + `<h1>Leyden Jar diagnostics: leyden_jar/F77</h1><p class="sub">Saved by Nazg 0.1.0-test.8 on 14 November 2026 at 15:42 · ${REC.readings} level readings over ${Math.round(REC.seconds / 60)} minutes · threshold margins 3 at rest, 3 pressed</p>`;
+  // The board and its controller, as Device shows them.
+  h += `<h2>The keyboard</h2><dl>`
+    + `<dt>Keyboard</dt><dd>${esc(REC.board)}</dd>`
+    + `<dt>Controller</dt><dd>Leyden Jar, protocol ${I.version}, ${I.beamSpring ? 'Beam Spring' : 'Model F'}</dd>`
+    + `<dt>Matrix</dt><dd>QMK ${I.logicalRows} × ${I.logicalColumns}, controller ${I.controllerRows} rows × ${I.controllerColumns} columns</dd>`
+    + `<dt>Bins</dt><dd>${bins}: thresholds ${I.thresholds.join(', ')}, resting references ${I.referenceLevels.join(', ')}</dd>`
+    + `<dt>Vial and USB</dt><dd class="muted">as the Device mode shows them: Vial protocol, keyboard UID, VID:PID, release</dd></dl>`;
+  // Signal levels' verdicts.
+  const chip = v => `<span><span class="verdict ${v}">${count(v)}</span> ${WORD[v]}</span>`;
+  h += `<h2>Signal levels</h2><div class="counts">${['good', 'risk', 'fail', 'todo'].map(chip).join('')}</div>`
+    + `<div class="figure">${boardSvg(verdictClass, 36, false)}</div>`;
+  const bad = KEYS.filter(k => V.get(k).verdict !== 'good').sort((a, b) => ORDER[V.get(a).verdict] - ORDER[V.get(b).verdict]);
+  h += `<table><tr><th>Key</th><th>Matrix</th><th>Verdict</th><th>Why</th></tr>`
+    + bad.map(k => `<tr><td><b>${esc(nameOf(k))}</b></td><td>${pos(k)}</td><td>${vcell(k)}</td><td>${V.get(k).reasons.map(esc).join('<br>')}</td></tr>`).join('') + `</table>`;
+  // The keys at rest moved by another's press: the new finding.
+  const risky = PAIRS.filter(p => p.left < SAFE), safe = PAIRS.filter(p => p.left >= SAFE);
+  const pairRow = p => `<tr><td><b>${esc(nameOf(p.b))}</b></td><td>${esc(nameOf(p.a))}</td><td>${pos(p.b)} · ${cpos(p.b)}</td><td>${pos(p.a)} · ${cpos(p.a)}</td>`
+    + `<td class="n">${p.margin}</td><td class="n">${p.typ}</td><td class="n">${p.most}</td><td class="n">${p.left <= 0 ? `<span class="verdict fail">${p.left < 0 ? `past by ${-p.left}` : 'reached it'}</span>` : p.left}</td><td class="n">${p.n}</td></tr>`;
+  const head = `<tr><th>At rest</th><th>Pressed</th><th>Its matrix · controller</th><th>Pressed's</th><th class="n">At rest, from threshold</th><th class="n">Usual move</th><th class="n">Most</th><th class="n">Left</th><th class="n">Presses</th></tr>`;
+  h += `<h2>Keys moved by another key's press</h2>`
+    + `<p>While a key is pressed alone, every other key's level is watched. These come closer than ${SAFE} to their threshold, or past it, `
+    + `when the key beside them is pressed: they may type by themselves.</p>`
+    + (risky.length ? `<table>${head}${risky.map(pairRow).join('')}</table>` : `<p class="ok">No key comes close to its threshold when another is pressed.</p>`);
+  if (state.safe === 'Folded')
+    h += `<details><summary>${safe.length} more pairs move by 2 or more and stay safe -- the keyboard's usual coupling</summary>`
+      + `<p class="muted">On this board, every one is a key and its neighbour on the controller: the same column, the next row.</p><table>${head}${safe.map(pairRow).join('')}</table></details>`;
+  // Key presses, as the mode shows them.
+  h += `<h2>Key presses</h2><p>${seen} of ${KEYS.length} keys seen pressed since the readings started.</p><div class="figure">${boardSvg(seenClass, 36, false)}</div>`;
+  if (state.presses === 'Board and controller')
+    h += `<p class="muted">The same, on the controller's connectors: its columns across, its rows down.</p><div class="figure">${controllerSvg(seenClass)}</div>`;
+  // Every key's numbers, folded: Levels' numbers for firmware work.
+  h += `<details><summary>Every key's numbers</summary><table><tr><th>Key</th><th>Matrix</th><th>Controller</th><th class="n">Bin</th><th class="n">Threshold</th>`
+    + `<th class="n">At rest</th><th class="n">Lowest</th><th class="n">Highest</th><th class="n">Firmest press</th><th class="n">Presses</th><th>Verdict</th></tr>`
+    + KEYS.map(k => `<tr><td>${esc(nameOf(k))}</td><td>${pos(k)}</td><td>${cpos(k)}</td><td class="n">${k.bin}</td><td class="n">${k.th}</td><td class="n">${k.rest}</td>`
+      + `<td class="n">${k.lo ?? '–'}</td><td class="n">${k.hi ?? '–'}</td><td class="n">${k.peak ?? '–'}</td><td class="n">${k.presses}</td><td>${vcell(k)}</td></tr>`).join('') + `</table></details>`;
+  if (state.readings === 'Embedded')
+    h += `<h2>The readings</h2><p class="muted">Every level reading of this pass, ${REC.readings} of them, is kept in this file as JSON `
+      + `(<code>&lt;script type="application/json" id="nazg-readings"&gt;</code>, ${Math.round(REC.jsonBytes / 1024)} KB) -- the recording format of Nazg's tests. `
+      + `Nazg can read it back: send this file to the keyboard's maker.</p>`;
+  return h + `</div>`;
+}
+
+// ---------------------------------------------------------------------------------------------
+function render() {
+  document.documentElement.dataset.theme = state.theme.toLowerCase();
+  build();
+  renderControls();
+  document.getElementById('stage').innerHTML = state.page === 'Section' ? sectionHtml() : reportHtml();
+}
+function renderControls() {
+  const c = document.getElementById('controls');
+  c.innerHTML = '';
+  const groups = [['page', 'Show', ['Section', 'Report']], ['board', 'Board', ['As recorded', 'Made-up coupling']]];
+  if (state.page === 'Section')
+    groups.push(['where', 'The finding', ['A reason in the verdicts', 'Also a tab, Other keys']],
+                ['outline', 'On the board, the key in focus', ['Keys moving it', 'Both ways', 'Nothing']],
+                ['detail', 'The key\'s detail', ['One scale', 'Words only']],
+                ['save', 'Save report...', ['Beside Clear', 'Board menu']]);
+  else
+    groups.push(['presses', 'Key presses', ['Board', 'Board and controller']],
+                ['safe', 'Safe pairs', ['Folded', 'Left out']],
+                ['readings', 'Readings', ['Embedded', 'Left out']]);
+  groups.push(['theme', 'Theme', ['Light', 'Dark']]);
+  groups.forEach(([k, name, values]) => {
+    const g = document.createElement('div'); g.className = 'group';
+    g.innerHTML = `<span class="name">${name}</span>`;
+    values.forEach(v => {
+      const bt = document.createElement('button'); bt.textContent = v;
+      if (state[k] === v) bt.className = 'on';
+      bt.onclick = () => { state[k] = v; if (k === 'where' && v === 'A reason in the verdicts' && state.tab === 'Other keys') state.tab = 'Keys'; render(); };
+      g.appendChild(bt);
+    });
+    c.appendChild(g);
+  });
+}
+const stage = document.getElementById('stage');
+stage.addEventListener('click', e => {
+  const t = e.target.closest('[data-key], [data-tab], [data-act]');
+  if (!t) { if (state.menu) { state.menu = false; render(); } return; }
+  if (t.dataset.key) state.selected = t.dataset.key;
+  if (t.dataset.tab) state.tab = t.dataset.tab;
+  if (t.dataset.act === 'menu') { state.menu = !state.menu; render(); return; }
+  if (t.dataset.act === 'save') { state.menu = false; state.saved = true; }
+  render();
+});
+const tip = document.getElementById('tip');
+stage.addEventListener('mousemove', e => {
+  const r = e.target.closest('rect[data-tip]');
+  if (r) { tip.textContent = r.dataset.tip; tip.style.display = 'block'; } else tip.style.display = 'none';
+  tip.style.left = Math.min(e.clientX + 14, innerWidth - 380) + 'px'; tip.style.top = (e.clientY + 18) + 'px';
+});
+stage.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+
+document.getElementById('notes').innerHTML = `
+<p><b>What is new</b> is outlined in blue dashes. Everything else is the section as built, some of it as a placeholder.</p>
+<p><b>The measure.</b> Signal levels already keeps every reading of every key. Nazg would look at the readings where one key is
+pressed alone, and at every other key then: how far towards its threshold it moved, each press of that key -- its furthest reading
+during the press -- and the usual move over that key's presses, the median, so one spring's vibration accuses nothing. A key's verdict
+then counts it as any other reason: <b>at risk</b> when a press leaves it less than the rest margin (3) from its threshold,
+<b>failing</b> when it went past. Two keys pressed together are left out: neither moved alone.</p>
+<p><b>Rico's F77, as recorded</b>: 122 pairs move by 2 or more, the most by 4, and every one is a key and its neighbour on the
+controller -- the same column, the next row. Its keys rest 6 to 13 from their threshold: nothing at risk. The verdicts here
+approximate Nazg's (the press judged by the highest reading); the pair numbers are the recording's.
+<b>Made-up coupling</b>: D moves F by 8 (1 left: at risk), J moves U by 11 (past: failing). Click F, then U.</p>
+<p><b>Where it shows</b>: a reason among the others, its words effect first as the rest ("May type by itself when D is pressed"),
+and in the key's detail under its last presses: a line per key moving it, from its resting level to where that key's press took it,
+the threshold dashed and the margin before it shaded. <b>Also a tab</b>: every key moved, most first -- the board's coupling at a
+glance, which a designer may want; the verdicts already name the keys that matter.</p>
+<p><b>On the board</b>, with a key in focus: the keys whose press moves it outlined in dashes, orange when it comes close, grey when
+safe; <b>both ways</b> adds, in blue, the keys it moves itself.</p>
+<p><b>The report</b> (Show: Report, or click Save report...): one HTML file, no script, readable anywhere and printable -- the
+keyboard and its controller, Signal levels' verdicts on the board and the keys to look at, the keys moved by another key's press with
+their numbers, the key presses seen on the board and on the controller's grid, every key's numbers folded. Numbers are in tables:
+the report is for whoever repairs or builds the board, as Levels is. <b>The readings embedded</b> make a tester's report a
+recording Nazg's tests can replay -- about 0.9 MB for 4 minutes; left out, the file is some 60 KB.</p>`;
+
+render();
+</script>
+</body>
+</html>
