@@ -232,6 +232,9 @@ namespace
         bool                       isExportClosed = false;   // the save dialog closed...
         std::optional<std::string> exportPath;             // ...with a place chosen, or none
         std::string                suggested;              // the file name offered; SDL may read it until it closes
+        std::string                exportKind;             // its filter, which SDL may read until it closes too
+        std::string                exportPattern;
+        SDL_DialogFileFilter       exportFilter{};
 
         // The saved layouts' dialogs (.vil; VIA's .layout.json opened too), one at a time: closed, with a file chosen or none.
         bool                       isLayoutOpenClosed = false;
@@ -512,11 +515,14 @@ int main(int, char**)
         static const SDL_DialogFileFilter c_Filters[] = { { "VIA definition", "json" } };
         SDL_ShowOpenFileDialog(OnImportChosen, &answers, pWindow, c_Filters, 1, nullptr, true);
     };
-    platform.showExportDialog = [&answers, pWindow](const std::string& suggested)
+    platform.showExportDialog = [&answers, pWindow](const std::string& suggested, const std::string& kind,
+                                                    const std::string& extension)
     {
-        answers.suggested = suggested;   // App opens one at a time
-        static const SDL_DialogFileFilter c_Filters[] = { { "VIA definition", "json" } };
-        SDL_ShowSaveFileDialog(OnExportChosen, &answers, pWindow, c_Filters, 1,
+        answers.suggested     = suggested;   // App opens one at a time
+        answers.exportKind    = kind;
+        answers.exportPattern = extension;
+        answers.exportFilter  = { answers.exportKind.c_str(), answers.exportPattern.c_str() };
+        SDL_ShowSaveFileDialog(OnExportChosen, &answers, pWindow, &answers.exportFilter, 1,
                                answers.suggested.empty() ? nullptr : answers.suggested.c_str());
     };
     platform.showLayoutOpenDialog = [&answers, pWindow]
@@ -550,11 +556,11 @@ int main(int, char**)
     // once App has written it, it is downloaded.
     platform.showImportDialog     = [] { NazgChooseFiles(".json", 1, c_ChoosingImport); };
     platform.showLayoutOpenDialog = [] { NazgChooseFiles(".vil,.json", 0, c_ChoosingLayout); };
-    platform.showExportDialog     = [&answers](const std::string& suggested)
+    platform.showExportDialog     = [&answers](const std::string& suggested, const std::string&, const std::string& extension)
     {
         const std::lock_guard<std::mutex> lock(answers.mutex);
         answers.isExportClosed = true;
-        answers.exportPath     = DownloadPath(suggested.empty() ? "definition.json" : suggested);
+        answers.exportPath     = DownloadPath(suggested.empty() ? "nazg." + extension : suggested);
     };
     platform.showLayoutSaveDialog = [&answers](const std::string& suggested)
     {

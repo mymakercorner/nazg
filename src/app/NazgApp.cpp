@@ -634,14 +634,15 @@ namespace nazg
     }
 
     // Opens the save dialog for these bytes, unless one is open already.
-    void App::StartExport(std::vector<uint8_t> bytes, const std::string& name, const std::string& suggested)
+    void App::StartExport(std::vector<uint8_t> bytes, const std::string& name, const std::string& suggested,
+                          const std::string& kind, const std::string& extension)
     {
         if (m_IsExportOpen)
             return;
         m_IsExportOpen = true;
         m_ExportBytes  = std::move(bytes);
         m_ExportName   = name;
-        m_Platform.showExportDialog(suggested);
+        m_Platform.showExportDialog(suggested, kind, extension);
     }
 
     // For investigation and debugging: the definition drawing the board, byte for byte as Nazg
@@ -768,7 +769,7 @@ namespace nazg
             for (const auto& section : m_Board.sections)
                 if (std::optional<Section::FileToSave> file = section->TakeFileToSave())
                 {
-                    StartExport(std::move(file->bytes), file->name, file->suggested);
+                    StartExport(std::move(file->bytes), file->name, file->suggested, file->kind, file->extension);
                     break;
                 }
 
@@ -1386,7 +1387,8 @@ namespace nazg
                                           m_LevelsOnKeys,
                                           m_Settings.moveToNextKey,
                                           m_Settings.hostLayoutChosen,
-                                          m_Board.exportable };
+                                          m_Board.exportable,
+                                          NAZG_VERSION };
             for (PlannedSection& planned : PlanSections(*m_Board.keyboard))
                 m_Board.sections.push_back(MakeSection(std::move(planned), context));
         }

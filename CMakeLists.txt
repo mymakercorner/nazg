@@ -162,6 +162,10 @@ set(NAZG_CORE_SOURCES
   src/adapters/leydenjar/NazgLeydenJarProtocol.cpp
   src/adapters/leydenjar/NazgLeydenJarRecording.h
   src/adapters/leydenjar/NazgLeydenJarRecording.cpp
+  src/ui/NazgKeyHealthWords.h
+  src/ui/NazgKeyHealthWords.cpp
+  src/report/NazgDiagnosticsReport.h
+  src/report/NazgDiagnosticsReport.cpp
   src/adapters/keychron/NazgKeychronProtocol.h
   src/adapters/keychron/NazgKeychronProtocol.cpp
   src/board/NazgBoardLoad.h

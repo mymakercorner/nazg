@@ -68,8 +68,8 @@ namespace nazg
                            SafeMargins&                safeMargins,
                            bool&                       levelsOnKeys,
                            DeviceIdentity              identity,
-                           const bool&                 advancedTools,
-                           const std::vector<uint8_t>& definition);
+                           const std::vector<uint8_t>& definition,
+                           std::string_view            appVersion);
 
         DiagnosticsSection(const DiagnosticsSection&)            = delete;
         DiagnosticsSection& operator=(const DiagnosticsSection&) = delete;
@@ -95,7 +95,7 @@ namespace nazg
         // Sent to its bootloader, or erased and restarting.
         [[nodiscard]] std::string BoardLeft() const override { return m_Link == Link::Gone ? m_Message : std::string(); }
 
-        // Save readings...: Signal levels' readings as a recording (adapters/leydenjar/NazgLeydenJarRecording.h).
+        // Save report...: Signal levels as one HTML file (report/NazgDiagnosticsReport.h).
         [[nodiscard]] std::optional<FileToSave> TakeFileToSave() override { return std::exchange(m_FileToSave, std::nullopt); }
 
     private:
@@ -211,12 +211,20 @@ namespace nazg
         SafeMargins           m_JudgedMargins;  // those m_Health was judged by
         DeviceIdentity        m_Identity;
 
-        // Temporary, until Save report... embeds the readings (Rico, 2026-11-15): Save readings...,
-        // with Advanced tools, to record what Signal levels saw.
-        const bool&                 m_AdvancedTools;
+        // Save report...: the definition's bytes and Nazg's version ride along in it.
         const std::vector<uint8_t>& m_Definition;
+        std::string                 m_AppVersion;
         std::optional<FileToSave>   m_FileToSave;
-        void                        SaveReadings();
+        void                        SaveReport();
+
+        // Every key the board draws, decals left out, as found with m_Keys: for the report.
+        struct Shape
+        {
+            via::DefinitionKey    geometry;
+            std::optional<size_t> key;      // into m_Keys
+            std::string           legend;
+        };
+        std::vector<Shape> m_Shapes;
 
         Mode m_Mode         = Mode::KeyPresses;
         View m_View          = View::Board;   // Signal levels has no QMK matrix: it shows the board there

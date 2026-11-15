@@ -151,13 +151,15 @@ namespace nazg
         // changes not written yet.
         [[nodiscard]] virtual bool TakeBoardChanged() { return false; }
 
-        // A file the section made for the user to save -- the Diagnostics' readings: once, and Nazg
+        // A file the section made for the user to save -- the Diagnostics' report: once, and Nazg
         // asks where, as Export definition... does.
         struct FileToSave
         {
             std::vector<uint8_t> bytes;
             std::string          name;        // what it is, said when it is written
             std::string          suggested;   // the file name offered
+            std::string          kind;        // the save dialog's filter: "Diagnostics report"
+            std::string          extension;   // and its extension, without the dot: "html"
         };
         [[nodiscard]] virtual std::optional<FileToSave> TakeFileToSave() { return std::nullopt; }
 

@@ -680,6 +680,10 @@ it turns the keyboard's typing off, and it comes back on when you leave. The str
   dashes on the board -- grey when they stay safe, orange when the press brings one close to its
   threshold, red when it takes one past, which may type by itself. A key moved that way is listed
   with why, and under its presses a line per key moving it shows how far.
+  **Save report...**, beside Clear, writes Signal levels as one web page to keep or send: the
+  keyboard, every key's levels and why, the board and the controller's connectors, and every reading
+  since Clear inside it. It opens in any browser, with nothing to install; click a key there as in
+  Nazg. Some company mail refuses web pages as attachments: zip it, or share a link to it.
 
     ![Signal levels: 28 keys good, F selected](user-manual/diagnostics-signal-levels.png)
 

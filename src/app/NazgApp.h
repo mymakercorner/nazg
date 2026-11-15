@@ -67,10 +67,13 @@ namespace nazg
         // A problem worth a line in the log.
         std::function<void(const std::string&)> logError;
 
-        // The file dialogs, for VIA definitions. What the user picks reaches App on the frame
-        // loop's thread, in OnImportChosen() and OnExportChosen().
-        std::function<void()>                             showImportDialog;
-        std::function<void(const std::string& suggested)> showExportDialog;
+        // The file dialogs, for VIA definitions -- and the save dialog for any file App writes: a
+        // definition, a diagnostics report -- its filter named `kind`, of files ending `extension`
+        // (no dot). What the user picks reaches App on the frame loop's thread, in OnImportChosen()
+        // and OnExportChosen().
+        std::function<void()> showImportDialog;
+        std::function<void(const std::string& suggested, const std::string& kind, const std::string& extension)>
+            showExportDialog;
         // Likewise for saved layouts (.vil): OnLayoutOpenChosen() and OnLayoutSaveChosen().
         std::function<void()>                             showLayoutOpenDialog;
         std::function<void(const std::string& suggested)> showLayoutSaveDialog;
@@ -286,7 +289,8 @@ namespace nazg
         void RefreshCandidates();
         void NoteForeignImport(const std::string& path, const LibraryEntry& entry);
         [[nodiscard]] const LibraryEntry* UserEntryInUse() const;
-        void StartExport(std::vector<uint8_t> bytes, const std::string& name, const std::string& suggested);
+        void StartExport(std::vector<uint8_t> bytes, const std::string& name, const std::string& suggested,
+                         const std::string& kind = "VIA definition", const std::string& extension = "json");
         void ExportBoardDefinition();
 
         // The frame's regions, top to bottom: the header -- which returns the board's name --

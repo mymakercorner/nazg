@@ -6,13 +6,16 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <ctime>
 #include <exception>
 #include <utility>
 
 #include "imgui.h"
 
 #include "adapters/leydenjar/NazgLeydenJarRecording.h"
+#include "report/NazgDiagnosticsReport.h"
 #include "model/NazgKeycode.h"
+#include "ui/NazgKeyHealthWords.h"
 #include "ui/NazgKeyLine.h"
 #include "ui/NazgKeycapLegend.h"
 #include "ui/NazgTheme.h"
@@ -124,74 +127,9 @@ namespace nazg
             return KeyCondition::None;
         }
 
-        const char* WordOf(KeyVerdict verdict)
-        {
-            switch (verdict)
-            {
-            case KeyVerdict::Failing: return "failing";
-            case KeyVerdict::AtRisk:  return "at risk";
-            case KeyVerdict::ToCheck: return "to check";
-            case KeyVerdict::ToDo:    return "to do";
-            case KeyVerdict::Good:    break;
-            }
-            return "good";
-        }
-
         int OrderOf(KeyVerdict verdict)
         {
             return static_cast<int>(verdict);   // failing first, good last
-        }
-
-        // The words lead with the effect and carry no numbers (Rico, 2026-10-17): those are in the
-        // trace and the tooltip.
-        // `other`: the key whose press moves it, for the two reasons that name one.
-        std::string SentenceOf(KeyReason reason, KeyVerdict verdict, const std::string& other = {})
-        {
-            switch (reason)
-            {
-            case KeyReason::TypesByItself:     return "Types by itself: seen pressed without being touched";
-            case KeyReason::NeverReaches:      return "Does not work: its presses never reach its threshold";
-            case KeyReason::TypesWhenPressed:  return "Types by itself when " + other + " is pressed: goes past its threshold";
-            case KeyReason::NearsWhenPressed:  return "May type by itself when " + other + " is pressed: comes close to its threshold";
-            case KeyReason::WentPastUntouched: return "May type by itself: went past its threshold untouched";
-            case KeyReason::RestsClose:        return "May type by itself: rests close to its threshold";
-            case KeyReason::WandersAtRest:     return "May type by itself: its level wanders at rest";
-            case KeyReason::OnlyJustPast:      return "May miss presses: even its firmest press is only just past its threshold";
-            case KeyReason::NotPressedYet:     return "Not pressed yet";
-            case KeyReason::PressAgain:        return "Press it again, firmly: not past its threshold yet";
-            case KeyReason::HoldToMeasure:     return "Registered: hold it a moment to measure it";
-            case KeyReason::TopOfRange:
-                return verdict == KeyVerdict::ToCheck ? "To check: reads at the top of the range, its real level may be higher"
-                                                      : "reads at the top of the range";
-            }
-            return {};
-        }
-
-        // The same problem shared by many keys, said once of the keyboard.
-        std::string PluralOf(KeyReason reason)
-        {
-            switch (reason)
-            {
-            case KeyReason::TypesByItself:     return "were seen pressed without being touched -- they type by themselves";
-            case KeyReason::NeverReaches:      return "never reach their threshold -- they do not work";
-            case KeyReason::WentPastUntouched: return "went past their threshold untouched -- they may type by themselves";
-            case KeyReason::RestsClose:        return "rest close to their threshold -- they may type by themselves";
-            case KeyReason::WandersAtRest:     return "wander at rest -- they may type by themselves";
-            case KeyReason::OnlyJustPast:      return "only just get past their threshold -- they may miss presses";
-            case KeyReason::TypesWhenPressed:  return "go past their threshold when a neighbour is pressed -- they type by themselves";
-            case KeyReason::NearsWhenPressed:  return "come close to their threshold when a neighbour is pressed -- they may type by themselves";
-            default:                           break;
-            }
-            return SentenceOf(reason, KeyVerdict::AtRisk);
-        }
-
-        // `movedBy`: the name of the key in judged.movedBy, when there is one.
-        std::string ReasonsOf(const JudgedKey& judged, const char* separator, const std::string& movedBy)
-        {
-            std::string text;
-            for (KeyReason reason : judged.reasons)
-                text += (text.empty() ? "" : separator) + SentenceOf(reason, judged.verdict, movedBy);
-            return text;
         }
 
         float ButtonWidth(const char* label)
@@ -266,18 +204,24 @@ namespace nazg
 
     DiagnosticsSection::DiagnosticsSection(HidTransport& transport, std::string path, const Keyboard& keyboard,
                                            const LegendSettings& legends, SafeMargins& safeMargins,
-                                           bool& levelsOnKeys, DeviceIdentity identity, const bool& advancedTools,
-                                           const std::vector<uint8_t>& definition)
+                                           bool& levelsOnKeys, DeviceIdentity identity, const std::vector<uint8_t>& definition,
+                                           std::string_view appVersion)
         : m_Transport(transport), m_Path(std::move(path)), m_Keyboard(keyboard), m_Legends(legends),
-          m_SafeMargins(safeMargins), m_Identity(std::move(identity)), m_AdvancedTools(advancedTools),
-          m_Definition(definition), m_LevelsOnKeys(levelsOnKeys)
+          m_SafeMargins(safeMargins), m_Identity(std::move(identity)), m_Definition(definition), m_AppVersion(appVersion),
+          m_LevelsOnKeys(levelsOnKeys)
     {
     }
 
-    // Temporary (Rico, 2026-11-15), until Save report... carries them: every reading since Clear, with
-    // what the tests need to judge them again -- the controller's information, the definition, layer 0.
-    void DiagnosticsSection::SaveReadings()
+    // Save report...: Signal levels as one HTML file (report/NazgDiagnosticsReport.h), every reading
+    // since Clear inside it as a recording -- with what the tests need to judge them again: the
+    // controller's information, the definition, layer 0.
+    void DiagnosticsSection::SaveReport()
     {
+        if (m_ReadingTimes.empty())
+            return;
+        if (m_JudgedReadings < m_ReadingTimes.size() || m_JudgedMargins != m_SafeMargins)
+            Judge();   // every reading, by the margins shown
+
         leydenjar::Recording recording;
         recording.board      = m_Identity.manufacturer.empty() ? m_Identity.product : m_Identity.product + " by " + m_Identity.manufacturer;
         recording.info       = m_Info;
@@ -290,8 +234,39 @@ namespace nazg
             recording.times.push_back(time - m_ReadingTimes.front());
         recording.traces = m_Traces;
 
-        const std::string text = leydenjar::RecordingJson(recording);
-        m_FileToSave = FileToSave{ std::vector<uint8_t>(text.begin(), text.end()), "the readings", "leyden-jar-readings.json" };
+        DiagnosticsReport report;
+        report.title   = m_Keyboard.Name();
+        report.savedBy = "Nazg " + m_AppVersion;
+        char usb[160];
+        std::snprintf(usb, sizeof(usb), "%s%s%s · %04X:%04X · release %X.%02X", m_Identity.product.c_str(),
+                      m_Identity.manufacturer.empty() ? "" : " by ", m_Identity.manufacturer.c_str(), m_Identity.vendorId,
+                      m_Identity.productId, m_Identity.release >> 8, m_Identity.release & 0xFFu);
+        report.usb = usb;
+
+        // When, as people write it, the computer's own time; and for the file's name.
+        const std::time_t now   = std::time(nullptr);
+        const std::tm     local = *std::localtime(&now);
+        char              when[64], day[16];
+        std::strftime(when, sizeof(when), "%d %B %Y at %H:%M", &local);
+        std::strftime(day, sizeof(day), "%Y-%m-%d", &local);
+        report.savedAt = when[0] == '0' ? when + 1 : when;
+
+        report.info    = m_Info;
+        report.scale   = m_Scale;
+        report.margins = m_JudgedMargins;
+        for (const Key& key : m_Keys)
+            report.keys.push_back({ key.name, key.row, key.column, key.controllerRow, key.controllerColumn, key.isMapped,
+                                    key.threshold, key.bin });
+        for (const Shape& shape : m_Shapes)
+            report.shapes.push_back({ shape.geometry, shape.key, shape.legend });
+        report.health   = m_Health;
+        report.traces   = m_Traces;
+        report.times    = recording.times;
+        report.readings = leydenjar::RecordingJson(recording);
+
+        const std::string html = DiagnosticsReportHtml(report);
+        m_FileToSave = FileToSave{ std::vector<uint8_t>(html.begin(), html.end()), "the report",
+                                   std::string("leyden-jar-report-") + day + ".html", "Diagnostics report", "html" };
     }
 
     // --- The strip --------------------------------------------------------------------------------
@@ -616,12 +591,32 @@ namespace nazg
 
         const leydenjar::MatrixMapping& mapping = m_Info.mapping;
         const leydenjar::Details&       details = m_Info.details;
+        m_Shapes.clear();
         for (const BoardKey& described : board.keys)
         {
             const via::DefinitionKey& geometry = described.geometry;
+
+            // Its shape, for the report; the key judged there joined below.
+            Shape* shape = nullptr;
+            if (!geometry.decal)
+            {
+                m_Shapes.push_back({ geometry, std::nullopt, {} });
+                shape = &m_Shapes.back();
+                if (const auto* legend = std::get_if<KeycapLegend>(&described.legends))
+                    shape->legend = CaptionOf(*legend);
+            }
+
             if (!geometry.IsSwitch() || geometry.row >= m_Keyboard.definition.matrixRows ||
-                geometry.column >= m_Keyboard.definition.matrixColumns || KeyAt(geometry.row, geometry.column))
+                geometry.column >= m_Keyboard.definition.matrixColumns)
                 continue;
+            if (const std::optional<size_t> known = KeyAt(geometry.row, geometry.column))
+            {
+                if (shape)
+                    shape->key = known;
+                continue;
+            }
+            if (shape)
+                shape->key = m_Keys.size();
 
             Key key;
             key.row    = geometry.row;
@@ -1357,16 +1352,15 @@ namespace nazg
             drawList->AddText(ImVec2(b1.x + 5 * u, at.y + (size.y - ImGui::GetTextLineHeight()) / 2), TextColour(), text);
         }
 
-        // Temporary, with Advanced tools, until Save report... (Rico, 2026-11-15).
-        const bool canSave = m_AdvancedTools && !m_ReadingTimes.empty();
-        RightAlign(ButtonWidth("Clear") + (canSave ? ButtonWidth("Save readings...") + ImGui::GetStyle().ItemSpacing.x : 0.0f));
-        if (canSave)
-        {
-            if (ImGui::Button("Save readings..."))
-                SaveReadings();
-            ImGui::SetItemTooltip("Every reading since Clear, as a recording Nazg's tests replay");
-            ImGui::SameLine();
-        }
+        // Save report... beside Clear (Rico, 2026-11-15): what Signal levels shows, as one HTML file.
+        RightAlign(ButtonWidth("Save report...") + ImGui::GetStyle().ItemSpacing.x + ButtonWidth("Clear"));
+        ImGui::BeginDisabled(m_ReadingTimes.empty());
+        if (ImGui::Button("Save report..."))
+            SaveReport();
+        ImGui::EndDisabled();
+        ImGui::SetItemTooltip("Signal levels as one web page -- the keyboard, every key's levels and why, and every reading\n"
+                              "since Clear -- to keep, or to send to whoever repairs or builds the board");
+        ImGui::SameLine();
         if (ImGui::Button("Clear"))
             ClearReadings();
         ImGui::SetItemTooltip("Start a new pass: every reading so far forgotten");

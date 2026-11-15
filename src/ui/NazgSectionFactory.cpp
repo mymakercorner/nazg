@@ -67,8 +67,8 @@ namespace nazg
             return std::make_unique<DeviceSection>(transport, path, keyboard, legends, context.lock);
         case SectionKind::Diagnostics:
             return std::make_unique<DiagnosticsSection>(transport, path, keyboard, legends, context.safeMargins,
-                                                        context.levelsOnKeys, context.identity, context.advancedTools,
-                                                        context.definitionBytes);
+                                                        context.levelsOnKeys, context.identity, context.definitionBytes,
+                                                        context.appVersion);
         default:
             return std::make_unique<PlaceholderSection>(std::move(planned));
         }

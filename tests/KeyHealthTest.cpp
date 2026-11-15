@@ -13,6 +13,7 @@
 
 #include "adapters/NazgXz.h"
 #include "adapters/leydenjar/NazgLeydenJarRecording.h"
+#include "report/NazgDiagnosticsReport.h"
 #include "adapters/via/NazgKeyboardDefinition.h"
 #include "files/NazgFiles.h"
 #include "model/NazgKeyboard.h"
@@ -49,6 +50,8 @@ namespace
         uint16_t              threshold = 0;
         int                   column    = 0;
         int                   row       = 0;   // the controller's
+        int                   bin       = 0;
+        nazg::via::DefinitionKey geometry;     // where it is drawn, its QMK row and column
     };
 
     struct Recording
@@ -56,10 +59,13 @@ namespace
         std::vector<RecordedKey> keys;
         LevelScale               scale;
         int                      columns = 0;
+
+        // For a report: the whole recording, the definition's name and every key it draws.
+        nlohmann::json                         json;
+        std::string                            name;
+        std::vector<nazg::via::DefinitionKey>  drawn;
     };
 
-    // The drawn keys at choice 0 of every layout option, as the section judges them: each switch
-    // once, mapped to the controller's position, its threshold its bin's.
     // A recording's JSON, XZ-compressed as those kept here or plain as Save readings... writes it.
     nlohmann::json ReadRecording(const std::filesystem::path& file)
     {
@@ -75,6 +81,8 @@ namespace
         return nlohmann::json::parse(packed->begin(), packed->end());
     }
 
+    // The drawn keys at choice 0 of every layout option, as the section judges them: each switch
+    // once, mapped to the controller's position, its threshold its bin's.
     Recording Load(const std::filesystem::path& file)
     {
         const nlohmann::json json = ReadRecording(file);
@@ -96,9 +104,13 @@ namespace
         recording.scale.offset    = std::abs(thresholds[0] - references[0]);
         recording.columns         = info["controllerColumns"].get<int>();
 
+        recording.json = json;
+        recording.name = definition.name;
         std::set<std::pair<int, int>> taken;
         for (const nazg::via::DefinitionKey& key : nazg::PlaceKeys(definition, std::vector<uint8_t>(groups, 0)))
         {
+            if (!key.decal)
+                recording.drawn.push_back(key);
             if (!key.IsSwitch() || !taken.insert({ key.row, key.column }).second)
                 continue;
             const int column = mappingColumns.at(key.column);
@@ -109,6 +121,8 @@ namespace
             recorded.threshold = static_cast<uint16_t>(thresholds.at(bins.at(column).at(row)));
             recorded.column    = column;
             recorded.row       = row;
+            recorded.bin       = bins.at(column).at(row);
+            recorded.geometry  = key;
             for (const nlohmann::json& reading : json["readings"])
                 recorded.trace.push_back(reading["levels"][column][row].get<uint16_t>());
             recording.keys.push_back(std::move(recorded));
@@ -512,6 +526,94 @@ namespace
         Check(CountOf(health, KeyVerdict::Failing) == 0 && CountOf(health, KeyVerdict::AtRisk) == 0, "nothing failing or at risk");
     }
 
+    // The saved report, made as the section makes it, from Rico's session: one HTML file with every
+    // key's detail and the readings inside, which read back as the recording. With
+    // NAZG_REPORT_OUT set, it is written there to be looked at.
+    void TestReport(const std::filesystem::path& folder)
+    {
+        std::printf("the report, from the F77 today\n");
+
+        const Recording   recording = Load(folder / "f77-five-and-d-2026-11-15.json.xz");
+        const BoardHealth health    = Judge(recording);
+        const nlohmann::json& info  = recording.json["info"];
+
+        nazg::DiagnosticsReport report;
+        report.title   = recording.name;
+        report.usb     = recording.json["board"].get<std::string>();
+        report.savedBy = "Nazg (test)";
+        report.savedAt = "15 November 2026 at 21:29";
+        nazg::leydenjar::ControllerInfo& controller = report.info;
+        controller.version                   = { 0, 9, 1 };
+        controller.details.logicalRows       = info["logicalRows"].get<uint8_t>();
+        controller.details.logicalColumns    = info["logicalColumns"].get<uint8_t>();
+        controller.details.controllerRows    = info["controllerRows"].get<uint8_t>();
+        controller.details.controllerColumns = info["controllerColumns"].get<uint8_t>();
+        controller.thresholds                = info["thresholds"].get<std::vector<uint16_t>>();
+        controller.referenceLevels           = info["referenceLevels"].get<std::vector<uint16_t>>();
+        controller.bins                      = info["bins"].get<std::vector<std::vector<uint8_t>>>();
+        report.scale  = recording.scale;
+        report.health = health;
+
+        for (const RecordedKey& key : recording.keys)
+        {
+            nazg::ReportKey one;
+            one.name             = key.keycode.rfind("KC_", 0) == 0 ? key.keycode.substr(3) : key.keycode;
+            one.row              = key.geometry.row;
+            one.column           = key.geometry.column;
+            one.controllerRow    = static_cast<uint8_t>(key.row);
+            one.controllerColumn = static_cast<uint8_t>(key.column);
+            one.isMapped         = true;
+            one.threshold        = key.threshold;
+            one.bin              = static_cast<uint8_t>(key.bin);
+            report.keys.push_back(one);
+        }
+        for (const nazg::via::DefinitionKey& drawn : recording.drawn)
+        {
+            nazg::ReportShape shape;
+            shape.geometry = drawn;
+            for (size_t k = 0; k < recording.keys.size(); ++k)
+                if (drawn.IsSwitch() && recording.keys[k].geometry.row == drawn.row && recording.keys[k].geometry.column == drawn.column)
+                    shape.key = k;
+            report.shapes.push_back(shape);
+        }
+
+        const size_t rows = controller.details.controllerRows;
+        report.traces.resize(size_t{ controller.details.controllerColumns } * rows);
+        for (const nlohmann::json& reading : recording.json["readings"])
+        {
+            report.times.push_back(reading["t"].get<double>());
+            const auto levels = reading["levels"].get<std::vector<std::vector<uint16_t>>>();
+            for (size_t column = 0; column < levels.size(); ++column)
+                for (size_t row = 0; row < levels[column].size(); ++row)
+                    report.traces[column * rows + row].push_back(levels[column][row]);
+        }
+        report.readings = recording.json.dump();
+
+        const std::string html = nazg::DiagnosticsReportHtml(report);
+        const auto count = [&html](const std::string& what)
+        {
+            size_t n = 0;
+            for (size_t at = html.find(what); at != std::string::npos; at = html.find(what, at + what.size()))
+                ++n;
+            return n;
+        };
+        std::printf("  %zu bytes, %zu of them the readings\n", html.size(), report.readings.size());
+        Check(html.rfind("<!DOCTYPE html>", 0) == 0 && html.find("</html>") != std::string::npos, "one HTML page");
+        Check(count("<section class=\"detail\"") == recording.keys.size(), "every key's detail");
+        Check(count("<div class=\"view\"") == 4, "the board and the controller, plain and with Levels");
+        Check(html.find("data-moves=\"") != std::string::npos && html.find(":safe") != std::string::npos,
+              "what a key's press moves, for the dashes");
+        Check(nlohmann::json::parse(nazg::ReadingsOfReport(html)) == recording.json, "its readings read back as the recording");
+
+        if (const char* out = std::getenv("NAZG_REPORT_OUT"))
+            if (FILE* file = std::fopen(out, "wb"))
+            {
+                std::fwrite(html.data(), 1, html.size(), file);
+                std::fclose(file);
+                std::printf("  written to %s\n", out);
+            }
+    }
+
     // What Save readings... writes is a recording these tests read: the F77's, taken apart into what
     // the section holds and written again, says the same.
     void TestRecordingWritten(const std::filesystem::path& folder)
@@ -607,6 +709,7 @@ int main(int argc, char** argv)
         TestHeldKeys(argv[1]);
         TestRecordingWritten(argv[1]);
         TestFiveAndD(argv[1]);
+        TestReport(argv[1]);
     }
     catch (const std::exception& failure)
     {

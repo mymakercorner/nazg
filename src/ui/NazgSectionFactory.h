@@ -40,6 +40,7 @@ namespace nazg
         const bool&                              moveToNextKey;      // Keymap's, after a pick
         bool&                                    hostLayoutChosen;   // Macros asks until it is
         const std::vector<uint8_t>&              definitionBytes;    // the definition drawing it, as Nazg has it; may be empty
+        std::string_view                         appVersion;         // Nazg's, for what a section saves
     };
 
     [[nodiscard]] std::unique_ptr<Section> MakeSection(PlannedSection planned, const SectionContext& context);

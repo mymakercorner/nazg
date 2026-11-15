@@ -594,7 +594,21 @@ eyes are while pressing (Rico, 2026-11-15); the grey words on the name line are 
 *Save readings...*, **temporary** (Rico, 2026-11-15): with Advanced tools, beside Clear, every reading
 since Clear written as a recording in the tests' format (`adapters/leydenjar/NazgLeydenJarRecording.*`,
 App's save dialog through `Section::TakeFileToSave()`); `KeyHealthTest` reads it plain or XZ. The
-writer stays -- the report embeds what it writes -- the button goes once Save report... exists.
+writer stays -- the report embeds what it writes -- the button goes once Save report... exists. *Gone*
+the same day, Save report... built.
+
+*Save report..., built* (2026-11-15, `report/NazgDiagnosticsReport.*`; the words shared with the
+section in `ui/NazgKeyHealthWords.*`): beside Clear, for everyone, once there are readings; the save
+dialog offers "Diagnostics report (*.html)" (`Section::FileToSave` carries the dialog's filter). The
+page as the mockup's second draft: the keyboard; the counts; the board and the controller's grid,
+plain and with Levels -- Nazg's own key placement, rotation included; the list with each key's
+reasons written; the whole board's dots; every key's detail -- its numbers and place, its last
+presses from its own readings, what its press moves, the keys moving it on one scale; the numbers
+folded; the readings embedded, which `ReadingsOfReport()` gives back. The script shows and hides
+only: a key clicked (its detail, the keys its press moves dashed), Levels, Board / Controller, Light
+/ Dark, the system's theme first. Without it every drawing and every key's detail show. Tested on
+Rico's session (`KeyHealthTest`: 657 KB, 296 KB of it the readings), seen in a browser. *Saved from
+Rico's F77 and opened in Firefox* (2026-11-15): "Report is great!".
 
 *The measure proposed*: the readings where one key is pressed alone; for each other key, its
 furthest reading towards its threshold during each press of that key, and over that key's presses
