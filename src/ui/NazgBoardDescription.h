@@ -114,6 +114,17 @@ namespace nazg
         Ambiguous,
     };
 
+    // Rule 2 too: a key tied to the selected one, drawn as a dashed outline -- and what the tie does
+    // to it: the keys the Leyden Jar's focused key moves when pressed, safe -- plain -- or brought
+    // close to their threshold, or past it (ui-design.md, "Signal levels, fourth round").
+    enum class KeyTie : uint8_t
+    {
+        None,
+        Safe,
+        AtRisk,
+        Failing,
+    };
+
     // Rule 1 too: whose keycode a key's legends are (ui-design.md, "Transparent keys"). QMK takes
     // a key's keycode from the highest active layer down: KC_TRNS says "keep looking", KC_NO
     // "stop, do nothing". On a partial layer a key wears the keycode below it, and says which of
@@ -163,6 +174,7 @@ namespace nazg
         float        heat      = 0.0f;   // with KeyFill::Heat
         uint8_t      marks     = 0;
         KeyCondition condition = KeyCondition::None;
+        KeyTie       tie       = KeyTie::None;
 
         // Hatched across its face: the live test cannot test it -- it sends nothing the computer
         // reports (ui-design.md, "The key test").

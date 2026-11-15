@@ -559,9 +559,16 @@ moved by 2 or more, the closest to its threshold first; the reasons `TypesWhenPr
 got half most keys' hold past its threshold; a press alone, one no other finger's press overlaps. A
 key's attempts inside another's finger press that never reach its threshold are set aside -- neither
 press nor rest -- or a key moved three times would "not work"; one that crossed stays a press, a weak
-key pressed with others being indistinguishable from one taken past. In the section only the words
-so far ("Types by itself when D is pressed: goes past its threshold"); the ring, the scale and the
-outlines are next.
+key pressed with others being indistinguishable from one taken past.
+
+*The section, built* (2026-11-15, `ui/NazgDiagnosticsSection.*`): the words
+("Types by itself when D is pressed: goes past its threshold"); in a listed key's bar the ring where
+its mover's press takes it, "another key" in the bars' header when one shows; under the key's
+presses, "While other keys are pressed" -- a sentence and the scale, a line per key moving it; on the
+board the keys the focused key's press moves, a dashed outline (`KeyTie`, drawn by the board view)
+muted, orange or red; the tooltip with the controller's connectors.
+*Seen on Rico's F77* (2026-11-15): D pressed, F and C dashed -- as the recording said. Nothing at risk,
+so the ring and its header word were not seen.
 
 *The measure proposed*: the readings where one key is pressed alone; for each other key, its
 furthest reading towards its threshold during each press of that key, and over that key's presses

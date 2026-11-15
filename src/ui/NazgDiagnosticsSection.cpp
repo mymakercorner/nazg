@@ -865,6 +865,33 @@ namespace nazg
                 put(LegendSlot::BottomLeft, m_Info.bins[column][row], LegendRole::Value);
             }
         }
+
+        // The keys the focused key's press moves, dashed -- what it disturbs (Rico, 2026-11-15):
+        // after the loop above, which may move the focus.
+        if (m_Selected)
+            for (const KeyCoupling& coupling : m_Health.couplings)
+                if (coupling.pressed == *m_Selected)
+                    for (size_t index = 0; index < board.keys.size() && index < m_BoardKeys.size(); ++index)
+                        if (m_BoardKeys[index] == coupling.moved)
+                            board.keys[index].tie = TieOf(coupling);
+    }
+
+    KeyTie DiagnosticsSection::TieOf(const KeyCoupling& coupling) const
+    {
+        return coupling.left <= 0                   ? KeyTie::Failing
+               : coupling.left < m_JudgedMargins.rest ? KeyTie::AtRisk
+                                                      : KeyTie::Safe;
+    }
+
+    // The coupling a key's reason names: its mover's press, the closest it comes to its threshold.
+    const KeyCoupling* DiagnosticsSection::NamedCouplingOf(size_t key) const
+    {
+        if (key >= m_Health.keys.size() || !m_Health.keys[key].movedBy)
+            return nullptr;
+        for (const KeyCoupling& coupling : m_Health.couplings)
+            if (coupling.moved == key && coupling.pressed == *m_Health.keys[key].movedBy)
+                return &coupling;
+        return nullptr;
     }
 
     void DiagnosticsSection::OnBoardEvents(const BoardDescription& board, const BoardEvents& events)
@@ -904,7 +931,11 @@ namespace nazg
         const JudgedKey& judged = m_Health.keys[key];
         const KeyStats&  st     = judged.stats;
 
+        // Its place in QMK's matrix and on the controller's connectors, as Key presses says it (Rico,
+        // 2026-11-15): the board view has no rulers.
         std::string text = k.name + "  ·  row " + std::to_string(k.row) + ", column " + std::to_string(k.column);
+        if (k.isMapped)
+            text += "  ·  connectors R" + std::to_string(k.controllerRow) + " C" + std::to_string(k.controllerColumn);
         if (m_Info.thresholds.size() > 1)
             text += "  ·  bin " + std::to_string(k.bin);
         text += "\n" + std::string(WordOf(judged.verdict));
@@ -1538,6 +1569,24 @@ namespace nazg
                    "Where most keys of this keyboard usually get to when pressed.");
         DashedLine(drawList, ImVec2(xu, at.y + 30 * u), ImVec2(xu, at.y + 35 * u), RestColour(), 2 * u, 2 * u, 1.0f);
 
+        // The ring, named when a bar shows one, left of the threshold's word.
+        bool rings = false;
+        for (const JudgedKey& judged : m_Health.keys)
+            rings = rings || judged.movedBy.has_value();
+        if (rings)
+        {
+            const char*  another = "another key";
+            const ImU32  colour  = U32(PanelColour::Warning);
+            const float  x       = std::max(at.x + 12 * u, x0 - ImGui::CalcTextSize(threshold).x / 2 - 8 * u -
+                                                               ImGui::CalcTextSize(another).x);
+            const ImVec2 ring(x - 8 * u, at.y + 23 * u);
+            drawList->AddCircleFilled(ring, 4 * u, ImGui::GetColorU32(ImGuiCol_ChildBg) | IM_COL32_A_MASK);
+            drawList->AddCircle(ring, 4 * u, colour, 0, 2 * u);
+            TippedText(drawList, ImVec2(x, at.y + 16 * u), colour, another,
+                       "At rest while another key is pressed alone: how close that key's press brings it to its\n"
+                       "threshold -- shown when it comes closer than the rest margin.");
+        }
+
         ImGui::Dummy(ImVec2(0.0f, 36 * u));
     }
 
@@ -1615,6 +1664,21 @@ namespace nazg
                                                      std::to_string(*st.closest) + " short";
                     }
                 }
+            }
+
+            // Where another key's press takes it at rest, a ring on the same line: else a key resting
+            // far from its threshold would be listed with a bar that looks healthy (Rico, 2026-11-15).
+            if (const KeyCoupling* coupling = NamedCouplingOf(key))
+            {
+                const ImVec2 ring(at.x + scale.Rest(static_cast<float>(coupling->left)), cy);
+                const ImU32  colour = BoardColours::Tie(TieOf(*coupling));
+                drawList->AddCircleFilled(ring, 5 * u, ImGui::GetColorU32(ImGuiCol_ChildBg) | IM_COL32_A_MASK);
+                drawList->AddCircle(ring, 5 * u, colour, 0, 2.5f * u);
+                if (inWindow && IsNear(mouse, ring, 6 * u))
+                    tip = "At rest while " + m_Keys[coupling->pressed].name + " is pressed: " +
+                          (coupling->left <= 0 ? "past its threshold by " + std::to_string(-coupling->left)
+                                               : std::to_string(coupling->left) + " from its threshold") +
+                          ", against " + std::to_string(*st.medianMargin) + " untouched";
             }
 
             drawList->AddCircleFilled(ImVec2(a, cy), 4 * u, RestColour());
@@ -1901,6 +1965,101 @@ namespace nazg
         if (!st.outliers.empty())
             caption += " Circled: the spring's overshoot, left out.";
         ColouredText(PanelColour::Muted, "%s", caption.c_str());
+
+        DrawMovedBy(*m_Selected);
+    }
+
+    // What the other keys' presses do to it, on one scale (Rico, 2026-11-15): a line per key moving
+    // it, from its usual level at rest to where that key's press takes it; the threshold dashed, the
+    // rest margin before it shaded. In margins, so a Beam Spring reads the same way.
+    void DiagnosticsSection::DrawMovedBy(size_t key)
+    {
+        const float     u  = Unit();
+        const KeyStats& st = m_Health.keys[key].stats;
+
+        std::vector<const KeyCoupling*> moving;   // the closest to its threshold first, as kept
+        for (const KeyCoupling& coupling : m_Health.couplings)
+            if (coupling.moved == key)
+                moving.push_back(&coupling);
+
+        ImGui::Spacing();
+        ImGui::TextUnformatted("While other keys are pressed");
+        if (moving.empty() || !st.medianMargin)
+        {
+            ColouredText(PanelColour::Muted, "No other key's press moves it.");
+            return;
+        }
+
+        const KeyCoupling& worst = *moving.front();
+        const std::string& by    = m_Keys[worst.pressed].name;
+        if (worst.left <= 0)
+            ImGui::Text("It goes past its threshold each time %s is pressed: it types by itself.", by.c_str());
+        else if (worst.left < m_JudgedMargins.rest)
+            ImGui::Text("%s brings it close to its threshold: it may type by itself while %s is held.", by.c_str(), by.c_str());
+        else
+        {
+            std::string names;
+            for (size_t index = 0; index < moving.size(); ++index)
+                names += (index == 0 ? "" : index + 1 == moving.size() ? " and " : ", ") + m_Keys[moving[index]->pressed].name;
+            ColouredText(PanelColour::Muted, "%s move%s it a little: it stays well short of its threshold.", names.c_str(),
+                         moving.size() > 1 ? "" : "s");
+        }
+
+        // Margins from the threshold, left to right: its rest and a little more, then the threshold
+        // and a little past.
+        const float lineH  = ImGui::GetTextLineHeight();
+        const float rowH   = std::max(20 * u, lineH + 4 * u);
+        const float labelW = 110 * u;
+        const float width  = std::min(380 * u, std::max(labelW + 120 * u, ImGui::GetContentRegionAvail().x));
+        const int   far    = *st.medianMargin + std::max(3, st.restSpread) + 3;
+        const int   past   = 4;
+        const float top    = 4 * u;
+        const float height = top + rowH * static_cast<float>(moving.size() + 1);
+        const ImVec2 at    = ImGui::GetCursorScreenPos();
+        const auto  X      = [&](int margin)
+        {
+            const int clamped = std::clamp(margin, -past, far);
+            return at.x + labelW + (width - labelW - 10 * u) * static_cast<float>(far - clamped) / static_cast<float>(far + past);
+        };
+        ImDrawList* const drawList = ImGui::GetWindowDrawList();
+        const ImU32       muted    = ImGui::GetColorU32(ImGuiCol_TextDisabled);
+        const ImU32       warning  = U32(PanelColour::Warning);
+
+        // The rest margin before the threshold, shaded; the threshold dashed through every line.
+        drawList->AddRectFilled(ImVec2(X(m_JudgedMargins.rest), at.y + top), ImVec2(X(0), at.y + height),
+                                Faded(warning, 0.12f));
+        DashedLine(drawList, ImVec2(X(0), at.y), ImVec2(X(0), at.y + height), warning, 4 * u, 3 * u, 2 * u);
+
+        const auto label = [&](float y, const std::string& text, ImU32 colour)
+        {
+            const ImVec2 size = ImGui::CalcTextSize(text.c_str());
+            drawList->AddText(ImVec2(at.x + labelW - 8 * u - size.x, y - size.y / 2), colour, text.c_str());
+        };
+
+        // Nothing pressed: its band at rest.
+        float y = at.y + top + rowH / 2;
+        label(y, "nothing pressed", muted);
+        const int halfSpread = std::max(1, st.restSpread / 2);
+        drawList->AddRectFilled(ImVec2(X(*st.medianMargin + halfSpread), y - 5 * u),
+                                ImVec2(std::max(X(*st.medianMargin - halfSpread), X(*st.medianMargin + halfSpread) + 3 * u), y + 5 * u),
+                                Faded(RestColour(), 0.45f), 2 * u);
+
+        // Each key moving it: an arrow from its rest to where that press takes it.
+        for (const KeyCoupling* coupling : moving)
+        {
+            y += rowH;
+            const ImU32 colour = TieOf(*coupling) == KeyTie::Safe ? TextColour() : BoardColours::Tie(TieOf(*coupling));
+            label(y, m_Keys[coupling->pressed].name + " pressed", TextColour());
+            const float from = X(*st.medianMargin), to = X(coupling->left);
+            drawList->AddLine(ImVec2(from, y), ImVec2(to - 5 * u, y), colour, 2 * u);
+            drawList->AddTriangleFilled(ImVec2(to, y), ImVec2(to - 7 * u, y - 4 * u), ImVec2(to - 7 * u, y + 4 * u), colour);
+        }
+
+        ImGui::Dummy(ImVec2(width, height));
+        const char*  threshold = "threshold";
+        const ImVec2 cursor    = ImGui::GetCursorScreenPos();
+        drawList->AddText(ImVec2(X(0) - ImGui::CalcTextSize(threshold).x / 2, cursor.y), warning, threshold);
+        ImGui::Dummy(ImVec2(width, lineH));
     }
 
     // --- Device -----------------------------------------------------------------------------------

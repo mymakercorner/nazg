@@ -343,6 +343,18 @@ namespace nazg
         ImU32 HighlightedSecond() { return Current().second; }
         ImU32 Warning() { return Current().warning; }
 
+        ImU32 Tie(KeyTie tie)
+        {
+            switch (tie)
+            {
+            case KeyTie::Failing: return Condition(KeyCondition::Failing);
+            case KeyTie::AtRisk:  return Condition(KeyCondition::AtRisk);
+            case KeyTie::Safe:
+            case KeyTie::None:    break;
+            }
+            return Current().muted;
+        }
+
         ImU32 Condition(KeyCondition condition)
         {
             const Palette& t = Current();

@@ -226,6 +226,58 @@ namespace nazg
             drawList->PathStroke(colour, thickness, ImDrawFlags_Closed);
         }
 
+        // The same line in dashes `dash` long, as far apart: the traced path walked by its length.
+        void DashContour(ImDrawList* drawList, const std::vector<ContourPoint>& face, Rounding rounding, float inset,
+                         float thickness, ImU32 colour, float dash)
+        {
+            TraceContour(drawList, InsetContour(face, inset), std::max(0.0f, rounding.outer - inset),
+                         rounding.inner + inset);
+            std::vector<ImVec2> points(drawList->_Path.begin(), drawList->_Path.end());
+            drawList->PathClear();
+            if (points.size() < 2 || dash <= 0.0f)
+                return;
+            points.push_back(points.front());
+
+            bool                on   = true;
+            float               left = dash;
+            std::vector<ImVec2> run{ points.front() };
+            const auto          stroke = [&]
+            {
+                if (run.size() >= 2)
+                    drawList->AddPolyline(run.data(), static_cast<int>(run.size()), colour, ImDrawFlags_None, thickness);
+            };
+            for (size_t i = 1; i < points.size(); ++i)
+            {
+                ImVec2       a      = points[i - 1];
+                const ImVec2 b      = points[i];
+                float        length = std::hypot(b.x - a.x, b.y - a.y);
+                while (length > 0.0f && length >= left)
+                {
+                    const float  t = left / length;
+                    const ImVec2 cut(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t);
+                    if (on)
+                    {
+                        run.push_back(cut);
+                        stroke();
+                        run.clear();
+                    }
+                    else
+                    {
+                        run.assign(1, cut);
+                    }
+                    on = !on;
+                    length -= left;
+                    a    = cut;
+                    left = dash;
+                }
+                left -= length;
+                if (on)
+                    run.push_back(b);
+            }
+            if (on)
+                stroke();
+        }
+
         // A command's band along the top of the face p0-p1, in its category's colour: the face's
         // top edge down to `height`, its rounded corners followed, so the band never pokes past
         // them.
@@ -657,6 +709,9 @@ namespace nazg
                     StrokeContour(drawList, face, rounding, inset + thickness / 2, thickness, colour);
                     inset += thickness;
                 }
+                if (described.tie != KeyTie::None)
+                    DashContour(drawList, face, rounding, inset + thickness / 2, thickness, BoardColours::Tie(described.tie),
+                                std::max(4.0f, unit * 0.12f));
             }
 
             if (key.rotation != 0.0f)

@@ -134,5 +134,8 @@ namespace nazg
         // colours, the second highlight's for one to check.
         [[nodiscard]] ImU32 Condition(KeyCondition condition);
         [[nodiscard]] ImU32 ConditionTint(KeyCondition condition);   // overlay
+
+        // A tied key's dashed outline: muted when safe, else the condition's.
+        [[nodiscard]] ImU32 Tie(KeyTie tie);
     }
 }

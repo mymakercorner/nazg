@@ -193,6 +193,9 @@ namespace nazg
         [[nodiscard]] std::vector<ListRow> ListRows() const;
         [[nodiscard]] std::string          TooltipOf(size_t key) const;
         [[nodiscard]] std::string          MoverOf(const JudgedKey& judged) const;   // the name of the key moving it, or empty
+        [[nodiscard]] KeyTie               TieOf(const KeyCoupling& coupling) const;
+        void                               DrawMovedBy(size_t key);
+        [[nodiscard]] const KeyCoupling*   NamedCouplingOf(size_t key) const;
         [[nodiscard]] bool                 IsPressedNow(size_t key) const;
 
         HidTransport&         m_Transport;
