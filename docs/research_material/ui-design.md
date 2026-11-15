@@ -573,6 +573,50 @@ pairs that stay safe listed folded or left out; **the readings embedded** as JSO
 Nazg's test recordings -- a tester's report becoming a recording to replay, about 0.9 MB for 4
 minutes -- or left out, some 60 KB.
 
+*Second draft* (2026-11-15; Rico: the first draft's section looked little like the last round): the
+section page redrawn on Signal levels as built -- its first line, the key in focus, the summary, the
+bars beside the key's last presses, Levels and Controller -- only the new parts outlined. A key moved
+by another's press gets, in its bar, a hollow ring where that press takes it at rest, beside its
+resting dot -- else a key resting far from its threshold is listed with a bar that looks healthy.
+
+**Rico's choices** (2026-11-15):
+- **The finding a reason in the verdicts only**: no third tab, Other keys -- the verdicts already name
+  the keys that matter, and a tab of a healthy board's harmless coupling is clutter.
+- **On the board, the keys the key in focus moves most outlined in dashes** -- press D, see what D's
+  press disturbs: grey when they stay safe, orange when brought within the rest margin of their
+  threshold, red when taken past it. Not the keys that move it: its reason names those.
+- **The key's detail on one scale**: under its last presses, a line per key moving it, from its
+  resting level to where that key's press took it, the threshold dashed and the margin before it shaded.
+- **Save report... beside Clear**, on the summary line -- not in the board menu.
+- **The report's variants wait**: the section is tuned first.
+- **No Key presses section in the report**: its board repeats Signal levels' (every key measured was
+  pressed), its controller grid says nothing on a working board. Kept in words, when there is something
+  to say: the keys never seen pressed, and a key QMK's matrix and the controller disagree on.
+- **The report shows what Signal levels shows, the way it shows it, and needs nothing to be read**
+  (Rico: a report Nazg would be needed to read defeats its purpose) -- not a page of tables, not a
+  recording for Nazg to replay.
+
+*The report, second draft* (2026-11-15): Nazg writes every drawing as SVG, in C++, from the section's
+own numbers and key placement -- a viewer in JavaScript would redo the definition's layout and drift
+from the section. A short script draws nothing: it shows and hides -- the key clicked (its line of
+numbers, its presses, the keys moving it; on the board the keys its press moves, dashed), Levels,
+Board / Controller, Keys / Whole board. On paper nothing hovers: each key's reasons written under its
+bar; a report has no "now", the level at rest takes its place, times are into the pass ("at 2:27").
+Its script off -- printed, or a mail program blocking it -- every drawing shows (the board, with
+Levels, the controller's grid) and every key's detail, the keys to look at first: some 20 pages for 75
+keys. Every key's numbers and the pairs moved stay as folded tables.
+**No green in the report** (Rico, 2026-11-15: a whole board green says little): a tested key plain, an
+untested one hatched -- the exception marked, not the rule; problems keep their tint. The section keeps
+its green, the test's progress while it runs.
+**Rico's choices for the report** (2026-11-15): **the readings embedded**, as JSON in Nazg's recording
+format -- about 0.9 MB for 4 minutes, some 1.4 MB in all; **the safe pairs folded**, with the close ones,
+in the pairs' table -- the measure of what is normal. **Light / Dark** beside the report's title (Rico,
+2026-11-15): it opens as the reader's system is set (`prefers-color-scheme`), the script switching it;
+without the script it follows the system alone; printed, always light.
+**A key's place** (Rico, 2026-11-15): its tooltip, in the section and the report, gives QMK's row and
+column, as Signal levels' does, and the controller's connectors, as only Key presses' did ("F · row 2,
+column 2 · connectors R3 C2 · bin 2"); the report writes it under the key's name too.
+
 **Open: how third-party plugins are delivered.**
 
 | | For | Against |

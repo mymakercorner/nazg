@@ -9,6 +9,11 @@
      key is pressed, to see whether pressing one disturbs the others; and save a report -- the key
      presses as the section shows them, and the keys whose level moves abnormally at rest.
 
+     Second draft (2026-11-15): the section page redrawn on Signal levels as built (Rico: the first draft's
+     view differed a lot from the last round) -- DrawLevelsPanel()'s first line, the key in focus, the
+     summary, the bars beside the key's last presses, Levels and Controller working; only the new parts
+     outlined. The bars gain a hollow ring where another key's press takes a key at rest.
+
      What Rico's F77 says (the 4-minute recording, 2026-10-17, every key pressed slowly): pressing a key
      moves the keys on the same controller column, the next controller row, 2 to 4 towards their
      threshold -- 122 pairs, every one of them neighbours on the controller -- against 0 or 1 when no key
@@ -19,14 +24,15 @@
 
      The variants:
      - the F77 as recorded, or with the two made-up pairs;
-     - where the new finding shows: a reason in the verdicts, as any other (proposed), or also a third
-       tab, Other keys, listing every key moved, the most moved first;
-     - on the board, the key in focus: the keys moving it outlined, those it moves too, or nothing;
-     - the key's own detail: its readings while each other key was pressed on one scale, or words only;
-     - where Save report... sits: beside Clear on the summary line, or in the board menu beside Save to file...;
-     - the report: the key presses as the board only or the board and the controller's grid; the
-       pairs that move a little but stay safe listed (folded) or left out; the readings embedded
-       (Nazg could read them back, a tester's report becoming a recording) or left out. -->
+     - (settled, Rico 2026-11-15: the finding a reason in the verdicts only -- the third tab, Other keys,
+       every key moved, was dropped);
+     - (settled, Rico 2026-11-15: on the board, the key in focus has the keys its own press moves most
+       outlined in dashes, grey when safe, orange when close to their threshold, red when past it);
+     - (settled, Rico 2026-11-15: the key's detail on one scale, a line per key moving it; Save report...
+       beside Clear on the summary line);
+     - the report (second draft, 2026-11-15: Signal levels' own view, its script only showing and hiding):
+       its script running or off (printed, or blocked) -- shown, not a choice. Settled (Rico, 2026-11-15):
+       tested keys plain, untested hatched; the readings embedded; the safe pairs folded. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -35,10 +41,10 @@
 <style>
 :root{--window:#f3f3f5;--menubar:#e3e4e9;--text:#1d1e22;--muted:#6b6e78;--control:#ffffff;--border:#c8cad2;--accent:#3b82f6;--accent-text:#fff;--panel:#f8f8fa;--column:#ebecf0;--selected:rgba(59,130,246,.16);
 --plate:#d3d4d8;--key:#ffffff;--keyline:#b4b7c2;--ok:#15803d;--warn:#c2410c;--err:#dc2626;--press:#3b82f6;
---good:#cdebd5;--goodline:#86c79a;--risk:#fde2cc;--riskline:#f59e5b;--fail:#fbd0d0;--failline:#ef7a7a;--doc:#ffffff}
+--good:#cdebd5;--goodline:#86c79a;--risk:#fde2cc;--riskline:#f59e5b;--fail:#fbd0d0;--failline:#ef7a7a;--doc:#ffffff;--grid:#d9dbe1}
 :root[data-theme="dark"]{--window:#0f0f11;--menubar:#24252b;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--accent:#4296fa;--accent-text:#fff;--panel:#16171b;--column:#16171b;--selected:rgba(66,150,250,.22);
 --plate:#1c1d23;--key:#3a3c48;--keyline:#4b4e5c;--ok:#4ade80;--warn:#fb923c;--err:#f87171;--press:#4296fa;
---good:#1f4a2e;--goodline:#2f7a4a;--risk:#5a3214;--riskline:#c2620f;--fail:#5c1d1d;--failline:#b33a3a;--doc:#18191d}
+--good:#1f4a2e;--goodline:#2f7a4a;--risk:#5a3214;--riskline:#c2620f;--fail:#5c1d1d;--failline:#b33a3a;--doc:#18191d;--grid:#2c2e36}
 *{box-sizing:border-box}
 body{margin:0;background:var(--window);color:var(--text);font-family:Arimo,"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
 .controls{display:flex;flex-wrap:wrap;gap:8px 22px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
@@ -47,7 +53,7 @@ body{margin:0;background:var(--window);color:var(--text);font-family:Arimo,"Sego
 button{font:inherit;white-space:nowrap;padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--control);color:var(--text);cursor:pointer}
 button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
 .stage{padding:16px;overflow-x:auto}
-.frame{margin:0 auto;width:1160px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--window);position:relative}
+.frame{margin:0 auto;width:1280px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--window);position:relative}
 .menubar{display:flex;gap:18px;align-items:center;background:var(--menubar);padding:5px 14px}
 .menubar .board{font-weight:600;cursor:pointer}
 .muted{color:var(--muted)}
@@ -75,9 +81,10 @@ button.on{background:var(--accent);border-color:var(--accent);color:var(--accent
 svg{display:block;overflow:visible}
 .panel{border:1px solid var(--border);border-radius:6px;background:var(--panel)}
 .mline{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;padding:6px 12px;border-bottom:1px solid var(--border)}
-.mline .title{font-weight:700}
+.mline .title{font-weight:700;white-space:nowrap}
 .mline .desc{color:var(--muted);font-size:12px}
 .mline .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.mline.first{flex-wrap:nowrap}.mline.first .desc{flex:1 1 auto;min-width:0}.mline.first .right{flex:none}
 .margins{font-size:12px;color:var(--muted);display:flex;gap:4px;align-items:center}
 .margins input{width:30px;font:inherit;padding:1px 4px;border:1px solid var(--border);border-radius:4px;background:var(--control);color:var(--text)}
 .divider{width:1px;align-self:stretch;background:var(--border)}
@@ -86,8 +93,20 @@ svg{display:block;overflow:visible}
 .chip i{width:11px;height:11px;border-radius:3px;display:inline-block;border:1.5px solid}
 .new{outline:2px dashed var(--accent);outline-offset:2px;border-radius:6px}
 .split{display:flex;min-height:250px}
-.split .left{flex:1;padding:8px 12px;border-right:1px solid var(--border);min-width:0}
-.split .right{flex:1;padding:8px 12px;min-width:0}
+.split .left{flex:0 0 56%;padding:8px 12px;border-right:1px solid var(--grid);min-width:0}
+.split .right{flex:1;padding:8px 12px;min-width:0;overflow-x:auto}
+.outline{padding:4px 12px 8px}
+.follow{display:flex;align-items:center;gap:22px;padding:8px 12px;border-bottom:1px solid var(--border);min-height:52px}
+.follow .key{font-weight:700;font-size:19px;min-width:110px}
+.follow .key .place{display:block;font-size:11px;font-weight:400;color:var(--muted);white-space:nowrap}
+.follow .num{display:flex;flex-direction:column;align-items:flex-start;font-variant-numeric:tabular-nums}
+.follow .num b{font-size:19px;font-weight:600}
+.follow .num span{font-size:11px;color:var(--muted)}
+.stepper{display:inline-flex;gap:2px;align-items:center}
+.stepper button{padding:0 7px;font-size:12px;line-height:18px}
+.margins .lbl{color:var(--text);margin:0 2px 0 6px}
+.row.head{cursor:default;background:none;padding-top:0;padding-bottom:0}
+.newmark{outline:none}
 .tabs{display:flex;align-items:center;gap:10px;margin-bottom:8px}
 .row{display:flex;gap:10px;align-items:center;padding:4px 6px;border-radius:5px;cursor:pointer}
 .row:hover{background:var(--selected)}
@@ -104,9 +123,10 @@ svg{display:block;overflow:visible}
 .tip{position:fixed;z-index:9;max-width:360px;padding:6px 9px;border:1px solid var(--border);border-radius:6px;background:var(--control);color:var(--text);font-size:12px;line-height:1.45;box-shadow:0 2px 8px rgba(0,0,0,.15);pointer-events:none;display:none;white-space:pre-line}
 .saved{color:var(--ok);font-size:12px}
 /* The report: what Nazg writes, one file, printed on paper as well. */
-.doc{margin:0 auto;width:980px;background:var(--doc);border:1px solid var(--border);border-radius:8px;padding:28px 40px 40px;line-height:1.5}
-.filebar{margin:0 auto 8px;width:980px;color:var(--muted);font-size:12px;display:flex;gap:10px;align-items:center}
+.doc{margin:0 auto;width:1120px;background:var(--doc);border:1px solid var(--border);border-radius:8px;padding:28px 40px 40px;line-height:1.5}
+.filebar{margin:0 auto 8px;width:1120px;color:var(--muted);font-size:12px;display:flex;gap:10px;align-items:center}
 .doc h1{font-size:22px;margin:0 0 2px}
+.doc .titlebar{display:flex;align-items:center;gap:12px}.doc .titlebar .seg{margin-left:auto}
 .doc h2{font-size:16px;margin:26px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border)}
 .doc .sub{color:var(--muted);margin:0 0 14px}
 .doc table{border-collapse:collapse;width:100%;font-size:12.5px}
@@ -124,6 +144,18 @@ svg{display:block;overflow:visible}
 .doc .verdict.fail{color:var(--err)}.doc .verdict.risk{color:var(--warn)}.doc .verdict.good{color:var(--ok)}.doc .verdict.todo{color:var(--muted)}
 .doc .ok{color:var(--ok)}
 .doc code{font-size:12px}
+.doc .new{outline:none}
+.doc .rtools{display:flex;align-items:center;gap:10px;margin:8px 0}
+.doc .rtools .counts{margin:0}
+.doc .rtools .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.doc .rpanel{border:1px solid var(--border);border-radius:6px;background:var(--panel);margin-top:10px}
+.doc .rpanel .split .left{flex-basis:52%}
+.whyline{font-size:12px;color:var(--muted);margin:-2px 0 6px 56px;line-height:1.4}
+.doc .cards{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.doc .card{border:1px solid var(--border);border-radius:6px;background:var(--panel);break-inside:avoid}
+.doc .card .follow{gap:14px;padding:6px 10px;min-height:0}
+.doc .card .follow .key{font-size:16px;min-width:70px}.doc .card .follow .num b{font-size:16px}
+.doc .chip{display:inline-flex;align-items:center;gap:5px}
 @media print{.controls,.notes,.filebar{display:none}.stage{padding:0}.doc{border:none;width:auto}}
 </style>
 </head>
@@ -195,7 +227,7 @@ const byCell = new Map();
 KEYS.forEach((k, i) => {
   k.i = i;
   const c = k.cell.join(','), s = REC.keys[c];
-  Object.assign(k, s, { c });
+  Object.assign(k, s, { c, recorded: s.presses });
   byCell.set(c, k);
 });
 const SAFE = 3;   // c_SafeMargin: a key resting closer than this to its threshold may type by itself
@@ -203,13 +235,16 @@ const SAFE = 3;   // c_SafeMargin: a key resting closer than this to its thresho
 // ---------------------------------------------------------------------------------------------
 // The pairs and the verdicts: the recording's, or with the made-up coupling.
 const state = {
-  page: 'Section', board: 'Made-up coupling', where: 'A reason in the verdicts', outline: 'Keys moving it',
-  detail: 'One scale', save: 'Beside Clear', presses: 'Board and controller', safe: 'Folded', readings: 'Embedded', theme: 'Light',
-  tab: 'Keys', selected: '2,2', menu: false, saved: false
+  page: 'Section', board: 'Made-up coupling',
+  script: 'Running', theme: 'Light',
+  tab: 'Keys', selected: '0,2', menu: false, saved: false, levels: false, view: 'Board'
 };
 let PAIRS = [], V = new Map();
 function build() {
   PAIRS = REC.pairs.map(([a, b, typ, most, n]) => ({ a: byCell.get(a), b: byCell.get(b), typ, most, n })).filter(p => p.a && p.b);
+  // Made up too: three keys never pressed, so the report has some to mark.
+  for (const k of KEYS) k.presses = state.board === 'Made-up coupling' && ['6,8', '3,7', '0,9'].includes(k.c) ? 0 : k.recorded;
+  PAIRS = PAIRS.filter(p => p.a.presses);
   if (state.board === 'Made-up coupling') {
     const set = (a, b, typ, most, n) => {
       const p = PAIRS.find(q => q.a.c === a && q.b.c === b);
@@ -250,17 +285,20 @@ function svgStyle() {
   return `<style>.plate{fill:var(--plate)}.k{fill:var(--key);stroke:var(--keyline)}.k.none{fill:none;stroke-dasharray:3 3;opacity:.55}`
     + `.k.good{fill:var(--good);stroke:var(--goodline)}.k.risk{fill:var(--risk);stroke:var(--riskline)}.k.fail{fill:var(--fail);stroke:var(--failline)}`
     + `.k.seen{fill:var(--good);stroke:var(--goodline)}`
+    + `.k.hatched{fill:url(#hatch);stroke:var(--muted);stroke-width:1.5}`
     + `.k.sel{stroke:var(--text);stroke-width:3}`
-    + `.k.mover{stroke:var(--warn);stroke-width:2.5;stroke-dasharray:5 3}.k.mover.calm{stroke:var(--muted)}`
+    + `.k.mover{stroke:var(--warn);stroke-width:2.5;stroke-dasharray:5 3}.k.mover.calm{stroke:var(--muted)}.k.mover.past{stroke:var(--err)}`
     + `.k.moved{stroke:var(--accent);stroke-width:2.5;stroke-dasharray:2 3}`
+    + `.lv{font-family:Arimo,Arial;pointer-events:none;fill:var(--text);font-variant-numeric:tabular-nums}.lv.ex{fill:var(--muted)}.lv.bn{fill:var(--ok)}`
+    + `.nm{font-family:Arimo,Arial;fill:var(--text);pointer-events:none;font-weight:600}`
     + `.t{font-family:Arimo,Arial;fill:var(--text);text-anchor:middle;pointer-events:none}`
     + `.ruler{font:11px Arimo,Arial;fill:var(--muted);text-anchor:middle}</style>`;
 }
-function boardSvg(classOf, u, interactive) {
+function boardSvg(classOf, u, interactive, textOf) {
   const bd = boundsOf(KEYS);
   const m = u * 0.35, gap = Math.max(1, u * 0.06);
   const W = (bd.x1 - bd.x0) * u + 2 * m, H = (bd.y1 - bd.y0) * u + 2 * m;
-  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${svgStyle()}<rect class="plate" width="100%" height="100%" rx="12"/><g transform="translate(${m} ${m})">`;
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${svgStyle()}<defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="var(--key)"/><line x1="0" y1="0" x2="0" y2="6" stroke="var(--muted)" stroke-width="2" opacity=".55"/></pattern></defs><rect class="plate" width="100%" height="100%" rx="12"/><g transform="translate(${m} ${m})">`;
   for (const k of KEYS) {
     const attrs = interactive ? ` data-key="${k.c}" data-tip="${esc(tipOf(k))}"` : '';
     const rect = (x, y, w, h) => `<rect class="${classOf(k)}"${attrs} x="${x}" y="${y}" width="${w}" height="${h}" rx="${Math.max(2, u * 0.1)}"/>`;
@@ -268,93 +306,250 @@ function boardSvg(classOf, u, interactive) {
     s += rect(x, y, w, h);
     if (k.w2 !== k.w || k.h2 !== k.h || k.x2 || k.y2) s += rect((k.x + k.x2 - bd.x0) * u + gap, (k.y + k.y2 - bd.y0) * u + gap, k.w2 * u - 2 * gap, k.h2 * u - 2 * gap);
     const fs = Math.round(u * 0.28);
-    s += `<text class="t" x="${x + w / 2}" y="${y + h / 2 + fs * 0.35}" style="font-size:${fs}px">${esc(legendOf(k.kc))}</text>`;
+    s += textOf ? textOf(k, x, y, w, h, u)
+         : `<text class="t" x="${x + w / 2}" y="${y + h / 2 + fs * 0.35}" style="font-size:${fs}px">${esc(legendOf(k.kc))}</text>`;
   }
   return s + `</g></svg>`;
 }
 // The controller's own grid: its columns and rows, as Key presses' Controller view.
-function controllerSvg(classOf) {
-  const C = REC.info.controllerColumns, R = REC.info.controllerRows, cw = 50, ch = 34, lab = 30;
+function controllerSvg(classOf, interactive, textOf) {
+  const C = REC.info.controllerColumns, R = REC.info.controllerRows, lab = 30;
+  const cw = textOf ? 56 : 50, ch = textOf ? 46 : 34;
   const at = new Map(KEYS.map(k => [`${k.cc},${k.cr}`, k]));
-  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${lab + C * cw + 8}" height="${lab + R * ch + 8}">${svgStyle()}<rect class="plate" width="100%" height="100%" rx="10"/>`;
-  for (let c = 0; c < C; c++) s += `<text class="ruler" x="${lab + c * cw + cw / 2}" y="${lab - 10}">${c}</text>`;
-  for (let r = 0; r < R; r++) s += `<text class="ruler" x="${lab / 2 + 2}" y="${lab + r * ch + ch / 2 + 4}">${r}</text>`;
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${lab + C * cw + 8}" height="${lab + R * ch + 8}">${svgStyle()}<defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="var(--key)"/><line x1="0" y1="0" x2="0" y2="6" stroke="var(--muted)" stroke-width="2" opacity=".55"/></pattern></defs><rect class="plate" width="100%" height="100%" rx="10"/>`;
+  for (let c = 0; c < C; c++) s += `<text class="ruler" x="${lab + c * cw + cw / 2}" y="${lab - 10}">C${c}</text>`;
+  for (let r = 0; r < R; r++) s += `<text class="ruler" x="${lab / 2 + 2}" y="${lab + r * ch + ch / 2 + 4}">R${r}</text>`;
   for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
     const k = at.get(`${c},${r}`), x = lab + c * cw + 2, y = lab + r * ch + 2;
     if (!k) { s += `<rect class="k none" x="${x}" y="${y}" width="${cw - 4}" height="${ch - 4}" rx="4"/>`; continue; }
-    s += `<rect class="${classOf(k)}" x="${x}" y="${y}" width="${cw - 4}" height="${ch - 4}" rx="4"/>`
-       + `<text class="t" x="${x + (cw - 4) / 2}" y="${y + (ch - 4) / 2 + 4}" style="font-size:11px">${esc(legendOf(k.kc))}</text>`;
+    const attrs = interactive ? ` data-key="${k.c}" data-tip="${esc(tipOf(k))}"` : '';
+    s += `<rect class="${classOf(k)}"${attrs} x="${x}" y="${y}" width="${cw - 4}" height="${ch - 4}" rx="4"/>`
+       + (textOf ? textOf(k, x, y, cw - 4, ch - 4, 42)
+          : `<text class="t" x="${x + (cw - 4) / 2}" y="${y + (ch - 4) / 2 + 4}" style="font-size:11px">${esc(legendOf(k.kc))}</text>`);
   }
   return s + `</svg>`;
 }
+// As Nazg's (TooltipOf()): its name and QMK's row and column, then the verdict and its levels -- with the
+// controller's connectors added, as Key presses' tooltip has them (Rico, 2026-11-15).
+const placeOf = k => `row ${k.cell[0]}, column ${k.cell[1]} · connectors R${k.cr} C${k.cc}`;
 function tipOf(k) {
   const v = V.get(k);
-  let t = `${nameOf(k)} · ${WORD[v.verdict]}\n${v.reasons.join('\n')}`;
+  let t = `${nameOf(k)} · ${placeOf(k)} · bin ${k.bin}\n${WORD[v.verdict]}${v.verdict === 'good' ? '' : ': ' + v.reasons.join('; ')}`
+    + `\nthreshold ${k.th} · at rest ${k.rest} · firmest hold ${k.presses ? (k.hold ?? k.peak) : '–'}`;
   const m = movesOf(k);
   if (m.length) t += `\nMoved when pressed: ${m.map(p => nameOf(p.a)).join(', ')}`;
   return t;
 }
 
 // ---------------------------------------------------------------------------------------------
-// The section.
+// The section, as built (2026-11-07; NazgDiagnosticsSection.cpp, DrawLevelsPanel()): the first line with
+// the margins, Levels and the view; the key in focus; the summary; the list as bars beside the key's
+// last presses; key output off. What this round adds is outlined in blue dashes.
+const OFFSET = 10;   // the F77's bins rest 10 below their threshold (thresholds against references)
+function statsOf(k) {
+  if (!k.presses) return null;
+  const press = (k.hold ?? k.peak) - k.th;
+  return { rest: k.th - k.rest, spread: k.hi - k.lo, press, band: [press, k.peak - k.th] };
+}
+const TYPICAL = (() => {
+  const all = KEYS.filter(k => k.presses).map(k => statsOf(k).press).sort((a, b) => a - b);
+  return all[Math.floor(all.length / 2)];
+})();
+// The tool's three numbers, from the recording: now at rest, the highest its firmest hold, the lowest.
+const levelsOf = k => ({ now: k.rest, max: k.presses ? (k.hold ?? k.peak) : null, min: k.lo, bin: k.bin });
+
+function verdictClass(k) {
+  const v = V.get(k).verdict;
+  if (v === 'risk' || v === 'fail') return 'k ' + v;
+  // The section: green, the test's progress. The report: a tested key is the rule, plain; the
+  // untested one the exception, marked (Rico, 2026-11-15).
+  if (state.page !== 'Report') return v === 'good' ? 'k seen' : 'k';
+  return v === 'todo' ? 'k hatched' : 'k';
+}
 function sectionClass(k) {
-  let c = 'k ' + (V.get(k).verdict === 'todo' ? '' : V.get(k).verdict);
+  let c = verdictClass(k);
   const sel = byCell.get(state.selected);
   if (sel === k) return c + ' sel';
-  if (sel && state.outline !== 'Nothing') {
-    const p = movesOf(sel).find(q => q.a === k);
-    if (p) return c + ' mover' + (p.left >= SAFE ? ' calm' : '');
-    if (state.outline === 'Both ways' && movedBy(sel).some(q => q.b === k)) return c + ' moved';
+  if (sel) {
+    // The keys the key in focus moves when pressed -- its press disturbing them (Rico, 2026-11-15).
+    const p = movedBy(sel).find(q => q.b === k);
+    if (p) return c + ' mover' + (p.left <= 0 ? ' past' : p.left >= SAFE ? ' calm' : '');
   }
   return c;
 }
+// With Levels: the name on the first line, now in bold with the highest at its right, the bin with
+// the lowest (Rico, 2026-11-07).
+function levelsText(k, x, y, w, h, u) {
+  const L = levelsOf(k), fs = Math.max(8, Math.round(u * 0.21)), pad = Math.max(3, u * 0.09), row = (h - 2 * pad) / 3;
+  const t = (cls, tx, ty, v, anchor, bold) => v === null || v === undefined ? ''
+    : `<text class="lv ${cls}" x="${tx}" y="${ty}" style="font-size:${fs}px${bold ? ';font-weight:700' : ''}"${anchor ? ` text-anchor="${anchor}"` : ''}>${v}</text>`;
+  return `<text class="nm" x="${x + pad}" y="${y + pad + row * 0.8}" style="font-size:${fs}px">${esc(legendOf(k.kc))}</text>`
+    + t('', x + pad, y + pad + row * 1.85, L.now, '', true) + t('ex', x + w - pad, y + pad + row * 1.85, L.max, 'end')
+    + t('bn', x + pad, y + h - pad, L.bin) + t('ex', x + w - pad, y + h - pad, L.min, 'end');
+}
+function sampleKey() {
+  const w = 132, h = 50, pad = 5, fs = 10;
+  const t = (x, y, s, cls, anchor, bold) => `<text class="lv ${cls}" x="${x}" y="${y}" style="font-size:${fs}px${bold ? ';font-weight:700' : ''}"${anchor ? ` text-anchor="${anchor}"` : ''}>${s}</text>`;
+  return `<svg width="${w}" height="${h}" style="margin:-3px 0">${svgStyle()}<rect class="k" x="0.5" y="0.5" width="${w - 1}" height="${h - 1}" rx="5"/>`
+    + `<text class="nm" x="${pad}" y="${pad + 10}" style="font-size:${fs}px">key</text>` + t(pad, h / 2 + 5, state.page === 'Report' ? 'at rest' : 'now', '', '', true)
+    + t(w - pad, h / 2 + 5, 'highest', 'ex', 'end') + t(pad, h - pad, 'bin', 'bn') + t(w - pad, h - pad, 'lowest', 'ex', 'end') + `</svg>`;
+}
+
+// The key in focus, pressed or clicked last: its name and numbers large, its readings on one line.
+function followHtml(k, compact) {
+  if (!k) return `<div class="follow"><span class="muted">Press a key, or click one: its levels show here, and stay once it is let go.</span></div>`;
+  const L = levelsOf(k), v = x => x === null ? '–' : x;
+  const num = (value, word, colour) => `<div class="num"><b${colour ? ` style="color:var(${colour})"` : ''}>${v(value)}</b><span>${word}</span></div>`;
+  const W = 240, H = 24, lo = Math.min(k.lo, k.th, L.max ?? k.th) - 8, hi = Math.max(k.hi, k.th, L.max ?? k.th) + 8;
+  const X = x => 6 + (W - 12) * (x - lo) / (hi - lo), cy = H / 2;
+  const scale = `<svg width="${W}" height="${H}"><line x1="6" x2="${W - 6}" y1="${cy}" y2="${cy}" stroke="var(--grid)" stroke-width="2"/>`
+    + `<rect x="${X(k.lo)}" y="${cy - 5}" width="${Math.max(2, X(k.hi) - X(k.lo))}" height="10" rx="2" fill="var(--muted)" opacity=".5"/>`
+    + `<line x1="${X(k.th)}" x2="${X(k.th)}" y1="1" y2="${H - 1}" stroke="var(--warn)" stroke-width="2"/>`
+    + (L.max !== null ? `<circle cx="${X(L.max)}" cy="${cy}" r="4.5" fill="none" stroke="var(--press)" stroke-width="2"/>` : '')
+    + `<circle cx="${X(L.now)}" cy="${cy}" r="5" fill="var(--text)"/></svg>`;
+  // In the report the key's place under its name: on paper nothing hovers.
+  const name = state.page === 'Report' ? `<span class="key">${esc(nameOf(k))}<span class="place">${placeOf(k)}</span></span>` : `<span class="key">${esc(nameOf(k))}</span>`;
+  return `<div class="follow">${name}`
+    + num(L.now, state.page === 'Report' ? 'at rest' : 'now') + num(L.max, 'highest') + num(L.min, 'lowest') + num(k.th, 'threshold', '--warn') + num(k.bin, 'bin', '--ok')
+    + (compact ? `<span style="margin-left:auto;color:var(${COL[V.get(k).verdict]})">${WORD[V.get(k).verdict]}</span></div>`
+       : `<div style="margin-left:auto">${scale}<div class="muted" style="font-size:11px">rest · threshold · highest ○ · ${state.page === 'Report' ? 'at rest' : 'now'} ●</div></div></div>`);
+}
 function summaryHtml() {
-  const chip = v => `<span class="chip"><i style="border-color:var(${COL[v]});background:${v === 'good' ? 'var(--good)' : v === 'risk' ? 'var(--risk)' : v === 'fail' ? 'var(--fail)' : 'transparent'}"></i>${count(v)} ${WORD[v]}</span>`;
-  const save = state.save === 'Beside Clear' ? `<button class="new" data-act="save">Save report...</button>` : '';
+  const face = { good: 'var(--key)', risk: 'var(--risk)', fail: 'var(--fail)', todo: 'transparent' };
+  const line = { good: 'var(--keyline)', risk: 'var(--warn)', fail: 'var(--err)', todo: 'var(--muted)' };
+  const chip = v => `<span class="chip"><i style="border-color:${line[v]};background:${face[v]}"></i>${count(v)} ${WORD[v]}</span>`;
+  const save = `<button class="new" data-act="save">Save report...</button>`;
   return `<div class="mline">${['good', 'risk', 'fail', 'todo'].map(chip).join('')}`
     + `<span class="right">${state.saved ? `<span class="saved">Saved: nazg-F77-2026-11-14.html</span>` : ''}${save}<button>Clear</button></span></div>`;
 }
+
+// The bars (DrawBar()): the threshold at a fixed place, the resting side to its left scaled to the
+// offset, the pressed side to its right to most keys' press. New: a hollow ring where another key's
+// press takes the key at rest, joined to its resting dot.
+function barScale() {
+  const rest = OFFSET * 1.6, press = TYPICAL * 1.15, pl = (300 - 18) / (rest + press), x0 = 8 + rest * pl;
+  const at = x => Math.max(4, Math.min(296, x));
+  return { x0, pl, rest: m => at(x0 - m * pl), press: m => at(x0 + m * pl) };
+}
+function worstMove(k) { const p = movesOf(k)[0]; return p && p.left < SAFE ? p : null; }
+function barSvg(k) {
+  const S = barScale(), st = statsOf(k), v = V.get(k).verdict, cy = 8;
+  let s = `<svg width="300" height="16"><line x1="4" x2="296" y1="${cy}" y2="${cy}" stroke="var(--grid)" stroke-width="4" stroke-linecap="round"/>`
+    + `<line x1="${S.press(TYPICAL)}" x2="${S.press(TYPICAL)}" y1="3" y2="13" stroke="var(--muted)" stroke-dasharray="2 2"/>`
+    + `<line x1="${S.x0}" x2="${S.x0}" y1="0" y2="16" stroke="var(--text)" stroke-width="1.5"/>`;
+  const a = S.rest(st.rest), spread = Math.min(S.x0 - 4, st.spread * S.pl);
+  s += `<rect x="${a - spread / 2}" y="${cy - 3}" width="${Math.max(2, spread)}" height="6" rx="3" fill="var(--muted)" opacity=".35"/>`;
+  const x1 = S.press(st.band[0]), x2 = S.press(st.band[1]), p = S.press(st.press);
+  s += `<rect x="${Math.min(x1, x2)}" y="${cy - 3}" width="${Math.max(2, Math.abs(x2 - x1))}" height="6" rx="3" fill="var(--press)" opacity=".3"/>`
+    + `<line x1="${a}" x2="${p}" y1="${cy}" y2="${cy}" stroke="${v === 'fail' ? 'var(--err)' : v === 'risk' ? 'var(--warn)' : 'var(--press)'}" stroke-width="2"/>`
+    + `<circle cx="${p}" cy="${cy}" r="4.5" fill="var(--press)"><title>Pressed: usually ${st.press} past its threshold -- most keys ${TYPICAL}</title></circle>`;
+  const w = worstMove(k);
+  if (w) {
+    const c = S.rest(w.left), col = w.left <= 0 ? 'var(--err)' : 'var(--warn)';
+    s += `<circle cx="${c}" cy="${cy}" r="5" fill="var(--window)" stroke="${col}" stroke-width="2.5"><title>At rest while ${esc(nameOf(w.a))} is pressed: `
+      + `${w.left <= 0 ? `past its threshold by ${-w.left}` : `${w.left} from its threshold`}, against ${w.margin} untouched</title></circle>`;
+  }
+  return s + `<circle cx="${a}" cy="${cy}" r="4" fill="var(--muted)"><title>At rest: ${st.rest} from its threshold${st.spread ? `, wandering by ${st.spread}` : ''}</title></circle></svg>`;
+}
+function barsHeader() {
+  const S = barScale(), x0 = S.x0, xu = S.press(TYPICAL);
+  const tipped = (text, tip) => `<tspan style="cursor:help">${text}<title>${tip}</title></tspan>`;
+  return `<div class="row head"><span class="kn"></span><svg width="300" height="36" style="font:11px Arimo,Arial">`
+    + `<circle cx="${x0 - 52}" cy="8" r="4" fill="var(--muted)"/><text x="${x0 - 8}" y="12" text-anchor="end" fill="var(--muted)">`
+    + tipped('at rest', 'How far the key stays from its threshold when untouched, the band how much it wanders. Further is safer: closer, it may type by itself.') + `</text>`
+    + `<text x="${x0 + 8}" y="12" fill="var(--press)">` + tipped('pressed', 'How far past its threshold the key usually gets when pressed, the band how much its presses vary. Further is safer: closer, it may miss presses.') + `</text>`
+    + `<circle cx="${x0 + 60}" cy="8" r="4.5" fill="var(--press)"/>`
+    + `<line x1="${x0}" x2="${x0}" y1="2" y2="16" stroke="var(--grid)"/>`
+    + `<text x="${x0}" y="27" text-anchor="middle" fill="var(--text)">` + tipped('threshold', 'The level at which the controller counts the key as pressed.') + `</text>`
+    + `<line x1="${x0}" x2="${x0}" y1="30" y2="35" stroke="var(--text)" stroke-width="1.5"/>`
+    + `<text x="${xu}" y="27" text-anchor="middle" fill="var(--muted)">` + tipped('most keys', 'Where most keys of this keyboard usually get to when pressed.') + `</text>`
+    + `<line x1="${xu}" x2="${xu}" y1="30" y2="35" stroke="var(--muted)" stroke-dasharray="2 2"/>`
+    + `<g class="newmark"><circle cx="9" cy="23" r="4" fill="var(--window)" stroke="var(--warn)" stroke-width="2"/>`
+    + `<text x="17" y="27" fill="var(--warn)">` + tipped('another key', 'At rest while another key is pressed alone: the closest that key\'s press takes it to its threshold, when it comes close.') + `</text></g></svg></div>`;
+}
 function listHtml() {
-  const tabs = state.where === 'A reason in the verdicts' ? ['Keys', 'Whole board'] : ['Keys', 'Whole board', 'Other keys'];
-  let h = `<div class="tabs"><span class="seg">${tabs.map(t => `<button class="${state.tab === t ? 'on' : ''}${t === 'Other keys' ? ' new' : ''}" data-tab="${t}">${t}</button>`).join('')}</span>`
-    + `<span class="muted">${state.tab === 'Other keys' ? 'the keys moved most when another is pressed, first' : 'the weakest first'}</span></div>`;
-  if (state.tab === 'Whole board') return h + `<div class="ph">As built: one dot per key, unchanged by this mockup.</div>`;
-  if (state.tab === 'Other keys') return h + otherKeysHtml();
+  const seg = `<span class="seg">${['Keys', 'Whole board'].map(t => `<button class="${state.tab === t ? 'on' : ''}" data-tab="${t}">${t}</button>`).join('')}</span>`;
+  if (state.tab === 'Whole board') return `<div class="tabs">${seg}<span class="muted">one dot per key: hover for its name, click to select it</span></div>${dotsHtml()}`;
   const bad = KEYS.filter(k => ['fail', 'risk'].includes(V.get(k).verdict)).sort((a, b) => ORDER[V.get(a).verdict] - ORDER[V.get(b).verdict]);
-  if (!bad.length) h += `<div class="muted" style="padding:4px 6px">No key looks at risk.</div>`;
+  let h = state.page === 'Report' && state.script !== 'Running' ? `<div class="tabs"><b>The keys to look at</b><span class="muted">the weakest first</span></div>`
+    : `<div class="tabs">${seg}<span class="muted">the weakest first${bad.length ? ', hover a dot for its numbers' : ''}</span></div>`;
+  if (bad.length) h += barsHeader();
   for (const k of bad) {
-    const v = V.get(k), isNew = v.reasons.some(r => / when .* is pressed/.test(r));
-    h += `<div class="row${state.selected === k.c ? ' sel' : ''}" data-key="${k.c}"><span class="dot" style="background:var(${COL[v.verdict]})"></span>`
-      + `<span class="kn">${esc(nameOf(k))}</span><span class="why${isNew ? ' new' : ''}">${esc(v.reasons[0])}</span></div>`;
+    const v = V.get(k), isNew = !!worstMove(k);
+    h += `<div class="row${state.selected === k.c ? ' sel' : ''}" data-key="${k.c}"><span class="kn" style="color:var(${COL[v.verdict]})" title="${esc(v.reasons.join('\n'))}">${esc(nameOf(k))}</span>`
+      + `<span${isNew ? ' class="new"' : ''}>${barSvg(k)}</span></div>`;
+    if (state.page === 'Report') h += `<div class="whyline">${v.reasons.map(esc).join('. ')}.</div>`;
   }
   const todo = KEYS.filter(k => V.get(k).verdict === 'todo');
-  if (todo.length) h += `<div class="muted" style="padding:6px">Not pressed yet: ${todo.map(k => esc(nameOf(k))).join(', ')}.</div>`;
+  const all = state.page === 'Report';   // the report names every one: nowhere else to find them
+  if (todo.length) h += `<div class="muted" style="padding:6px 4px">Not pressed yet: ${todo.slice(0, all ? todo.length : 8).map(k => esc(nameOf(k))).join(', ')}${!all && todo.length > 8 ? ` and ${todo.length - 8} more` : ''}.</div>`;
+  if (!bad.length && !todo.length) h += `<div class="muted" style="padding:6px 4px">No key looks at risk.</div>`;
   return h;
 }
-// The third tab: every key moved, the most moved first, as a bar of its margin at rest.
-function otherKeysHtml() {
-  const seen = new Set(), rows = [];
-  for (const p of PAIRS) { if (seen.has(p.b)) continue; seen.add(p.b); rows.push(p); }
-  let h = `<div class="muted" style="font-size:11px;margin:0 0 4px 6px">the key at rest · the key pressed · its margin at rest, the part the press takes in colour</div>`;
-  for (const p of rows.slice(0, 9)) {
-    const W = 150, X = v => Math.max(0, Math.min(W, v / Math.max(14, p.margin) * W));
-    const col = p.left <= 0 ? 'var(--err)' : p.left < SAFE ? 'var(--warn)' : 'var(--muted)';
-    h += `<div class="row${state.selected === p.b.c ? ' sel' : ''}" data-key="${p.b.c}"><span class="kn">${esc(nameOf(p.b))}</span>`
-      + `<span class="muted" style="min-width:70px">← ${esc(nameOf(p.a))}</span>`
-      + `<svg width="${W + 4}" height="12"><rect x="0" y="2" width="${X(p.margin)}" height="8" rx="2" fill="var(--border)"/>`
-      + `<rect x="0" y="2" width="${X(Math.min(p.typ, p.margin + 2))}" height="8" rx="2" fill="${col}"/>`
-      + `<line x1="${X(p.margin - SAFE)}" y1="0" x2="${X(p.margin - SAFE)}" y2="12" stroke="var(--warn)" stroke-dasharray="2 2"/></svg>`
-      + `<span class="why muted">${p.left <= 0 ? 'past its threshold' : p.left < SAFE ? 'close to its threshold' : 'safe'}</span></div>`;
-  }
-  return h + `<div class="muted" style="padding:4px 6px">and ${Math.max(0, rows.length - 9)} more, each moved a little and safe.</div>`;
+// Whole board (DrawWholeBoard()): one dot per key, at rest and pressed, the threshold between.
+function dotsHtml() {
+  const W = 480, gutter = 62, left = gutter, right = W, rowH = 46, inset = 8;
+  const judged = KEYS.filter(k => k.presses);
+  const restMax = Math.max(OFFSET * 1.6, ...judged.map(k => statsOf(k).rest)), pressMax = Math.max(TYPICAL * 1.6, ...judged.map(k => statsOf(k).press));
+  const per = (right - left - 2 * inset) / (restMax + pressMax), x0 = left + inset + restMax * per;
+  const xr = m => Math.max(left + inset, Math.min(right - inset, x0 - m * per)), xp = m => Math.max(left + inset, Math.min(right - inset, x0 + m * per));
+  const top = 18, yR = top + rowH / 2, yP = top + rowH + 10 + rowH / 2, bottom = yP + rowH / 2;
+  let s = `<svg width="${W}" height="${bottom + 22}" style="font:11px Arimo,Arial">`
+    + `<rect x="${xr(SAFE)}" y="${yR - rowH / 2}" width="${x0 - xr(SAFE)}" height="${rowH}" fill="var(--risk)"/>`
+    + `<rect x="${x0}" y="${yP - rowH / 2}" width="${xp(SAFE) - x0}" height="${rowH}" fill="var(--risk)"/>`
+    + `<line x1="${x0}" x2="${x0}" y1="${top}" y2="${bottom + 4}" stroke="var(--err)" stroke-width="1.5"/>`
+    + `<text x="${x0}" y="${bottom + 17}" text-anchor="middle" fill="var(--err)">threshold</text>`
+    + `<text x="0" y="${yR + 4}" fill="var(--muted)">at rest</text><text x="0" y="${yP + 4}" fill="var(--muted)">pressed</text>`
+    + `<text x="${x0 - 8}" y="11" text-anchor="end" fill="var(--muted)">&lt;- further from it is safer</text><text x="${x0 + 8}" y="11" fill="var(--muted)">further past it is safer -&gt;</text>`;
+  judged.forEach((k, i) => {
+    const v = V.get(k).verdict, good = v === 'good', sel = state.selected === k.c, r = sel ? 6 : good ? 3 : 4.5;
+    const col = good ? 'var(--muted)' : `var(${COL[v]})`, jit = ((i * 37 % 13) - 6) * 2.6 * (good ? 1 : 0.4), st = statsOf(k);
+    const dot = (x, y) => `<circle data-key="${k.c}" cx="${x}" cy="${y + jit}" r="${r}" fill="${col}" stroke="${sel ? 'var(--text)' : col}" stroke-width="${sel ? 2.5 : 1.5}" opacity="${good ? .55 : 1}" style="cursor:pointer"><title>${esc(nameOf(k))} · ${WORD[v]}</title></circle>`;
+    s += dot(xr(st.rest), yR) + dot(xp(st.press), yP);
+  });
+  return s + `</svg><div class="muted" style="font-size:12px">Healthy keys crowd far from the threshold on both rows. A dot in the orange zone is at risk; a hollow dot on the pressed row never got past the threshold.</div>`;
 }
-// The key in focus: its last presses (as built), then what the other keys' presses did to it.
-function detailHtml() {
+// A key's levels (DrawKeyLevels()): at rest its band, then its last presses side by side, each with
+// what it held, where it rested before, when. The presses here are drawn from the key's recorded
+// numbers -- its firmest press and hold -- not its readings.
+const clock = t => `${Math.floor(t / 60)}:${String(Math.max(0, t) % 60).padStart(2, '0')}`;
+function pressesSvg(k) {
+  const st = statsOf(k), lo = Math.min(k.lo, k.th - OFFSET) - 5, hi = Math.max(k.peak ?? k.th, k.th) + 5;
+  const top = 14, lineH = 14, bottom = 3 * lineH + 8, H = top + 90 + bottom, wordsY = H - bottom + 16;
+  const Y = v => top + (1 - (v - lo) / (hi - lo)) * (H - top - bottom);
+  const th = (x1, x2) => `<line x1="${x1}" x2="${x2}" y1="${Y(k.th)}" y2="${Y(k.th)}" stroke="var(--err)" stroke-dasharray="5 3"/>`;
+  let s = `<text x="4" y="10" fill="var(--muted)">at rest</text>`
+    + `<rect x="10" y="${Y(k.hi)}" width="28" height="${Math.max(2, Y(k.lo) - Y(k.hi) + 2)}" fill="var(--muted)" opacity=".35"/>`
+    + `<line x1="10" x2="38" y1="${Y(k.rest)}" y2="${Y(k.rest)}" stroke="var(--muted)" stroke-width="2"/>` + th(6, 42)
+    + `<text x="24" y="${wordsY}" text-anchor="middle" fill="var(--muted)">${k.lo}-${k.hi}</text>`;
+  if (!st) return `<svg width="380" height="${H}" style="font:11px Arimo,Arial">${s}<text x="60" y="${H / 2}" fill="var(--muted)">Not pressed yet</text></svg>`;
+  // At most three here: four, as built, run past the panel at this mockup's width.
+  const shown = Math.min(3, k.presses), pw = 106, gap = 8, x0 = 52;
+  for (let j = 0; j < shown; j++) {
+    const peak = k.peak - (j % 2) * 2, hold = k.hold === null ? null : k.hold - ((j + 1) % 3) + 1;
+    const tr = [k.rest, k.hi, peak].concat(hold === null ? [k.rest + 4] : [hold, hold + (j % 2), hold]).concat([k.rest, k.lo]);
+    const left = x0 + j * (pw + gap), X = i => left + i / (tr.length - 1) * pw;
+    const centred = (text, y, colour) => `<text x="${left + pw / 2}" y="${y}" text-anchor="middle" fill="${colour}">${text}</text>`;
+    s += `<rect x="${left - 2}" y="${top - 4}" width="${pw + 4}" height="${H - top - bottom + 8}" rx="4" fill="none" stroke="var(--grid)"/>` + th(left - 2, left + pw + 2)
+      + `<polyline fill="none" stroke="var(--press)" stroke-width="1.6" points="${tr.map((v, i) => `${X(i)},${Y(v)}`).join(' ')}"/>`
+      + centred(hold === null ? 'too short to measure' : `held ${hold - k.th} past`, wordsY, 'var(--ok)')
+      + centred(`rest ${k.th - k.rest} below`, wordsY + lineH, 'var(--muted)')
+      + centred(state.page === 'Report' ? `at ${clock(REC.seconds - (shown - j) * 37 - (k.i * 7) % 30)}` : `${(shown - j) * 37 + (k.i * 7) % 30} s ago`, wordsY + 2 * lineH, 'var(--muted)');
+  }
+  return `<svg width="${x0 + shown * (pw + gap)}" height="${H}" style="font:11px Arimo,Arial">${s}</svg>`;
+}
+function levelsHtml() {
   const k = byCell.get(state.selected);
-  if (!k) return `<div class="muted">Click a key, on the board or in the list, to see its levels.</div>`;
+  if (!k) return `<div>A key's levels</div><div class="muted">Click a key, on the board or in the list, to see its levels.</div>`;
+  return keyDetailHtml(k);
+}
+function keyDetailHtml(k, card) {
   const v = V.get(k);
-  let h = `<div><b>${esc(nameOf(k))}</b> · <span style="color:var(${COL[v.verdict]})">${WORD[v.verdict]}</span></div>`
-    + `<div class="ph" style="margin-top:6px">As built: its last presses side by side, the threshold dashed, its band at rest.</div>`;
+  let h = (card ? '' : `<div>${esc(nameOf(k))} <span style="color:${v.verdict === 'good' ? 'var(--muted)' : `var(${COL[v.verdict]})`}">· ${WORD[v.verdict]}</span></div>`)
+    + `<div style="margin-top:4px">${pressesSvg(k)}</div>`
+    + `<div class="muted" style="font-size:12px;line-height:1.45">${v.verdict === 'todo' ? '' : v.reasons.map(r => esc(r) + '. ').join('')}`
+    + `${k.presses ? `The dashed line: its threshold, ${k.th}. The band at rest: its resting readings, the line its usual level.` : ''}</div>`;
+  // New: what the other keys' presses did to it.
   const ms = movesOf(k);
   h += `<div class="new" style="padding:2px 4px;margin-top:10px"><div class="dtitle" style="margin-top:2px">While other keys are pressed</div>`;
   if (!ms.length) return h + `<div class="say muted">No other key's press moves it.</div></div>`;
@@ -362,13 +557,13 @@ function detailHtml() {
   h += `<div class="say">${worst.left <= 0 ? `It went past its threshold each time ${esc(nameOf(worst.a))} was pressed: it types by itself.`
       : worst.left < SAFE ? `${esc(nameOf(worst.a))} brings it close to its threshold: it may type by itself while ${esc(nameOf(worst.a))} is held.`
       : `${ms.map(p => esc(nameOf(p.a))).join(' and ')} move${ms.length > 1 ? '' : 's'} it a little, and it stays well short of its threshold.`}</div>`;
-  if (state.detail === 'One scale') h += scaleSvg(k, ms);
+  h += scaleSvg(k, ms);
   return h + `</div>`;
 }
 // One line of levels: the key's band at rest, its threshold, the safe margin before it, and where each
 // key pressed took it -- its usual move, an arrow from its resting level.
 function scaleSvg(k, ms) {
-  const lo = k.rest - 6, hi = k.th + 4, W = 420, L = 110, X = v => L + (v - lo) / (hi - lo) * (W - L - 10);
+  const lo = k.rest - 6, hi = k.th + 4, W = 380, L = 110, X = v => L + (v - lo) / (hi - lo) * (W - L - 10);
   const H = 22 + ms.length * 20;
   let s = `<svg width="${W}" height="${H + 18}" style="margin-top:4px">`
     + `<rect x="${X(k.th - SAFE)}" y="4" width="${X(k.th) - X(k.th - SAFE)}" height="${H - 4}" fill="var(--warn)" opacity=".12"/>`
@@ -386,71 +581,97 @@ function scaleSvg(k, ms) {
 function sectionHtml() {
   const strip = ['Key presses', 'Signal levels', 'Device'].map(m => `<button class="${m === 'Signal levels' ? 'on' : ''}">${m}</button>`).join('');
   const menu = state.menu ? `<div class="menu"><div class="act">Keyboards</div><div class="sep"></div><div class="act">Save to file...</div><div class="act">Load from file...</div>`
-    + `${state.save === 'Board menu' ? `<div class="act new" data-act="save">Save diagnostics report...</div>` : ''}<div class="sep"></div><div class="act">Export definition...</div></div>` : '';
-  const panel = `<div class="mline"><span class="title">Signal levels</span><span class="desc">press each key down firmly and hold it a moment, one after the other</span>`
-    + `<span class="right"><span class="margins">Threshold margin rest <input value="3"> press <input value="3"></span><span class="divider"></span><button>Levels</button>`
-    + `<span class="seg"><button class="on">Board</button><button>Controller</button></span></span></div>`
+    + `<div class="sep"></div><div class="act">Export definition...</div></div>` : '';
+  const stepper = `<span class="stepper"><input value="3"><button>-</button><button>+</button></span>`;
+  const panel = `<div class="mline first"><span class="title">Signal levels</span><span class="desc">press each key down firmly and hold it a moment, one after the other</span>`
+    + `<span class="right"><span class="margins">Threshold margin <span class="lbl">rest</span>${stepper}<span class="lbl">press</span>${stepper}</span><span class="divider"></span>`
+    + `${state.levels ? `<span class="muted" style="font-size:12px">each key:</span>${sampleKey()}` : ''}<button class="${state.levels ? 'on' : ''}" data-act="levels">Levels</button>`
+    + `<span class="seg">${['Board', 'Controller'].map(v => `<button class="${state.view === v ? 'on' : ''}" data-view="${v}">${v}</button>`).join('')}</span></span></div>`
+    + followHtml(byCell.get(state.selected))
     + summaryHtml()
-    + `<div class="split"><div class="left">${listHtml()}</div><div class="right">${detailHtml()}</div></div>`
-    + `<div class="mline" style="border-top:1px solid var(--border);border-bottom:none"><span class="out">Key output off: the keyboard types nothing while Diagnostics shows</span></div>`;
+    + `<div class="split"><div class="left">${listHtml()}</div><div class="right">${levelsHtml()}</div></div>`
+    + `<div class="outline"><span class="out">Key output off: the keyboard types nothing while Diagnostics shows</span></div>`;
   const vial = ['Keymap', 'Layout', 'Macros', 'Tap Dance', 'Combos', 'Key Overrides', 'QMK Settings'];
   const col = `<div class="col"><div class="hdr">Vial</div>${vial.map(e => `<div class="entry">${e}</div>`).join('')}`
     + `<div class="sep"></div><div class="hdr">Tools</div><div class="entry">Device</div><div class="entry on">Diagnostics</div><div class="entry">Matrix</div></div>`;
+  const board = state.view === 'Board' ? boardSvg(sectionClass, 44, true, state.levels ? levelsText : null)
+                                       : controllerSvg(sectionClass, true, state.levels ? levelsText : null);
   return `<div class="frame" id="frame">${menu}<div class="menubar"><span class="board" data-act="menu">leyden_jar/F77 ▾</span><span class="muted">Vial</span><span class="right">Settings</span></div>`
     + `<div class="body">${col}<div class="main"><div class="strip">Diagnostics ${strip}</div>`
-    + `<div class="boardarea">${boardSvg(sectionClass, 44, true)}</div><div class="panel">${panel}</div></div></div></div>`;
+    + `<div class="boardarea">${board}</div><div class="panel">${panel}</div></div></div></div>`;
 }
 
 // ---------------------------------------------------------------------------------------------
-// The report: what Save report... writes. Plain HTML and inline SVG, no script, readable offline and printed.
+// The report: what Save report... writes -- one HTML file showing what Signal levels shows, as it
+// shows it (Rico, 2026-11-15: a report Nazg would be needed to read defeats its purpose). Nazg draws
+// every picture as SVG, from the section's own numbers; a short script only shows and hides -- the key
+// clicked, Levels, Board / Controller. Without it (printed, or a mail program blocking it) every
+// drawing and every key's detail shows, one after the other.
+const reportPos = k => `R${k.cell[0]} C${k.cell[1]}`, reportCpos = k => `${k.cc}, ${k.cr}`;
+const verdictOnly = verdictClass;
 function reportHtml() {
-  const I = REC.info, bins = I.thresholds.length;
-  const verdictClass = k => 'k ' + (V.get(k).verdict === 'todo' ? '' : V.get(k).verdict);
-  const seenClass = k => k.presses ? 'k seen' : 'k';
-  const seen = KEYS.filter(k => k.presses).length;
-  const vcell = k => `<span class="verdict ${V.get(k).verdict}">${WORD[V.get(k).verdict]}</span>`;
-  const pos = k => `R${k.cell[0]} C${k.cell[1]}`, cpos = k => `${k.cc}, ${k.cr}`;
-  let h = `<div class="filebar">nazg-F77-2026-11-14.html · ${state.readings === 'Embedded' ? `${Math.round(REC.jsonBytes / 1024 + 60)} KB, the readings inside` : 'about 60 KB'} · opened in the browser</div><div class="doc">`
-    + `<h1>Leyden Jar diagnostics: leyden_jar/F77</h1><p class="sub">Saved by Nazg 0.1.0-test.8 on 14 November 2026 at 15:42 · ${REC.readings} level readings over ${Math.round(REC.seconds / 60)} minutes · threshold margins 3 at rest, 3 pressed</p>`;
+  const I = REC.info, bins = I.thresholds.length, live = state.script === 'Running';
+  const size = 60 + 6 * KEYS.length + Math.round(REC.jsonBytes / 1024);
+  let h = `<div class="filebar">nazg-F77-2026-11-14.html · about ${size} KB, the readings inside · `
+    + `${live ? 'opened in the browser' : 'its script not running: printed, or blocked by the mail program'}</div><div class="doc">`
+    // Light / Dark, the page's own: it opens as the reader's system is set; printed, always light.
+    + `<div class="titlebar"><h1>Leyden Jar diagnostics: leyden_jar/F77</h1>${live ? `<span class="seg">${['Light', 'Dark'].map(t => `<button class="${state.theme === t ? 'on' : ''}" data-set-theme="${t}">${t}</button>`).join('')}</span>` : ''}</div><p class="sub">Saved by Nazg 0.1.0-test.8 on 14 November 2026 at 15:42 · `
+    + `${REC.readings} level readings over ${Math.round(REC.seconds / 60)} minutes · threshold margins 3 at rest, 3 pressed</p>`;
   // The board and its controller, as Device shows them.
   h += `<h2>The keyboard</h2><dl>`
     + `<dt>Keyboard</dt><dd>${esc(REC.board)}</dd>`
     + `<dt>Controller</dt><dd>Leyden Jar, protocol ${I.version}, ${I.beamSpring ? 'Beam Spring' : 'Model F'}</dd>`
     + `<dt>Matrix</dt><dd>QMK ${I.logicalRows} × ${I.logicalColumns}, controller ${I.controllerRows} rows × ${I.controllerColumns} columns</dd>`
     + `<dt>Bins</dt><dd>${bins}: thresholds ${I.thresholds.join(', ')}, resting references ${I.referenceLevels.join(', ')}</dd>`
-    + `<dt>Vial and USB</dt><dd class="muted">as the Device mode shows them: Vial protocol, keyboard UID, VID:PID, release</dd></dl>`;
-  // Signal levels' verdicts.
-  const chip = v => `<span><span class="verdict ${v}">${count(v)}</span> ${WORD[v]}</span>`;
-  h += `<h2>Signal levels</h2><div class="counts">${['good', 'risk', 'fail', 'todo'].map(chip).join('')}</div>`
-    + `<div class="figure">${boardSvg(verdictClass, 36, false)}</div>`;
-  const bad = KEYS.filter(k => V.get(k).verdict !== 'good').sort((a, b) => ORDER[V.get(a).verdict] - ORDER[V.get(b).verdict]);
-  h += `<table><tr><th>Key</th><th>Matrix</th><th>Verdict</th><th>Why</th></tr>`
-    + bad.map(k => `<tr><td><b>${esc(nameOf(k))}</b></td><td>${pos(k)}</td><td>${vcell(k)}</td><td>${V.get(k).reasons.map(esc).join('<br>')}</td></tr>`).join('') + `</table>`;
-  // The keys at rest moved by another's press: the new finding.
-  const risky = PAIRS.filter(p => p.left < SAFE), safe = PAIRS.filter(p => p.left >= SAFE);
-  const pairRow = p => `<tr><td><b>${esc(nameOf(p.b))}</b></td><td>${esc(nameOf(p.a))}</td><td>${pos(p.b)} · ${cpos(p.b)}</td><td>${pos(p.a)} · ${cpos(p.a)}</td>`
-    + `<td class="n">${p.margin}</td><td class="n">${p.typ}</td><td class="n">${p.most}</td><td class="n">${p.left <= 0 ? `<span class="verdict fail">${p.left < 0 ? `past by ${-p.left}` : 'reached it'}</span>` : p.left}</td><td class="n">${p.n}</td></tr>`;
-  const head = `<tr><th>At rest</th><th>Pressed</th><th>Its matrix · controller</th><th>Pressed's</th><th class="n">At rest, from threshold</th><th class="n">Usual move</th><th class="n">Most</th><th class="n">Left</th><th class="n">Presses</th></tr>`;
-  h += `<h2>Keys moved by another key's press</h2>`
-    + `<p>While a key is pressed alone, every other key's level is watched. These come closer than ${SAFE} to their threshold, or past it, `
-    + `when the key beside them is pressed: they may type by themselves.</p>`
-    + (risky.length ? `<table>${head}${risky.map(pairRow).join('')}</table>` : `<p class="ok">No key comes close to its threshold when another is pressed.</p>`);
-  if (state.safe === 'Folded')
-    h += `<details><summary>${safe.length} more pairs move by 2 or more and stay safe -- the keyboard's usual coupling</summary>`
-      + `<p class="muted">On this board, every one is a key and its neighbour on the controller: the same column, the next row.</p><table>${head}${safe.map(pairRow).join('')}</table></details>`;
-  // Key presses, as the mode shows them.
-  h += `<h2>Key presses</h2><p>${seen} of ${KEYS.length} keys seen pressed since the readings started.</p><div class="figure">${boardSvg(seenClass, 36, false)}</div>`;
-  if (state.presses === 'Board and controller')
-    h += `<p class="muted">The same, on the controller's connectors: its columns across, its rows down.</p><div class="figure">${controllerSvg(seenClass)}</div>`;
-  // Every key's numbers, folded: Levels' numbers for firmware work.
-  h += `<details><summary>Every key's numbers</summary><table><tr><th>Key</th><th>Matrix</th><th>Controller</th><th class="n">Bin</th><th class="n">Threshold</th>`
+    + `<dt>Vial and USB</dt><dd class="muted">as Device shows them: Vial protocol, keyboard UID, VID:PID, release</dd></dl>`;
+
+  // Signal levels, as the section shows it.
+  const face = { good: 'var(--key)', risk: 'var(--risk)', fail: 'var(--fail)', todo: 'repeating-linear-gradient(45deg,var(--muted) 0 1.5px,var(--key) 1.5px 4px)' };
+  const line = { good: 'var(--keyline)', risk: 'var(--warn)', fail: 'var(--err)', todo: 'var(--muted)' };
+  const chips = ['good', 'risk', 'fail', 'todo'].map(v => `<span class="chip"><i style="border-color:${line[v]};background:${face[v]}"></i>${count(v)} ${WORD[v]}</span>`).join('');
+  h += `<h2>Signal levels</h2>`;
+  if (live) {
+    const tools = `${state.levels ? `<span class="muted" style="font-size:12px">each key:</span>${sampleKey()}` : ''}<button class="${state.levels ? 'on' : ''}" data-act="levels">Levels</button>`
+      + `<span class="seg">${['Board', 'Controller'].map(v => `<button class="${state.view === v ? 'on' : ''}" data-view="${v}">${v}</button>`).join('')}</span>`;
+    const board = state.view === 'Board' ? boardSvg(sectionClass, 40, true, state.levels ? levelsText : null)
+                                         : controllerSvg(sectionClass, true, state.levels ? levelsText : null);
+    h += `<p class="muted">Click a key, on the board or in the list, to see its levels; the keys its press moves are outlined in dashes. `
+      + `Levels puts each key's numbers on it.</p>`
+      + `<div class="rtools"><span class="counts">${chips}</span><span class="right">${tools}</span></div>`
+      + `<div class="figure">${board}</div>`
+      + `<div class="rpanel">${followHtml(byCell.get(state.selected))}`
+      + `<div class="split"><div class="left">${listHtml()}</div><div class="right">${levelsHtml()}</div></div></div>`;
+  } else {
+    // Every drawing the buttons would have shown, then every key's detail.
+    h += `<div class="counts">${chips}</div>`
+      + `<div class="figure">${boardSvg(verdictOnly, 40, false)}</div>`
+      + `<p class="muted">Each key's numbers: its name; its level at rest in bold, its highest at the right; its bin, its lowest at the right.</p>`
+      + `<div class="figure">${boardSvg(verdictOnly, 40, false, levelsText)}</div>`
+      + `<p class="muted">The same on the controller's connectors, its columns across, its rows down.</p>`
+      + `<div class="figure">${controllerSvg(verdictOnly, false, levelsText)}</div>`
+      + `<div class="rpanel"><div style="padding:8px 12px">${listHtml()}<div style="margin-top:14px">${dotsHtml()}</div></div></div>`;
+    const order = [...KEYS].sort((a, b) => ORDER[V.get(a).verdict] - ORDER[V.get(b).verdict]);
+    h += `<h2>Every key</h2><p class="muted">The keys to look at first, then the others in the board's order.</p><div class="cards">`
+      + order.map(k => `<div class="card">${followHtml(k, true)}<div style="padding:6px 10px">${keyDetailHtml(k, true)}</div></div>`).join('') + `</div>`;
+  }
+
+  // Every key's numbers, and the pairs, folded: the numbers behind the drawings.
+  h += `<details${live ? '' : ' open'}><summary>Every key's numbers</summary><table><tr><th>Key</th><th>Matrix</th><th>Controller</th><th class="n">Bin</th><th class="n">Threshold</th>`
     + `<th class="n">At rest</th><th class="n">Lowest</th><th class="n">Highest</th><th class="n">Firmest press</th><th class="n">Presses</th><th>Verdict</th></tr>`
-    + KEYS.map(k => `<tr><td>${esc(nameOf(k))}</td><td>${pos(k)}</td><td>${cpos(k)}</td><td class="n">${k.bin}</td><td class="n">${k.th}</td><td class="n">${k.rest}</td>`
-      + `<td class="n">${k.lo ?? '–'}</td><td class="n">${k.hi ?? '–'}</td><td class="n">${k.peak ?? '–'}</td><td class="n">${k.presses}</td><td>${vcell(k)}</td></tr>`).join('') + `</table></details>`;
-  if (state.readings === 'Embedded')
-    h += `<h2>The readings</h2><p class="muted">Every level reading of this pass, ${REC.readings} of them, is kept in this file as JSON `
-      + `(<code>&lt;script type="application/json" id="nazg-readings"&gt;</code>, ${Math.round(REC.jsonBytes / 1024)} KB) -- the recording format of Nazg's tests. `
-      + `Nazg can read it back: send this file to the keyboard's maker.</p>`;
+    + KEYS.map(k => `<tr><td>${esc(nameOf(k))}</td><td>${reportPos(k)}</td><td>${reportCpos(k)}</td><td class="n">${k.bin}</td><td class="n">${k.th}</td><td class="n">${k.rest}</td>`
+      + `<td class="n">${k.lo ?? '–'}</td><td class="n">${k.hi ?? '–'}</td><td class="n">${k.peak ?? '–'}</td><td class="n">${k.presses}</td>`
+      + `<td><span class="verdict ${V.get(k).verdict}">${WORD[V.get(k).verdict]}</span></td></tr>`).join('') + `</table></details>`;
+  const pairs = PAIRS;
+  if (pairs.length) {
+    const row = p => `<tr><td><b>${esc(nameOf(p.b))}</b></td><td>${esc(nameOf(p.a))}</td><td class="n">${p.margin}</td><td class="n">${p.typ}</td><td class="n">${p.most}</td>`
+      + `<td class="n">${p.left <= 0 ? `<span class="verdict fail">${p.left < 0 ? `past by ${-p.left}` : 'reached it'}</span>` : p.left < SAFE ? `<span class="verdict risk">${p.left}</span>` : p.left}</td><td class="n">${p.n}</td></tr>`;
+    h += `<details${live ? '' : ' open'}><summary>Keys moved by another key's press: ${pairs.length} pair${pairs.length > 1 ? 's' : ''}, the closest to their threshold first</summary>`
+      + `<table><tr><th>At rest</th><th>Pressed</th><th class="n">From its threshold, untouched</th><th class="n">Usual move</th><th class="n">Most</th><th class="n">Left</th><th class="n">Presses</th></tr>`
+      + pairs.map(row).join('') + `</table></details>`;
+  }
+  h += `<h2>The readings</h2><p class="muted">Every level reading of this pass, ${REC.readings} of them, is kept in this file as JSON `
+      + `(<code>&lt;script type="application/json" id="nazg-readings"&gt;</code>, ${Math.round(REC.jsonBytes / 1024)} KB) -- the recording format of Nazg's tests, `
+      + `for whoever wants to go further than this page.</p>`;
   return h + `</div>`;
 }
 
@@ -459,21 +680,18 @@ function render() {
   document.documentElement.dataset.theme = state.theme.toLowerCase();
   build();
   renderControls();
-  document.getElementById('stage').innerHTML = state.page === 'Section' ? sectionHtml() : reportHtml();
+  // The folded sections stay as the reader left them: the report's script only shows and hides.
+  const stageEl = document.getElementById('stage');
+  const opened = [...stageEl.querySelectorAll('details')].map(d => d.open);
+  stageEl.innerHTML = state.page === 'Section' ? sectionHtml() : reportHtml();
+  stageEl.querySelectorAll('details').forEach((d, i) => { if (opened[i]) d.open = true; });
 }
 function renderControls() {
   const c = document.getElementById('controls');
   c.innerHTML = '';
   const groups = [['page', 'Show', ['Section', 'Report']], ['board', 'Board', ['As recorded', 'Made-up coupling']]];
-  if (state.page === 'Section')
-    groups.push(['where', 'The finding', ['A reason in the verdicts', 'Also a tab, Other keys']],
-                ['outline', 'On the board, the key in focus', ['Keys moving it', 'Both ways', 'Nothing']],
-                ['detail', 'The key\'s detail', ['One scale', 'Words only']],
-                ['save', 'Save report...', ['Beside Clear', 'Board menu']]);
-  else
-    groups.push(['presses', 'Key presses', ['Board', 'Board and controller']],
-                ['safe', 'Safe pairs', ['Folded', 'Left out']],
-                ['readings', 'Readings', ['Embedded', 'Left out']]);
+  if (state.page === 'Report')
+    groups.push(['script', 'Its script', ['Running', 'Off (printed or blocked)']]);
   groups.push(['theme', 'Theme', ['Light', 'Dark']]);
   groups.forEach(([k, name, values]) => {
     const g = document.createElement('div'); g.className = 'group';
@@ -481,7 +699,7 @@ function renderControls() {
     values.forEach(v => {
       const bt = document.createElement('button'); bt.textContent = v;
       if (state[k] === v) bt.className = 'on';
-      bt.onclick = () => { state[k] = v; if (k === 'where' && v === 'A reason in the verdicts' && state.tab === 'Other keys') state.tab = 'Keys'; render(); };
+      bt.onclick = () => { state[k] = v; render(); };
       g.appendChild(bt);
     });
     c.appendChild(g);
@@ -489,10 +707,13 @@ function renderControls() {
 }
 const stage = document.getElementById('stage');
 stage.addEventListener('click', e => {
-  const t = e.target.closest('[data-key], [data-tab], [data-act]');
+  const t = e.target.closest('[data-key], [data-tab], [data-act], [data-view], [data-set-theme]');
   if (!t) { if (state.menu) { state.menu = false; render(); } return; }
   if (t.dataset.key) state.selected = t.dataset.key;
   if (t.dataset.tab) state.tab = t.dataset.tab;
+  if (t.dataset.view) state.view = t.dataset.view;
+  if (t.dataset.act === 'levels') state.levels = !state.levels;
+  if (t.dataset.setTheme) state.theme = t.dataset.setTheme;
   if (t.dataset.act === 'menu') { state.menu = !state.menu; render(); return; }
   if (t.dataset.act === 'save') { state.menu = false; state.saved = true; }
   render();
@@ -506,7 +727,13 @@ stage.addEventListener('mousemove', e => {
 stage.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
 
 document.getElementById('notes').innerHTML = `
-<p><b>What is new</b> is outlined in blue dashes. Everything else is the section as built, some of it as a placeholder.</p>
+<p><b>What is new</b> is outlined in blue dashes. Everything else is Signal levels as built since 2026-11-07, drawn from
+<code>DrawLevelsPanel()</code>: the margins, Levels with its sample key, Board / Controller; the key in focus, large; the summary;
+the keys at risk as bars beside the key's last presses. The presses are drawn from each key's recorded numbers -- its firmest
+press and hold -- not from its readings, and three show where Nazg shows four.</p>
+<p><b>In the bars</b>, a key moved by another's press gets a hollow ring where that press takes it at rest, its resting dot on the
+same line: a key that rests safely far from its threshold would otherwise be listed with a bar that looks healthy. Its reason, as
+the others, in the name's tooltip and under the key's presses.</p>
 <p><b>The measure.</b> Signal levels already keeps every reading of every key. Nazg would look at the readings where one key is
 pressed alone, and at every other key then: how far towards its threshold it moved, each press of that key -- its furthest reading
 during the press -- and the usual move over that key's presses, the median, so one spring's vibration accuses nothing. A key's verdict
@@ -515,18 +742,26 @@ then counts it as any other reason: <b>at risk</b> when a press leaves it less t
 <p><b>Rico's F77, as recorded</b>: 122 pairs move by 2 or more, the most by 4, and every one is a key and its neighbour on the
 controller -- the same column, the next row. Its keys rest 6 to 13 from their threshold: nothing at risk. The verdicts here
 approximate Nazg's (the press judged by the highest reading); the pair numbers are the recording's.
-<b>Made-up coupling</b>: D moves F by 8 (1 left: at risk), J moves U by 11 (past: failing). Click F, then U.</p>
+<b>Made-up coupling</b>: D moves F by 8 (1 left: at risk), J moves U by 11 (past: failing). Click D, then J: the keys their press moves are outlined.</p>
 <p><b>Where it shows</b>: a reason among the others, its words effect first as the rest ("May type by itself when D is pressed"),
 and in the key's detail under its last presses: a line per key moving it, from its resting level to where that key's press took it,
-the threshold dashed and the margin before it shaded. <b>Also a tab</b>: every key moved, most first -- the board's coupling at a
-glance, which a designer may want; the verdicts already name the keys that matter.</p>
-<p><b>On the board</b>, with a key in focus: the keys whose press moves it outlined in dashes, orange when it comes close, grey when
-safe; <b>both ways</b> adds, in blue, the keys it moves itself.</p>
-<p><b>The report</b> (Show: Report, or click Save report...): one HTML file, no script, readable anywhere and printable -- the
-keyboard and its controller, Signal levels' verdicts on the board and the keys to look at, the keys moved by another key's press with
-their numbers, the key presses seen on the board and on the controller's grid, every key's numbers folded. Numbers are in tables:
-the report is for whoever repairs or builds the board, as Levels is. <b>The readings embedded</b> make a tester's report a
-recording Nazg's tests can replay -- about 0.9 MB for 4 minutes; left out, the file is some 60 KB.</p>`;
+the threshold dashed and the margin before it shaded. Only there: a third tab listing every key moved was dropped (Rico,
+2026-11-15) -- the verdicts already name the keys that matter.</p>
+<p><b>On the board</b>, with a key in focus -- pressed or clicked: the keys its press moves, outlined in dashes. Grey: moved,
+and still more than the rest margin (3) from their threshold, safe. Orange: brought within 3 of it, they may type by themselves.
+Red: taken past it (Rico, 2026-11-15).</p>
+<p><b>The report</b> (Show: Report, or click Save report...), second draft: one HTML file showing what Signal levels shows, the
+way it shows it -- a report Nazg would be needed to read defeats its purpose (Rico, 2026-11-15). Nazg draws every picture as SVG
+from the section's own numbers and placement, so the board has Nazg's exact shape; a short script, drawing nothing, shows and
+hides: the key clicked, with its numbers, its presses and the keys moving it, the keys its press moves dashed on the board; Levels;
+Board / Controller; Keys / Whole board. A tested key is plain and an untested one hatched -- the exception marked, not the
+rule, where the section's green shows the test's progress (Rico, 2026-11-15). On paper nothing hovers, so each key's reasons are written under its bar. No "now": a
+report has none -- the key's level at rest takes its place. <b>Its script off</b> -- printed, or a mail program blocking it --
+shows every drawing the buttons would (the board, with Levels, the controller's grid) and every key's detail, the keys to look
+at first: about 20 printed pages for 75 keys. <b>Light / Dark</b> beside the title: the page opens as the reader's system is set;
+without its script it follows the system alone, and printed it is always light. No Key presses section (Rico, 2026-11-15): the keys never seen pressed are named.
+<b>The readings embedded</b> keep the whole pass in the file, about 0.9 MB for 4 minutes; the pairs moved, the safe ones
+with the close, folded (Rico, 2026-11-15).</p>`;
 
 render();
 </script>
