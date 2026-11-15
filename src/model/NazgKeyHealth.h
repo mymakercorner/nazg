@@ -23,6 +23,11 @@
 //     one number for both sides (Rico, 2026-10-17);
 //   - no verdict from a released reading inside a hold: it is counted as part of the press.
 //
+// And the keys at rest while another is pressed (Rico, 2026-11-14; ui-design.md, "Signal levels,
+// fourth round"): on the F77 a press moves the keys on the same controller column, the next row, by
+// 2 to 4 towards their threshold -- a healthy board's coupling. A key brought closer than the rest
+// margin by another's press may type by itself; taken past, it does.
+//
 // Everything is judged against the key's own board -- its bin's threshold, the offset, the other
 // keys -- never against fixed numbers: levels differ from board to board.
 //
@@ -116,7 +121,10 @@ namespace nazg
         bool stuck = false;
     };
 
-    [[nodiscard]] KeyStats AnalyseKey(std::span<const uint16_t> trace, uint16_t threshold, LevelScale scale);
+    // `skipped`, when given, marks readings that are neither a press nor rest: another key's press
+    // moving this one (JudgeBoard()).
+    [[nodiscard]] KeyStats AnalyseKey(std::span<const uint16_t> trace, uint16_t threshold, LevelScale scale,
+                                      std::span<const bool> skipped = {});
 
     enum class KeyVerdict : uint8_t
     {
@@ -140,9 +148,11 @@ namespace nazg
     {
         TypesByItself,        // failing: seen pressed without being touched
         NeverReaches,         // failing: its presses never reach its threshold
+        TypesWhenPressed,     // failing: another key's press takes it past its threshold -- JudgedKey::movedBy
         WentPastUntouched,    // may type by itself
         RestsClose,           // may type by itself
         WandersAtRest,        // may type by itself
+        NearsWhenPressed,     // may type by itself: another key's press brings it close -- JudgedKey::movedBy
         OnlyJustPast,         // may miss presses: even its firmest press is only just past
         NotPressedYet,
         PressAgain,
@@ -166,8 +176,26 @@ namespace nazg
         KeyToDo                toDo    = KeyToDo::None;
         std::vector<KeyReason> reasons;   // a failing key's first alone
 
-        // 0 to 1, the tighter of its two margins: the list's order within a verdict.
+        // The key whose press takes it closest to its threshold, when that is one of its reasons.
+        std::optional<size_t> movedBy;
+
+        // 0 to 1, the tighter of its margins: the list's order within a verdict.
         float health = 1.0f;
+    };
+
+    // A key's press moving another at rest towards its threshold, shown from this much: a quiet key
+    // moves by 0 or 1 (Rico's F77).
+    inline constexpr int c_CoupledShown = 2;
+
+    // One key pressed alone and one key at rest it moves, over the pressed key's presses alone.
+    struct KeyCoupling
+    {
+        size_t pressed = 0;   // indices into the keys given
+        size_t moved   = 0;
+        int    move    = 0;   // towards its threshold, from its usual level at rest: the median
+        int    most    = 0;   // the furthest of them
+        int    left    = 0;   // its margin then, the median: 0 or less is past its threshold
+        size_t presses = 0;   // the pressed key's presses measured
     };
 
     // A controller column whose keys, together, press at half the board's usual hold or less.
@@ -192,6 +220,9 @@ namespace nazg
         std::vector<WeakColumn> columns;
         std::vector<BoardNote>  notes;   // the most shared first
         size_t                  judged = 0;   // keys not to do
+
+        // Every key moved by c_CoupledShown or more by another's press, the closest to its threshold first.
+        std::vector<KeyCoupling> couplings;
     };
 
     [[nodiscard]] BoardHealth JudgeBoard(std::span<const KeyLevels> keys, LevelScale scale, int columns,

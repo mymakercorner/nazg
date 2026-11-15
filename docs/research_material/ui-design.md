@@ -546,9 +546,22 @@ moves abnormally at rest.
 *What the F77 says* (the 4-minute recording, `tests/data/leyden-jar/`): with no key pressed, a key
 at rest moves by 0, at most 1. While one key is pressed, the keys on **the same controller column,
 the next controller row** move 2 to 4 towards their threshold -- 122 such pairs, Tab moving Esc, D
-moving F and C, and no pair off the controller's column. Its keys rest 6 to 13 from their
-threshold, so nothing comes close: this is a healthy board's coupling, the measure of what is
-normal. Nothing needs recording anew: Signal levels already keeps every reading of every key.
+moving F and C. Its keys rest 6 to 13 from their threshold, so nothing comes close: this is a
+healthy board's coupling, the measure of what is normal. Nothing needs recording anew: Signal levels
+already keeps every reading of every key. *Corrected when built* (2026-11-15, `KeyHealthTest`): not
+every pair is on the column -- of 121, 111 are the next row on the same controller column and 10 the
+same controller **row** (1 moving Keypad 7, Keypad 9 and Backspace on R7; Caps Lock moving O, Keypad 2,
+Backslash and Keypad 5 on R4), by 2 to 5, none closer than 4 to its threshold.
+
+*Built* (2026-11-15, `model/NazgKeyHealth.*`, `JudgeBoard()`): `BoardHealth::couplings`, every key
+moved by 2 or more, the closest to its threshold first; the reasons `TypesWhenPressed` and
+`NearsWhenPressed`, the key pressed in `JudgedKey::movedBy`. A finger's press is one that crossed and
+got half most keys' hold past its threshold; a press alone, one no other finger's press overlaps. A
+key's attempts inside another's finger press that never reach its threshold are set aside -- neither
+press nor rest -- or a key moved three times would "not work"; one that crossed stays a press, a weak
+key pressed with others being indistinguishable from one taken past. In the section only the words
+so far ("Types by itself when D is pressed: goes past its threshold"); the ring, the scale and the
+outlines are next.
 
 *The measure proposed*: the readings where one key is pressed alone; for each other key, its
 furthest reading towards its threshold during each press of that key, and over that key's presses

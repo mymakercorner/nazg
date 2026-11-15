@@ -142,12 +142,15 @@ namespace nazg
 
         // The words lead with the effect and carry no numbers (Rico, 2026-10-17): those are in the
         // trace and the tooltip.
-        std::string SentenceOf(KeyReason reason, KeyVerdict verdict)
+        // `other`: the key whose press moves it, for the two reasons that name one.
+        std::string SentenceOf(KeyReason reason, KeyVerdict verdict, const std::string& other = {})
         {
             switch (reason)
             {
             case KeyReason::TypesByItself:     return "Types by itself: seen pressed without being touched";
             case KeyReason::NeverReaches:      return "Does not work: its presses never reach its threshold";
+            case KeyReason::TypesWhenPressed:  return "Types by itself when " + other + " is pressed: goes past its threshold";
+            case KeyReason::NearsWhenPressed:  return "May type by itself when " + other + " is pressed: comes close to its threshold";
             case KeyReason::WentPastUntouched: return "May type by itself: went past its threshold untouched";
             case KeyReason::RestsClose:        return "May type by itself: rests close to its threshold";
             case KeyReason::WandersAtRest:     return "May type by itself: its level wanders at rest";
@@ -173,16 +176,19 @@ namespace nazg
             case KeyReason::RestsClose:        return "rest close to their threshold -- they may type by themselves";
             case KeyReason::WandersAtRest:     return "wander at rest -- they may type by themselves";
             case KeyReason::OnlyJustPast:      return "only just get past their threshold -- they may miss presses";
+            case KeyReason::TypesWhenPressed:  return "go past their threshold when a neighbour is pressed -- they type by themselves";
+            case KeyReason::NearsWhenPressed:  return "come close to their threshold when a neighbour is pressed -- they may type by themselves";
             default:                           break;
             }
             return SentenceOf(reason, KeyVerdict::AtRisk);
         }
 
-        std::string ReasonsOf(const JudgedKey& judged, const char* separator)
+        // `movedBy`: the name of the key in judged.movedBy, when there is one.
+        std::string ReasonsOf(const JudgedKey& judged, const char* separator, const std::string& movedBy)
         {
             std::string text;
             for (KeyReason reason : judged.reasons)
-                text += (text.empty() ? "" : separator) + SentenceOf(reason, judged.verdict);
+                text += (text.empty() ? "" : separator) + SentenceOf(reason, judged.verdict, movedBy);
             return text;
         }
 
@@ -887,6 +893,11 @@ namespace nazg
             ClickKey(*key);
     }
 
+    std::string DiagnosticsSection::MoverOf(const JudgedKey& judged) const
+    {
+        return judged.movedBy && *judged.movedBy < m_Keys.size() ? m_Keys[*judged.movedBy].name : std::string();
+    }
+
     std::string DiagnosticsSection::TooltipOf(size_t key) const
     {
         const Key&       k      = m_Keys[key];
@@ -898,7 +909,7 @@ namespace nazg
             text += "  ·  bin " + std::to_string(k.bin);
         text += "\n" + std::string(WordOf(judged.verdict));
         if (!judged.reasons.empty())
-            text += ": " + ReasonsOf(judged, "; ");
+            text += ": " + ReasonsOf(judged, "; ", MoverOf(judged));
         // Three levels, as the firmware reads them (Rico, 2026-10-17: "firmest hold 11 past" was unclear).
         text += "\nthreshold " + std::to_string(k.threshold) + "  ·  at rest " +
                 (st.restMedian ? std::to_string(*st.restMedian) : "-") + "  ·  firmest hold " +
@@ -1416,7 +1427,7 @@ namespace nazg
                 drawList->AddText(nameAt, VerdictColour(judged.verdict), m_Keys[key].name.c_str());
                 drawList->PopClipRect();
                 if (hovered && ImGui::GetIO().MousePos.x < at.x + 150 * u)
-                    ImGui::SetTooltip("%s", ReasonsOf(judged, "\n").c_str());
+                    ImGui::SetTooltip("%s", ReasonsOf(judged, "\n", MoverOf(judged)).c_str());
 
                 DrawBar(key, ImVec2(at.x + 158 * u, at.y + 2 * u), std::max(0.0f, rowWidth - 158 * u));
             }
@@ -1726,7 +1737,7 @@ namespace nazg
         {
             const JudgedKey& judged = m_Health.keys[*under];
             ImGui::SetTooltip("%s  ·  %s%s%s", m_Keys[*under].name.c_str(), WordOf(judged.verdict),
-                              judged.reasons.empty() ? "" : ": ", ReasonsOf(judged, "; ").c_str());
+                              judged.reasons.empty() ? "" : ": ", ReasonsOf(judged, "; ", MoverOf(judged)).c_str());
             m_HoveredKey = *under;
             if (ImGui::IsItemClicked())
                 ClickKey(*under);
@@ -1881,7 +1892,7 @@ namespace nazg
         }
         ImGui::Dummy(ImVec2(0.0f, H + 4 * u));
 
-        std::string caption = ReasonsOf(judged, ". ");
+        std::string caption = ReasonsOf(judged, ". ", MoverOf(judged));
         if (!caption.empty())
             caption += ". ";
         if (!presses.empty())

@@ -2,7 +2,8 @@
 // SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com>
 //
 // Pins the Signal levels' judgment (model/NazgKeyHealth.h): on Rico's two F77 recordings, where
-// every key works -- so nothing may be at risk or failing -- and on made-up traces, one per rule.
+// every key works -- so nothing may be at risk or failing -- and on made-up traces, one per rule; then
+// the keys at rest while another is pressed, on the recording and on a made-up board.
 //
 // The recordings' folder is the first argument (tests/data/leyden-jar, README.md there).
 //
@@ -17,8 +18,10 @@
 
 #include "TestSupport.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <map>
 #include <set>
@@ -44,6 +47,7 @@ namespace
         std::vector<uint16_t> trace;
         uint16_t              threshold = 0;
         int                   column    = 0;
+        int                   row       = 0;   // the controller's
     };
 
     struct Recording
@@ -92,6 +96,7 @@ namespace
             recorded.keycode   = json["keymap"].value(std::to_string(key.row) + "," + std::to_string(key.column), "");
             recorded.threshold = static_cast<uint16_t>(thresholds.at(bins.at(column).at(row)));
             recorded.column    = column;
+            recorded.row       = row;
             for (const nlohmann::json& reading : json["readings"])
                 recorded.trace.push_back(reading["levels"][column][row].get<uint16_t>());
             recording.keys.push_back(std::move(recorded));
@@ -141,6 +146,32 @@ namespace
         for (const nazg::JudgedKey& key : health.keys)
             if (key.verdict != KeyVerdict::Good && key.toDo != KeyToDo::Hold)
                 std::printf("  unexpected: %s\n", recording.keys[&key - health.keys.data()].keycode.c_str());
+
+        // Its coupling: a press moves the keys on the same controller column, the next row, and a few
+        // on the same controller row, by 2 to 5 towards their threshold -- and none comes close
+        // (ui-design.md, "Signal levels, fourth round").
+        int    most = 0, closest = 99;
+        size_t onColumn = 0, onRow = 0;
+        for (const nazg::KeyCoupling& coupling : health.couplings)
+        {
+            const RecordedKey& pressed = recording.keys[coupling.pressed];
+            const RecordedKey& moved   = recording.keys[coupling.moved];
+            if (pressed.column == moved.column && std::abs(pressed.row - moved.row) == 1)
+                ++onColumn;
+            else if (pressed.row == moved.row)
+                ++onRow;
+            else
+                std::printf("  moved elsewhere: %s by %s, %d\n", moved.keycode.c_str(), pressed.keycode.c_str(), coupling.move);
+            most    = std::max(most, coupling.move);
+            closest = std::min(closest, coupling.left);
+        }
+        std::printf("  %zu keys moved by another's press -- %zu on its column, the next row, %zu on its row -- by %d at most, "
+                    "%d from a threshold at the closest\n",
+                    health.couplings.size(), onColumn, onRow, most, closest);
+        Check(health.couplings.size() >= 50, "pressing a key moves others: the board's coupling found");
+        Check(onColumn + onRow == health.couplings.size(),
+              "every key moved shares the controller's column, the next row, or its row");
+        Check(most <= 5 && closest >= nazg::c_SafeMargin, "none moved close to its threshold");
     }
 
     void TestHeldKeys(const std::filesystem::path& folder)
@@ -319,6 +350,83 @@ namespace
               "14 of 40 rest close: said once, above the list");
     }
 
+    // A made-up board, Model F bins at rest 374, threshold 384, every key quiet but for what is said.
+    void TestCoupling()
+    {
+        std::printf("keys at rest while another is pressed\n");
+
+        const LevelScale modelF{ 1, 10 };
+        constexpr size_t c_Length = 120;
+        enum : size_t { A, B, C, E, F, G, H, I, Count };
+
+        std::vector<std::vector<uint16_t>> traces(Count);
+        traces[A] = Trace(c_Length, 374, { { 10, 14 }, { 30, 34 }, { 50, 54 } }, 414);   // pressed three times, alone
+        traces[B] = Trace(c_Length, 374, { { 70, 74 } }, 414);                            // pressed once itself
+        traces[C] = Trace(c_Length, 374, {}, 0);                                          // never pressed
+        traces[E] = Trace(c_Length, 374, { { 90, 94 } }, 414);
+        traces[F] = Trace(c_Length, 374, { { 100, 104 } }, 414);                          // F and G together: a chord
+        traces[G] = Trace(c_Length, 374, { { 100, 104 } }, 414);
+        traces[H] = Trace(c_Length, 374, { { 110, 114 } }, 414);
+        traces[I] = Trace(c_Length, 374, {}, 0);                                          // never pressed
+        const std::pair<size_t, size_t> pressesOfA[] = { { 10, 14 }, { 30, 34 }, { 50, 54 } };
+        for (const auto& [first, last] : pressesOfA)
+            for (size_t i = first; i <= last; ++i)
+            {
+                traces[B][i] = 382;   // A brings B to 2 from its threshold
+                traces[C][i] = 386;   // and takes C 2 past it
+                traces[E][i] = 377;   // and moves E by 3: safe
+                traces[I][i] = 381;   // and I by 7, 3 left: safe, but clearly off its rest
+            }
+        for (size_t i = 100; i <= 104; ++i)
+            traces[H][i] = 386;   // past its threshold during the chord: nothing can be told
+
+        std::vector<KeyLevels> keys;
+        for (const std::vector<uint16_t>& trace : traces)
+            keys.push_back({ trace, 384, 0 });
+        const BoardHealth health = nazg::JudgeBoard(keys, modelF, 1);
+
+        const auto find = [&health](size_t pressed, size_t moved) -> const nazg::KeyCoupling*
+        {
+            for (const nazg::KeyCoupling& coupling : health.couplings)
+                if (coupling.pressed == pressed && coupling.moved == moved)
+                    return &coupling;
+            return nullptr;
+        };
+        const nazg::KeyCoupling* ab = find(A, B);
+        const nazg::KeyCoupling* ac = find(A, C);
+        const nazg::KeyCoupling* ae = find(A, E);
+        Check(health.couplings.size() == 4, "four keys moved: B, C, E and I, by A");
+        Check(ab && ab->move == 8 && ab->left == 2 && ab->presses == 3, "B moved by 8, 2 left, over A's three presses");
+        Check(ac && ac->left == -2, "C taken 2 past");
+        Check(ae && ae->move == 3 && ae->left == 7, "E moved by 3, 7 left");
+        Check(!health.couplings.empty() && health.couplings.front().moved == C, "the closest to its threshold first");
+
+        const nazg::JudgedKey& b = health.keys[B];
+        Check(b.verdict == KeyVerdict::AtRisk && b.reasons == std::vector<KeyReason>{ KeyReason::NearsWhenPressed } &&
+                  b.movedBy == size_t{ A },
+              "B at risk: may type by itself when A is pressed");
+
+        const nazg::JudgedKey& c = health.keys[C];
+        Check(c.verdict == KeyVerdict::Failing && c.reasons == std::vector<KeyReason>{ KeyReason::TypesWhenPressed } &&
+                  c.movedBy == size_t{ A },
+              "C failing: types by itself when A is pressed");
+
+        // Moved three times short of its threshold, I would be a key whose presses never reach: they
+        // are A's, set aside -- I is only not pressed yet.
+        const nazg::JudgedKey& i = health.keys[I];
+        Check(i.verdict == KeyVerdict::ToDo && i.toDo == KeyToDo::Press && i.stats.presses.empty() && !i.movedBy,
+              "I moved by A, never pressed: to do, not failing");
+        Check(b.stats.presses.size() == 1, "B's moves set aside, its own press kept");
+
+        Check(health.keys[E].verdict == KeyVerdict::Good && !health.keys[E].movedBy, "E moved but safe: good");
+        Check(health.keys[H].verdict == KeyVerdict::Good, "H past its threshold during a chord: nothing said");
+        Check(health.keys[A].verdict == KeyVerdict::Good && health.keys[F].verdict == KeyVerdict::Good, "A and F good");
+
+        // An expert's rest margin of 1: 2 left is enough.
+        const BoardHealth relaxed = nazg::JudgeBoard(keys, modelF, 1, { 1, 3 });
+        Check(relaxed.keys[B].verdict == KeyVerdict::Good && !relaxed.keys[B].movedBy, "B good with a rest margin of 1");
+    }
+
     void TestToolLevels()
     {
         std::printf("the tool's max, now and min\n");
@@ -360,6 +468,7 @@ int main(int argc, char** argv)
     }
     TestRules();
     TestBoard();
+    TestCoupling();
     TestToolLevels();
 
     return TestResult();
