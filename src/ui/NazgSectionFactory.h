@@ -39,6 +39,7 @@ namespace nazg
         bool&                                    levelsOnKeys;       // the diagnostics' Levels, for the session
         const bool&                              moveToNextKey;      // Keymap's, after a pick
         bool&                                    hostLayoutChosen;   // Macros asks until it is
+        const std::vector<uint8_t>&              definitionBytes;    // the definition drawing it, as Nazg has it; may be empty
     };
 
     [[nodiscard]] std::unique_ptr<Section> MakeSection(PlannedSection planned, const SectionContext& context);

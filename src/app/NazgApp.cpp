@@ -763,6 +763,15 @@ namespace nazg
         CloseLeftBoard();
         ReloadChangedBoard();
 
+        // A file a section made, to save where the user says: the save dialog Export definition... uses.
+        if (!m_IsExportOpen)
+            for (const auto& section : m_Board.sections)
+                if (std::optional<Section::FileToSave> file = section->TakeFileToSave())
+                {
+                    StartExport(std::move(file->bytes), file->name, file->suggested);
+                    break;
+                }
+
         // The matrix live test asks for every key of the board to be pressed, and they all type
         // into Nazg: with keyboard navigation on, an arrow then Space would click whatever has
         // focus, and Alt would open the menu bar. Off while the test runs, and while Keymap's Press
@@ -1376,7 +1385,8 @@ namespace nazg
                                           m_SafeMargins,
                                           m_LevelsOnKeys,
                                           m_Settings.moveToNextKey,
-                                          m_Settings.hostLayoutChosen };
+                                          m_Settings.hostLayoutChosen,
+                                          m_Board.exportable };
             for (PlannedSection& planned : PlanSections(*m_Board.keyboard))
                 m_Board.sections.push_back(MakeSection(std::move(planned), context));
         }

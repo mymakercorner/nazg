@@ -548,10 +548,11 @@ at rest moves by 0, at most 1. While one key is pressed, the keys on **the same 
 the next controller row** move 2 to 4 towards their threshold -- 122 such pairs, Tab moving Esc, D
 moving F and C. Its keys rest 6 to 13 from their threshold, so nothing comes close: this is a
 healthy board's coupling, the measure of what is normal. Nothing needs recording anew: Signal levels
-already keeps every reading of every key. *Corrected when built* (2026-11-15, `KeyHealthTest`): not
-every pair is on the column -- of 121, 111 are the next row on the same controller column and 10 the
-same controller **row** (1 moving Keypad 7, Keypad 9 and Backspace on R7; Caps Lock moving O, Keypad 2,
-Backslash and Keypad 5 on R4), by 2 to 5, none closer than 4 to its threshold.
+already keeps every reading of every key. *Checked when built* (2026-11-15, `KeyHealthTest`): with the
+steadier measure below, 56 keys moved, every one the next row on the pressed key's controller column,
+by 2 to 4, none closer than 5 to its threshold. A first measure, from one press, also found 10 on the
+same controller row (1 moving Keypad 7, Keypad 9 and Backspace; Caps Lock moving O, Keypad 2,
+Backslash and Keypad 5): keys pressed once -- noise, gone once two presses are asked.
 
 *Built* (2026-11-15, `model/NazgKeyHealth.*`, `JudgeBoard()`): `BoardHealth::couplings`, every key
 moved by 2 or more, the closest to its threshold first; the reasons `TypesWhenPressed` and
@@ -561,6 +562,15 @@ key's attempts inside another's finger press that never reach its threshold are 
 press nor rest -- or a key moved three times would "not work"; one that crossed stays a press, a weak
 key pressed with others being indistinguishable from one taken past.
 
+*Steadier* (2026-11-15; Rico, on his F77: pressing 5 dashed quite a few keys, and different ones on
+the next press): a first measure took a key's furthest reading during the press from its usual level
+over the session, and said a key moved after one press. Now each move is measured from where the key
+rested just before that press -- a level drifting over the minutes moves nothing; a key is moved only
+in two presses alone or more (`c_CoupledPresses`), by the lower middle of them -- one odd press
+accuses nothing, and the first press of a key dashes nothing yet; and beyond how much it wanders
+while no key is pressed -- a wandering key is not moved. Judging the 4-minute recording: 127 ms in
+Debug, 106 with the first measure, 86 without either.
+
 *The section, built* (2026-11-15, `ui/NazgDiagnosticsSection.*`): the words
 ("Types by itself when D is pressed: goes past its threshold"); in a listed key's bar the ring where
 its mover's press takes it, "another key" in the bars' header when one shows; under the key's
@@ -568,7 +578,23 @@ presses, "While other keys are pressed" -- a sentence and the scale, a line per 
 board the keys the focused key's press moves, a dashed outline (`KeyTie`, drawn by the board view)
 muted, orange or red; the tooltip with the controller's connectors.
 *Seen on Rico's F77* (2026-11-15): D pressed, F and C dashed -- as the recording said. Nothing at risk,
-so the ring and its header word were not seen.
+so the ring and its header word were not seen. 5 dashed many keys, varying from press to press: the
+first measure's, made steadier above -- tried on the board, it dashed nothing on any key. Rico's session
+saved (`tests/data/leyden-jar/f77-five-and-d-2026-11-15.json.xz`) told why: each key pressed once, and
+what a press moves waits for its second; 5 pressed twice dashes Y and 6, as in October. **A hint**
+(Rico's choice, 2026-11-15, rather than dashing after one press): on the key's name line, above its
+presses, "press it again, alone: the keys its press moves are dashed from the second" -- "press it
+alone twice" before any (`JudgedKey::pressesAlone`). First put at the panel's foot, below its fold:
+never seen there (Rico). Seen working on the F77: 5 pressed twice, Y and 6 dashed. Still hard to notice, so said
+once where the instructions are (Rico, 2026-11-15): Signal levels' first line reads "press each key
+firmly twice, holding it a moment: the second press shows the keys it moves"; the user manual too. And
+on the board, the focused key wears a tag until then -- "press twice", then "press again" -- where the
+eyes are while pressing (Rico, 2026-11-15); the grey words on the name line are gone. Seen on the F77: "looks good" (Rico).
+
+*Save readings...*, **temporary** (Rico, 2026-11-15): with Advanced tools, beside Clear, every reading
+since Clear written as a recording in the tests' format (`adapters/leydenjar/NazgLeydenJarRecording.*`,
+App's save dialog through `Section::TakeFileToSave()`); `KeyHealthTest` reads it plain or XZ. The
+writer stays -- the report embeds what it writes -- the button goes once Save report... exists.
 
 *The measure proposed*: the readings where one key is pressed alone; for each other key, its
 furthest reading towards its threshold during each press of that key, and over that key's presses

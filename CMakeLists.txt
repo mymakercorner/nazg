@@ -160,6 +160,8 @@ set(NAZG_CORE_SOURCES
   src/adapters/vial/NazgVialSavedLayout.cpp
   src/adapters/leydenjar/NazgLeydenJarProtocol.h
   src/adapters/leydenjar/NazgLeydenJarProtocol.cpp
+  src/adapters/leydenjar/NazgLeydenJarRecording.h
+  src/adapters/leydenjar/NazgLeydenJarRecording.cpp
   src/adapters/keychron/NazgKeychronProtocol.h
   src/adapters/keychron/NazgKeychronProtocol.cpp
   src/board/NazgBoardLoad.h

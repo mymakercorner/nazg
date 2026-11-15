@@ -23,6 +23,29 @@ namespace nazg
             return *middle;
         }
 
+        // The lower of the two middle values: of two presses, the one that moved a key less.
+        std::optional<int> LowerMedian(std::vector<int> values)
+        {
+            if (values.empty())
+                return std::nullopt;
+            const auto middle = values.begin() + static_cast<std::ptrdiff_t>((values.size() - 1) / 2);
+            std::nth_element(values.begin(), middle, values.end());
+            return *middle;
+        }
+
+        // How much levels wander: the 5th to the 95th percentile.
+        int SpreadOf(std::vector<int> values)
+        {
+            if (values.empty())
+                return 0;
+            std::sort(values.begin(), values.end());
+            const auto percentile = [&values](double q)
+            {
+                return values[std::min(values.size() - 1, static_cast<size_t>(std::floor(q * static_cast<double>(values.size()))))];
+            };
+            return percentile(0.95) - percentile(0.05);
+        }
+
         bool IsVerdictWithReasons(KeyVerdict verdict)
         {
             return verdict == KeyVerdict::AtRisk || verdict == KeyVerdict::Failing;
@@ -45,8 +68,12 @@ namespace nazg
         //
         // Then every finger's press made alone -- no other finger's press meanwhile: chords tell
         // nothing -- is measured against every other key: its furthest reading towards its threshold
-        // during the press. Over the pressed key's presses, the median, so one spring's vibration
-        // accuses nothing. Not told apart: a finger resting lightly on a key while another is pressed.
+        // during the press, from where it rested just before -- a level drifting over the minutes
+        // moves nothing. A key is moved when that happens in two presses alone or more, by the lower
+        // middle of them, and beyond how much it wanders while no key is pressed: one odd press, or a
+        // key that wanders, accuses nothing (Rico, 2026-11-15: pressing 5 dashed many keys, and
+        // different ones each time). Not told apart: a finger resting lightly on a key while another
+        // is pressed.
         void FindCouplings(BoardHealth& board, std::span<const KeyLevels> keys, LevelScale scale)
         {
             const int    d      = scale.direction;
@@ -98,6 +125,60 @@ namespace nazg
                     if (isFinger(press))
                         fingers.emplace_back(a, &press);
 
+            // The board quiet: no finger's press. Each key's own attempts, and how much it wanders
+            // while the board is quiet and it rests.
+            size_t length = 0;
+            for (const KeyLevels& key : keys)
+                length = std::max(length, key.trace.size());
+            std::vector<bool> busy(length);
+            for (const auto& [a, press] : fingers)
+                for (size_t x = press->first; x <= press->last; ++x)
+                    busy[x] = true;
+
+            std::vector<std::vector<bool>> own(count);
+            for (size_t b = 0; b < count; ++b)
+            {
+                own[b].resize(keys[b].trace.size());
+                for (const PressAttempt& press : board.keys[b].stats.presses)
+                    for (size_t x = press.first; x <= press.last; ++x)
+                        own[b][x] = true;
+            }
+            // Asked only of a key that looks moved: few are.
+            std::vector<std::optional<int>> noise(count);
+            const auto noiseOf = [&](size_t b)
+            {
+                if (!noise[b])
+                {
+                    std::vector<int> quiet;
+                    quiet.reserve(keys[b].trace.size());
+                    for (size_t x = 0; x < keys[b].trace.size(); ++x)
+                        if (!busy[x] && !own[b][x])
+                            quiet.push_back(keys[b].trace[x]);
+                    noise[b] = SpreadOf(std::move(quiet));
+                }
+                return *noise[b];
+            };
+
+            // Where key `b` rested just before reading `first`: its last five quiet readings, by their
+            // median -- or, from the very start, its first five after `last`.
+            std::vector<int> before;   // reused: this runs for every key at every press
+            before.reserve(5);
+            const auto restBefore = [&](size_t b, size_t first, size_t last) -> std::optional<int>
+            {
+                before.clear();
+                const std::span<const uint16_t> trace = keys[b].trace;
+                for (size_t x = first; x > 0 && before.size() < 5 && first - x < 20;)
+                    if (--x < trace.size() && !busy[x] && !own[b][x])
+                        before.push_back(trace[x]);
+                for (size_t x = last + 1; before.empty() && x < trace.size() && x <= last + 5; ++x)
+                    if (!busy[x] && !own[b][x])
+                        before.push_back(trace[x]);
+                if (before.empty())
+                    return std::nullopt;
+                std::sort(before.begin(), before.end());
+                return before[before.size() / 2];
+            };
+
             // By pressed * count + moved: each press's move and the margin left.
             std::vector<std::vector<int>> moves(count * count), lefts(count * count);
             for (const auto& [a, press] : fingers)
@@ -111,6 +192,7 @@ namespace nazg
                     }
                 if (!alone)
                     continue;
+                ++board.keys[a].pressesAlone;
 
                 for (size_t b = 0; b < count; ++b)
                 {
@@ -121,7 +203,8 @@ namespace nazg
                     for (size_t x = press->first; x <= press->last; ++x)
                         furthest = std::max(furthest, d * static_cast<int>(keys[b].trace[x]));
                     const int level = d * furthest;
-                    moves[a * count + b].push_back(d * (level - *st.restMedian));
+                    const int rest  = restBefore(b, press->first, press->last).value_or(*st.restMedian);
+                    moves[a * count + b].push_back(d * (level - rest));
                     lefts[a * count + b].push_back(d * (keys[b].threshold - level));
                 }
             }
@@ -130,16 +213,17 @@ namespace nazg
                 for (size_t b = 0; b < count; ++b)
                 {
                     const std::vector<int>& m = moves[a * count + b];
-                    if (m.empty())
+                    if (m.size() < c_CoupledPresses)
                         continue;
+                    // The lower middle of the moves; of the margins left, the upper -- the same presses.
                     KeyCoupling coupling;
                     coupling.pressed = a;
                     coupling.moved   = b;
-                    coupling.move    = *Median(m);
+                    coupling.move    = *LowerMedian(m);
                     coupling.most    = *std::max_element(m.begin(), m.end());
                     coupling.left    = *Median(lefts[a * count + b]);
                     coupling.presses = m.size();
-                    if (coupling.move >= c_CoupledShown)
+                    if (coupling.move >= c_CoupledShown && coupling.move > noiseOf(b))
                         board.couplings.push_back(coupling);
                 }
             std::stable_sort(board.couplings.begin(), board.couplings.end(), [](const KeyCoupling& x, const KeyCoupling& y)

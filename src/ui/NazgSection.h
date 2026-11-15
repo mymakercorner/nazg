@@ -151,6 +151,16 @@ namespace nazg
         // changes not written yet.
         [[nodiscard]] virtual bool TakeBoardChanged() { return false; }
 
+        // A file the section made for the user to save -- the Diagnostics' readings: once, and Nazg
+        // asks where, as Export definition... does.
+        struct FileToSave
+        {
+            std::vector<uint8_t> bytes;
+            std::string          name;        // what it is, said when it is written
+            std::string          suggested;   // the file name offered
+        };
+        [[nodiscard]] virtual std::optional<FileToSave> TakeFileToSave() { return std::nullopt; }
+
         // Changes not written to the board yet -- Macros writes by Save (ui-design.md, "The Macros
         // section"). Kept while the user moves between sections; before the board is closed or
         // Nazg quits, the user is asked: Save, which starts the write -- wait for IsBusy() to end --

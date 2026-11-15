@@ -59,15 +59,17 @@ namespace nazg
     {
     public:
         // The board at `path`, drawn by `keyboard`, which gives the legends -- layer 0's -- and
-        // `identity`, its USB description. The transport, the keyboard and the settings outlive the
-        // section.
-        DiagnosticsSection(HidTransport&         transport,
-                           std::string           path,
-                           const Keyboard&       keyboard,
-                           const LegendSettings& legends,
-                           SafeMargins&          safeMargins,
-                           bool&                 levelsOnKeys,
-                           DeviceIdentity        identity);
+        // `identity`, its USB description; `definition`, the definition's bytes, for a recording. The
+        // transport, the keyboard, the settings and the bytes outlive the section.
+        DiagnosticsSection(HidTransport&               transport,
+                           std::string                 path,
+                           const Keyboard&             keyboard,
+                           const LegendSettings&       legends,
+                           SafeMargins&                safeMargins,
+                           bool&                       levelsOnKeys,
+                           DeviceIdentity              identity,
+                           const bool&                 advancedTools,
+                           const std::vector<uint8_t>& definition);
 
         DiagnosticsSection(const DiagnosticsSection&)            = delete;
         DiagnosticsSection& operator=(const DiagnosticsSection&) = delete;
@@ -92,6 +94,9 @@ namespace nazg
 
         // Sent to its bootloader, or erased and restarting.
         [[nodiscard]] std::string BoardLeft() const override { return m_Link == Link::Gone ? m_Message : std::string(); }
+
+        // Save readings...: Signal levels' readings as a recording (adapters/leydenjar/NazgLeydenJarRecording.h).
+        [[nodiscard]] std::optional<FileToSave> TakeFileToSave() override { return std::exchange(m_FileToSave, std::nullopt); }
 
     private:
         enum class Mode
@@ -206,7 +211,14 @@ namespace nazg
         SafeMargins           m_JudgedMargins;  // those m_Health was judged by
         DeviceIdentity        m_Identity;
 
-        Mode m_Mode          = Mode::KeyPresses;
+        // Temporary, until Save report... embeds the readings (Rico, 2026-11-15): Save readings...,
+        // with Advanced tools, to record what Signal levels saw.
+        const bool&                 m_AdvancedTools;
+        const std::vector<uint8_t>& m_Definition;
+        std::optional<FileToSave>   m_FileToSave;
+        void                        SaveReadings();
+
+        Mode m_Mode         = Mode::KeyPresses;
         View m_View          = View::Board;   // Signal levels has no QMK matrix: it shows the board there
         bool& m_LevelsOnKeys;                 // the Levels button: App's, kept as left for the session
         bool m_HiddenThisFrame = false;       // WhileHidden() was called: nothing starts this frame

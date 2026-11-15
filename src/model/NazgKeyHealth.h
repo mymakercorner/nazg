@@ -179,22 +179,28 @@ namespace nazg
         // The key whose press takes it closest to its threshold, when that is one of its reasons.
         std::optional<size_t> movedBy;
 
+        // Its firm presses made alone: what it moves is said from c_CoupledPresses.
+        size_t pressesAlone = 0;
+
         // 0 to 1, the tighter of its margins: the list's order within a verdict.
         float health = 1.0f;
     };
 
-    // A key's press moving another at rest towards its threshold, shown from this much: a quiet key
-    // moves by 0 or 1 (Rico's F77).
+    // A key's press moving another at rest towards its threshold, shown from this much -- a quiet key
+    // moves by 0 or 1 (Rico's F77) -- and beyond how much the key wanders while no key is pressed.
     inline constexpr int c_CoupledShown = 2;
+
+    // Presses alone of a key before what it moves is said: one odd press accuses nothing.
+    inline constexpr size_t c_CoupledPresses = 2;
 
     // One key pressed alone and one key at rest it moves, over the pressed key's presses alone.
     struct KeyCoupling
     {
         size_t pressed = 0;   // indices into the keys given
         size_t moved   = 0;
-        int    move    = 0;   // towards its threshold, from its usual level at rest: the median
+        int    move    = 0;   // towards its threshold, from where it rested just before each press: the lower middle
         int    most    = 0;   // the furthest of them
-        int    left    = 0;   // its margin then, the median: 0 or less is past its threshold
+        int    left    = 0;   // its margin then, the upper middle -- 0 or less is past its threshold
         size_t presses = 0;   // the pressed key's presses measured
     };
 

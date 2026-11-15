@@ -173,7 +173,7 @@ one board to unlock).
 | A board's own menus: a few EC features (Concordia Type C); all 35909 registry controls parse (test) | |
 | Hotplug: boards plugged and unplugged, the list and the open board following (Rico, 2026-10-16) | |
 | Key health on Rico's F77 recordings: nothing accused, 26 good and 49 to hold, as the mockup (test) | |
-| Keys at rest moved by another's press (2026-11-15): on the F77, D pressed and F and C dashed (Rico); 121 couplings in its recording, none close (test) | A key brought close or taken past -- the ring, "another key" -- no board at hand has one |
+| Keys at rest moved by another's press (2026-11-15): on the F77, D pressed and F and C dashed (Rico); 56 couplings in its recording, all column neighbours, none close (test) | A key brought close or taken past -- the ring, "another key" -- no board at hand has one; the steadier measure (two presses alone) on the board |
 | Diagnostics on Rico's F77: key output off and on again, Key presses, Signal levels, Device; Enter bootloader and Erase EEPROM, the board closed and the list saying where it went (2026-10-17); Key presses and Enter bootloader on the F77 locked, past Vial's lock (2026-10-18) | |
 | The Device section on Rico's boards (2026-10-18): the bootloader, said how where the firmware lacks it, keymap reset, macros emptied | |
 | The key test (2026-10-18): the Concordia on the computer's keys, hatched keys and the shared-key marks; the F77 on its switches unlocked, on the computer's keys locked; Win and Alt+Tab taken while it reads them | |

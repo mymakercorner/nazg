@@ -9,6 +9,7 @@ recording and on again after. Test data for the Diagnostics section's Signal lev
 |---|---|
 | `f77-every-key-2026-10-17.json.xz` | 4 minutes, 1549 readings: every key pressed slowly, mostly briefly -- 95 of 150 presses lasted two readings |
 | `f77-held-keys-2026-10-17.json.xz` | 2 minutes, 775 readings: K, F and Num Lock pressed and held on purpose |
+| `f77-five-and-d-2026-11-15.json.xz` | 82 seconds, 512 readings, saved by Nazg's Save readings... (its thresholds one lower by then: 384, 393, 396): 5 pressed twice, D once -- 5 moving Y and 6 |
 
 XZ with a CRC32 check, as minlzma reads it (`adapters/NazgXz.h`). The JSON:
 

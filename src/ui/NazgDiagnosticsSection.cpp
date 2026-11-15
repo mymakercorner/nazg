@@ -11,6 +11,8 @@
 
 #include "imgui.h"
 
+#include "adapters/leydenjar/NazgLeydenJarRecording.h"
+#include "model/NazgKeycode.h"
 #include "ui/NazgKeyLine.h"
 #include "ui/NazgKeycapLegend.h"
 #include "ui/NazgTheme.h"
@@ -264,10 +266,32 @@ namespace nazg
 
     DiagnosticsSection::DiagnosticsSection(HidTransport& transport, std::string path, const Keyboard& keyboard,
                                            const LegendSettings& legends, SafeMargins& safeMargins,
-                                           bool& levelsOnKeys, DeviceIdentity identity)
+                                           bool& levelsOnKeys, DeviceIdentity identity, const bool& advancedTools,
+                                           const std::vector<uint8_t>& definition)
         : m_Transport(transport), m_Path(std::move(path)), m_Keyboard(keyboard), m_Legends(legends),
-          m_SafeMargins(safeMargins), m_Identity(std::move(identity)), m_LevelsOnKeys(levelsOnKeys)
+          m_SafeMargins(safeMargins), m_Identity(std::move(identity)), m_AdvancedTools(advancedTools),
+          m_Definition(definition), m_LevelsOnKeys(levelsOnKeys)
     {
+    }
+
+    // Temporary (Rico, 2026-11-15), until Save report... carries them: every reading since Clear, with
+    // what the tests need to judge them again -- the controller's information, the definition, layer 0.
+    void DiagnosticsSection::SaveReadings()
+    {
+        leydenjar::Recording recording;
+        recording.board      = m_Identity.manufacturer.empty() ? m_Identity.product : m_Identity.product + " by " + m_Identity.manufacturer;
+        recording.info       = m_Info;
+        recording.definition = m_Definition;
+        for (const Key& key : m_Keys)
+            if (m_Keyboard.keymap.Contains(0, key.row, key.column))
+                recording.keymap.emplace_back(std::to_string(key.row) + "," + std::to_string(key.column),
+                                              FormatKeycode(m_Keyboard.keymap.At(0, key.row, key.column)));
+        for (const double time : m_ReadingTimes)
+            recording.times.push_back(time - m_ReadingTimes.front());
+        recording.traces = m_Traces;
+
+        const std::string text = leydenjar::RecordingJson(recording);
+        m_FileToSave = FileToSave{ std::vector<uint8_t>(text.begin(), text.end()), "the readings", "leyden-jar-readings.json" };
     }
 
     // --- The strip --------------------------------------------------------------------------------
@@ -874,6 +898,16 @@ namespace nazg
                     for (size_t index = 0; index < board.keys.size() && index < m_BoardKeys.size(); ++index)
                         if (m_BoardKeys[index] == coupling.moved)
                             board.keys[index].tie = TieOf(coupling);
+
+        // Until its second press alone, the focused key says so itself, where the eyes are while
+        // pressing (Rico, 2026-11-15: grey words in the panel went unnoticed).
+        if (m_Selected && *m_Selected < m_Health.keys.size() && m_Health.keys[*m_Selected].pressesAlone < c_CoupledPresses)
+            for (size_t index = 0; index < board.keys.size() && index < m_BoardKeys.size(); ++index)
+                if (m_BoardKeys[index] == *m_Selected)
+                {
+                    board.tags.push_back({ { index }, m_Health.keys[*m_Selected].pressesAlone == 0 ? "press twice" : "press again" });
+                    break;
+                }
     }
 
     KeyTie DiagnosticsSection::TieOf(const KeyCoupling& coupling) const
@@ -1067,7 +1101,7 @@ namespace nazg
         ImGui::AlignTextToFramePadding();
         ImGui::TextUnformatted("Signal levels");
         ImGui::SameLine();
-        ColouredText(PanelColour::Muted, "press each key down firmly and hold it a moment, one after the other");
+        ColouredText(PanelColour::Muted, "press each key firmly twice, holding it a moment: the second press shows the keys it moves");
 
         // For everyone, Advanced tools or not -- Diagnostics is an expert's section (Rico, 2026-10-17): the threshold
         // margins, 3 unless changed for the session, set apart by a divider from Levels -- off by
@@ -1323,7 +1357,16 @@ namespace nazg
             drawList->AddText(ImVec2(b1.x + 5 * u, at.y + (size.y - ImGui::GetTextLineHeight()) / 2), TextColour(), text);
         }
 
-        RightAlign(ButtonWidth("Clear"));
+        // Temporary, with Advanced tools, until Save report... (Rico, 2026-11-15).
+        const bool canSave = m_AdvancedTools && !m_ReadingTimes.empty();
+        RightAlign(ButtonWidth("Clear") + (canSave ? ButtonWidth("Save readings...") + ImGui::GetStyle().ItemSpacing.x : 0.0f));
+        if (canSave)
+        {
+            if (ImGui::Button("Save readings..."))
+                SaveReadings();
+            ImGui::SetItemTooltip("Every reading since Clear, as a recording Nazg's tests replay");
+            ImGui::SameLine();
+        }
         if (ImGui::Button("Clear"))
             ClearReadings();
         ImGui::SetItemTooltip("Start a new pass: every reading so far forgotten");

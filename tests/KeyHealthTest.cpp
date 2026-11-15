@@ -12,6 +12,7 @@
 #include "model/NazgKeyHealth.h"
 
 #include "adapters/NazgXz.h"
+#include "adapters/leydenjar/NazgLeydenJarRecording.h"
 #include "adapters/via/NazgKeyboardDefinition.h"
 #include "files/NazgFiles.h"
 #include "model/NazgKeyboard.h"
@@ -59,13 +60,24 @@ namespace
 
     // The drawn keys at choice 0 of every layout option, as the section judges them: each switch
     // once, mapped to the controller's position, its threshold its bin's.
-    Recording Load(const std::filesystem::path& file)
+    // A recording's JSON, XZ-compressed as those kept here or plain as Save readings... writes it.
+    nlohmann::json ReadRecording(const std::filesystem::path& file)
     {
         const std::optional<std::vector<uint8_t>> packed = nazg::ReadWholeFile(file);
         if (!packed)
             throw std::runtime_error("cannot read " + file.string());
-        const std::vector<uint8_t> text = nazg::DecompressXz(*packed, 64u << 20, "the recording");
-        const nlohmann::json       json = nlohmann::json::parse(text.begin(), text.end());
+        static const uint8_t c_XzMagic[] = { 0xFD, '7', 'z', 'X', 'Z', 0x00 };
+        if (packed->size() >= 6 && std::equal(std::begin(c_XzMagic), std::end(c_XzMagic), packed->begin()))
+        {
+            const std::vector<uint8_t> text = nazg::DecompressXz(*packed, 64u << 20, "the recording");
+            return nlohmann::json::parse(text.begin(), text.end());
+        }
+        return nlohmann::json::parse(packed->begin(), packed->end());
+    }
+
+    Recording Load(const std::filesystem::path& file)
+    {
+        const nlohmann::json json = ReadRecording(file);
 
         const nlohmann::json& info = json["info"];
         const std::string     definitionText = json["definition"].dump();
@@ -147,8 +159,9 @@ namespace
             if (key.verdict != KeyVerdict::Good && key.toDo != KeyToDo::Hold)
                 std::printf("  unexpected: %s\n", recording.keys[&key - health.keys.data()].keycode.c_str());
 
-        // Its coupling: a press moves the keys on the same controller column, the next row, and a few
-        // on the same controller row, by 2 to 5 towards their threshold -- and none comes close
+        // Its coupling: a press moves the keys on the same controller column, the next row, by 2 to 4
+        // towards their threshold -- 56 keys pressed twice or more alone -- and none comes close. A
+        // first measure, from a single press, also found a few on the same controller row: noise.
         // (ui-design.md, "Signal levels, fourth round").
         int    most = 0, closest = 99;
         size_t onColumn = 0, onRow = 0;
@@ -169,8 +182,7 @@ namespace
                     "%d from a threshold at the closest\n",
                     health.couplings.size(), onColumn, onRow, most, closest);
         Check(health.couplings.size() >= 50, "pressing a key moves others: the board's coupling found");
-        Check(onColumn + onRow == health.couplings.size(),
-              "every key moved shares the controller's column, the next row, or its row");
+        Check(onColumn == health.couplings.size(), "every key moved is the next row on the pressed key's controller column");
         Check(most <= 5 && closest >= nazg::c_SafeMargin, "none moved close to its threshold");
     }
 
@@ -356,8 +368,8 @@ namespace
         std::printf("keys at rest while another is pressed\n");
 
         const LevelScale modelF{ 1, 10 };
-        constexpr size_t c_Length = 120;
-        enum : size_t { A, B, C, E, F, G, H, I, Count };
+        constexpr size_t c_Length = 400;
+        enum : size_t { A, B, C, E, F, G, H, I, J, K, L, Count };
 
         std::vector<std::vector<uint16_t>> traces(Count);
         traces[A] = Trace(c_Length, 374, { { 10, 14 }, { 30, 34 }, { 50, 54 } }, 414);   // pressed three times, alone
@@ -379,6 +391,28 @@ namespace
             }
         for (size_t i = 100; i <= 104; ++i)
             traces[H][i] = 386;   // past its threshold during the chord: nothing can be told
+
+        // What must not be called moved (Rico, 2026-11-15: pressing 5 dashed many keys, different
+        // ones each time). J: moved by 3 in one of A's presses only -- one odd press.
+        traces[J] = Trace(c_Length, 374, {}, 0);
+        for (size_t i = 30; i <= 34; ++i)
+            traces[J][i] = 377;
+        // K: wanders at rest from 371 to 377, and reads 378 during A's presses.
+        traces[K] = Trace(c_Length, 374, {}, 0);
+        for (size_t i = 0; i < c_Length; ++i)
+            traces[K][i] = static_cast<uint16_t>(371 + (i * 5 % 7));
+        for (const auto& [first, last] : pressesOfA)
+            for (size_t i = first; i <= last; ++i)
+                traces[K][i] = 378;
+        // L: its resting level drifts up by 2 around A's later presses, and A moves it by 1 on top.
+        traces[L] = Trace(c_Length, 374, {}, 0);
+        for (size_t i = 27; i <= 37; ++i)
+            traces[L][i] = 376;
+        for (size_t i = 47; i <= 57; ++i)
+            traces[L][i] = 376;
+        for (const auto& [first, last] : pressesOfA)
+            for (size_t i = first; i <= last; ++i)
+                traces[L][i] = static_cast<uint16_t>(first == 10 ? 375 : 377);
 
         std::vector<KeyLevels> keys;
         for (const std::vector<uint16_t>& trace : traces)
@@ -419,12 +453,122 @@ namespace
         Check(b.stats.presses.size() == 1, "B's moves set aside, its own press kept");
 
         Check(health.keys[E].verdict == KeyVerdict::Good && !health.keys[E].movedBy, "E moved but safe: good");
+        Check(!find(A, J), "J moved in one press of A's three: not moved");
+        Check(!find(A, K), "K wandering by 6 at rest, 378 during A's presses: not moved");
+        Check(!find(A, L), "L drifting up around A's presses, 1 more on top: not moved");
+
+        // A key pressed once alone says nothing yet.
+        {
+            std::vector<std::vector<uint16_t>> two = { Trace(60, 374, { { 10, 14 } }, 414), Trace(60, 374, {}, 0) };
+            for (size_t i = 10; i <= 14; ++i)
+                two[1][i] = 382;
+            const KeyLevels   pair[] = { { two[0], 384, 0 }, { two[1], 384, 0 } };
+            const BoardHealth once   = nazg::JudgeBoard(pair, modelF, 1);
+            Check(once.couplings.empty() && once.keys[1].verdict != KeyVerdict::AtRisk,
+                  "one press alone: nothing said yet, however far it moved a key");
+        }
         Check(health.keys[H].verdict == KeyVerdict::Good, "H past its threshold during a chord: nothing said");
         Check(health.keys[A].verdict == KeyVerdict::Good && health.keys[F].verdict == KeyVerdict::Good, "A and F good");
+        Check(health.keys[A].pressesAlone == 3 && health.keys[B].pressesAlone == 1 && health.keys[F].pressesAlone == 0 &&
+                  health.keys[C].pressesAlone == 0,
+              "presses alone counted: A's three, B's one, none for F's chord or C, never pressed");
 
         // An expert's rest margin of 1: 2 left is enough.
         const BoardHealth relaxed = nazg::JudgeBoard(keys, modelF, 1, { 1, 3 });
         Check(relaxed.keys[B].verdict == KeyVerdict::Good && !relaxed.keys[B].movedBy, "B good with a rest margin of 1");
+    }
+
+    // Rico's first session saved by Save readings... (2026-11-15): 5 pressed twice, D once. Live, a key
+    // pressed once dashed nothing and looked broken: what its press moves waits for a second press.
+    void TestFiveAndD(const std::filesystem::path& folder)
+    {
+        std::printf("the F77 today, 5 pressed twice and D once\n");
+
+        const Recording   recording = Load(folder / "f77-five-and-d-2026-11-15.json.xz");
+        const BoardHealth health    = Judge(recording);
+
+        std::map<std::string, size_t> index;
+        for (size_t k = 0; k < recording.keys.size(); ++k)
+            index[recording.keys[k].keycode] = k;
+        const auto moves = [&](const char* pressed, const char* moved) -> const nazg::KeyCoupling*
+        {
+            for (const nazg::KeyCoupling& coupling : health.couplings)
+                if (coupling.pressed == index[pressed] && coupling.moved == index[moved])
+                    return &coupling;
+            return nullptr;
+        };
+
+        const nazg::KeyCoupling* y   = moves("KC_5", "KC_Y");
+        const nazg::KeyCoupling* six = moves("KC_5", "KC_6");
+        Check(y && y->move == 3 && six && six->move == 2, "5 moves Y by 3 and 6 by 2, as in October");
+        size_t byFive = 0, byD = 0;
+        for (const nazg::KeyCoupling& coupling : health.couplings)
+        {
+            byFive += coupling.pressed == index["KC_5"];
+            byD += coupling.pressed == index["KC_D"];
+        }
+        Check(byFive == 2, "5 moves those two only");
+        Check(health.keys[index["KC_D"]].pressesAlone == 1 && byD == 0, "D, pressed once: nothing said of what it moves yet");
+        Check(CountOf(health, KeyVerdict::Failing) == 0 && CountOf(health, KeyVerdict::AtRisk) == 0, "nothing failing or at risk");
+    }
+
+    // What Save readings... writes is a recording these tests read: the F77's, taken apart into what
+    // the section holds and written again, says the same.
+    void TestRecordingWritten(const std::filesystem::path& folder)
+    {
+        std::printf("a recording written as the section writes it\n");
+
+        const nlohmann::json original = ReadRecording(folder / "f77-held-keys-2026-10-17.json.xz");
+        const nlohmann::json& info    = original["info"];
+
+        nazg::leydenjar::Recording recording;
+        recording.board = original["board"].get<std::string>();
+        nazg::leydenjar::ControllerInfo& controller = recording.info;
+        int major = 0, mid = 0, minor = 0;
+        std::sscanf(info["version"].get<std::string>().c_str(), "%d.%d.%d", &major, &mid, &minor);
+        controller.version                   = { static_cast<uint8_t>(major), static_cast<uint8_t>(mid), static_cast<uint16_t>(minor) };
+        controller.details.logicalRows       = info["logicalRows"].get<uint8_t>();
+        controller.details.logicalColumns    = info["logicalColumns"].get<uint8_t>();
+        controller.details.controllerRows    = info["controllerRows"].get<uint8_t>();
+        controller.details.controllerColumns = info["controllerColumns"].get<uint8_t>();
+        controller.details.technology        = info["beamSpring"].get<bool>() ? nazg::leydenjar::SwitchTechnology::BeamSpring
+                                                                              : nazg::leydenjar::SwitchTechnology::ModelF;
+        controller.mapping.wiring            = info["wiring"].get<uint8_t>();
+        controller.mapping.columns           = info["mappingColumns"].get<std::vector<uint8_t>>();
+        controller.mapping.rows              = info["mappingRows"].get<std::vector<uint8_t>>();
+        controller.thresholds                = info["thresholds"].get<std::vector<uint16_t>>();
+        controller.referenceLevels           = info["referenceLevels"].get<std::vector<uint16_t>>();
+        controller.bins                      = info["bins"].get<std::vector<std::vector<uint8_t>>>();
+        controller.isLeftHalf                = info["isLeftHalf"].get<bool>();
+
+        const std::string definition = original["definition"].dump();
+        recording.definition.assign(definition.begin(), definition.end());
+        for (const auto& [cell, name] : original["keymap"].items())
+            recording.keymap.emplace_back(cell, name.get<std::string>());
+
+        const size_t rows = controller.details.controllerRows;
+        recording.traces.resize(size_t{ controller.details.controllerColumns } * rows);
+        for (const nlohmann::json& reading : original["readings"])
+        {
+            recording.times.push_back(reading["t"].get<double>());
+            const auto levels = reading["levels"].get<std::vector<std::vector<uint16_t>>>();
+            for (size_t column = 0; column < levels.size(); ++column)
+                for (size_t row = 0; row < levels[column].size(); ++row)
+                    recording.traces[column * rows + row].push_back(levels[column][row]);
+        }
+
+        const std::string    text    = nazg::leydenjar::RecordingJson(recording);
+        const nlohmann::json written = nlohmann::json::parse(text);
+        Check(written["board"] == original["board"] && written["info"] == original["info"], "the board and its controller");
+        Check(written["definition"] == original["definition"] && written["keymap"] == original["keymap"],
+              "its definition and layer 0");
+
+        bool same = written["readings"].size() == original["readings"].size();
+        for (size_t reading = 0; same && reading < written["readings"].size(); ++reading)
+            same = written["readings"][reading]["levels"] == original["readings"][reading]["levels"] &&
+                   std::abs(written["readings"][reading]["t"].get<double>() - original["readings"][reading]["t"].get<double>()) < 1e-6;
+        Check(same, "every reading, at its time");
+        std::printf("  %zu readings, %zu bytes\n", recording.times.size(), text.size());
     }
 
     void TestToolLevels()
@@ -461,6 +605,8 @@ int main(int argc, char** argv)
     {
         TestEveryKey(argv[1]);
         TestHeldKeys(argv[1]);
+        TestRecordingWritten(argv[1]);
+        TestFiveAndD(argv[1]);
     }
     catch (const std::exception& failure)
     {

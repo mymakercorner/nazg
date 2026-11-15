@@ -676,6 +676,10 @@ it turns the keyboard's typing off, and it comes back on when you leave. The str
   you press takes its place. **Levels** puts the numbers on every key, under
   its name: the reading now in bold with the highest beside it, the bin with the lowest; a sample key
   beside the button says which is which. Nazg keeps Levels as you left it until it closes.
+  **Press each key twice**, alone: from its second press, the keys its press moves are outlined in
+  dashes on the board -- grey when they stay safe, orange when the press brings one close to its
+  threshold, red when it takes one past, which may type by itself. A key moved that way is listed
+  with why, and under its presses a line per key moving it shows how far.
 
     ![Signal levels: 28 keys good, F selected](user-manual/diagnostics-signal-levels.png)
 

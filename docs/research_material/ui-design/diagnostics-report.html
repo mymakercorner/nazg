@@ -583,7 +583,7 @@ function sectionHtml() {
   const menu = state.menu ? `<div class="menu"><div class="act">Keyboards</div><div class="sep"></div><div class="act">Save to file...</div><div class="act">Load from file...</div>`
     + `<div class="sep"></div><div class="act">Export definition...</div></div>` : '';
   const stepper = `<span class="stepper"><input value="3"><button>-</button><button>+</button></span>`;
-  const panel = `<div class="mline first"><span class="title">Signal levels</span><span class="desc">press each key down firmly and hold it a moment, one after the other</span>`
+  const panel = `<div class="mline first"><span class="title">Signal levels</span><span class="desc">press each key firmly twice, holding it a moment: the second press shows the keys it moves</span>`
     + `<span class="right"><span class="margins">Threshold margin <span class="lbl">rest</span>${stepper}<span class="lbl">press</span>${stepper}</span><span class="divider"></span>`
     + `${state.levels ? `<span class="muted" style="font-size:12px">each key:</span>${sampleKey()}` : ''}<button class="${state.levels ? 'on' : ''}" data-act="levels">Levels</button>`
     + `<span class="seg">${['Board', 'Controller'].map(v => `<button class="${state.view === v ? 'on' : ''}" data-view="${v}">${v}</button>`).join('')}</span></span></div>`
