@@ -1690,8 +1690,7 @@ Code: `ui/NazgKeycodeCatalogue.*` (`FullSizeKeyboard()`, `CatalogueLook`, `IsSen
   are the board's own (`NazgKeycapLegend`), with the keycap's face, band and colours.
 - **A header the group's title says is left out**: "Media" over Play in the Media group,
   "Ctrl↔Caps" over Swap in its group, "MIDI" over CHND. The Shifted group's tiles show the Shift
-  character alone ("!") -- on the board `S(KC_1)` is "Shift+" over "! 1", one rule for every
-  modifier (Rico, short-forms.md rule 7).
+  character alone ("!") -- on the board `S(KC_1)` is "Shift+" over "!" (short-forms.md, rule 7).
 - **One grid**: cells 62 px; groups packed side by side where they fit, no empty cell between
   them; a group longer than the row wraps under its first tile. The group's title sits in a box
   two cells wide spanning all its rows -- its first words; the rest on hover. The box is a

@@ -220,7 +220,7 @@ share the height. Nazg remembers it.
 ### Reading the keys
 
 Keys are drawn as keycaps, with legends for the computer's keyboard layout (set the **Host
-layout** in Settings, so a French AZERTY board shows AZERTY).
+layout** in the header or in Settings, so a French AZERTY board shows AZERTY).
 
 - **Command keys** (layers, media, macros, lighting...) carry a small coloured header and band
   saying what kind of key they are, such as *Layer*, *Media* or *Boot*. Colours group them at a
@@ -229,7 +229,12 @@ layout** in Settings, so a French AZERTY board shows AZERTY).
   *Ctrl* over *A* for `LCTL_T(KC_A)`, or *L1* over a blank for `LT(1, KC_SPC)`.
 - **Transparent** keys (`KC_TRNS`, the layer below shows through) are faint, with a **▽** badge
   in a corner. **Empty** keys (`KC_NO`, nothing at all) are faint, with an **✕** badge.
-- Hover a key for its full name in QMK's words, and its row and column.
+- **A key sent with Shift or AltGr** shows the character it types on your layout, under a small
+  *Shift+* or *Alt Gr+*: `S(KC_7)` is *Shift+* over **/** on German, *Shift+* over **&** on US.
+  On a Mac layout, Option counts as AltGr. Other modifiers -- *Ctrl+* over **C** -- show the key.
+- Hover a key for its full name in QMK's words, and its row and column. Where your host layout
+  has a name for it in QMK's international keycodes, a line says so and what it types:
+  *German: DE_SLSH, types /*.
 
 ---
 
@@ -327,7 +332,8 @@ key after each pick, as Vial does, turn on **Move to the next key after a pick**
 - **Devices**: MIDI, steno, joystick, programmable buttons.
 - **Firmware**: Boot, Reboot, Clear EEPROM, Debug.
 
-The **search box** looks through every tab, by name, by QMK name (`KC_ESC`) or by label. Hover a
+The **search box** looks through every tab, by name, by QMK name (`KC_ESC`, or your host
+layout's `DE_SLSH`) or by label. Hover a
 key or a tile to see its QMK name. **While the tooltip shows, the selected key previews what the click
 would write**, outlined in blue.
 
@@ -342,6 +348,9 @@ offered anyway, and their tooltip says what they need.
 - **Where it is**: row and column.
 - **Its keycode in QMK's words, editable.** Type anything QMK understands and press Enter:
   `LT(1,KC_SPC)`, `MT(MOD_LCTL,KC_A)`, `C(S(KC_T))`, `OSM(MOD_LSFT)`, `MO(2)`, or a hex value.
+  Your host layout's international names work too: `DE_SLSH` on German. A name of another layout
+  is written when every layout having it agrees, and the message says which; where they differ
+  -- `FR_A` is `KC_Q` on French, `KC_A` on Canadian French -- choose that layout first.
   What Nazg cannot read is outlined in red. This is how to enter keys no tab lists.
 - **Press a key**: then press a key on the computer's keyboard, and it is written to the selected
   key. Ctrl, Shift, Alt or Win held with it are sent with it (`LCTL(KC_B)`); a modifier pressed

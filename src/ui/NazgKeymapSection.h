@@ -153,6 +153,7 @@ namespace nazg
         char        m_Expression[128] = {};
         std::string m_ExpressionFor;
         std::string m_ExpressionError;   // why Enter wrote nothing, outlining the box
+        std::string m_NameNote;          // an international name read from another layout, for the write's message
         bool        m_ExpressionEditing = false;   // the box had the keyboard last frame
 
         // Press a key: listening for the computer's next key; the modifiers held now, QMK's bits by

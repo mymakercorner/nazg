@@ -77,6 +77,10 @@ namespace nazg
         // Whether keycaps for it print Shift+AltGr: Bépo only, where the level is part of
         // the layout (ui-design.md, "The fourth level, Bépo, and spherical AltGr").
         [[nodiscard]] bool PrintsFourthLevel() const noexcept;
+
+        // A Mac layout -- "german_mac_iso" -- where Option, either one, is what AltGr is elsewhere:
+        // QMK writes its third level A(X), and the table reads it as AltGr.
+        [[nodiscard]] bool IsMac() const noexcept;
     };
 
     // Every layout, from QMK's keymap extras (NazgHostLayoutTable.cpp), sorted by id.
@@ -259,6 +263,17 @@ namespace nazg
     };
 
     [[nodiscard]] KeycapLegend LegendFor(const Keycode& keycode, const LegendContext& context);
+
+    // The character a keycode types on `layout`: a character key's own; a modified key's at the
+    // level its modifiers reach -- Shift, AltGr (Option, either side, on a Mac layout), or both --
+    // when they are only those. None for a key that types none there: LSFT(KC_A), Ctrl, a command.
+    struct TypedCharacter
+    {
+        std::string text;
+        bool        dead = false;   // a dead key: it types nothing until the next key
+    };
+
+    [[nodiscard]] std::optional<TypedCharacter> CharacterTyped(const Keycode& keycode, const HostLayout& layout);
 
     // One entry of the command table (NazgCommandTable.cpp, from short-forms.md): a named QMK
     // keycode a stock keyboard does not have, its category, its header and its main legend with

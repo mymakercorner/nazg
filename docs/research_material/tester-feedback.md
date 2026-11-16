@@ -301,7 +301,7 @@ a real Mac. Nothing said about Gatekeeper or Input Monitoring.
 | 16 | The Vial unlock bar should be more visible | Design | Thin by Rico's choice (2026-10-18) | -- |
 | 17 | Switches as the key test's default | Design | Against Rico's choice (2026-10-26); remembering the choice answers it | -- |
 | 18 | The host layout in the menu bar, as in Vial | Design | True: one combo in Settings, hard to find; wanted in the header (Rico, 2026-11-16) | 2026-11-16, from a mockup |
-| 19 | International keycodes not recognised; show what `S(KC_7)` types | Feature | True: Nazg knows no `DE_*` name, and draws a shifted key as its keycap | -- |
+| 19 | International keycodes not recognised; show what `S(KC_7)` types | Feature | True: Nazg knows no `DE_*` name, and draws a shifted key as its keycap | 2026-11-16, from a mockup |
 | 20 | Liked: colour coding, wiring view, the picker's international keys | Praise | Wiring as a help to rewire a handwired board | n/a |
 | 21 | The icon | Taste | Rico's | -- |
 
@@ -431,6 +431,43 @@ AltGr (`DE_AT` = `ALGR(KC_Q)`). The board stores only the expression. Nazg falls
    the host layout types a character there, that character as the main legend -- small "Shift+"
    kept as the header or not. It reopens rule 7 for those three cases only; Ctrl, Alt and GUI keep
    it, as the picker's Shifted group already reads "!" alone.
+
+**Studied** (2026-11-16):
+
+- **The data.** QMK's `data/constants/keycodes/extras/` holds 72 files, **6665 aliases** -- about 90 a
+  layout, each `"KC_7": {"key": "DE_7", ...}` or an expression, `S(DE_7)`, resolving through the
+  layout's own names. The 69 layouts Nazg has are the same files (keycodes.md, "Regenerating the host
+  layouts"), so the names are one more pass over them, by hand, no generator.
+- **A name means something only within its layout.** Prefixes are shared: `FR_` by French, French
+  AFNOR, French (Mac ISO) and Canadian French -- `FR_A` is `KC_Q` on French, `KC_A` on Canadian
+  French; `DE_AT` is `ALGR(KC_Q)` on German, `A(KC_L)` on German (Mac ISO); 16 prefixes in all, `SE_`
+  on five. So the host layout chosen decides what a name means, and which name a keycode gets.
+  Typed in the Any entry under another layout, a name every layout using it agrees on can be read;
+  one they disagree on cannot, and the message says which layout to choose.
+- **Where names would show**: the hover (`KC_7 -- DE_7`, `LSFT(KC_7) -- DE_SLSH`), the key line, the
+  picker's search; read by the Any entry. The QMK expression stays what is written to files and
+  shown first -- the board stores it, and VIA and Vial know no other.
+- **The character on the key is already half built**: the picker's tile does it for Shift
+  (`NazgKeycodePicker.cpp`, `shiftAlone`: the Shift legend as the plain one, the header dropped).
+  The board would take the same step in `LegendFor()`'s `ModifiedKey`, adding AltGr and Shift+AltGr
+  from the same table -- on the Mac layouts AltGr is Option, `A(X)`, as the table already reads it.
+
+**Mockup** (2026-11-16): [ui-design/international-keycodes.html](ui-design/international-keycodes.html) --
+a row of keys under five host layouts. On the key: today, the character alone, or with its small
+header kept; for Shift only, or AltGr and Shift+AltGr too. The name on hover: today, on the line,
+a line of its own ("German: DE_SLSH, types /"), or first. The Any entry showing the expression or
+the name, and reading names: DE_SLSH, DE_AT, FR_A, CH_EURO, FR_EURO to try.
+
+**Chosen by Rico** (2026-11-16): on the key, the character large with its **header kept**
+("Shift+" over "/"); for **Shift, AltGr and Shift+AltGr** (Option on the Mac layouts); the name on
+hover on **a line of its own** ("German: DE_SLSH, types /"); the Any entry showing the
+**expression**, reading names too -- the chosen layout's, another's where every layout using it
+agrees, refused with the layouts named where they differ.
+
+**Built** the same day: `CharacterTyped()` in `NazgKeycapLegend.*` (the legend, and hover's "types");
+`ui/NazgHostNames.*` and its data, `ui/NazgHostNameTable.cpp` (keycodes.md, "Regenerating the host
+layout names"); the hover line and the Any entry in `NazgKeymapSection.cpp`, the picker's search by
+name. Tests: `keycap_legend`, `host_names`.
 
 ## 20. Liked
 

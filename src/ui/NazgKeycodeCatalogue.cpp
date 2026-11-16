@@ -13,6 +13,7 @@
 #include "adapters/qmk/NazgQmkKeycodeCodec.h"
 #include "adapters/qmk/NazgQmkKeycodes.h"
 #include "ui/NazgBoardDescription.h"
+#include "ui/NazgHostNames.h"
 
 namespace nazg
 {
@@ -615,6 +616,10 @@ namespace nazg
         if (const auto* named = std::get_if<NamedKey>(&keycode))
             if (const qmk::KeycodeEntry* row = qmk::FindKeycodeByName(named->name, version); row != nullptr && row->label[0] != '\0')
                 text += std::string(" ") + row->label;
+
+        // The host layout's name for it, DE_SLSH: found by the name a keymap.c uses.
+        if (const std::string_view name = HostNameOf(keycode, context.layout); !name.empty())
+            text += " " + std::string(name);
 
         const KeycapLegend legend = LegendFor(keycode, context);
         for (const std::string* words : { &legend.plain, &legend.shifted, &legend.cylindrical.full,

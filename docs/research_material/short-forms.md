@@ -85,9 +85,13 @@ A layer name, once layers have them, replaces "L1".
 
 **7. Modified keys** -- `LCTL(KC_C)`: the modifiers as a header ending in "+", in the Host colour,
 over the key's own legend: "Ctrl+ / C". The "+" and the colour set it apart from a tap-hold's
-"Ctrl / C". Shift alone is no exception: "Shift+ / ! 1" for `S(KC_1)`, one rule for every
-modifier (Rico, 2026-10-04 -- it printed "!" alone before; only the keycode picker's tile still
-does, its Shifted group reading as symbols); Hyper and Meh print their
+"Ctrl / C". **Shift, AltGr or both, where the host layout types a character with them: that
+character alone under the header** -- "Shift+ / !" for `S(KC_1)`, "Shift+ / /" for `S(KC_7)` on
+German, "Alt Gr+ / @" for `RALT(KC_Q)` there; on a Mac layout Option, either side, is AltGr
+(Rico, 2026-11-16, after a tester asked for the resulting key -- tester-feedback.md, 19; from
+2026-10-04 it was "Shift+ / ! 1", the key's own pair, and before that "!" alone). Where the
+layout has nothing at that level -- `S(KC_A)`, Shift+AltGr on German -- the key's own legends
+stay. The picker's Shifted tiles drop the header, their group's title saying it. Hyper and Meh print their
 names ("Hyper+", "Meh+"); three modifiers shorten to initials ("C A S+"), and two to their
 shortest words where they do not fit ("Ctl ⌘+").
 

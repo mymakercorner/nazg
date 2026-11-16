@@ -616,10 +616,20 @@ namespace nazg
             {
                 // The modifiers as a header ending in "+", in the Host colour: "Ctrl+" over C --
                 // the "+" and the colour tell it from a tap-hold's "Ctrl" (short-forms.md, rule 7).
-                // Shift alone too: "Shift+" over "! 1" for LSFT(KC_1), one rule for every modifier
-                // (Rico, 2026-10-04); only the picker's tile shows the "!" alone.
                 KeycapLegend legend = NamedLegend(k.key, context);
                 legend.header       = { ModsWords(k.mods, context.names, "", "+"), CommandCategory::Host };
+
+                // Shift, AltGr or both, where the host layout types a character with them: that
+                // character alone under the header -- "Shift+" over "/" for LSFT(KC_7) on German
+                // (Rico, 2026-11-16; tester-feedback.md, 19). Elsewhere the key's own legends.
+                if (legend.placement == PlacementClass::Character)
+                    if (const std::optional<TypedCharacter> typed = CharacterTyped(k, context.layout))
+                    {
+                        legend.plain = typed->text;
+                        legend.shifted.clear();
+                        legend.altgr.clear();
+                        legend.shiftAltgr.clear();
+                    }
                 return legend;
             }
 
@@ -727,6 +737,41 @@ namespace nazg
     bool HostLayout::PrintsFourthLevel() const noexcept
     {
         return id == "bepo";
+    }
+
+    bool HostLayout::IsMac() const noexcept
+    {
+        return id.find("_mac") != std::string_view::npos;
+    }
+
+    std::optional<TypedCharacter> CharacterTyped(const Keycode& keycode, const HostLayout& layout)
+    {
+        std::string_view key;
+        size_t           level = 0;   // plain, Shift, AltGr, Shift+AltGr
+        if (const auto* named = std::get_if<NamedKey>(&keycode))
+            key = named->name;
+        else if (const auto* modified = std::get_if<ModifiedKey>(&keycode))
+        {
+            const uint8_t shift = Mod::LeftShift | Mod::RightShift;
+            const uint8_t altGr = layout.IsMac() ? Mod::LeftAlt | Mod::RightAlt : Mod::RightAlt;
+            if ((modified->mods & ~(shift | altGr)) != 0)
+                return std::nullopt;
+            key   = modified->key;
+            level = ((modified->mods & shift) != 0 ? 1 : 0) + ((modified->mods & altGr) != 0 ? 2 : 0);
+        }
+        else
+            return std::nullopt;
+
+        const HostLegend* host = layout.Find(key);
+        if (host == nullptr && (key == "KC_NUHS" || key == "KC_NUBS"))
+            host = layout.Find("KC_BSLS");
+        if (host == nullptr)
+            return std::nullopt;
+
+        const std::string_view levels[] = { host->plain, host->shifted, host->altgr, host->shiftAltgr };
+        if (levels[level].empty() || IsWord(levels[level]))
+            return std::nullopt;
+        return TypedCharacter{ Printable(levels[level]), (host->dead & (1u << level)) != 0 };
     }
 
     const HostLayout* FindHostLayout(std::string_view id) noexcept

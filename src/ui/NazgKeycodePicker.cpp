@@ -71,15 +71,11 @@ namespace nazg
             }
 
             // Shift alone with a character key: its Shift character alone, as VIA's tiles -- the
-            // board keeps "Shift+" over the pair, one rule for every modifier (short-forms.md, rule 7).
+            // board draws the same character under "Shift+" (tester-feedback.md, 19).
             if (const auto* modified = std::get_if<ModifiedKey>(&keycode);
                 shiftAlone && modified != nullptr && (modified->mods == Mod::LeftShift || modified->mods == Mod::RightShift) &&
-                !legend.shifted.empty())
-            {
-                legend.plain = legend.shifted;
-                legend.shifted.clear();
+                CharacterTyped(keycode, context.layout))
                 legend.header = {};
-            }
 
             if (dropHeader)
             {

@@ -41,7 +41,7 @@ exists, where, and how far it has been proven.
   `adapters/via/NazgDefinitionCheck.*`. User definitions live in a library (`library/`) in the data folder
   `SDL_GetPrefPath("mymakercorner", "Nazg")`, beside `settings.json`. Several candidates for a board:
   Nazg asks once and remembers the choice per device (via-registry.md).
-- **Workspace.** One window: a menu bar header (board menu, protocol, Vial lock, Settings), then
+- **Workspace.** One window: a menu bar header (board menu, protocol, host layout, Vial lock, Settings), then
   the keyboard list, the open board or Settings. Screens report clicks; `App` (`app/NazgApp.*`) acts. *Advanced tools*, off by default,
   shows designer and debugging tools only. The board
   screen is a section column, a strip, the board and a panel (`ui/NazgWorkspace.*`).
@@ -75,7 +75,9 @@ exists, where, and how far it has been proven.
   key shapes, themes, Arimo legends for 69 host layouts, command keys with category headers and
   bands, colours from `ui/NazgPalette.*`, transparent and `KC_NO` keys faint with ▽ / ✕ on a
   corner badge, peek, the lighting policy. `legend_font` and `palette`
-  tests check every keycode and theme.
+  tests check every keycode and theme. A key sent with Shift or AltGr shows the character it
+  types under its header; QMK's international names (`DE_SLSH`, `ui/NazgHostNames.*`, 6582 over
+  the 69 layouts) on hover, in the Any entry and the picker's search (2026-11-16).
 - **Sections** (`ui/NazgSection.h`; the column planned by `PlanSections()`):
   - **Keymap** -- edit one key, written and read back; the keycode picker (tabs, search, 1u
     tiles; Basic a full-size keyboard in the host layout's shape -- ANSI, ISO, JIS -- and Extra the
@@ -182,6 +184,7 @@ one board to unlock).
 | The web build (2026-10-24): all tests under Node; the list, Settings, both bundles, settings kept across a reload; in Chrome over WebHID the F77 added, unlocked, key test, keys changed, Leyden Jar diagnostics; in Edge the Concordia with its definition imported, Load from file, Save to file, Export definition (Rico) | The web build on a high-DPI display |
 | Linux in WSL (2026-10-18): GCC 13 build, all tests; the F77 lent by usbipd, refused until a udev rule, then Vial, unlock, keymap and Diagnostics (Rico) | Linux on a real desktop: uaccess, X11, the window icon, a locked board's key test (WSLg gets no keys from a board lent to Linux) |
 | The AppImage (2026-10-18, released in 0.1.0-test.3): built in the container, 49 tests passing there, glibc 2.27 and libudev only; started in WSL, the F77 shown "not allowed" with Allow... (Rico). On a tester's KDE desktop (2026-10-24), a Keychron on VIA: started as it was, a few keys changed, the key test reading the switches (Keychron's `VIA_INSECURE`) -- his board already allowed, so no Allow... | The AppImage on an old distribution; Wayland with libdecor (GNOME) |
+| The macOS app (2026-11-16, `0.1.0-test.7`): a keebtalk tester's M4 on macOS 27.0.1 -- opens, draws, a Vial split board loaded, keymap and key test used (tester-feedback.md, third round). Graphics "a bit blurry", cause unknown | Gatekeeper and Input Monitoring, as met by a user; the blur; an Intel Mac |
 | A board Linux does not allow, in WSL on the F77 (Rico, 2026-10-18): "not allowed", Allow... with the commands pasted (no pkexec there), Nazg's rule file written; Allowed, Stop allowing, the file deleted -- a group rule standing in for uaccess | pkexec's password window; uaccess giving the board; whether Stop allowing acts before a replug |
 
 ## Traps already found
@@ -232,8 +235,9 @@ his answers on item 9. The user who asked which definition is loaded: does the t
 of test with its layers. `0.1.0-test.5` (2026-10-24) was the first **in a browser**, at
 https://mymakercorner.com/nazg/ -- put online by publishing it -- beside the
 Windows zip, the AppImage, the macOS app and the manual page, a GitHub pre-release. `0.1.0-test.4`,
-the same day, was the first for macOS and the first built by GitHub from its tag. Above all the app on a colleague's Apple Silicon
-Mac: does it open past Gatekeeper, draw, see a board, and does macOS ask for Input Monitoring.
+the same day, was the first for macOS and the first built by GitHub from its tag. **macOS works**
+(2026-11-16): a tester's M4 opened test.7, drew it and used a Vial board -- the graphics a bit
+blurry, unexplained (tester-feedback.md, 13); Gatekeeper and Input Monitoring went unreported.
 Still open from test.3 (2026-10-18): Linux's Allow... on a real desktop -- the first Linux
 tester's (KDE and a Keychron, 2026-10-24: the AppImage, keys and the key test work) needed none;
 hotplug, saved layouts, the Device section and the key test on testers' boards. From test.2: the

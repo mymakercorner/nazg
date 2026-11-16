@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- Mockup of international keycodes (tester-feedback.md, 19).
+
+     First round (2026-11-16), after a macOS tester's report on 0.1.0-test.7: "international QMK
+     keycodes don't seem to be recognized/if combined with a modifier like the 7 in my keymap, it
+     would be great to show the resulting key". Two parts:
+
+     1. The character on the key. Today S(KC_7) is "Shift+" over the 7's keycap, as every modified
+        key is (short-forms.md, rule 7). The variants draw the character the key types instead --
+        "/" on German -- for Shift, and optionally AltGr and Shift+AltGr (Option on the Mac
+        layouts), with or without the small header. A key with nothing at that level stays as
+        today: S(KC_A), and Alt on a PC layout. Ctrl and tap-hold keys are never touched.
+
+     2. QMK's international names -- DE_SLSH, FR_A, CH_EURO -- by the host layout chosen: on the
+        hover (three ways), in the Any entry (shown, and read). A name means something only within
+        its layout: FR_A is KC_Q on French and KC_A on Canadian French, DE_AT is RALT(KC_Q) on
+        German and LALT(KC_L) on German (Mac ISO). The Any entry reads a name of the chosen layout;
+        a name of another one when every layout using it agrees, and otherwise says which to choose.
+
+     The keymap is fixed -- a made-up row in the spirit of the tester's -- and the legends come from
+     NazgHostLayoutTable.cpp, the names from QMK's keycodes_*_0.0.1.hjson, for five layouts.
+
+     Settled 2026-11-16 (Rico): Header kept, for Shift and AltGr, the name on a line of its own,
+     the Any entry showing the expression. The toggles keep the alternatives. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>International keycodes</title>
+<style>
+:root{--window:#f3f3f5;--menubar:#e3e4e9;--text:#1d1e22;--muted:#6b6e78;--control:#ffffff;--border:#c8cad2;--accent:#3b82f6;--accent-text:#fff;--panel:#f8f8fa;--selected:rgba(59,130,246,.16);
+--ok:#15803d;--warn:#c2410c;--err:#dc2626;--host:#0e7490;--behaviour:#7c3aed;--cap:#ffffff;--capedge:#b9bcc6;--capside:#e4e6ec;--plate:#d9dbe2;--sel:#3b82f6}
+:root[data-theme="dark"]{--window:#0f0f11;--menubar:#24252b;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--accent:#4296fa;--accent-text:#fff;--panel:#16171b;--selected:rgba(66,150,250,.22);
+--ok:#4ade80;--warn:#fb923c;--err:#f87171;--host:#22d3ee;--behaviour:#a78bfa;--cap:#2a2c34;--capedge:#454856;--capside:#1f2027;--plate:#1a1b21;--sel:#4296fa}
+*{box-sizing:border-box}
+body{margin:0;background:var(--window);color:var(--text);font-family:Arimo,"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+.controls{display:flex;flex-wrap:wrap;gap:8px 22px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.group .name{color:var(--muted);margin-right:4px}
+button{font:inherit;padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--control);color:var(--text);cursor:pointer}
+button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+code{font-family:Consolas,"DejaVu Sans Mono",monospace;font-size:12px}
+.stage{padding:16px;overflow-x:auto}
+.frame{position:relative;margin:0 auto;width:1000px;border:1px solid var(--border);border-radius:8px;background:var(--window);box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.menubar{display:flex;gap:10px;align-items:center;background:var(--menubar);padding:0 12px;height:27px;border-radius:8px 8px 0 0}
+.menubar b{font-size:14px}
+.view{padding:14px 18px 18px}
+.plate{background:var(--plate);border-radius:10px;padding:14px;display:inline-block}
+.keys{position:relative;height:62px}
+.key{position:absolute;top:0;width:62px;height:62px;border-radius:7px;background:var(--capside);border:1px solid var(--capedge);cursor:pointer}
+.key.sel{outline:2px solid var(--sel);outline-offset:1px}
+.key .top{position:absolute;inset:3px 4px 6px 4px;border-radius:5px;background:var(--cap)}
+.key .l{position:absolute;line-height:1;white-space:nowrap}
+.key .big{font-size:17px;font-weight:600}
+.key .huge{font-size:21px;font-weight:600}
+.key .sm{font-size:11px;color:var(--muted)}
+.key .hdr{position:absolute;top:5px;right:6px;font-size:9.5px;font-weight:700;color:var(--host);white-space:nowrap}
+.key .hdr.beh{color:var(--behaviour)}
+.key .band{position:absolute;left:4px;right:4px;top:3px;height:3px;border-radius:3px 3px 0 0;background:var(--behaviour)}
+.key.changed .top{box-shadow:inset 0 0 0 1px var(--accent)}
+.caption{display:flex;gap:0;margin-top:6px;position:relative;height:30px}
+.caption span{position:absolute;width:62px;text-align:center;font-size:10px;color:var(--muted);line-height:1.2}
+.tip{position:absolute;z-index:20;padding:5px 9px;border:1px solid var(--border);border-radius:6px;background:var(--control);box-shadow:0 3px 10px rgba(0,0,0,.15);white-space:pre;pointer-events:none;font-size:12.5px;line-height:1.45}
+.tip .nm{color:var(--host)}
+.keyline{display:flex;align-items:center;gap:8px;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}
+.keyline input{font-family:Consolas,"DejaVu Sans Mono",monospace;font-size:12.5px;padding:3px 6px;width:230px;border:1px solid var(--border);border-radius:4px;background:var(--control);color:var(--text)}
+.keyline input.bad{border-color:var(--err)}
+.msg.ok{color:var(--ok)}.msg.err{color:var(--err)}.msg.warn{color:var(--warn)}
+.tries{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.tries button{font-family:Consolas,monospace;font-size:12px;padding:2px 8px}
+.notes{max-width:1000px;margin:0 auto;padding:4px 16px 30px;color:var(--muted);line-height:1.55}
+.notes b{color:var(--text);font-weight:600}
+.notes p{margin:0 0 8px}
+</style>
+</head>
+<body>
+<div class="controls" id="controls"></div>
+<div class="stage"><div class="frame" id="frame"></div></div>
+<div class="notes" id="notes"></div>
+<script>
+"use strict";
+// Legends, NazgHostLayoutTable.cpp: [plain, shift, altgr, shift+altgr] for the keys used here.
+const L = {
+  "US": { mac:false, keys:{ "7":["7","&"], "1":["1","!"], "8":["8","*"], Q:["Q"], E:["E"], L:["L"], A:["A"], C:["C"], NUBS:["\\","|"] } },
+  "German": { mac:false, keys:{ "7":["7","/","{"], "1":["1","!"], "8":["8","(","["], Q:["Q","","@"], E:["E","","€"], L:["L"], A:["A"], C:["C"], NUBS:["<",">","|"] } },
+  "German (Mac ISO)": { mac:true, keys:{ "7":["7","/","|","\\"], "1":["1","!","¡","¬"], "8":["8","(","{","˜"], Q:["Q","","«","»"], E:["E","","€","‰"], L:["L","","@","ﬂ"], A:["A","","Å"], C:["C","","Ç"], NUBS:["<",">","≤","≥"] } },
+  "French": { mac:false, keys:{ "7":["è","7","`"], "1":["&","1"], "8":["_","8","\\"], Q:["A"], E:["E","","€"], L:["L"], A:["Q"], C:["C"], NUBS:["<",">"] } },
+  "Swiss De": { mac:false, keys:{ "7":["7","/","|"], "1":["1","+","¦"], "8":["8","(","¢"], Q:["Q"], E:["E","","€"], L:["L"], A:["A"], C:["C"], NUBS:["<",">","\\"] } },
+};
+// QMK's names, keycodes_*_0.0.1.hjson, by expression as Nazg prints it.
+const NAMES = {
+  "US": { "LSFT(KC_7)":"KC_AMPR", "LSFT(KC_1)":"KC_EXLM", "LSFT(KC_8)":"KC_ASTR" },
+  "German": { "KC_7":"DE_7", "LSFT(KC_7)":"DE_SLSH", "LSFT(KC_1)":"DE_EXLM", "LSFT(KC_8)":"DE_LPRN", "RALT(KC_Q)":"DE_AT", "RALT(KC_E)":"DE_EURO", "RALT(KC_7)":"DE_LCBR", "KC_NUBS":"DE_LABK", "KC_C":"DE_C", "KC_A":"DE_A", "KC_Y":"DE_Z", "KC_Z":"DE_Y" },
+  "German (Mac ISO)": { "KC_7":"DE_7", "LSFT(KC_7)":"DE_SLSH", "LSFT(KC_1)":"DE_EXLM", "LSFT(KC_8)":"DE_LPRN", "LALT(KC_L)":"DE_AT", "LALT(KC_Q)":"DE_LDAQ", "LALT(KC_E)":"DE_EURO", "LSFT(LALT(KC_7))":"DE_BSLS", "KC_NUBS":"DE_LABK", "KC_C":"DE_C", "KC_A":"DE_A" },
+  "French": { "KC_7":"FR_EGRV", "LSFT(KC_7)":"FR_7", "LSFT(KC_1)":"FR_1", "LSFT(KC_8)":"FR_8", "RALT(KC_E)":"FR_EURO", "RALT(KC_7)":"FR_GRV", "KC_NUBS":"FR_LABK", "KC_Q":"FR_A", "KC_A":"FR_Q", "KC_C":"FR_C" },
+  "Swiss De": { "KC_7":"CH_7", "LSFT(KC_7)":"CH_SLSH", "LSFT(KC_1)":"CH_PLUS", "LSFT(KC_8)":"CH_LPRN", "RALT(KC_E)":"CH_EURO", "RALT(KC_7)":"CH_PIPE", "KC_NUBS":"CH_LABK", "KC_C":"CH_C", "KC_A":"CH_A" },
+};
+// What a name means in each of QMK's layouts that has it -- the Any entry's examples.
+const ACROSS = {
+  "FR_A": { "French":"KC_Q", "French AFNOR":"KC_Q", "French (Mac ISO)":"KC_Q", "Canadian French":"KC_A" },
+  "DE_SLSH": { "German":"LSFT(KC_7)", "German (Mac ISO)":"LSFT(KC_7)" },
+  "DE_AT": { "German":"RALT(KC_Q)", "German (Mac ISO)":"LALT(KC_L)" },
+  "CH_EURO": { "Swiss De":"RALT(KC_E)", "Swiss Fr":"RALT(KC_E)" },
+  "FR_EURO": { "French":"RALT(KC_E)", "French AFNOR":"RALT(KC_E)", "French (Mac ISO)":"LALT(KC_RBRC)" },
+};
+const LABELS = { "KC_7":"7 and &", "KC_NUBS":"Non-US \\ and |", "KC_C":"C", "KC_A":"A" };
+
+// The row: [expression, base key, modifiers] -- mods: S shift, G AltGr (right Alt), A left Alt, C ctrl, MT tap-hold.
+const ROW = [
+  ["KC_7","7",""], ["LSFT(KC_7)","7","S"], ["LSFT(KC_1)","1","S"], ["LSFT(KC_8)","8","S"],
+  ["RALT(KC_Q)","Q","G"], ["RALT(KC_E)","E","G"], ["LALT(KC_L)","L","A"], ["LSFT(RALT(KC_7))","7","SG"],
+  ["LSFT(KC_A)","A","S"], ["LCTL(KC_C)","C","C"], ["MT(MOD_LCTL,KC_A)","A","MT"], ["KC_NUBS","NUBS",""],
+];
+
+const state = { layout:'German', names:'Windows', onKey:'Alone', which:'Shift and AltGr', hover:'Line of its own', entry:'Expression', theme:'Light', sel:1, typed:null, msg:null };
+const VARIANTS = [
+  ['layout','Host layout',Object.keys(L)],
+  ['names','Modifier names',['Windows','Mac']],
+  ['onKey','On the key',['Today','Alone','Header kept']],
+  ['which','For',['Shift','Shift and AltGr']],
+  ['hover','Name on hover',['Today','On the line','Line of its own','Name first']],
+  ['entry','Any entry shows',['Expression','Name']],
+  ['theme','Theme',['Light','Dark']],
+];
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function modWords(mods){
+  const mac = state.names === 'Mac';
+  const altgr = mac ? 'Option' : 'Alt Gr', alt = mac ? 'Option' : 'Alt';
+  // Two modifiers in short words, as Nazg fits them on 1u.
+  return { S:'Shift+', G:altgr+'+', A:alt+'+', SG:mac ? 'Sft Opt+' : 'Sft AltGr+', C:'Ctrl+' }[mods] || '';
+}
+// The level the modifiers reach on the host layout: 1 Shift, 2 AltGr, 3 both; null when none.
+function levelOf(mods){
+  const mac = L[state.layout].mac;
+  if (mods === 'S') return 1;
+  if (mods === 'G' || (mods === 'A' && mac)) return state.which === 'Shift' ? null : 2;
+  if (mods === 'SG') return state.which === 'Shift' ? null : 3;
+  return null;
+}
+// Text widths, to tell when the header and the top legend would meet.
+const measure = document.createElement('canvas').getContext('2d');
+function widthOf(text, font){ measure.font = font; return measure.measureText(text).width; }
+const HEADER_FONT = '700 9.5px Arimo, "Segoe UI", Helvetica, Arial, sans-serif';
+const BIG_FONT = '600 17px Arimo, "Segoe UI", Helvetica, Arial, sans-serif';
+
+// A keycap's legends; `header` is the words in the top right corner, if any. As in Nazg, the top
+// legend moves below the header only when the two would meet on its row (ui-design.md, "A legend
+// moves aside for the header only when it shares the header's row").
+function keycapHtml(lg, header = ''){
+  const [p, s='', g=''] = lg;
+  const top = (!s && !g && p.length === 1 && /\p{L}/u.test(p)) ? p : s;
+  const meets = header && top && 9 + widthOf(top, BIG_FONT) + 3 > 62 - 6 - widthOf(header, HEADER_FONT);
+  const topY = meets ? 17 : 8;
+  if (top === p) return `<span class="l big" style="left:9px;top:${topY}px">${esc(p)}</span>`;
+  return `${s?`<span class="l big" style="left:9px;top:${topY}px">${esc(s)}</span>`:''}<span class="l big" style="left:9px;bottom:${meets ? 6 : 10}px">${esc(p)}</span>${g?`<span class="l sm" style="right:8px;bottom:${meets ? 7 : 11}px">${esc(g)}</span>`:''}`;
+}
+// One key: what is drawn, and whether the new rule changed it.
+function keyHtml([expr, base, mods], i){
+  const lg = L[state.layout].keys[base];
+  let inner, changed = false;
+  if (mods === 'MT') inner = `<span class="band"></span><span class="hdr beh">Ctrl</span>${keycapHtml(lg, 'Ctrl')}`;
+  else if (!mods) inner = keycapHtml(lg);
+  else {
+    const level = levelOf(mods), ch = level !== null ? (lg[level] || '') : '';
+    if (state.onKey !== 'Today' && ch) {
+      changed = true;
+      const hdr = state.onKey === 'Header kept' ? `<span class="hdr">${esc(modWords(mods))}</span>` : '';
+      inner = `${hdr}<span class="l huge" style="left:50%;top:50%;transform:translate(-50%,-44%)">${esc(ch)}</span>`;
+    } else inner = `<span class="hdr">${esc(modWords(mods))}</span>${keycapHtml(lg, modWords(mods))}`;
+  }
+  return `<div class="key ${state.sel===i?'sel':''} ${changed?'changed':''}" style="left:${i*72}px" data-i="${i}"><div class="top"></div>${inner}</div>`;
+}
+function nameOf(expr){ return (NAMES[state.layout] || {})[expr]; }
+function typesOf([expr, base, mods]){
+  const lg = L[state.layout].keys[base]; if (mods === 'MT' || mods === 'C') return '';
+  const level = mods ? ({S:1,G:2,SG:3,A:L[state.layout].mac?2:null})[mods] : 0;
+  return level === null || level === undefined ? '' : (lg[level] || '');
+}
+function hoverText(i){
+  const k = ROW[i], expr = k[0], name = nameOf(expr), label = LABELS[expr], ch = typesOf(k);
+  const where = `row 2, column ${i}`;
+  const today = label ? `${expr} -- ${label}` : expr;
+  if (state.hover === 'Today' || !name) return esc(today) + '\n' + where;
+  if (state.hover === 'On the line') return `${esc(today)} -- <span class="nm">${esc(name)}</span>\n${where}`;
+  if (state.hover === 'Line of its own') return `${esc(today)}\n<span class="nm">${esc(state.layout)}: ${esc(name)}</span>${ch?`, types ${esc(ch)}`:''}\n${where}`;
+  return `<span class="nm">${esc(name)}</span> -- ${esc(expr)}\n${where}`;
+}
+
+// The Any entry: a name of the chosen layout, else one every layout using it agrees on.
+function readEntry(text){
+  const t = text.trim().toUpperCase();
+  const own = Object.entries(NAMES[state.layout] || {}).find(([, n]) => n === t);
+  if (own) return { ok:true, expr: own[0], msg: `${t} is ${own[0]} on ${state.layout}: written` };
+  if (ACROSS[t]) {
+    const values = [...new Set(Object.values(ACROSS[t]))];
+    const layouts = Object.keys(ACROSS[t]);
+    if (values.length === 1) return { ok:true, expr: values[0], warn:true, msg: `${t} is ${values[0]} on ${layouts.join(' and ')}: written -- the host layout is ${state.layout}` };
+    return { ok:false, msg: `${t} differs between ${layouts.map(l => `${l} (${ACROSS[t][l]})`).join(', ')} -- choose one as the host layout` };
+  }
+  if (/^(KC_\w+|L?R?[A-Z]{3,4}\(.+\)|MT\(.+\)|LT\(.+\))$/.test(t)) return { ok:true, expr:t, msg:'written' };
+  return { ok:false, msg:'not a keycode Nazg knows' };
+}
+
+function drawControls(){
+  const c = document.getElementById('controls');
+  c.innerHTML = VARIANTS.map(([k,name,opts]) => `<div class="group"><span class="name">${name}</span>${opts.map(o=>`<button class="${state[k]===o?'on':''}" data-k="${k}" data-v="${esc(o)}">${esc(o)}</button>`).join('')}</div>`).join('');
+  c.querySelectorAll('button').forEach(b => b.onclick = () => { state[b.dataset.k] = b.dataset.v; state.typed = null; state.msg = null; draw(); });
+}
+
+function draw(){
+  document.documentElement.dataset.theme = state.theme === 'Dark' ? 'dark' : 'light';
+  drawControls();
+  const f = document.getElementById('frame');
+  const sel = ROW[state.sel], selName = nameOf(sel[0]);
+  const shown = state.typed !== null ? state.typed : (state.entry === 'Name' && selName ? selName : sel[0]);
+  const msg = state.msg ? `<span class="msg ${state.msg.ok ? (state.msg.warn ? 'warn' : 'ok') : 'err'}">${esc(state.msg.msg)}</span>` : '';
+  f.innerHTML = `<div class="menubar"><b>Split 40 ▾</b><span class="muted" style="color:var(--muted)">Vial 6</span><span>Layout: ${esc(state.layout)}</span><span style="flex:1"></span><span>Settings</span></div>
+  <div class="view">
+    <div class="plate"><div class="keys" style="width:${ROW.length*72-10}px">${ROW.map(keyHtml).join('')}</div>
+      <div class="caption">${ROW.map((k,i)=>`<span style="left:${i*72}px">${esc(k[0].replace('MT(MOD_LCTL,','MT(LCTL,'))}</span>`).join('')}</div></div>
+    <div class="keyline"><span style="color:var(--muted)">Row 2, column ${state.sel}</span>
+      <input id="entry" class="${state.msg && !state.msg.ok ? 'bad' : ''}" value="${esc(shown)}" spellcheck="false">
+      <button>Press a key</button>${msg}</div>
+    <div class="tries"><span style="color:var(--muted)">Type one and press Enter:</span>${['DE_SLSH','DE_AT','FR_A','CH_EURO','FR_EURO','LSFT(KC_7)'].map(t=>`<button data-try="${t}">${t}</button>`).join('')}</div>
+  </div>`;
+
+  f.querySelectorAll('.key').forEach(k => {
+    const i = +k.dataset.i;
+    k.onclick = () => { state.sel = i; state.typed = null; state.msg = null; draw(); };
+    k.onmouseenter = () => { const t = document.createElement('div'); t.className = 'tip'; t.id = 'tip'; t.innerHTML = hoverText(i);
+      const r = k.getBoundingClientRect(), fr = f.getBoundingClientRect(); t.style.left = Math.min(r.left - fr.left, 1000 - 330) + 'px'; t.style.top = (r.bottom - fr.top + 8) + 'px'; f.appendChild(t); };
+    k.onmouseleave = () => { const t = document.getElementById('tip'); if (t) t.remove(); };
+  });
+  const entry = document.getElementById('entry');
+  entry.onkeydown = e => { if (e.key === 'Enter') { state.typed = entry.value; state.msg = readEntry(entry.value); if (state.msg.ok) state.typed = state.entry === 'Name' ? entry.value.toUpperCase() : state.msg.expr; draw(); } };
+  f.querySelectorAll('[data-try]').forEach(b => b.onclick = () => { state.typed = b.dataset.try; state.msg = readEntry(b.dataset.try); if (state.msg.ok) state.typed = state.entry === 'Name' && b.dataset.try.includes('_') && !b.dataset.try.startsWith('LSFT') ? b.dataset.try : state.msg.expr; draw(); });
+  drawNotes();
+}
+
+function drawNotes(){
+  document.getElementById('notes').innerHTML = `
+  <p><b>The row.</b> <code>KC_7</code>; three Shift keys; AltGr on Q and E; <code>LALT(KC_L)</code>, Alt on a PC layout and Option on a Mac one -- where German (Mac ISO) types "@";
+  Shift+AltGr on 7; then what never changes: <code>LSFT(KC_A)</code> (no Shift character in the table, so as today), <code>LCTL(KC_C)</code>, a tap-hold, <code>KC_NUBS</code>.
+  A key the new rule redraws has a thin accent ring here, for the mockup only. Hover a key for its tooltip; click one for the key line.</p>
+  <p><b>On the key.</b> <i>Alone</i>: the character large, as the picker's Shifted tiles already do -- "/" reads as what the key types, but nothing says a modifier is sent with it.
+  <i>Header kept</i>: the small "Shift+" stays in the corner over the character -- what is typed, and how. Neither is drawn where the layout has nothing at that level.</p>
+  <p><b>For.</b> AltGr is where international layouts keep @, €, { and |, so <i>Shift</i> alone would leave those as "Alt Gr+" over the keycap. On a Mac layout Option is AltGr, either side, as the table already reads QMK's <code>A()</code>.</p>
+  <p><b>Names.</b> The name the chosen layout gives the expression -- none when it has none (<code>RALT(KC_Q)</code> on German (Mac ISO): QMK names <code>A(DE_Q)</code> only).
+  <i>Line of its own</i> says which layout the name is from, and what the key types. The QMK expression stays what is written to files.</p>
+  <p><b>Any entry.</b> Reads a name of the chosen layout; one from another layout when every layout using it agrees (DE_SLSH, CH_EURO -- written, in the warning colour, naming the host layout);
+  refuses one they disagree on (FR_A, DE_AT under US), saying which to choose. <i>Name</i> shows the key's name in the entry when it has one -- but what is typed back must read the same.</p>`;
+}
+draw();
+</script>
+</body>
+</html>

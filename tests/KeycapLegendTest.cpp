@@ -134,9 +134,9 @@ namespace
         Check(Pair(Of(nazg::NamedKey{ "KC_NUHS" }, french), "*", "µ"), "the ISO hash key");
         Check(Pair(Of(nazg::NamedKey{ "KC_NUBS" }, french), "<", ">"), "the extra ISO key");
         Check(Says(Of(nazg::NamedKey{ "KC_ENT" }, french), "Enter"), "layout-independent keys are unchanged");
-        Check(Pair(Of(nazg::ModifiedKey{ Mod::LeftShift, "KC_1" }, french), "&", "1") &&
+        Check(Pair(Of(nazg::ModifiedKey{ Mod::LeftShift, "KC_1" }, french), "1", "") &&
                   HeaderOf(Of(nazg::ModifiedKey{ Mod::LeftShift, "KC_1" }, french)) == "Shift+",
-              "LSFT(KC_1) on AZERTY: Shift+ over the key's own 1 and &");
+              "LSFT(KC_1) on AZERTY: Shift+ over the 1 it types there");
 
         // The AltGr character, printed always where the layout has one (ui-design.md, "Host
         // layouts in the mockup").
@@ -253,12 +253,40 @@ namespace
     {
         std::printf("composed keys\n");
 
-        // Shift alone is no exception: "Shift+" over the key's own pair, as any modifier.
+        // Shift, AltGr or both, where the host layout types a character with them: "Shift+" over
+        // that character alone (tester-feedback.md, 19).
         const KeycapLegend shifted1 = Of(nazg::ModifiedKey{ Mod::LeftShift, "KC_1" });
-        Check(Pair(shifted1, "1", "!") && shifted1.header == Header{ { "Shift+", "" }, Category::Host },
-              "LSFT(KC_1): Shift+ over ! 1, one rule for every modifier");
+        Check(Pair(shifted1, "!", "") && shifted1.header == Header{ { "Shift+", "" }, Category::Host },
+              "LSFT(KC_1): Shift+ over the ! it types");
         const KeycapLegend rightShifted = Of(nazg::ModifiedKey{ Mod::RightShift, "KC_SLSH" });
-        Check(Pair(rightShifted, "/", "?") && rightShifted.Band() == Category::Host, "on either Shift");
+        Check(Pair(rightShifted, "?", "") && rightShifted.Band() == Category::Host, "on either Shift");
+
+        const HostLayout& german    = *nazg::FindHostLayout("german");
+        const HostLayout& germanMac = *nazg::FindHostLayout("german_mac_iso");
+        Check(Pair(Of(nazg::ModifiedKey{ Mod::LeftShift, "KC_7" }, german), "/", ""), "LSFT(KC_7) on German: /");
+        const KeycapLegend at = Of(nazg::ModifiedKey{ Mod::RightAlt, "KC_Q" }, german);
+        Check(Pair(at, "@", "") && HeaderOf(at) == "Alt Gr+" && at.altgr.empty(), "RALT(KC_Q) on German: Alt Gr+ over @");
+        Check(Pair(Of(nazg::ModifiedKey{ Mod::LeftAlt, "KC_L" }, germanMac), "@", ""),
+              "on a Mac layout Option is AltGr: LALT(KC_L) on German (Mac ISO) is @");
+        Check(Pair(Of(nazg::ModifiedKey{ Mod::LeftAlt, "KC_L" }, german), "L", ""),
+              "Alt on a PC layout types nothing: the key's own legend");
+        Check(Pair(Of(nazg::ModifiedKey{ Mod::LeftShift | Mod::RightAlt, "KC_7" }, german), "7", "/"),
+              "nothing at Shift+AltGr on German: the key's own legends");
+        Check(Pair(Of(nazg::ModifiedKey{ Mod::LeftShift | Mod::LeftAlt, "KC_7" }, germanMac), R"(\)", ""),
+              "Shift+Option+7 on German (Mac ISO) is a backslash");
+        Check(Pair(Of(nazg::ModifiedKey{ Mod::LeftCtrl, "KC_7" }, german), "7", "/"), "Ctrl keeps the key's own legends");
+
+        // What a keycode types, for hover too.
+        const auto typed = [](const nazg::Keycode& keycode, const HostLayout& layout)
+        {
+            const std::optional<nazg::TypedCharacter> character = nazg::CharacterTyped(keycode, layout);
+            return character ? character->text + (character->dead ? " dead" : "") : std::string("none");
+        };
+        Check(typed(nazg::NamedKey{ "KC_Y" }, german) == "Z", "KC_Y types Z on German");
+        Check(typed(nazg::ModifiedKey{ Mod::LeftShift, "KC_A" }, german) == "none", "Shift and a letter: none in the table");
+        Check(typed(nazg::NamedKey{ "KC_GRV" }, german) == "^ dead", "German's ^ is a dead key");
+        Check(typed(nazg::NamedKey{ "KC_ENT" }, german) == "none", "Enter types no character");
+        Check(typed(nazg::LayerTapKey{ 1, "KC_A" }, german) == "none", "a tap-hold is not a typed character");
 
         // A modified key: the modifiers as a header ending in "+", in the Host colour.
         const KeycapLegend shiftedA = Of(nazg::ModifiedKey{ Mod::LeftShift, "KC_A" });

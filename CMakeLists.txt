@@ -211,6 +211,9 @@ set(NAZG_CORE_SOURCES
   src/ui/NazgKeycapLegend.h
   src/ui/NazgKeycapLegend.cpp
   src/ui/NazgHostLayoutTable.cpp
+  src/ui/NazgHostNames.h
+  src/ui/NazgHostNames.cpp
+  src/ui/NazgHostNameTable.cpp
   src/ui/NazgHostTyping.h
   src/ui/NazgHostTyping.cpp
   src/ui/NazgComposeTable.cpp
@@ -493,6 +496,7 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(qmk_keycodes       tests/QmkKeycodesTest.cpp)
     nazg_add_test(qmk_keycode_codec  tests/QmkKeycodeCodecTest.cpp)
     nazg_add_test(keycap_legend      tests/KeycapLegendTest.cpp)
+    nazg_add_test(host_names         tests/HostNamesTest.cpp)
     nazg_add_test(host_typing        tests/HostTypingTest.cpp)
     nazg_add_test(macro_steps        tests/MacroStepsTest.cpp)
     nazg_add_test(tap_dance          tests/TapDanceTest.cpp)

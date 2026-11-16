@@ -438,6 +438,31 @@ matched exactly. The rules:
    the mask of the row it copies: `KC_BSLS` and `KC_NUHS` share theirs when their plain legends
    agree, and `KC_NUBS` takes `KC_BSLS`'s when it repeats its plain and Shift legends. 238 rows
    of 49 layouts, then 11 copied; every dead key QMK lists found its row.
+
+### Regenerating the host layout names
+
+`ui/NazgHostNameTable.cpp` holds QMK's international keycode names -- `DE_SLSH`, `FR_A`,
+`CH_EURO` -- for each of the 69 host layouts (2026-11-16, tester-feedback.md, 19): **6582 names**,
+committed data, no generator in the repo. Made from the same extras files as the host layouts, in
+a local QMK checkout (`rico_forked_qmk_firmware`, `1b02212452`, 2026-09-19). The rules:
+
+1. **Every alias of a layout's file, in its order**, its name once; an alias whose expression
+   resolves to its own name is dropped.
+2. **Expressions resolve to basic keycodes** through the layout's own names and QMK's US shifted
+   names with their aliases (Farsi's `KC_LT` is US's `KC_LABK`). `S()` is written `LSFT()`,
+   `ALGR()` `RALT()`, `A()` `LALT()`; `RCTL()` (Canadian Multilingual's second group) stays.
+3. **Basic names are Nazg's spelling**: QMK's long names and aliases (`KC_GRAVE`, `KC_ALGR`) map
+   to the one `adapters/qmk/NazgQmkKeycodeTable.cpp` has (`KC_GRV`, `KC_RALT`), read from QMK's
+   own `keycodes_*.hjson`.
+4. Arrays named `c_` and the layout id in CamelCase, layouts in `NazgHostLayoutTable.cpp`'s
+   order. `tests/HostNamesTest.cpp` reads every expression back in the oldest and latest keycode
+   versions, and pins the count.
+
+**A name means something only within its layout**: 16 prefixes are shared -- `FR_` by French,
+French AFNOR, French (Mac ISO) and Canadian French, where `FR_A` is `KC_Q` on the first three and
+`KC_A` on the last; `DE_AT` is `RALT(KC_Q)` on German, `LALT(KC_L)` on German (Mac ISO). So the
+host layout chosen decides a keycode's name, and the Any entry reads a name of another layout only
+when every layout having it agrees (`ui/NazgHostNames.*`).
 9. **The compositions** a dead key makes, `ui/NazgComposeTable.cpp`: every code point of
    U+00C0-U+024F and U+1E00-U+1EFF whose NFD is one base letter and one combining mark, from
    Python's `unicodedata` (Unicode 16: 383). `tests/HostTypingTest.cpp` types every character

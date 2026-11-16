@@ -26,6 +26,7 @@
 #include "transport/NazgDeviceChannel.h"
 #include "ui/NazgBoardDescription.h"
 #include "ui/NazgBoardView.h"
+#include "ui/NazgHostNames.h"
 #include "ui/NazgKeycapLegend.h"
 #include "ui/NazgKeyLine.h"
 #include "ui/NazgKeycodeCatalogue.h"
@@ -203,6 +204,16 @@ namespace nazg
                                    : std::string("\nnothing below to disable");
         else if (const LightingNote note = LightingNoteOf(resolved.keycode, m_Keyboard); !note.text.empty())
             text += "\n" + note.text;   // a lighting key that may do nothing on this firmware, or drives two systems
+
+        // QMK's name for it on the host layout, and what it types there: "German: DE_SLSH, types /"
+        // (Rico, 2026-11-16; tester-feedback.md, 19).
+        const HostLayout& layout = m_Legends.Layout();
+        if (const std::string_view name = HostNameOf(resolved.keycode, layout); !name.empty())
+        {
+            text += "\n" + std::string(layout.name) + ": " + std::string(name);
+            if (const std::optional<TypedCharacter> typed = CharacterTyped(resolved.keycode, layout))
+                text += ", types " + typed->text + (typed->dead ? " (a dead key)" : "");
+        }
 
         // A tap dance: all four actions -- the key shows the tap and the hold only.
         if (const auto* td = std::get_if<TapDanceKey>(&resolved.keycode); td && td->index < m_Keyboard.tapDances.size())
@@ -530,7 +541,7 @@ namespace nazg
         if (ImGui::IsItemEdited())
             m_ExpressionError.clear();
         ImGui::SetItemTooltip("Type a keycode as QMK writes it -- LT(1,KC_SPC), MT(MOD_LCTL,KC_A),\n"
-                              "C(S(KC_T)), OSM(MOD_LSFT), MO(2) -- and press Enter.");
+                              "C(S(KC_T)), OSM(MOD_LSFT), MO(2), or your host layout's DE_SLSH -- and press Enter.");
 
         // Press a key: the next key pressed on the computer's keyboard is written (ui-design.md, "The
         // Keys tab as a keyboard"). Clicked again, it stops listening.
@@ -552,9 +563,24 @@ namespace nazg
 
         if (entered)
         {
-            const std::optional<Keycode> typed = qmk::ParseExpression(m_Expression, version);
+            // A QMK expression, else an international name -- the host layout's, or one every
+            // layout having it agrees on, said with the write (tester-feedback.md, 19).
+            std::optional<Keycode> typed = qmk::ParseExpression(m_Expression, version);
+            m_NameNote.clear();
             if (!typed)
-                m_ExpressionError = "not a keycode Nazg knows";
+            {
+                HostNameReading reading = ReadHostName(m_Expression, m_Legends.Layout(), version);
+                typed = reading.keycode;
+                if (typed)
+                    m_NameNote = std::move(reading.note);
+                else if (reading.known)
+                    m_ExpressionError = reading.note.empty() ? "not a keycode this board has" : reading.note;
+            }
+            if (!typed)
+            {
+                if (m_ExpressionError.empty())
+                    m_ExpressionError = "not a keycode Nazg knows";
+            }
             else if (!qmk::EncodeKeycode(*typed, version))
                 m_ExpressionError = "this board cannot store it";
             else
@@ -738,6 +764,7 @@ namespace nazg
         m_IsWriting = true;
         m_Message.clear();
         m_IsWarning = false;
+        const std::string nameNote = std::exchange(m_NameNote, {});   // this write's alone
 
         try
         {
@@ -756,6 +783,13 @@ namespace nazg
                 // Once the selection has moved on, the message names the key written.
                 if (!m_Selected || m_Selected->row != cell.row || m_Selected->column != cell.column || m_Layer != layer)
                     m_Message += " on row " + std::to_string(cell.row) + ", column " + std::to_string(cell.column);
+
+                // Another layout's name: which, and that the host layout is not it.
+                if (!nameNote.empty())
+                {
+                    m_Message += " -- " + nameNote;
+                    m_IsWarning = true;
+                }
             }
             else
             {
