@@ -625,11 +625,11 @@ seen, with a count. A row or column label turns green once all its keys are seen
 grey points at that trace. A key lighting without being pressed points at ghosting, or a missing
 diode. **Start over** clears it.
 
-**What is tested is your choice**, at the strip's end: **Computer's keys** or **Switches**. The
-panel's first line always says which. Each test keeps what it has seen, so you can go from one to
-the other and back.
+**What is tested is your choice**, at the strip's end: **Switches**, at first, or **Computer's
+keys**. Nazg remembers the one you pick for the next time. The panel's first line always says
+which. Each test keeps what it has seen, so you can go from one to the other and back.
 
-- **Computer's keys**, chosen from the start on every board, tests what the computer receives --
+- **Computer's keys** tests what the computer receives --
   the keymap and the system as much as the switches, which is what most check after programming a
   board. **Hatched** keys send nothing the computer hears (layer keys, empty keys, Boot, macros)
   and cannot be tested this way. Keys sending the same thing light together, marked **?**. While
@@ -659,7 +659,7 @@ the other and back.
     Most VIA firmware refuses to report its switches, for safety, and a locked Vial board refuses
     until it is unlocked. Where it is refused the test falls back to the computer's keys and says
     why -- on a locked Vial board, click **Locked** in the header. Switches is greyed out once the
-    board is known not to report them.
+    board is known not to report them. Your choice stays Switches for the next board.
 
 While either test runs, the board types into Nazg, so keyboard navigation is off.
 

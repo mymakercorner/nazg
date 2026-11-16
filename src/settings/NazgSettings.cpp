@@ -99,7 +99,8 @@ namespace nazg
         document["workspace"]  = { { "boardHeight", settings.workspace.boardHeight },
                                    { "columnWidth", settings.workspace.columnWidth },
                                    { "columnFolded", settings.workspace.isColumnFolded } };
-        document["tools"]      = { { "advanced", settings.advancedTools } };
+        document["tools"]      = { { "advanced", settings.advancedTools },
+                                   { "keyTest", settings.keyTestOnSwitches ? "switches" : "computer" } };
         if (settings.window.width > 0)
             document["window"] = { { "x", settings.window.x },
                                    { "y", settings.window.y },
@@ -142,7 +143,13 @@ namespace nazg
         }
 
         if (const Json* tools = Find(document, "tools"))
+        {
             Read(*tools, "advanced", settings.advancedTools);
+            std::string keyTest;
+            Read(*tools, "keyTest", keyTest);
+            if (keyTest == "switches" || keyTest == "computer")
+                settings.keyTestOnSwitches = keyTest == "switches";
+        }
 
         // A place without a size is no place.
         if (const Json* window = Find(document, "window"))

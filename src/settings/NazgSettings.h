@@ -46,6 +46,11 @@ namespace nazg
         // ordinary user's way until asked for (ui-design.md, screen 6).
         bool advancedTools = false;
 
+        // The key test's choice, the last one made at its strip's end: the switches, by default
+        // (Rico, 2026-11-16; tester-feedback.md, 17), or the keys the computer receives. A board
+        // that cannot report its switches still falls back, without changing it.
+        bool keyTestOnSwitches = true;
+
         // The board's share of the height under the strip, as the splitter under it was left, and
         // the section column's width.
         WorkspaceLayout workspace;

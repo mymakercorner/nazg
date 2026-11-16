@@ -3169,8 +3169,12 @@ its second round.
   from the start on every board -- what most open the test for, after programming, layers included,
   and the same test whatever the firmware. Switches stay one click away, for a board just soldered:
   by position, ghosting and rollover, keys that send nothing -- why replacing them was declined, and
-  still is. Nazg no longer works out a test before the first press. Remembering the choice in
-  `settings.json` waits (Rico).
+  still is. Nazg no longer works out a test before the first press.
+- **Switches by default, the choice remembered** (Rico, 2026-11-16, changing the line above), after
+  a tester's report: the computer's keys confused him -- two keys sending a comma lit together with a
+  ? -- and he tests switches (tester-feedback.md, 17). The test picked at the strip's end is kept in
+  `settings.json`, per user (`tools.keyTest`: `"switches"` or `"computer"`), and a fresh start takes
+  it; a board that cannot report its switches still falls back, saying why, without changing it.
 - **The computer's keys test the layer shown**: the layers in the strip, as Keymap's, while that test
   runs; the board draws the layer chosen, its transparent keys faint with ▽ and not counted. The
   computer cannot tell which layer is on, so a key received counts on every layer whose key sends it:

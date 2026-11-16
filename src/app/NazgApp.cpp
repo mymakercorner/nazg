@@ -1410,7 +1410,7 @@ namespace nazg
         if (m_Board.matrix == nullptr)
         {
             auto view = std::make_unique<MatrixView>(m_Transport, m_Board.path, !m_Board.isVia, *m_Board.keyboard,
-                                                     m_Settings.legends);
+                                                     m_Settings.legends, m_Settings.keyTestOnSwitches);
             m_Board.matrix = view.get();
             m_Board.sections.push_back(std::move(view));
         }

@@ -11,14 +11,16 @@
 // wiring and no dimming. It starts as soon as it shows, one of two ways, chosen at the strip's end
 // (ui-design.md, "The key test"; Rico, 2026-10-26):
 //
-// - The computer's keys, first on every board: a key lights when the computer receives what it
+// - The computer's keys, by choice: a key lights when the computer receives what it
 //   sends -- the keymap and the system tested as much as the switches. A key sending nothing
 //   cannot be tested, hatched; keys sending the same thing light together, marked ?
 //   (model/NazgHostKeys.h). The strip has the layers: the board shows the one picked, or, while a
 //   key received is down, the layer it comes from -- the one whose own key sends it -- its entry
 //   in violet. VIA and Vial do not report the active layer: Nazg infers it. A key received counts
 //   on every layer whose key sends it, so each layer's count is its own.
-// - The switches, by choice: by position, whatever they send -- for a board just built. Until a key
+// - The switches, first on every board (Rico, 2026-11-16, after a tester's report: the computer's
+//   keys confused him, two keys sending a comma; tester-feedback.md, 17), the choice remembered in
+//   settings.json: by position, whatever they send. Until a key
 //   is pressed a firmware refusing its matrix cannot be told from a board at rest -- both answer
 //   all released -- so the first press decides: received by the computer while the matrix shows
 //   nothing for two readings, the firmware refuses it, and the test goes back to the computer's
@@ -29,7 +31,7 @@
 //   of each reply, and one left idle would read a stale one next.
 //
 // The test stops once another section is shown, or when Nazg needs the board -- WhileHidden() --
-// and starts again, on the computer's keys, when the view shows again; its polling holds the
+// and starts again, on the test chosen last, when the view shows again; its polling holds the
 // header's board menu back no more than the diagnostics' does (IsPolling()).
 //
 // Wiring: hover a key and its row and its column light, with their keys joined; hover a ruler
@@ -67,13 +69,15 @@ namespace nazg
     public:
         // The board at `path`, drawn by `keyboard`, which gives the legends -- layer 0's, or on the
         // computer's keys the layer shown.
-        // `legends` is the legends' settings. The transport, the keyboard and the settings
+        // `legends` is the legends' settings; `onSwitches` the test chosen last, the setting, set
+        // here when the user picks the other. The transport, the keyboard and the settings
         // outlive the view.
         MatrixView(HidTransport&         transport,
                    std::string           path,
                    bool                  isVial,
                    const Keyboard&       keyboard,
-                   const LegendSettings& legends);
+                   const LegendSettings& legends,
+                   bool&                 onSwitches);
 
         MatrixView(const MatrixView&)            = delete;
         MatrixView& operator=(const MatrixView&) = delete;
@@ -131,8 +135,8 @@ namespace nazg
         // How the live test reads the board, chosen at the strip's end.
         enum class Method
         {
-            Computer,   // the keys the computer receives -- by default, or as m_Why says
-            Switches,   // the board's switch matrix
+            Computer,   // the keys the computer receives -- chosen, or as m_Why says
+            Switches,   // the board's switch matrix -- by default
         };
 
         // A fresh test on the computer's keys: what it saw forgotten, the layer picked kept.
@@ -174,6 +178,7 @@ namespace nazg
         bool                  m_IsVial;
         const Keyboard&       m_Keyboard;
         const LegendSettings& m_Legends;
+        bool&                 m_OnSwitches;   // the setting: the test a fresh start takes
 
         MatrixFocus                m_Hovered;
         std::optional<MatrixFocus> m_Pinned;

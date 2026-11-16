@@ -112,11 +112,11 @@ exists, where, and how far it has been proven.
     while audio is off, Play a sound (device indication: the board's song on its own speaker); the
     board lighting the keys that change it; written at once, read each time the section is shown
     (`ui/NazgAudioSection.*`, `adapters/via/NazgViaAudio.*`).
-  - **Matrix view** (Tools, every board since 2026-10-18) -- a live test reading the keys the computer
-    receives by default, on the layer shown -- picked in the strip, or while a key is held the layer it
-    comes from, its entry violet -- or the switches, chosen at the strip's end, falling back where the
-    firmware refuses them (Rico, 2026-10-26; ui-design.md, "The key test"; `model/NazgHostKeys.*`); first and started when shown,
-    and wiring.
+  - **Matrix view** (Tools, every board since 2026-10-18) -- a live test reading the switches by
+    default, falling back where the firmware refuses them, or the keys the computer receives, on the
+    layer shown -- picked in the strip, or while a key is held the layer it comes from, its entry
+    violet -- the choice at the strip's end remembered in `settings.json`, per user (Rico, 2026-11-16;
+    ui-design.md, "The key test"; `model/NazgHostKeys.*`); first and started when shown, and wiring.
   - **Diagnostics** (Tools, every board answering the Leyden Jar's probe; `ui/NazgDiagnosticsSection.*`)
     -- Key presses (now and seen; the board, QMK's matrix or the controller's), Signal levels (the
     keys at risk judged by `model/NazgKeyHealth.*`: verdicts on the board, bars, the whole board as

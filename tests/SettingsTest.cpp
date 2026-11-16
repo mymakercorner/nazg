@@ -90,6 +90,7 @@ namespace
         settings.keycapStyle              = "flat";
         settings.legendFamily             = "spherical";
         settings.advancedTools            = true;
+        settings.keyTestOnSwitches        = false;
         settings.moveToNextKey            = true;
         settings.hostLayoutChosen         = true;
         settings.workspace.boardHeight    = 640.0f;
@@ -116,6 +117,14 @@ namespace
         Check(!document.contains("window") && !document.contains("legacyViaDefinitions"),
               "a window never placed and no old paths: not written");
         Check(!document["workspace"].contains("spareWidth"), "a frame's numbers are not settings");
+        Check(AppSettings{}.keyTestOnSwitches && document["tools"]["keyTest"] == "switches",
+              "the key test on the switches by default, written by name");
+
+        Json computer = document;
+        computer["tools"]["keyTest"] = "computer";
+        Check(!nazg::FromJson(computer, AppSettings{}).keyTestOnSwitches, "the computer's keys, chosen, read back");
+        computer["tools"]["keyTest"] = "telepathy";
+        Check(nazg::FromJson(computer, AppSettings{}).keyTestOnSwitches, "an unknown test keeps the default");
     }
 
     void TestWrongOrMissing()

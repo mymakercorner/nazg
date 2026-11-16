@@ -63,8 +63,9 @@ namespace nazg
     }
 
     MatrixView::MatrixView(HidTransport& transport, std::string path, bool isVial, const Keyboard& keyboard,
-                           const LegendSettings& legends)
-        : m_Transport(transport), m_Path(std::move(path)), m_IsVial(isVial), m_Keyboard(keyboard), m_Legends(legends)
+                           const LegendSettings& legends, bool& onSwitches)
+        : m_Transport(transport), m_Path(std::move(path)), m_IsVial(isVial), m_Keyboard(keyboard), m_Legends(legends),
+          m_OnSwitches(onSwitches)
     {
     }
 
@@ -117,6 +118,8 @@ namespace nazg
     // Each test keeps what it saw while the other runs. The switches open the board in DescribeBoard().
     void MatrixView::OnStripChoice(size_t entry)
     {
+        // The user's choice is remembered; a fallback, in UseComputerKeys(), is not.
+        m_OnSwitches = entry == 0;
         if (entry == 0)
         {
             m_Method            = Method::Switches;
@@ -140,7 +143,8 @@ namespace nazg
 
     void MatrixView::ResetTest()
     {
-        m_Method            = Method::Computer;
+        // The test chosen last -- the switches by default -- unless this board cannot report them.
+        m_Method            = m_OnSwitches && m_SwitchesRefused.empty() ? Method::Switches : Method::Computer;
         m_SwitchesConfirmed = false;
         m_Why.clear();
         m_Readings = {};
@@ -182,8 +186,8 @@ namespace nazg
             StopLiveTest();
 
         // Nothing starts in a frame Nazg told the view to stop in. Otherwise the live test starts
-        // as soon as it shows, on the computer's keys, which need nothing from the board. The
-        // switches open it, and are paced here, as the Vial unlock is: a reading goes out once the
+        // as soon as it shows, on the test chosen last: the computer's keys need nothing from the
+        // board; the switches open it, and are paced here, as the Vial unlock is: a reading goes out once the
         // last one has come back and the interval has passed since it was asked for.
         if (!std::exchange(m_HiddenThisFrame, false) && !m_ShowWiring && !IsBusy())
         {

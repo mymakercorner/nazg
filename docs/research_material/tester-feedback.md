@@ -299,7 +299,7 @@ a real Mac. Nothing said about Gatekeeper or Input Monitoring.
 | 14 | No word in a WebKit browser (Orion) that WebHID is missing | Bug | The message exists; why it was not seen is unknown | asked |
 | 15 | The space key's legend is empty | Design | True on his board: a 1u thumb space has no telling shape | 2026-11-16, agreed with Rico |
 | 16 | The Vial unlock bar should be more visible | Design | Thin by Rico's choice (2026-10-18) | -- |
-| 17 | Switches as the key test's default | Design | Against Rico's choice (2026-10-26); remembering the choice answers it | -- |
+| 17 | Switches as the key test's default | Design | Against Rico's choice (2026-10-26); remembering the choice answers it | 2026-11-16, both |
 | 18 | The host layout in the menu bar, as in Vial | Design | True: one combo in Settings, hard to find; wanted in the header (Rico, 2026-11-16) | 2026-11-16, from a mockup |
 | 19 | International keycodes not recognised; show what `S(KC_7)` types | Feature | True: Nazg knows no `DE_*` name, and draws a shifted key as its keycap | 2026-11-16, from a mockup |
 | 20 | Liked: colour coding, wiring view, the picker's international keys | Praise | Wiring as a help to rewire a handwired board | n/a |
@@ -374,6 +374,11 @@ amber with a ? after one press, as built ("keys sending the same thing light tog
 keys is the default by Rico's choice (2026-10-26), for testing a keymap after programming; this
 tester tests switches. **Proposed**: what ui-design already lists as waiting -- the choice remembered
 in `settings.json` -- so each user picks once. Reversing the default is Rico's.
+
+**Built** (Rico, 2026-11-16): both -- Switches the default, and the choice remembered in
+`settings.json`, per user (`tools.keyTest`; `AppSettings::keyTestOnSwitches`, set by
+`MatrixView::OnStripChoice()`, read by `ResetTest()`). A fallback on a board that refuses its
+switches does not change it.
 
 ## 18. The host layout in the menu bar
 
