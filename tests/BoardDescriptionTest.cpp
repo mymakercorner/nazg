@@ -233,6 +233,17 @@ namespace
         Check(legendOf(2).placement == nazg::PlacementClass::Blank, "KC_NO stays blank when the space bar is named");
         keyboard.keymap.Set(0, 0, 2, nazg::NamedKey{ "KC_RCTL" });
 
+        // A space key too narrow to tell by its shape -- a split's thumb key -- is named anyway;
+        // from 2u it is blank again.
+        board.keys[1].geometry.width = 1.25f;
+        nazg::DescribeLegends(board, keyboard, 0, nazg::LegendSettings{});
+        Check(legendOf(1).cylindrical.full == "Space" && legendOf(1).placement != nazg::PlacementClass::Blank,
+              "a 1.25u space key is named");
+        board.keys[1].geometry.width = 2.0f;
+        nazg::DescribeLegends(board, keyboard, 0, nazg::LegendSettings{});
+        Check(legendOf(1).placement == nazg::PlacementClass::Blank, "a 2u space bar is blank");
+        board.keys[1].geometry.width = 6.25f;
+
         // The lighting keys' headers follow the board's lighting systems.
         keyboard.keymap.Set(0, 0, 0, nazg::NamedKey{ "UG_TOGG" });
         keyboard.definition.lighting = "qmk_backlight_rgblight";

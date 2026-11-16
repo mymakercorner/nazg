@@ -281,3 +281,138 @@ on the name and now on the protocol too -- says the name, the source, the file a
 (chosen and remembered, or the only one for the VID:PID) and how many other definitions match,
 pointing at Change definition...; the picker shows the file and version on every candidate. No new
 line on the screen itself (first-glance simplicity). Seen on Rico's boards the same day.
+
+---
+
+# Third round
+
+*A macOS user's report on keebtalk, passed on by Rico (2026-11-16): Apple Silicon (M4), macOS 27.0.1,
+a split board on Vial -- the first macOS report from outside. Analysed the same day; the verdicts
+are proposals, **not yet agreed with Rico** unless the table says so.*
+
+**Confirmed**: Nazg opens, draws and works on an M4 Mac -- the first sighting of the macOS build on
+a real Mac. Nothing said about Gatekeeper or Input Monitoring.
+
+| # | What | Kind | Verdict | Done |
+|---|---|---|---|---|
+| 13 | Graphics a bit blurry on macOS | Bug? | Nothing wrong found in the code; needs a clean picture | asked |
+| 14 | No word in a WebKit browser (Orion) that WebHID is missing | Bug | The message exists; why it was not seen is unknown | asked |
+| 15 | The space key's legend is empty | Design | True on his board: a 1u thumb space has no telling shape | 2026-11-16, agreed with Rico |
+| 16 | The Vial unlock bar should be more visible | Design | Thin by Rico's choice (2026-10-18) | -- |
+| 17 | Switches as the key test's default | Design | Against Rico's choice (2026-10-26); remembering the choice answers it | -- |
+| 18 | The host layout in the menu bar, as in Vial | Design | The cause of 19: the layout is in Settings and left US silently | -- |
+| 19 | International keycodes not recognised; show what `S(KC_7)` types | Mostly 18 | The legends follow the host layout, which was US | -- |
+| 20 | Liked: colour coding, wiring view, the picker's international keys | Praise | Wiring as a help to rewire a handwired board | n/a |
+| 21 | The icon | Taste | Rico's | -- |
+
+## 13. Blurry on macOS
+
+> "Graphics are a bit blurry, not extremely but noticeable"
+
+**What the code does**, and it looks right: the window asks `SDL_WINDOW_HIGH_PIXEL_DENSITY`, the
+bundle's `Info.plist` says `NSHighResolutionCapable`, and ImGui 1.92 rasterises every font at the
+viewport's `FramebufferScale` (`imgui.cpp`, `SetCurrentWindow()`: `FontRasterizerDensity`) -- 2 on a
+Retina display -- with no density fixed anywhere in Nazg. The board's legends are ImGui text too.
+
+**What the picture says**: little. Keebtalk keeps it as a 2166x949 JPEG of 88 KB, compressed enough
+to soften every edge by itself. Rico's colleague's Mac has not been asked this yet.
+
+**Proposed**:
+
+1. Ask him for a **PNG** of a small region at full size (Cmd+Shift+4), and whether the menus are
+   blurry or the board alone; the colleague's Mac to compare.
+2. A **pixel density** line under *Display scale* in Settings' about lines (`io.DisplayFramebufferScale`),
+   so any tester can say whether Nazg draws at 2 -- cheap, and the first thing to know.
+
+## 14. A WebKit browser says nothing
+
+> "trying to use the web-app in a Webkit Browser (Orion) doesn't give me any indication that I have
+> to use another browser to support WebHID"
+
+Nazg has the screen: without `navigator.hid` the list is replaced by "This browser cannot reach
+keyboards" with Download Nazg (`DrawNoWebHid()`, `NazgKeyboardList.cpp`). So either he never reached
+it -- the page stuck on "Loading Nazg..." or blank, a WebGL 2 or WebAssembly failure, which
+`resources/package/web/shell.html` reports nowhere -- or Orion defines `navigator.hid` (it imitates
+Chrome's extension APIs) and Nazg showed an empty list.
+
+**Proposed**: ask him which of the three he saw. Whatever the answer, the page should say when
+the runtime fails (`Module.onAbort` in `shell.html`, its text in `#status`) instead of staying blank.
+If Orion has a `navigator.hid` that does not work, the test becomes whether `requestDevice` exists.
+
+## 15. The space key's legend is empty
+
+> "for some reason my spacebar keycode remains empty"
+
+His second picture is Keymap: the thumb key between Tab and Enter, blank, its tooltip saying
+`KC_SPC -- Spacebar`. Blank by design -- "its shape says what it is" (`DescribeLegends`, `SpaceBar::Blank`;
+item 4 named it only in the matrix and diagnostics views). On a split board the space is a 1u or
+1.25u thumb key shaped like its neighbours, and blank there reads as unassigned: the rule's own
+reason does not hold.
+
+**Proposed**: blank only on a key at least 2u wide; a narrower space key named "Space" as in the
+matrix views. One condition in `DescribeLegends()`, on `geometry.width`.
+
+**Built** (Rico, 2026-11-16): `c_TellingSpaceBarWidth` (2u) in `NazgBoardDescription.h`; on every
+view, the picker's full-size keyboards untouched (their space bars are 2.5u and 6.25u). A space key
+2u tall and 1u wide, an Ergodox thumb, is named too: its neighbours share its shape.
+
+## 16. The Vial unlock bar
+
+> "the VIAL unlock progress bar should be more visible and present"
+
+`NazgVialUnlock.cpp`: thin, no words, "a frame's height was too heavy" (Rico, 2026-10-18). Rico's to
+reopen or not. In between: a little taller, or in the accent colour, which on the dark theme stands
+out more than ImGui's default fill.
+
+## 17. Switches by default in the key test
+
+> "for matrix test, making the Switch test default would be better imho, sending computer Keycodes
+> can get confusing"
+
+His first picture shows why: two keys sending a comma -- `KC_COMM` and a mod-tap on it -- both
+amber with a ? after one press, as built ("keys sending the same thing light together"). Computer's
+keys is the default by Rico's choice (2026-10-26), for testing a keymap after programming; this
+tester tests switches. **Proposed**: what ui-design already lists as waiting -- the choice remembered
+in `settings.json` -- so each user picks once. Reversing the default is Rico's.
+
+## 18. The host layout in the menu bar
+
+> "Im missing the host layout in the menu bar like in VIAL, maybe even with a color change like VIAL
+> does"
+
+The host layout is one combo in Settings; nothing asks for it but Macros' text
+(`hostLayoutChosen`), so every legend is US until the user finds it. He did not find it, and that
+is item 19.
+
+**Proposed**, Rico choosing one or both:
+
+- **Guessed from the computer on first start**: on the desktop, `SDL_GetKeyFromScancode()` over the
+  letter and symbol positions, matched against the 69 tables (in `Main.cpp`, handed to App as one
+  more `PlatformServices` value); in Chrome, `navigator.keyboard.getLayoutMap()`. Kept until the
+  user picks one; nothing when no table matches. Most users would never need the setting.
+- **Shown in the header**: the layout's short name beside Settings, a click opening the same combo.
+  Weighed against first-glance simplicity.
+
+## 19. International keycodes, and what a shifted key types
+
+> "international QMK keycodes don't seem to be recognized/if combined with a modifier like the 7 in
+> my keymap, it would be great to show the resulting key"
+
+QMK's `DE_*` and other international keycodes are aliases of the basic ones (`keymap_german.h`):
+the board stores `KC_NUBS`, not `DE_LABK`, and Nazg draws it as the host layout prints it. With US
+left in Settings his keys read as US keycaps -- `S(KC_7)` as "Shift+" over "& 7". With German
+chosen it reads "Shift+" over the German 7's keycap, "/" among its legends. So 18 answers most of it.
+What remains -- the resulting character alone, "/" -- is the rule Rico settled on 2026-10-04 ("Shift+"
+over the keycap, one rule for every modifier; the picker's tile alone shows "!"). Rico's to reopen.
+
+## 20. Liked
+
+The colour coding of modifiers and custom keys; the wiring view -- "could also be some substantial
+help if rebuilding handwires with a already present firmware", a use not written anywhere yet; the
+picker's Basic tab showing his layout's keys. Nothing to do; the wiring use could go in the manual.
+
+## 21. The icon
+
+> "the Icon is, sorry for being harsh, atrocious"
+
+Designed with Rico 2026-10-16 (ui-design.md, "The application icon"). One voice; Rico's.

@@ -3082,7 +3082,9 @@ in a browser; GitHub and Markdown previews show only its source.
   as the pointer crossed a gap): it changes on another key or label, and goes when the pointer
   leaves the board.
 - **The space bar says Space** here and in Diagnostics, where keys are found by name, not by
-  shape -- blank everywhere else (2026-11-07, agreed 2026-10-27; tester-feedback.md, 4).
+  shape -- blank everywhere else (2026-11-07, agreed 2026-10-27; tester-feedback.md, 4), unless it
+  is narrower than 2u: a split's thumb space looks like its neighbours, so it is named on every view
+  (Rico, 2026-11-16; tester-feedback.md, 15).
 - **Click** pins the selection, to move the mouse away.
 - **Positions with no key** — what the grid showed and the board alone cannot: with a row
   selected, the columns with no key in it are **struck through** in the column ruler, and

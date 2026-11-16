@@ -278,12 +278,16 @@ namespace nazg
     //
     // The space bar is blank, as on real sets -- its shape says what it is -- except where keys are
     // found by name rather than by shape: the matrix and diagnostics views ask for it Named
-    // (tester-feedback.md, 4).
+    // (tester-feedback.md, 4). A space key narrower than c_TellingSpaceBarWidth is named
+    // everywhere: a split's 1u or 1.25u thumb key looks like its neighbours, and blank there reads
+    // as unassigned (tester-feedback.md, 15).
     enum class SpaceBar : uint8_t
     {
         Blank,
         Named,
     };
+
+    inline constexpr float c_TellingSpaceBarWidth = 2.0f;   // key units
 
     void DescribeLegends(BoardDescription& board, const Keyboard& keyboard, uint8_t layer,
                          const LegendSettings& settings, SpaceBar spaceBar = SpaceBar::Blank);

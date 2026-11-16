@@ -179,8 +179,8 @@ namespace nazg
 
             const ResolvedKey resolved = ResolveKey(keyboard, geometry, layer);
             KeycapLegend      legend   = LegendFor(resolved.keycode, context);
-            if (spaceBar == SpaceBar::Named && legend.placement == PlacementClass::Blank &&
-                IsNamed(resolved.keycode, "KC_SPC"))
+            if ((spaceBar == SpaceBar::Named || geometry.width < c_TellingSpaceBarWidth) &&
+                legend.placement == PlacementClass::Blank && IsNamed(resolved.keycode, "KC_SPC"))
             {
                 legend.placement   = PlacementClass::Modifier;
                 legend.cylindrical = { "Space", "" };
