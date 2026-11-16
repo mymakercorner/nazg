@@ -303,7 +303,7 @@ a real Mac. Nothing said about Gatekeeper or Input Monitoring.
 | 18 | The host layout in the menu bar, as in Vial | Design | True: one combo in Settings, hard to find; wanted in the header (Rico, 2026-11-16) | 2026-11-16, from a mockup |
 | 19 | International keycodes not recognised; show what `S(KC_7)` types | Feature | True: Nazg knows no `DE_*` name, and draws a shifted key as its keycap | 2026-11-16, from a mockup |
 | 20 | Liked: colour coding, wiring view, the picker's international keys | Praise | Wiring as a help to rewire a handwired board | n/a |
-| 21 | The icon | Taste | Rico's | -- |
+| 21 | The icon | Taste | Kept as it is (Rico, 2026-11-16) | n/a |
 
 ## 13. Blurry on macOS
 
@@ -492,3 +492,5 @@ picker's Basic tab showing his layout's keys. Nothing to do; the wiring use coul
 > "the Icon is, sorry for being harsh, atrocious"
 
 Designed with Rico 2026-10-16 (ui-design.md, "The application icon"). One voice; Rico's.
+
+**Declined** (Rico, 2026-11-16): the icon stays as it is.
