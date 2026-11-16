@@ -65,6 +65,9 @@ namespace nazg
         bool        isNoteWarning = false;
 
         bool isSettingsShown = false;
+
+        // The host layout's id ("german"): a menu after the protocol, with a board open.
+        std::string hostLayout;
     };
 
     struct HeaderAction
@@ -78,6 +81,7 @@ namespace nazg
         bool allKeyboards     = false;
         bool toggleLock       = false;   // the lock state was clicked: unlock, or lock again
         bool settings         = false;   // the settings button: show or leave them
+        std::optional<std::string> hostLayout;   // another host layout picked in the header: its id
     };
 
     // Into the current window's menu bar -- the window needs ImGuiWindowFlags_MenuBar.

@@ -108,6 +108,9 @@ def header(s, x, y, w, name, proto="", lock=None, open_menu=False):
         s.text(x + 14, y + 22, name + "  ▾", 13, C["text"])
         if proto:
             s.text(x + 14 + nw, y + 22, proto, 12, C["muted"])
+        # The host layout, a menu after the protocol (Rico, 2026-11-16; tester-feedback.md, 18).
+        lx = x + 14 + nw + (tw(proto, 12) + 18 if proto else 0)
+        s.text(lx, y + 22, "Layout: US", 12, C["text"])
     else:
         s.text(x + 14, y + 22, "No board open", 12, C["muted"])
     right = x + w - 14

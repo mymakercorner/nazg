@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- Mockup of the host layout reached from the header (tester-feedback.md, 18).
+
+     First round (2026-11-16), after a macOS tester's report on 0.1.0-test.7: "Im missing the host
+     layout in the menu bar like in VIAL, maybe even with a color change like VIAL does". Today the
+     host layout is one combo in Settings, and nothing asks for it but Macros' text, so a user who
+     never opens Settings sees US legends -- he did, on a board he types in another layout.
+
+     The variants: where it sits on the header (right, beside Locked and Settings; left, after the
+     protocol; or inside the board menu, as Vial's menu bar keeps it under a menu of its own), what
+     it says (the name, or "Layout:" before it), how it looks while never chosen (as when chosen,
+     muted, or in the warning colour with a "?"), and the list it opens (69 layouts: plain, or with
+     a filter on top). The keys under the header follow the layout picked -- legends for five
+     layouts in this mockup (US, UK, German, French, Swiss De); every other one keeps US's.
+
+     Settled 2026-11-16 (Rico): Left, "Layout: German", the same look chosen or not, the list with
+     a filter, and only with a board open -- the keyboard list draws no legends. Settings keeps its
+     combo. The toggles keep the alternatives. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Host layout in the header</title>
+<style>
+:root{--window:#f3f3f5;--menubar:#e3e4e9;--text:#1d1e22;--muted:#6b6e78;--control:#ffffff;--border:#c8cad2;--accent:#3b82f6;--accent-text:#fff;--panel:#f8f8fa;--selected:rgba(59,130,246,.16);
+--warn:#c2410c;--host:#0e7490;--behaviour:#7c3aed;--cap:#ffffff;--capedge:#b9bcc6;--capside:#e4e6ec;--plate:#d9dbe2;--hover:rgba(59,130,246,.10)}
+:root[data-theme="dark"]{--window:#0f0f11;--menubar:#24252b;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--accent:#4296fa;--accent-text:#fff;--panel:#16171b;--selected:rgba(66,150,250,.22);
+--warn:#fb923c;--host:#22d3ee;--behaviour:#a78bfa;--cap:#2a2c34;--capedge:#454856;--capside:#1f2027;--plate:#1a1b21;--hover:rgba(66,150,250,.14)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--window);color:var(--text);font-family:Arimo,"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+.controls{display:flex;flex-wrap:wrap;gap:8px 22px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.group .name{color:var(--muted);margin-right:4px}
+button{font:inherit;padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--control);color:var(--text);cursor:pointer}
+button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+.stage{padding:16px;overflow-x:auto}
+.frame{position:relative;margin:0 auto;width:1000px;min-height:480px;border:1px solid var(--border);border-radius:8px;overflow:visible;background:var(--window);box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.menubar{display:flex;gap:4px;align-items:center;background:var(--menubar);padding:0 8px;height:27px;border-radius:8px 8px 0 0;position:relative;z-index:5}
+.mi{padding:4px 8px;border-radius:4px;cursor:default;white-space:nowrap;position:relative}
+.mi:hover,.mi.open{background:var(--selected)}
+.mi.board{font-weight:700;font-size:14px}
+.muted{color:var(--muted)}
+.warn{color:var(--warn)}
+.spacer{flex:1}
+.new{outline:1px dashed var(--accent);outline-offset:1px}
+.popup{position:absolute;top:27px;min-width:220px;background:var(--control);border:1px solid var(--border);border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,.18);padding:4px 0;z-index:10;font-weight:400;font-size:13px}
+.popup .row{padding:3px 12px 3px 26px;position:relative;white-space:nowrap;cursor:default}
+.popup .row:hover{background:var(--selected)}
+.popup .row.cur::before{content:"✓";position:absolute;left:9px}
+.popup .row .sc{float:right;color:var(--muted);margin-left:18px}
+.popup .row.sub::after{content:"▸";position:absolute;right:8px;color:var(--muted)}
+.popup .row.dis{color:var(--muted)}
+.popup .sep{height:1px;background:var(--border);margin:4px 0}
+.popup .head{padding:4px 12px 2px;color:var(--muted);font-size:12px}
+.popup .scroll{max-height:300px;overflow-y:auto}
+.popup .filter{margin:2px 8px 6px;display:block;width:calc(100% - 16px);font:inherit;padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--window);color:var(--text)}
+.popup .note{padding:4px 12px;color:var(--muted);font-size:12px;white-space:normal;max-width:260px}
+.tip{position:absolute;z-index:20;padding:5px 9px;border:1px solid var(--border);border-radius:6px;background:var(--control);box-shadow:0 3px 10px rgba(0,0,0,.15);white-space:pre;pointer-events:none;font-size:12.5px;line-height:1.4}
+.body{display:flex;min-height:450px}
+.column{width:44px;border-right:1px solid var(--border);background:var(--panel)}
+.column i{display:block;width:24px;height:24px;margin:10px auto;border-radius:6px;background:var(--border)}
+.column i.on{background:var(--accent)}
+.view{flex:1;padding:12px 18px}
+.strip{display:flex;gap:6px;align-items:center;margin-bottom:12px}
+.strip span{padding:3px 10px;border-radius:5px;background:var(--control);border:1px solid var(--border)}
+.strip span.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.plate{background:var(--plate);border-radius:10px;padding:16px;display:inline-block}
+.keys{position:relative;width:658px;height:58px}
+.key{position:absolute;width:58px;height:58px;border-radius:7px;background:var(--capside);border:1px solid var(--capedge)}
+.key .top{position:absolute;inset:3px 4px 6px 4px;border-radius:5px;background:var(--cap)}
+.key .l{position:absolute;font-size:12px;line-height:1}
+.key .big{font-size:17px;font-weight:600}
+.key .hdr{position:absolute;top:4px;right:6px;font-size:10px;font-weight:700;color:var(--host)}
+.panel{margin-top:14px;color:var(--muted);line-height:1.5;max-width:720px}
+.list{padding:24px 40px}
+.list table{width:100%;max-width:780px;border:1px solid var(--border);border-radius:8px;border-collapse:separate;border-spacing:0;background:var(--control)}
+.list td,.list th{padding:6px 12px;text-align:left}
+.list th{color:var(--muted);border-bottom:1px solid var(--border);background:var(--menubar)}
+.notes{max-width:1000px;margin:0 auto;padding:4px 16px 30px;color:var(--muted);line-height:1.55}
+.notes b{color:var(--text);font-weight:600}
+.notes p{margin:0 0 8px}
+</style>
+</head>
+<body>
+<div class="controls" id="controls"></div>
+<div class="stage"><div class="frame" id="frame"></div></div>
+<div class="notes" id="notes"></div>
+<script>
+"use strict";
+// The 69 host layouts, as NazgHostLayoutTable.cpp names them.
+const LAYOUTS = ["Belgian","BEPO","Canadian French","Canadian Multilingual","Colemak","Croatian","Czech","Czech (Mac ANSI)","Czech (Mac ISO)","Danish","Dvorak","Dvorak Fr","Dvorak Programmer","Estonian","EurKEY","Farsi","Finnish","French","French AFNOR","French (Mac ISO)","German","German (Mac ISO)","Greek","Hebrew","Hungarian","Icelandic","Irish","Italian","Italian (Mac ANSI)","Italian (Mac ISO)","Japanese","Korean","Latvian","Lithuanian Azerty","Lithuanian Qwerty","Norman","Norwegian","Polish","Portuguese","Portuguese (Mac ISO)","Romanian","Russian","Russian Typewriter","Serbian","Serbian Latin","Slovak","Slovenian","Spanish","Spanish Dvorak","Spanish Latin America","Swedish","Swedish (Mac ANSI)","Swedish (Mac ISO)","Swedish (Pro Mac ANSI)","Swedish (Pro Mac ISO)","Swiss De","Swiss Fr","Turkish F","Turkish Q","UK","Ukrainian","US","US Extended","US International","US International (Linux)","Workman","Workman ZXCVM"];
+
+// Legends from the same table: [base, shift, altgr] per keycode, for five layouts.
+const LEGENDS = {
+  "US":       { Q:["Q"], W:["W"], Y:["Y"], Z:["Z"], "7":["7","&"], COMM:[",","<"], MINS:["-","_"], SCLN:[";",":"] },
+  "UK":       { Q:["Q"], W:["W"], Y:["Y"], Z:["Z"], "7":["7","&"], COMM:[",","<"], MINS:["-","_"], SCLN:[";",":"] },
+  "German":   { Q:["Q","","@"], W:["W"], Y:["Z"], Z:["Y"], "7":["7","/","{"], COMM:[",",";"], MINS:["ß","?","\\"], SCLN:["Ö"] },
+  "French":   { Q:["A"], W:["Z"], Y:["Y"], Z:["W"], "7":["è","7","`"], COMM:[";","."], MINS:[")","°","]"], SCLN:["M"] },
+  "Swiss De": { Q:["Q"], W:["W"], Y:["Z"], Z:["Y"], "7":["7","/","|"], COMM:[",",";"], MINS:["'","?","´"], SCLN:["ö","é"] },
+};
+// A row of the board: the keycodes, the last one S(KC_7) -- "Shift+" over the 7's keycap (rule 7).
+// One row, in groups: letters that move between layouts, the 7 and S(KC_7), punctuation. [code, x].
+const ROW = [["Q",0],["W",68],["Y",136],["Z",204],["7",300],["S7",368],["COMM",464],["SCLN",532],["MINS",600]];
+
+const state = { screen:'Board open', where:'Right', label:'Name', unchosen:'Muted', menu:'Filter', chosen:false, layout:'US', theme:'Light', open:null, filter:'' };
+
+const VARIANTS = [
+  ['screen', 'Screen', ['Board open','Keyboard list']],
+  ['where', 'Where', ['Right','Left','Board menu']],
+  ['label', 'Says', ['Name','Layout: name']],
+  ['unchosen', 'Never chosen', ['Same','Muted','Warning ?']],
+  ['menu', 'List', ['Plain','Filter']],
+  ['theme', 'Theme', ['Light','Dark']],
+];
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function drawControls(){
+  const c = document.getElementById('controls');
+  c.innerHTML = VARIANTS.map(([k,name,opts]) => `<div class="group"><span class="name">${name}</span>${opts.map(o=>`<button class="${state[k]===o?'on':''}" data-k="${k}" data-v="${o}">${esc(o)}</button>`).join('')}</div>`).join('')
+    + `<div class="group"><span class="name">State</span><button data-reset="1">Back to never chosen (US)</button></div>`;
+  c.querySelectorAll('button[data-k]').forEach(b => b.onclick = () => { state[b.dataset.k] = b.dataset.v; state.open = null; draw(); });
+  c.querySelector('button[data-reset]').onclick = () => { state.chosen = false; state.layout = 'US'; state.open = null; draw(); };
+}
+
+// The words on the header, and their colour.
+function layoutItem(){
+  const text = state.label === 'Name' ? state.layout : `Layout: ${state.layout}`;
+  if (!state.chosen && state.unchosen === 'Muted') return { cls:'muted', text };
+  if (!state.chosen && state.unchosen === 'Warning ?') return { cls:'warn', text: text + ' ?' };
+  return { cls:'', text };
+}
+
+function layoutList(){
+  const shown = LAYOUTS.filter(n => n.toLowerCase().includes(state.filter.toLowerCase()));
+  const rows = shown.map(n => `<div class="row ${n===state.layout?'cur':''}" data-pick="${esc(n)}">${esc(n)}</div>`).join('') || `<div class="note">No layout matches.</div>`;
+  const filter = state.menu === 'Filter' ? `<input class="filter" id="filter" placeholder="Filter" value="${esc(state.filter)}">` : '';
+  const note = !state.chosen ? `<div class="sep"></div><div class="note">Not chosen yet: US until you pick the layout your computer types with.</div>` : '';
+  return `${filter}<div class="scroll">${rows}</div>${note}`;
+}
+
+const TIP = "The layout your computer types with: legends show what each key\ntypes there. The keymap on the board does not change.";
+
+function header(){
+  const it = layoutItem();
+  const boardOpen = state.screen === 'Board open';
+  const layoutMi = `<div class="mi new ${it.cls} ${state.open==='layout'?'open':''}" data-open="layout" data-tip="1">${esc(it.text)}${state.open==='layout'?`<div class="popup" style="right:0">${layoutList()}</div>`:''}</div>`;
+
+  let left;
+  if (boardOpen) {
+    const boardMenu = state.open === 'board' ? `<div class="popup" style="left:0">
+        <div class="row">Save to file...</div><div class="row">Load from file...</div>
+        ${state.where==='Board menu' ? `<div class="sep"></div><div class="row sub new ${state.open2?'open':''}" data-open2="1">Host layout<span class="sc">${esc(state.layout)}</span>${state.open2?`<div class="popup" style="left:100%;top:-4px">${layoutList()}</div>`:''}</div>` : ''}
+        <div class="sep"></div><div class="row">All keyboards</div></div>` : '';
+    left = `<div class="mi board ${state.open==='board'?'open':''}" data-open="board">F77 Model F Keyboard${boardMenu}</div><span class="muted" style="padding:0 6px">Vial 6</span>`;
+  } else {
+    left = `<span class="muted" style="padding:0 8px">No board open</span>`;
+  }
+  // Board menu only exists with a board: on the list the layout falls back to the right.
+  const where = (!boardOpen && state.where === 'Board menu') ? 'Right' : state.where;
+  const lock = boardOpen ? `<div class="mi warn">Locked</div>` : '';
+  return `<div class="menubar">${left}${where==='Left'?layoutMi:''}<div class="spacer"></div>${where==='Right'?layoutMi:''}${lock}<div class="mi">Settings</div></div>`;
+}
+
+function keycap([code,x]){
+  const L = LEGENDS[state.layout] || LEGENDS.US;
+  const shift = code === 'S7';
+  const lg = L[shift ? '7' : code];
+  const y = 0;
+  const [base, up='', alt=''] = lg;
+  const single = !up && !alt && base.length === 1 && /\p{L}/u.test(base);
+  let inner;
+  if (single) inner = `<span class="l big" style="left:8px;top:7px">${esc(base)}</span>`;
+  else inner = `${up?`<span class="l big" style="left:8px;top:7px">${esc(up)}</span>`:''}<span class="l big" style="left:8px;bottom:9px">${esc(base)}</span>${alt?`<span class="l" style="right:8px;bottom:10px;color:var(--muted)">${esc(alt)}</span>`:''}`;
+  return `<div class="key" style="left:${x}px;top:${y}px"><div class="top"></div>${shift?'<span class="hdr">Shift+</span>':''}${inner}</div>`;
+}
+
+function body(){
+  if (state.screen === 'Keyboard list')
+    return `<div class="list"><p><b>2 keyboards</b></p><table><tr><th>Keyboard</th><th>Protocol</th></tr><tr><td>F77 Model F Keyboard</td><td>Vial 6</td></tr><tr><td>The Concordia Type C</td><td>VIA</td></tr></table></div>`;
+  const shown = LEGENDS[state.layout] ? '' : ` <i>(this mockup has legends for US, UK, German, French and Swiss De only: ${esc(state.layout)} shows US's)</i>`;
+  return `<div class="body"><div class="column"><i class="on"></i><i></i><i></i><i></i></div><div class="view">
+    <div class="strip"><span class="on">0</span><span>1</span><span>2</span><span>3</span></div>
+    <div class="plate"><div class="keys">${ROW.map(keycap).join('')}</div></div>
+    <div class="panel">A part of the board, its legends by the host layout: <code>KC_Q</code>, <code>KC_W</code>, <code>KC_Y</code>, <code>KC_Z</code>;
+      <code>KC_7</code> and <code>S(KC_7)</code> -- "Shift+" over the 7's keycap; <code>KC_COMM</code>, <code>KC_SCLN</code>, <code>KC_MINS</code>.${shown}</div></div></div>`;
+}
+
+function draw(){
+  document.documentElement.dataset.theme = state.theme === 'Dark' ? 'dark' : 'light';
+  drawControls();
+  const f = document.getElementById('frame');
+  f.innerHTML = header() + body();
+
+  f.querySelectorAll('[data-open]').forEach(el => el.onclick = e => {
+    if (e.target.closest('.popup')) return;
+    state.open = state.open === el.dataset.open ? null : el.dataset.open; state.open2 = false; state.filter = ''; draw();
+    const fi = document.getElementById('filter'); if (fi) fi.focus();
+  });
+  f.querySelectorAll('[data-open2]').forEach(el => el.onclick = e => {
+    if (e.target.closest('.popup .popup')) return;
+    state.open2 = !state.open2; state.filter = ''; draw();
+    const fi = document.getElementById('filter'); if (fi) fi.focus();
+  });
+  f.querySelectorAll('[data-pick]').forEach(el => el.onclick = e => {
+    e.stopPropagation(); state.layout = el.dataset.pick; state.chosen = true; state.open = null; state.open2 = false; draw();
+  });
+  const fi = document.getElementById('filter');
+  if (fi) {
+    fi.onclick = e => e.stopPropagation();
+    fi.oninput = () => { state.filter = fi.value; const pos = fi.selectionStart; draw(); const n = document.getElementById('filter'); n.focus(); n.setSelectionRange(pos,pos); };
+  }
+  // The list opens on the layout in use, as ImGui's SetItemDefaultFocus() does.
+  const cur = f.querySelector('.popup .row.cur');
+  if (cur) { const sc = cur.parentElement; sc.scrollTop = cur.offsetTop - sc.offsetTop - sc.clientHeight / 2; }
+
+  // The tooltip on the header item, as Settings' combo has it.
+  const tipEl = f.querySelector('[data-tip]');
+  if (tipEl) {
+    tipEl.onmouseenter = () => { if (state.open) return; const t = document.createElement('div'); t.className='tip'; t.id='tip'; t.textContent = TIP;
+      const r = tipEl.getBoundingClientRect(), fr = f.getBoundingClientRect();
+      t.style.top = (r.bottom - fr.top + 6) + 'px'; t.style.left = Math.min(r.left - fr.left, 1000 - 420) + 'px'; f.appendChild(t); };
+    tipEl.onmouseleave = () => { const t = document.getElementById('tip'); if (t) t.remove(); };
+  }
+  drawNotes();
+}
+
+function drawNotes(){
+  document.getElementById('notes').innerHTML = `
+  <p><b>What it replaces.</b> Today the host layout is a combo in Settings only, its tooltip the one shown here on hover. Settings keeps it in every variant: the header is a second way in, not a move.</p>
+  <p><b>Where.</b> <i>Right</i>: with the other things that are about Nazg, not the board -- Locked and Settings -- and it is there on the keyboard list too.
+  <i>Left</i>: next to the protocol, read as part of the board's line -- but the layout is the computer's, not the board's. <i>Board menu</i>: Vial's way, a submenu; hidden until the menu opens, so it barely answers the report, and with no board open it falls back to the right.</p>
+  <p><b>Never chosen.</b> US is Nazg's default, not a choice: <i>Muted</i> says so quietly, <i>Warning ?</i> asks for a choice, which is loud for every US typist who never needs to pick. Picking any layout, US included, makes it a choice (Settings' <code>hostLayoutChosen</code>, today set only by Macros). The note at the list's foot shows only while never chosen.</p>
+  <p><b>The list.</b> 69 layouts, scrolled; a filter is quicker than scrolling to Swiss De, and on ImGui it is one InputText above the Selectables.</p>
+  <p><b>Not in this mockup</b>: guessing the layout from the computer on first start (tester-feedback.md, 18), which would make the never-chosen look rarer still.</p>`;
+}
+
+// A click outside closes the list -- not one on an element a redraw has just replaced.
+document.addEventListener('click', e => { if (document.contains(e.target) && !e.target.closest('.frame') && !e.target.closest('.controls') && state.open) { state.open = null; state.open2 = false; draw(); } });
+draw();
+</script>
+</body>
+</html>

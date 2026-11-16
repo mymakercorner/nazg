@@ -2752,6 +2752,13 @@ Remove, Import) move here from today's HID Devices window, and the keycode picke
 preference, moving to the next key after a pick, off by default (see "The keycode picker").
 "Back to the board" returns where you were.
 
+**The host layout in the header too** (Rico, 2026-11-16, after a macOS tester missed it -- he
+looked for it in the menu bar, as in Vial; tester-feedback.md, 18). Mockup:
+[ui-design/host-layout-header.html](ui-design/host-layout-header.html). Settled: a menu **after
+the protocol**, "Layout: German", the **same look** chosen or not, its list of 69 **with a filter**
+on top, opening on the layout in use; **with a board open only** -- the keyboard list draws no
+legends. Picking there is choosing (`hostLayoutChosen`), as in Settings, which keeps its combo.
+
 ![Settings](ui-design/screen-settings.svg)
 
 Settings also holds **Advanced tools**, a switch **off by default** (Rico, 2026-09-29).

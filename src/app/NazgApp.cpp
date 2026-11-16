@@ -977,8 +977,17 @@ namespace nazg
             header.isBusy = isBusy;
         }
         header.isSettingsShown = m_ShowSettings;
+        if (hasBoard)
+            header.hostLayout = m_Settings.legends.hostLayout;
 
         const HeaderAction action = nazg::DrawHeader(header);
+
+        // Picked in the header is chosen, as in Settings.
+        if (action.hostLayout)
+        {
+            m_Settings.legends.hostLayout = *action.hostLayout;
+            m_Settings.hostLayoutChosen   = true;
+        }
 
         if (action.settings)
             m_ShowSettings = !m_ShowSettings;

@@ -192,6 +192,9 @@ The window is divided into five areas.
   board: its name, where it comes from, its file and version (the VIA or community bundle it is
   from, or when you imported it), whether you chose it or it is the only match, and how many
   other definitions match the board. Below that, which version of QMK's keycodes it uses.
+- **Layout: US** -- the host layout, the layout your computer types with: legends show what each
+  key types there. Click it to pick another; type in its filter to find one. The same choice as
+  in Settings.
 - **Locked** / **Unlocked**, on Vial boards that have a lock (see "Vial's lock").
 - **Settings**.
 
@@ -737,7 +740,8 @@ Click **Settings** in the header. **Back to the board** (or *Back to the keyboar
 - **Legend style**: *Cylindrical* (top left, mixed case, like GMK keycaps) or *Spherical*
   (centred capitals, like SA keycaps).
 - **Host layout**: the layout your computer types with, out of 69. Legends show what each key
-  types there, and macro text is typed for it. **It does not change the keyboard.**
+  types there, and macro text is typed for it. **It does not change the keyboard.** Also in the
+  header, with a board open.
 - **Modifier names**: Windows (Win, Alt), Mac (Cmd, Option) or Linux (Super).
 
 **Keymap**

@@ -300,8 +300,8 @@ a real Mac. Nothing said about Gatekeeper or Input Monitoring.
 | 15 | The space key's legend is empty | Design | True on his board: a 1u thumb space has no telling shape | 2026-11-16, agreed with Rico |
 | 16 | The Vial unlock bar should be more visible | Design | Thin by Rico's choice (2026-10-18) | -- |
 | 17 | Switches as the key test's default | Design | Against Rico's choice (2026-10-26); remembering the choice answers it | -- |
-| 18 | The host layout in the menu bar, as in Vial | Design | The cause of 19: the layout is in Settings and left US silently | -- |
-| 19 | International keycodes not recognised; show what `S(KC_7)` types | Mostly 18 | The legends follow the host layout, which was US | -- |
+| 18 | The host layout in the menu bar, as in Vial | Design | True: one combo in Settings, hard to find; wanted in the header (Rico, 2026-11-16) | 2026-11-16, from a mockup |
+| 19 | International keycodes not recognised; show what `S(KC_7)` types | Feature | True: Nazg knows no `DE_*` name, and draws a shifted key as its keycap | -- |
 | 20 | Liked: colour coding, wiring view, the picker's international keys | Praise | Wiring as a help to rewire a handwired board | n/a |
 | 21 | The icon | Taste | Rico's | -- |
 
@@ -380,30 +380,57 @@ in `settings.json` -- so each user picks once. Reversing the default is Rico's.
 > "Im missing the host layout in the menu bar like in VIAL, maybe even with a color change like VIAL
 > does"
 
-The host layout is one combo in Settings; nothing asks for it but Macros' text
-(`hostLayoutChosen`), so every legend is US until the user finds it. He did not find it, and that
-is item 19.
+True. The host layout is one combo in Settings, among the look's choices; nothing asks for it but
+Macros' text (`hostLayoutChosen`), so every legend is US until the user goes looking. He would
+rather reach it from the header, as in Vial's menu bar. **Kept apart from 19** (Rico, 2026-11-16):
+where the layout is chosen is one question, what Nazg makes of international keycodes another.
 
-**Proposed**, Rico choosing one or both:
+**Proposed**: the layout in the header, its short name on the right beside Locked and Settings
+(`DrawHeader` in `NazgWorkspace.cpp`), a click opening the same list as Settings -- 69 layouts, so a
+scrolling list, perhaps with a filter. Its colour: muted while it is the default, the text colour
+once chosen, if Vial's "color change" means telling the default apart. Settings keeps its combo.
 
-- **Guessed from the computer on first start**: on the desktop, `SDL_GetKeyFromScancode()` over the
-  letter and symbol positions, matched against the 69 tables (in `Main.cpp`, handed to App as one
-  more `PlatformServices` value); in Chrome, `navigator.keyboard.getLayoutMap()`. Kept until the
-  user picks one; nothing when no table matches. Most users would never need the setting.
-- **Shown in the header**: the layout's short name beside Settings, a click opening the same combo.
-  Weighed against first-glance simplicity.
+**Mockup** (2026-11-16): [ui-design/host-layout-header.html](ui-design/host-layout-header.html) --
+where (right, left, the board menu), what it says (the name, or "Layout:" before it), its look
+while never chosen (same, muted, warning with "?"), the list plain or filtered; a row of keys
+following the layout picked.
+
+**Chosen by Rico** (2026-11-16): **left**, after the protocol; **"Layout: German"**; the **same**
+look chosen or not; the list **with a filter**; with a **board open** only -- the keyboard list
+shows no legends. Settings keeps its combo. Built the same day.
+
+Separately, and smaller: **guessed from the computer on first start** -- on the desktop
+`SDL_GetKeyFromScancode()` over the letter and symbol positions, matched against the 69 tables (in
+`Main.cpp`, one more `PlatformServices` value); in Chrome `navigator.keyboard.getLayoutMap()`. Kept
+until the user picks one; nothing when no table matches.
 
 ## 19. International keycodes, and what a shifted key types
 
 > "international QMK keycodes don't seem to be recognized/if combined with a modifier like the 7 in
 > my keymap, it would be great to show the resulting key"
 
-QMK's `DE_*` and other international keycodes are aliases of the basic ones (`keymap_german.h`):
-the board stores `KC_NUBS`, not `DE_LABK`, and Nazg draws it as the host layout prints it. With US
-left in Settings his keys read as US keycaps -- `S(KC_7)` as "Shift+" over "& 7". With German
-chosen it reads "Shift+" over the German 7's keycap, "/" among its legends. So 18 answers most of it.
-What remains -- the resulting character alone, "/" -- is the rule Rico settled on 2026-10-04 ("Shift+"
-over the keycap, one rule for every modifier; the picker's tile alone shows "!"). Rico's to reopen.
+QMK's international keycodes are the names in `keymap_extras` -- `DE_SLSH`, `DE_AT`, `FR_EURO` --
+each an alias of a basic keycode, alone (`DE_Z` = `KC_Y`), shifted (`DE_SLSH` = `S(KC_7)`) or with
+AltGr (`DE_AT` = `ALGR(KC_Q)`). The board stores only the expression. Nazg falls short twice:
+
+- **The names are unknown.** The host layout tables were built from those very files
+  (keycodes.md, "Regenerating the host layouts"), but only the legends were kept: no `DE_*` name
+  appears anywhere in Nazg (searched 2026-11-16). The tooltip says `LSFT(KC_7)`, and the Any entry
+  cannot take `DE_SLSH`. Saved layouts are unaffected: vial-gui and the VIA app write no such names.
+- **The result is not drawn.** `S(KC_7)` is "Shift+" over the 7's keycap -- "& 7" on US, the German
+  7 with its "/" on German -- by Rico's rule 7 (short-forms.md, 2026-10-04; before it, "!" alone).
+  He asks for the character the key types. AltGr the same: `ALGR(KC_Q)` is its modifier over Q,
+  where German types "@".
+
+**Proposed**, each Rico's:
+
+1. **The names**, by the host layout chosen: the tables regain each alias's name, regenerated by
+   hand from the same QMK files; the tooltip and the Any entry speak them (`DE_SLSH -- /`), the Any
+   entry accepting any layout's.
+2. **The character on the key**: where the modifiers are exactly Shift, AltGr or Shift+AltGr and
+   the host layout types a character there, that character as the main legend -- small "Shift+"
+   kept as the header or not. It reopens rule 7 for those three cases only; Ctrl, Alt and GUI keep
+   it, as the picker's Shifted group already reads "!" alone.
 
 ## 20. Liked
 

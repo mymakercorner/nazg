@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cfloat>
+#include <cctype>
 #include <cmath>
 #include <optional>
 #include <string>
@@ -16,6 +17,7 @@
 
 #include "ui/NazgBoardView.h"
 #include "ui/NazgIcons.h"
+#include "ui/NazgKeycapLegend.h"
 #include "ui/NazgSectionPlan.h"
 #include "ui/NazgTheme.h"
 
@@ -43,6 +45,9 @@ namespace nazg
         constexpr float c_HeaderSize    = 13.0f;    // a group's header, smaller than the names
 
         ImFont* g_IconFont = nullptr;
+
+        // The header's host layout list: what is typed in its filter, kept while the list is open.
+        char g_LayoutFilter[48] = {};
 
         // The grip both splitters draw, across the middle of the last item -- the board's
         // splitter lying down, the column's edge standing up: a short rounded bar, always shown,
@@ -524,6 +529,62 @@ namespace nazg
         return g_IconFont;
     }
 
+    namespace
+    {
+        // Whether `text` holds `part`, ignoring case: the layout filter.
+        bool ContainsIgnoringCase(std::string_view text, std::string_view part)
+        {
+            const auto lower = [](char c) { return static_cast<char>(std::tolower(static_cast<unsigned char>(c))); };
+            return std::search(text.begin(), text.end(), part.begin(), part.end(),
+                               [&](char a, char b) { return lower(a) == lower(b); }) != text.end();
+        }
+
+        // The host layout, a menu after the protocol (ui-design.md, "The host layout in the header
+        // too"): the list Settings' combo has, a filter above it, opening on the layout in use.
+        void DrawHostLayoutMenu(std::string_view id, HeaderAction& action)
+        {
+            const HostLayout* current = FindHostLayout(id);
+            const std::string label   = "Layout: " + std::string(current != nullptr ? current->name : id) + "##hostLayout";
+            if (!ImGui::BeginMenu(label.c_str()))
+            {
+                ImGui::SetItemTooltip("The layout your computer types with: legends show what each key\n"
+                                      "types there. The keymap on the board does not change.");
+                g_LayoutFilter[0] = '\0';
+                return;
+            }
+
+            const bool  appearing = ImGui::IsWindowAppearing();
+            const float width     = ImGui::GetFontSize() * 14.0f;
+            if (appearing)
+                ImGui::SetKeyboardFocusHere();
+            ImGui::SetNextItemWidth(width);
+            ImGui::InputTextWithHint("##filter", "Filter", g_LayoutFilter, sizeof(g_LayoutFilter));
+
+            bool picked = false;
+            ImGui::BeginChild("##layouts", ImVec2(width, ImGui::GetTextLineHeightWithSpacing() * 16.0f));
+            for (const HostLayout& layout : HostLayouts())
+            {
+                if (!ContainsIgnoringCase(layout.name, g_LayoutFilter))
+                    continue;
+                const bool isCurrent = &layout == current;
+                if (ImGui::Selectable(std::string(layout.name).c_str(), isCurrent))
+                {
+                    picked = true;
+                    if (!isCurrent)
+                        action.hostLayout = std::string(layout.id);
+                }
+                if (isCurrent && appearing)
+                    ImGui::SetScrollHereY(0.5f);
+            }
+            ImGui::EndChild();
+
+            // A Selectable in a child does not close the menu itself.
+            if (picked)
+                ImGui::CloseCurrentPopup();
+            ImGui::EndMenu();
+        }
+    }
+
     HeaderAction DrawHeader(const HeaderView& view)
     {
         HeaderAction action;
@@ -600,6 +661,9 @@ namespace nazg
                 if (!view.details.empty())
                     ImGui::SetItemTooltip("%s", view.details.c_str());
             }
+
+            if (!view.hostLayout.empty())
+                DrawHostLayoutMenu(view.hostLayout, action);
         }
 
         // On the right: the lock state on boards that have one, then the settings button.
