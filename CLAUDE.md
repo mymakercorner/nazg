@@ -226,7 +226,13 @@ one board to unlock).
   version draws a board), released too. Still open: what Nazg does in a small window (item 2's
   second half).
 
-**Next**: the testers' reports on the seventh test build, `0.1.0-test.7` (2026-11-07), almost all
+**Released** `0.1.0-test.8` (2026-11-16), with the web build: the Keychron Switches section, the
+host layout in the header, international keycodes, the key test on Switches, Signal levels' coupling
+and Save report..., the OpenGL fallback -- most of it answers to the macOS tester's report and the
+Vulkan suggestion (tester-feedback.md, third and fourth rounds). Waiting on that tester: items 13
+(the blur, questions asked) and 14 (Orion). The manual still lacks the Switches section.
+
+**Before**: the testers' reports on the seventh test build, `0.1.0-test.7` (2026-11-07), almost all
 of it answers to the Leyden Jar tester's report on test.6: first, **does it start on his Windows 10
 machine** -- the shader-format fix, unproven there, or the new message box's text if not; then the
 display scale on his two monitors, Signal levels with the key names, the pressed key followed, and

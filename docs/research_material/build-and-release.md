@@ -105,6 +105,11 @@ with its four assets, the notes written by Claude and set with `gh release edit 
 published with `gh release edit --draft=false`, and the Pages run then online -- the live page
 asking for `nazg.js?v=0.1.0-test.7`.
 
+**`0.1.0-test.8`** (2026-11-16) the same, every step on Rico's word: the version commit pushed, the
+tag pushed, all nine jobs green in eight minutes, the notes written by Claude
+(`dist/release-notes-0.1.0-test.8.md`) and set on the draft, published, and the Pages run online in
+five -- the live page asking for `nazg.js?v=0.1.0-test.8`.
+
 *Run workflow* on the Actions tab does all of it but the release -- a rehearsal, its packages
 kept as the run's artifacts for a tester. The packages a release carries: `nazg-<v>-windows-x64.zip`,
 `nazg-<v>-manual.html`, `nazg-<v>-linux-x86_64.AppImage`, `nazg-<v>-macos-arm64.zip`. Building
