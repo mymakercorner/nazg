@@ -324,6 +324,40 @@ to soften every edge by itself. Rico's colleague's Mac has not been asked this y
 2. A **pixel density** line under *Display scale* in Settings' about lines (`io.DisplayFramebufferScale`),
    so any tester can say whether Nazg draws at 2 -- cheap, and the first thing to know.
 
+**Second look** (2026-11-16). Rico: the picture is what the tester sees on his screen, so a PNG adds
+nothing -- and everything is blurry, **the keys' shapes as much as the text**. So not the fonts:
+the whole frame would reach the screen softened. Read in the code, every step is right for Retina:
+
+- ImGui's SDL3 backend gives macOS `SDL_GetWindowDisplayScale()` as the framebuffer scale (pixel
+  density times content scale, 2 x 1 on Retina); the SDL_GPU backend sets
+  `ImGuiBackendFlags_RendererHasTextures`, so fonts are rasterised at that density.
+- SDL's Metal view sets `contentsScale` and `drawableSize` from `convertSizeToBacking`, when the
+  view is made and on every pixel-size change; SDL_GPU acquires the swapchain at that size.
+- `Nazg.app`'s `Info.plist` (from `resources/package/macos/`, by `tools/package_macos.py`) says
+  `NSHighResolutionCapable`, which SDL's comment there says the backing size needs.
+- The picture itself: Rico's copy is 2000 x 876 (the forum keeps 2166 x 949, 88 KB of JPEG), its
+  edges 4-5 px wide -- a 2x frame or a 1x frame stretched cannot be told apart under that
+  resampling and compression.
+
+**What remains, all on his side of the window**:
+
+1. **A scaled display mode.** A MacBook Air M4's default "looks like" size is not half its panel:
+   macOS draws every window at twice that size, then shrinks the whole screen to the panel --
+   0.87 on the 13-inch. Every app is softened, but ImGui's 1 px lines and thin unhinted text show
+   it most beside AppKit's heavier text.
+2. **An external monitor at 1x** (no Retina): ImGui's text unhinted at 16 px and its 1 px
+   fringes look soft beside macOS's own.
+3. Something not found in the code: if Nazg draws at 1x on a 2x screen, a pixel-density line would
+   show it.
+
+**Proposed**: ask him (a) which screen -- the MacBook's or an external one, which; (b) the
+resolution chosen in System Settings > Displays; (c) whether Nazg's web build in Chrome, on the same
+screen, looks the same; and add a **Pixel density** line under *Display scale* in Settings'
+about lines (`io.DisplayFramebufferScale`, with the window's size in points and pixels), so the
+next build says which of these it is.
+
+**Chosen by Rico** (2026-11-16): the questions only, no Pixel density line for now; asked on keebtalk.
+
 ## 14. A WebKit browser says nothing
 
 > "trying to use the web-app in a Webkit Browser (Orion) doesn't give me any indication that I have
