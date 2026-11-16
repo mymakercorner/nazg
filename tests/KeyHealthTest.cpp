@@ -383,7 +383,7 @@ namespace
 
         const LevelScale modelF{ 1, 10 };
         constexpr size_t c_Length = 400;
-        enum : size_t { A, B, C, E, F, G, H, I, J, K, L, Count };
+        enum : size_t { A, B, C, E, F, G, H, I, J, K, L, W, Count };
 
         std::vector<std::vector<uint16_t>> traces(Count);
         traces[A] = Trace(c_Length, 374, { { 10, 14 }, { 30, 34 }, { 50, 54 } }, 414);   // pressed three times, alone
@@ -419,6 +419,8 @@ namespace
             for (size_t i = first; i <= last; ++i)
                 traces[K][i] = 378;
         // L: its resting level drifts up by 2 around A's later presses, and A moves it by 1 on top.
+        // W: a shallow key, held 9 past where most keys hold 30 -- as Rico's left Win and Keypad 4.
+        traces[W] = Trace(c_Length, 374, { { 150, 154 }, { 170, 174 } }, 393);
         traces[L] = Trace(c_Length, 374, {}, 0);
         for (size_t i = 27; i <= 37; ++i)
             traces[L][i] = 376;
@@ -486,6 +488,8 @@ namespace
         Check(health.keys[A].pressesAlone == 3 && health.keys[B].pressesAlone == 1 && health.keys[F].pressesAlone == 0 &&
                   health.keys[C].pressesAlone == 0,
               "presses alone counted: A's three, B's one, none for F's chord or C, never pressed");
+        Check(health.keys[W].pressesAlone == 2,
+              "W, pressed twice alone 9 past where most keys hold 30: both its presses counted -- shallow is no echo");
 
         // An expert's rest margin of 1: 2 left is enough.
         const BoardHealth relaxed = nazg::JudgeBoard(keys, modelF, 1, { 1, 3 });

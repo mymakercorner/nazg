@@ -571,6 +571,13 @@ accuses nothing, and the first press of a key dashes nothing yet; and beyond how
 while no key is pressed -- a wandering key is not moved. Judging the 4-minute recording: 127 ms in
 Debug, 106 with the first measure, 86 without either.
 
+*A finger's press, redefined* (2026-11-15; Rico, on his F77: left Win kept "press twice" and Keypad 4
+"press again" however often pressed): a press counted only when at least half most keys' hold past
+its threshold, about 11 there -- and those keys press 9 and 10 past, healthy but shallow. Now a press
+that crossed is a finger's unless it is an echo: inside another key's press, a reading's slack either
+side, and less than half as deep. The F77 recording then finds 60 keys moved, all column neighbours.
+Seen on Rico's F77 (2026-11-16): left Win and Keypad 4 lose the tag from their second press.
+
 *The section, built* (2026-11-15, `ui/NazgDiagnosticsSection.*`): the words
 ("Types by itself when D is pressed: goes past its threshold"); in a listed key's bar the ring where
 its mover's press takes it, "another key" in the bars' header when one shows; under the key's

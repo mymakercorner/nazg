@@ -57,8 +57,11 @@ namespace nazg
         // The keys at rest while another is pressed (ui-design.md, "Signal levels, fourth round"),
         // in two passes over the keys analysed once.
         //
-        // A finger's press is one that registered and got well past its threshold: half most keys'
-        // hold, the safe margin at least. A key moved by another's press stays short of that.
+        // A finger's press is one that registered and is no echo: an echo crosses only inside another
+        // key's registered press, a reading's slack either side, and less than half as deep -- a key
+        // taken past its threshold by its neighbour's press. Depth alone would not do: on Rico's F77
+        // left Win and Keypad 4 press 9 and 10 past, short of half most keys' hold, so their presses
+        // never counted and "press twice" never went (2026-11-15).
         //
         // First, a key's attempts made only inside a finger's press on another key, never reaching its
         // threshold, are set aside -- neither its presses nor its rest -- and the key analysed again:
@@ -76,11 +79,41 @@ namespace nazg
         // is pressed.
         void FindCouplings(BoardHealth& board, std::span<const KeyLevels> keys, LevelScale scale)
         {
-            const int    d      = scale.direction;
-            const int    finger = std::max(c_SafeMargin, board.typical / 2);
-            const size_t count  = board.keys.size();
+            const int    d     = scale.direction;
+            const size_t count = board.keys.size();
 
-            const auto isFinger = [finger](const PressAttempt& press) { return press.registered && press.deepest >= finger; };
+            // Which attempts are a finger's, key by key, on the keys as analysed now.
+            std::vector<std::vector<bool>> fingerFlags(count);
+            const auto findFingers = [&]
+            {
+                for (size_t b = 0; b < count; ++b)
+                {
+                    const std::vector<PressAttempt>& presses = board.keys[b].stats.presses;
+                    fingerFlags[b].assign(presses.size(), false);
+                    for (size_t j = 0; j < presses.size(); ++j)
+                    {
+                        const PressAttempt& own  = presses[j];
+                        bool                echo = false;
+                        for (size_t a = 0; a < count && !echo; ++a)
+                            if (a != b)
+                                for (const PressAttempt& other : board.keys[a].stats.presses)
+                                    if (other.registered && other.first <= own.first + 1 && own.last <= other.last + 1 &&
+                                        own.deepest * 2 < other.deepest)
+                                    {
+                                        echo = true;
+                                        break;
+                                    }
+                        fingerFlags[b][j] = own.registered && !echo;
+                    }
+                }
+            };
+            const auto isFinger = [&](size_t key, const PressAttempt& press)
+            {
+                const std::vector<PressAttempt>& presses = board.keys[key].stats.presses;
+                const size_t                     j       = static_cast<size_t>(&press - presses.data());
+                return j < fingerFlags[key].size() && fingerFlags[key][j];
+            };
+            findFingers();
 
             // Set aside: an attempt inside another key's finger press, a reading's slack either side --
             // all decided on the first analysis, then the keys concerned analysed again.
@@ -97,7 +130,7 @@ namespace nazg
                     for (size_t a = 0; a < count && !inside; ++a)
                         if (a != b)
                             for (const PressAttempt& other : board.keys[a].stats.presses)
-                                if (isFinger(other) && other.first <= own.first + 1 && own.last <= other.last + 1)
+                                if (isFinger(a, other) && other.first <= own.first + 1 && own.last <= other.last + 1)
                                 {
                                     inside = true;
                                     break;
@@ -118,11 +151,12 @@ namespace nazg
                     std::copy(skipped.begin(), skipped.end(), flags.get());
                     board.keys[b].stats = AnalyseKey(keys[b].trace, keys[b].threshold, scale, std::span(flags.get(), skipped.size()));
                 }
+            findFingers();   // the keys analysed again have new attempts
 
             std::vector<std::pair<size_t, const PressAttempt*>> fingers;
             for (size_t a = 0; a < count; ++a)
                 for (const PressAttempt& press : board.keys[a].stats.presses)
-                    if (isFinger(press))
+                    if (isFinger(a, press))
                         fingers.emplace_back(a, &press);
 
             // The board quiet: no finger's press. Each key's own attempts, and how much it wanders
