@@ -63,10 +63,11 @@ add_subdirectory(external/minlzma/minlzlib)
 
 unset(CMAKE_FOLDER)
 
-# Dear ImGui has no CMake build of its own; compile the core plus only the two
-# backends we use. Renderer backend is SDL_GPU -- see CLAUDE.md for why, and for the
-# fallback to imgui_impl_opengl3 if it causes trouble. In a browser it is that fallback, over
-# WebGL 2: SDL_GPU has no WebGPU backend.
+# Dear ImGui has no CMake build of its own; compile the core plus only the backends we use.
+# Renderer backend is SDL_GPU -- see CLAUDE.md for why -- with imgui_impl_opengl3 beside it on the
+# desktop, chosen at run time where SDL_GPU has no device: no Vulkan driver on Linux, say
+# (tester-feedback.md, 22). Its own loader finds OpenGL at run time, so nothing more is linked. In
+# a browser OpenGL is all there is, over WebGL 2: SDL_GPU has no WebGPU backend.
 set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui)
 set(IMGUI_CORE_SOURCES
   ${IMGUI_DIR}/imgui.cpp
@@ -79,7 +80,7 @@ set(IMGUI_CORE_SOURCES
 if(EMSCRIPTEN)
   set(IMGUI_RENDERER_SOURCE ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp)
 else()
-  set(IMGUI_RENDERER_SOURCE ${IMGUI_DIR}/backends/imgui_impl_sdlgpu3.cpp)
+  set(IMGUI_RENDERER_SOURCE ${IMGUI_DIR}/backends/imgui_impl_sdlgpu3.cpp ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp)
 endif()
 
 set(IMGUI_BACKEND_SOURCES

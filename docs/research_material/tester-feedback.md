@@ -73,8 +73,8 @@ a missing DLL or another refusal would look the same to him.
    reports that one itself. Seen with a GPU driver forced that does not exist (`SDL_GPU_DRIVER=metal`
    on Windows).
 
-**Not built**: a runtime fallback to `imgui_impl_opengl3` where SDL_GPU gives no device -- today
-a compile-time choice, the work in the shell only. Only if his retest still fails on the GPU device.
+**Built since** (2026-11-16, item 22): a runtime fallback to `imgui_impl_opengl3` where SDL_GPU gives
+no device -- Direct3D 12 refusing his GPU would now draw with OpenGL.
 
 **Before the next build reaches him**, the release he has can already say why: SDL writes its log to
 the console of whatever started it, so from `cmd` in the unzipped folder,
@@ -528,3 +528,73 @@ picker's Basic tab showing his layout's keys. Nothing to do; the wiring use coul
 Designed with Rico 2026-10-16 (ui-design.md, "The application icon"). One voice; Rico's.
 
 **Declined** (Rico, 2026-11-16): the icon stays as it is.
+
+---
+
+# Fourth round
+
+*Another user's suggestion, passed on by Rico (2026-11-16). Analysed the same day; proposals,
+not yet agreed.*
+
+| # | What | Kind | Verdict | Done |
+|---|---|---|---|---|
+| 22 | Vulkan missing: the AppImage may quit silently; a clear dialog, or an OpenGL fallback | Robustness | Half done since test.7: a dialog, but in SDL's words; the fallback is the open item build-and-release.md names | | 2026-11-16, both |
+
+## 22. When Linux has no Vulkan
+
+> "The SDL GPU backend requiring Vulkan is a likely stumbling block: on older Intel GPUs or VMs
+> the AppImage may quit silently. A startup check with a clear error dialog (or, if practical, an
+> OpenGL fallback) would make that much easier to diagnose, especially for LMDE/Cinnamon users."
+
+A risk named, not a failure met: he does not say it happened. build-and-release.md already says it
+("Vulkan is the real risk, not the packaging"), the fallback to be built "only once a tester meets
+it".
+
+**What exists** (`Main.cpp`, since `0.1.0-test.7`, item 1): not silent. Every startup failure --
+`SDL_CreateGPUDevice()` among them -- shows a message box, "Nazg could not start", the call and
+`SDL_GetError()`. On Cinnamon, X11, SDL draws that box itself. But its words are SDL's -- "No
+supported SDL_GPU backend found!" -- which tell a user neither what is missing nor what to do.
+
+**When SDL_GPU refuses Linux** (SDL 3.4.16, `SDL_gpu_vulkan.c`):
+
+- **No Vulkan loader or driver at all** -- `libvulkan1` or Mesa's Vulkan drivers not installed,
+  a pre-Haswell Intel GPU (no Vulkan driver), some VMs. Mesa's lavapipe, software Vulkan, is
+  accepted when installed (`VK_PHYSICAL_DEVICE_TYPE_CPU`, ranked last), so most VMs with
+  `mesa-vulkan-drivers` start, slowly.
+- **A driver lacking a feature SDL asks for.** Required always: `independentBlend`,
+  `imageCubeArray`, `sampleRateShading`. Asked by default but optional: clip distance, depth
+  clamping, indirect first instance, anisotropy. ImGui's pipeline uses none but depth clamping
+  (`enable_depth_clip = false` in `imgui_impl_sdlgpu3.cpp`), so three could be turned off, as
+  the D3D12 resource slots were for Haswell on Windows -- letting an older Vulkan driver in.
+
+**Proposed**, smallest first:
+
+1. **The dialog in Nazg's words** where no GPU device is made: what Nazg needs on that system
+   (Linux: a Vulkan driver -- `mesa-vulkan-drivers` on Debian, Ubuntu and Mint; Windows: Direct3D
+   12 or Vulkan; macOS: Metal), SDL's reason under it, and the browser as the way round, with the
+   address. `Main.cpp` only.
+2. **The three optional Vulkan features off** (`SDL_PROP_GPU_DEVICE_CREATE_FEATURE_CLIP_DISTANCE`,
+   `_INDIRECT_DRAW_FIRST_INSTANCE`, `_ANISOTROPY` set false): a few more old drivers accepted. One
+   line each; untestable here without such a driver.
+3. **The OpenGL fallback**: where SDL_GPU gives no device, the window made again with
+   `SDL_WINDOW_OPENGL` and drawn through `imgui_impl_opengl3` -- the web build's renderer, already
+   in `Main.cpp` under `__EMSCRIPTEN__`. Both ImGui backends compiled on the desktop, the frame loop
+   choosing at run time; ImGui's GL loader needs no link. Testable on Windows by forcing a GPU
+   driver that does not exist (`SDL_GPU_DRIVER`), as item 1's dialog was. Medium: `Main.cpp` and
+   `CMakeLists.txt` only, but every platform's startup changes.
+
+**Built** (Rico, 2026-11-16: the fallback, with the message): `Main.cpp` asks
+`SDL_GPUSupportsProperties()` -- the same choice of backend a device runs, on Linux Vulkan loaded
+and a GPU looked for -- before it makes the window. SDL_GPU: as before. Not: the window made with
+`SDL_WINDOW_OPENGL`, an OpenGL context (3.0, 3.2 core on macOS), `imgui_impl_opengl3` -- also when a
+device promised is not made, or not given the window. Neither: "Nazg could not start: it found no
+way to draw its window on this computer", what to install per system, the browser's address, then
+SDL's two reasons (`ReportNoRenderer`). Settings' about lines say the OpenGL version and why not
+SDL_GPU. Both ImGui renderers compiled on the desktop; ImGui's loader finds OpenGL, nothing linked.
+Fix 2, the optional Vulkan features, not needed.
+
+Seen 2026-11-16: on Windows with `SDL_GPU_DRIVER=nonexistent`, OpenGL on the AMD driver, the whole
+window drawn right; with `SDL_OPENGL_LIBRARY` pointing nowhere too, the message; unforced, Direct3D
+12 as before. In WSL the same: OpenGL 4.5 through Mesa when forced, Vulkan otherwise. The web build
+compiles. Not seen: a computer that really lacks Vulkan, and macOS on OpenGL.
+

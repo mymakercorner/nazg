@@ -182,8 +182,10 @@ in an old distribution's container, while the CI job's tests can stay on `ubuntu
 **Vulkan is the real risk, not the packaging.** SDL_GPU is Vulkan on Linux, with no OpenGL
 fallback of its own. Any recent Mesa or NVIDIA driver has it, and Mesa's lavapipe gives a
 software Vulkan in most virtual machines; a very old GPU, or a VM without Mesa's Vulkan
-drivers, fails. The answer would be the `imgui_impl_opengl3` fallback CLAUDE.md names, chosen
-in `Main.cpp` when no GPU device can be created -- only once a tester meets it.
+drivers, fails. **Answered** (2026-11-16, tester-feedback.md, 22): `Main.cpp` asks SDL first and
+draws with `imgui_impl_opengl3` where it has no GPU device; with neither, a message says what to
+install. To try it: `SDL_GPU_DRIVER=nonexistent` forces OpenGL, and `SDL_OPENGL_LIBRARY` pointing
+nowhere as well brings the message.
 
 Vial does the same: its AppImage is built in an Ubuntu 18.04 container
 (`vial-gui/util/linux-builder/Dockerfile`, glibc 2.27), packed with pkg2appimage and fpm.

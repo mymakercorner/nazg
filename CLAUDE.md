@@ -325,8 +325,10 @@ top-level `CMakeLists.txt`, proven on Windows, Linux and macOS (Intel and Apple 
 | nlohmann/json | `v3.12.0` | `55f93686c01528224f448c19128836e7df245f72` |
 | minlzma | `v1.1.5` | `761991677bb472b9978177e203be91bdeb0cd348` |
 
-**Renderer backend: `imgui_impl_sdlgpu3`**, with `imgui_impl_opengl3` as the fallback if it
-causes trouble. SDL_GPU maps to Metal on macOS, D3D12 on Windows and Vulkan on Linux, which
+**Renderer backend: `imgui_impl_sdlgpu3`**, with **`imgui_impl_opengl3` chosen at run time** where
+SDL_GPU has no device (2026-11-16, tester-feedback.md, 22): `Main.cpp` asks `SDL_GPUSupportsProperties()`
+before making the window, which OpenGL needs made for it; neither renderer, and a message says what
+to install, or the browser. Both backends are compiled on the desktop. SDL_GPU maps to Metal on macOS, D3D12 on Windows and Vulkan on Linux, which
 avoids Apple's OpenGL deprecation entirely. ImGui's shaders ship precompiled in
 `imgui_impl_sdlgpu3_shaders.h`, so no shader toolchain is needed. One gotcha unique to this
 backend: `ImGui_ImplSDLGPU_PrepareDrawData` **must** be called before the render pass.

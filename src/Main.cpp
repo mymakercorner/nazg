@@ -9,6 +9,11 @@
 // switching the renderer backend (SDL_GPU -> OpenGL3) or adding an Emscripten path a
 // single-file change. See CLAUDE.md.
 //
+// The renderer is chosen at start: SDL_GPU -- Metal, Direct3D 12 or Vulkan -- where SDL finds a
+// device, else OpenGL through imgui_impl_opengl3: a Linux computer with no Vulkan driver, an old
+// GPU, a virtual machine (tester-feedback.md, 22). Neither: a message in Nazg's words, saying what
+// to install, or the browser.
+//
 // In a browser (__EMSCRIPTEN__; build-and-release.md, "The web build") the window is the page's
 // canvas, drawn with OpenGL ES 3 -- WebGL 2 -- since SDL_GPU has no WebGPU backend, and the
 // browser runs the frame loop, a pass per display refresh.
@@ -17,13 +22,19 @@
 #include <SDL3/SDL_main.h>
 
 #include "imgui.h"
+#include "imgui_impl_opengl3.h"
 #include "imgui_impl_sdl3.h"
 #if defined(__EMSCRIPTEN__)
-#include "imgui_impl_opengl3.h"
-#include <SDL3/SDL_opengles2.h>   // glClear() and the rest: WebGL 2 is OpenGL ES 3's
+#include <SDL3/SDL_opengles2.h>   // GLint, GL_APIENTRY: WebGL 2 is OpenGL ES 3's
 #include <emscripten.h>
+#define NAZG_GL_API GL_APIENTRY
 #else
+#if defined(__APPLE__)
+#define GL_SILENCE_DEPRECATION   // OpenGL is the fallback there, deprecated but working
+#endif
+#include <SDL3/SDL_opengl.h>      // GLint, APIENTRY: the shell's few calls are found at run time
 #include "imgui_impl_sdlgpu3.h"
+#define NAZG_GL_API APIENTRY
 #endif
 
 #include "app/NazgApp.h"
@@ -394,6 +405,108 @@ namespace
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Nazg", text.c_str(), nullptr);
     }
 
+    // SDL_GetError(), or words for its silence.
+    [[maybe_unused]] std::string SdlReason()
+    {
+        const char* const error = SDL_GetError();
+        return error != nullptr && *error != '\0' ? error : "no reason given";
+    }
+
+    // How a frame is drawn: SDL_GPU where it has a device, else OpenGL -- always, in a browser.
+    enum class Renderer
+    {
+        SdlGpu,
+        OpenGl,
+    };
+
+    // The few OpenGL calls the shell makes itself, around ImGui's: found once the context exists,
+    // so nothing links OpenGL -- the desktop only loads it when SDL_GPU has no device.
+    struct GlCalls
+    {
+        void(NAZG_GL_API* viewport)(GLint, GLint, GLsizei, GLsizei)        = nullptr;
+        void(NAZG_GL_API* clearColor)(GLfloat, GLfloat, GLfloat, GLfloat) = nullptr;
+        void(NAZG_GL_API* clear)(GLbitfield)                              = nullptr;
+        const GLubyte*(NAZG_GL_API* getString)(GLenum)                    = nullptr;
+
+        [[nodiscard]] bool IsComplete() const { return viewport && clearColor && clear && getString; }
+    };
+
+    GlCalls FindGlCalls()
+    {
+        GlCalls calls;
+        calls.viewport   = reinterpret_cast<decltype(calls.viewport)>(SDL_GL_GetProcAddress("glViewport"));
+        calls.clearColor = reinterpret_cast<decltype(calls.clearColor)>(SDL_GL_GetProcAddress("glClearColor"));
+        calls.clear      = reinterpret_cast<decltype(calls.clear)>(SDL_GL_GetProcAddress("glClear"));
+        calls.getString  = reinterpret_cast<decltype(calls.getString)>(SDL_GL_GetProcAddress("glGetString"));
+        return calls;
+    }
+
+#if !defined(__EMSCRIPTEN__)
+    // What Nazg asks SDL_GPU for. SDL picks the backend per platform: Metal on macOS, D3D12 on
+    // Windows, Vulkan on Linux. The shader formats are the ones ImGui's precompiled shaders come in
+    // (imgui_impl_sdlgpu3_shaders.h) -- DXBC for D3D12, not DXIL: SDL asks a D3D12 GPU for Shader
+    // Model 6 only when DXIL is offered, and refuses it without. ImGui uses no storage resources,
+    // so Tier 1 resource binding is enough, which lets Intel's Haswell and Broadwell graphics in
+    // (SDL_gpu.h). Debug builds only ask for the validation layers.
+    SDL_PropertiesID GpuProperties()
+    {
+        const SDL_PropertiesID properties = SDL_CreateProperties();
+        SDL_SetBooleanProperty(properties, SDL_PROP_GPU_DEVICE_CREATE_SHADERS_SPIRV_BOOLEAN, true);
+        SDL_SetBooleanProperty(properties, SDL_PROP_GPU_DEVICE_CREATE_SHADERS_DXBC_BOOLEAN, true);
+        SDL_SetBooleanProperty(properties, SDL_PROP_GPU_DEVICE_CREATE_SHADERS_MSL_BOOLEAN, true);
+        SDL_SetBooleanProperty(properties, SDL_PROP_GPU_DEVICE_CREATE_SHADERS_METALLIB_BOOLEAN, true);
+        SDL_SetBooleanProperty(properties, SDL_PROP_GPU_DEVICE_CREATE_D3D12_ALLOW_FEWER_RESOURCE_SLOTS_BOOLEAN, true);
+#if defined(NDEBUG)
+        SDL_SetBooleanProperty(properties, SDL_PROP_GPU_DEVICE_CREATE_DEBUGMODE_BOOLEAN, false);
+#else
+        SDL_SetBooleanProperty(properties, SDL_PROP_GPU_DEVICE_CREATE_DEBUGMODE_BOOLEAN, true);
+#endif
+        return properties;
+    }
+
+    // The OpenGL context asked for before the window is made: 3.2 core on macOS, the only modern
+    // one it has; 3.0 elsewhere, which every Mesa driver and Windows' own give. ImGui picks the
+    // GLSL to match (imgui_impl_opengl3.cpp).
+    void AskForOpenGl()
+    {
+#if defined(__APPLE__)
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+#else
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+#endif
+        SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    }
+
+    // Neither renderer: what Nazg needs on this system and what to do, in Nazg's words, then what
+    // the system said (tester-feedback.md, 22). Logged and shown, like ReportStartupFailure().
+    void ReportNoRenderer(const std::string& gpuReason, const std::string& glReason)
+    {
+        std::string text = "Nazg could not start: it found no way to draw its window on this computer.\n\n";
+#if defined(__APPLE__)
+        text += "Nazg draws with Metal, or else with OpenGL, and neither could be used.\n";
+#elif defined(_WIN32)
+        text += "Nazg draws with Direct3D 12 or Vulkan, or else with OpenGL, and none could be used. "
+                "Updating the graphics driver usually brings them.\n";
+#else
+        text += "Nazg draws with Vulkan, or else with OpenGL, and neither could be used. Installing your "
+                "distribution's Vulkan driver usually brings it -- mesa-vulkan-drivers on Debian, Ubuntu "
+                "and Linux Mint.\n";
+#endif
+        text += "\nNazg also runs in Chrome or Edge, with nothing to install: https://mymakercorner.com/nazg/\n\n"
+                "What the system said:\n"
+                "SDL_GPU: " + gpuReason + "\n"
+                "OpenGL: " + glReason;
+
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", text.c_str());
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Nazg", text.c_str(), nullptr);
+    }
+#endif
 }
 
 int main(int, char**)
@@ -408,29 +521,30 @@ int main(int, char**)
     // display's until the window is placed, then the frame loop follows the one it is on.
     const float mainScale = SDL_GetDisplayContentScale(SDL_GetPrimaryDisplay());
 
+    const auto createWindow = [mainScale](SDL_WindowFlags flags)
+    {
+        return SDL_CreateWindow(c_WindowTitle, static_cast<int>(c_DefaultWindowWidth * mainScale),
+                                static_cast<int>(c_DefaultWindowHeight * mainScale), flags);
+    };
+
+    SDL_Window*   pWindow   = nullptr;
+    SDL_GLContext glContext = nullptr;
+    Renderer      renderer  = Renderer::OpenGl;
+    std::string   gpuDriver;                                     // for the log and Settings' about lines
 #if defined(__EMSCRIPTEN__)
     // The page is the window: the canvas fills it and follows the browser's window, drawn at the
     // display's own pixels. OpenGL ES 3.0 is what WebGL 2 offers.
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
-    const SDL_WindowFlags windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_FILL_DOCUMENT | SDL_WINDOW_HIGH_PIXEL_DENSITY;
-#else
-    const SDL_WindowFlags windowFlags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN | SDL_WINDOW_HIGH_PIXEL_DENSITY;
-#endif
-    SDL_Window* pWindow = SDL_CreateWindow(c_WindowTitle,
-                                           static_cast<int>(c_DefaultWindowWidth  * mainScale),
-                                           static_cast<int>(c_DefaultWindowHeight * mainScale),
-                                           windowFlags);
+    pWindow = createWindow(SDL_WINDOW_OPENGL | SDL_WINDOW_FILL_DOCUMENT | SDL_WINDOW_HIGH_PIXEL_DENSITY);
     if (pWindow == nullptr)
     {
         ReportStartupFailure("SDL_CreateWindow()");
         SDL_Quit();
         return 1;
     }
-
-#if defined(__EMSCRIPTEN__)
-    SDL_GLContext glContext = SDL_GL_CreateContext(pWindow);
+    glContext = SDL_GL_CreateContext(pWindow);
     if (glContext == nullptr)
     {
         ReportStartupFailure("SDL_GL_CreateContext()");
@@ -439,49 +553,119 @@ int main(int, char**)
         return 1;
     }
     SDL_GL_MakeCurrent(pWindow, glContext);
+    gpuDriver = "WebGL 2";
+#else
+    const SDL_WindowFlags windowFlags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN | SDL_WINDOW_HIGH_PIXEL_DENSITY;
 
-    const char* const pGpuDriver = "WebGL 2";
-#else
-    // Create the GPU device. SDL picks the backend per platform: Metal on macOS,
-    // D3D12 on Windows, Vulkan on Linux. The shader formats are the ones ImGui's precompiled
-    // shaders come in (imgui_impl_sdlgpu3_shaders.h) -- DXBC for D3D12, not DXIL: SDL asks a
-    // D3D12 GPU for Shader Model 6 only when DXIL is offered, and refuses it without. ImGui uses
-    // no storage resources, so Tier 1 resource binding is enough, which lets Intel's Haswell and
-    // Broadwell graphics in (SDL_gpu.h). Debug builds only ask for the validation layers.
-    const SDL_PropertiesID gpuProperties = SDL_CreateProperties();
-    SDL_SetBooleanProperty(gpuProperties, SDL_PROP_GPU_DEVICE_CREATE_SHADERS_SPIRV_BOOLEAN, true);
-    SDL_SetBooleanProperty(gpuProperties, SDL_PROP_GPU_DEVICE_CREATE_SHADERS_DXBC_BOOLEAN, true);
-    SDL_SetBooleanProperty(gpuProperties, SDL_PROP_GPU_DEVICE_CREATE_SHADERS_MSL_BOOLEAN, true);
-    SDL_SetBooleanProperty(gpuProperties, SDL_PROP_GPU_DEVICE_CREATE_SHADERS_METALLIB_BOOLEAN, true);
-    SDL_SetBooleanProperty(gpuProperties, SDL_PROP_GPU_DEVICE_CREATE_D3D12_ALLOW_FEWER_RESOURCE_SLOTS_BOOLEAN, true);
-#if defined(NDEBUG)
-    SDL_SetBooleanProperty(gpuProperties, SDL_PROP_GPU_DEVICE_CREATE_DEBUGMODE_BOOLEAN, false);
-#else
-    SDL_SetBooleanProperty(gpuProperties, SDL_PROP_GPU_DEVICE_CREATE_DEBUGMODE_BOOLEAN, true);
-#endif
-    SDL_GPUDevice* pGpuDevice = SDL_CreateGPUDeviceWithProperties(gpuProperties);
+    // SDL_GPU first. SDL_GPUSupportsProperties() runs the choice of backend that making a device
+    // runs -- on Linux it loads Vulkan and looks for a GPU with what SDL needs -- with no window
+    // yet: OpenGL needs one made for it (SDL_WINDOW_OPENGL), so the window waits for the answer.
+    SDL_GPUDevice*         pGpuDevice    = nullptr;
+    std::string            gpuReason;
+    const SDL_PropertiesID gpuProperties = GpuProperties();
+    if (SDL_GPUSupportsProperties(gpuProperties))
+    {
+        pWindow = createWindow(windowFlags);
+        if (pWindow == nullptr)
+        {
+            ReportStartupFailure("SDL_CreateWindow()");
+            SDL_DestroyProperties(gpuProperties);
+            SDL_Quit();
+            return 1;
+        }
+
+        // Rarely, a device is promised and still not made, or not given the window: OpenGL then,
+        // in a window of its own.
+        pGpuDevice = SDL_CreateGPUDeviceWithProperties(gpuProperties);
+        if (pGpuDevice != nullptr && SDL_ClaimWindowForGPUDevice(pGpuDevice, pWindow))
+            renderer = Renderer::SdlGpu;
+        else
+        {
+            gpuReason = SdlReason();
+            if (pGpuDevice != nullptr)
+                SDL_DestroyGPUDevice(pGpuDevice);
+            pGpuDevice = nullptr;
+            SDL_DestroyWindow(pWindow);
+            pWindow = nullptr;
+        }
+    }
+    else
+        gpuReason = SdlReason();
     SDL_DestroyProperties(gpuProperties);
-    if (pGpuDevice == nullptr)
-    {
-        ReportStartupFailure("SDL_CreateGPUDevice()");
-        SDL_DestroyWindow(pWindow);
-        SDL_Quit();
-        return 1;
-    }
 
-    if (!SDL_ClaimWindowForGPUDevice(pGpuDevice, pWindow))
+    if (renderer == Renderer::SdlGpu)
     {
-        ReportStartupFailure("SDL_ClaimWindowForGPUDevice()");
-        SDL_DestroyGPUDevice(pGpuDevice);
-        SDL_DestroyWindow(pWindow);
-        SDL_Quit();
-        return 1;
+        SDL_SetGPUSwapchainParameters(pGpuDevice, pWindow, SDL_GPU_SWAPCHAINCOMPOSITION_SDR, SDL_GPU_PRESENTMODE_VSYNC);
+        const char* const driver = SDL_GetGPUDeviceDriver(pGpuDevice);
+        gpuDriver = driver != nullptr ? driver : "unknown";
     }
-    SDL_SetGPUSwapchainParameters(pGpuDevice, pWindow, SDL_GPU_SWAPCHAINCOMPOSITION_SDR, SDL_GPU_PRESENTMODE_VSYNC);
-
-    const char* pGpuDriver = SDL_GetGPUDeviceDriver(pGpuDevice);
+    else
+    {
+        // OpenGL: no Vulkan driver on Linux, an old GPU, a virtual machine -- Mesa's own OpenGL is
+        // nearly everywhere. Neither: Nazg says what to do (tester-feedback.md, 22).
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "No SDL_GPU device (%s): drawing with OpenGL", gpuReason.c_str());
+        AskForOpenGl();
+        pWindow = createWindow(windowFlags | SDL_WINDOW_OPENGL);
+        if (pWindow != nullptr)
+        {
+            glContext = SDL_GL_CreateContext(pWindow);
+            if (glContext == nullptr)
+            {
+                const std::string glReason = SdlReason();
+                SDL_DestroyWindow(pWindow);
+                ReportNoRenderer(gpuReason, glReason);
+                SDL_Quit();
+                return 1;
+            }
+        }
+        else
+        {
+            ReportNoRenderer(gpuReason, SdlReason());
+            SDL_Quit();
+            return 1;
+        }
+        SDL_GL_MakeCurrent(pWindow, glContext);
+        SDL_GL_SetSwapInterval(1);   // the display's pace, as SDL_GPU's VSYNC
+    }
 #endif
-    SDL_Log("GPU backend: %s", pGpuDriver != nullptr ? pGpuDriver : "unknown");
+
+    // Dear ImGui context
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.IniFilename = nullptr;   // nothing of ImGui's is kept; Nazg's settings are App's settings.json
+
+    // OpenGL's calls, and ImGui's renderer for it -- its loader finding OpenGL's functions. Made
+    // before App: a context too old for ImGui is one more reason to stop.
+    GlCalls gl;
+    if (renderer == Renderer::OpenGl)
+    {
+        gl = FindGlCalls();
+#if defined(__EMSCRIPTEN__)
+        const char* const glsl = "#version 300 es";
+#else
+        const char* const glsl = nullptr;   // ImGui's choice for the context made: 130, or 150 on macOS
+#endif
+        if (!gl.IsComplete() || !ImGui_ImplOpenGL3_Init(glsl))
+        {
+#if defined(__EMSCRIPTEN__)
+            ReportStartupFailure("ImGui_ImplOpenGL3_Init()");
+#else
+            ReportNoRenderer(gpuReason, "ImGui could not draw with this OpenGL context");
+#endif
+            ImGui::DestroyContext();
+            SDL_GL_DestroyContext(glContext);
+            SDL_DestroyWindow(pWindow);
+            SDL_Quit();
+            return 1;
+        }
+#if !defined(__EMSCRIPTEN__)
+        const GLubyte* const version = gl.getString(GL_VERSION);
+        gpuDriver = std::string("OpenGL ") + (version != nullptr ? reinterpret_cast<const char*>(version) : "");
+#endif
+    }
+    SDL_Log("GPU backend: %s", gpuDriver.c_str());
 
     const auto logError = [](const std::string& text) { SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", text.c_str()); };
 
@@ -504,8 +688,11 @@ int main(int, char**)
     std::snprintf(line, sizeof(line), "SDL %d.%d.%d, Dear ImGui %s", SDL_MAJOR_VERSION, SDL_MINOR_VERSION,
                   SDL_MICRO_VERSION, IMGUI_VERSION);
     platform.about.emplace_back(line);
-    std::snprintf(line, sizeof(line), "GPU backend: %s", pGpuDriver != nullptr ? pGpuDriver : "unknown");
-    platform.about.emplace_back(line);
+    platform.about.push_back("GPU backend: " + gpuDriver);
+#if !defined(__EMSCRIPTEN__)
+    if (renderer == Renderer::OpenGl)
+        platform.about.push_back("No SDL_GPU device: " + gpuReason);   // why OpenGL, for a tester's report
+#endif
 
     // Must outlive any open dialog: main() scope.
     DialogAnswers answers;
@@ -571,34 +758,31 @@ int main(int, char**)
     platform.fileSaved = [](const std::string& path) { NazgOfferDownload(path.c_str()); };
 #endif
 
-    // Dear ImGui context
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-    io.IniFilename = nullptr;   // nothing of ImGui's is kept; Nazg's settings are App's settings.json
-
     {
-        // Nazg itself, with its settings read: the window shows where it was left.
+        // Nazg itself, with its settings read: the window shows where it was left -- in a browser,
+        // where the user left it, the canvas filling it.
         nazg::App app(std::move(platform));
 
-#if defined(__EMSCRIPTEN__)
-        // The browser's window is where the user left it; the canvas fills it.
-        ImGui_ImplSDL3_InitForOpenGL(pWindow, glContext);
-        ImGui_ImplOpenGL3_Init("#version 300 es");
-#else
+#if !defined(__EMSCRIPTEN__)
         PlaceWindow(pWindow, app.Settings().window, mainScale);
         SDL_ShowWindow(pWindow);
+#endif
 
-        ImGui_ImplSDL3_InitForSDLGPU(pWindow);
+        if (renderer == Renderer::OpenGl)
+            ImGui_ImplSDL3_InitForOpenGL(pWindow, glContext);
+#if !defined(__EMSCRIPTEN__)
+        else
+        {
+            ImGui_ImplSDL3_InitForSDLGPU(pWindow);
 
-        ImGui_ImplSDLGPU3_InitInfo initInfo = {};
-        initInfo.Device             = pGpuDevice;
-        initInfo.ColorTargetFormat  = SDL_GetGPUSwapchainTextureFormat(pGpuDevice, pWindow);
-        initInfo.MSAASamples        = SDL_GPU_SAMPLECOUNT_1;
-        initInfo.SwapchainComposition = SDL_GPU_SWAPCHAINCOMPOSITION_SDR;
-        initInfo.PresentMode        = SDL_GPU_PRESENTMODE_VSYNC;
-        ImGui_ImplSDLGPU3_Init(&initInfo);
+            ImGui_ImplSDLGPU3_InitInfo initInfo = {};
+            initInfo.Device               = pGpuDevice;
+            initInfo.ColorTargetFormat    = SDL_GetGPUSwapchainTextureFormat(pGpuDevice, pWindow);
+            initInfo.MSAASamples          = SDL_GPU_SAMPLECOUNT_1;
+            initInfo.SwapchainComposition = SDL_GPU_SWAPCHAINCOMPOSITION_SDR;
+            initInfo.PresentMode          = SDL_GPU_PRESENTMODE_VSYNC;
+            ImGui_ImplSDLGPU3_Init(&initInfo);
+        }
 #endif
 
         const ImVec4 clearColor = ImVec4(0.09f, 0.09f, 0.11f, 1.0f);
@@ -616,8 +800,9 @@ int main(int, char**)
         // skipped instead when the swapchain has no texture ready, and the next tick tries again.
         // (Dragging the window still jitters at 60 Hz, for a reason outside Nazg: ui-design.md,
         // "Open points".)
-        bool                      isDrawing = false;
-        std::function<void(bool)> drawFrame = [&](bool isLive)
+        bool                      isDrawing       = false;
+        [[maybe_unused]] bool     isSwapImmediate = false;   // OpenGL's swap interval is 0, for a live frame
+        std::function<void(bool)> drawFrame       = [&](bool isLive)
         {
             if (isDrawing)
                 return;
@@ -669,10 +854,11 @@ int main(int, char**)
                 return;
             }
 
-#if defined(__EMSCRIPTEN__)
-            ImGui_ImplOpenGL3_NewFrame();
-#else
-            ImGui_ImplSDLGPU3_NewFrame();
+            if (renderer == Renderer::OpenGl)
+                ImGui_ImplOpenGL3_NewFrame();
+#if !defined(__EMSCRIPTEN__)
+            else
+                ImGui_ImplSDLGPU3_NewFrame();
 #endif
             ImGui_ImplSDL3_NewFrame();
             ImGui::NewFrame();
@@ -687,19 +873,33 @@ int main(int, char**)
             ImDrawData* pDrawData = ImGui::GetDrawData();
             const bool isMinimized = (pDrawData->DisplaySize.x <= 0.0f || pDrawData->DisplaySize.y <= 0.0f);
 
-#if defined(__EMSCRIPTEN__)
-            // The canvas at the display's pixels; the browser shows it after this frame's turn.
-            (void)isLive;
-            if (!isMinimized)
+            if (renderer == Renderer::OpenGl)
             {
-                glViewport(0, 0, static_cast<int>(pDrawData->DisplaySize.x * pDrawData->FramebufferScale.x),
-                           static_cast<int>(pDrawData->DisplaySize.y * pDrawData->FramebufferScale.y));
-                glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
-                glClear(GL_COLOR_BUFFER_BIT);
-                ImGui_ImplOpenGL3_RenderDrawData(pDrawData);
-                SDL_GL_SwapWindow(pWindow);
-            }
+                // At the window's pixels. In a browser the canvas is shown after this frame's turn;
+                // on the desktop a live frame does not wait for the display, as SDL_GPU's does not.
+#if defined(__EMSCRIPTEN__)
+                (void)isLive;
 #else
+                if (isLive != isSwapImmediate)
+                {
+                    SDL_GL_SetSwapInterval(isLive ? 0 : 1);
+                    isSwapImmediate = isLive;
+                }
+#endif
+                if (!isMinimized)
+                {
+                    gl.viewport(0, 0, static_cast<GLsizei>(pDrawData->DisplaySize.x * pDrawData->FramebufferScale.x),
+                                static_cast<GLsizei>(pDrawData->DisplaySize.y * pDrawData->FramebufferScale.y));
+                    gl.clearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
+                    gl.clear(GL_COLOR_BUFFER_BIT);
+                    ImGui_ImplOpenGL3_RenderDrawData(pDrawData);
+                    SDL_GL_SwapWindow(pWindow);
+                }
+                isDrawing = false;
+                return;
+            }
+
+#if !defined(__EMSCRIPTEN__)
             SDL_GPUCommandBuffer* pCommandBuffer = SDL_AcquireGPUCommandBuffer(pGpuDevice);
 
             SDL_GPUTexture* pSwapchainTexture = nullptr;
@@ -796,13 +996,24 @@ int main(int, char**)
     }
 
 #if !defined(__EMSCRIPTEN__)
-    SDL_WaitForGPUIdle(pGpuDevice);
-    ImGui_ImplSDL3_Shutdown();
-    ImGui_ImplSDLGPU3_Shutdown();
-    ImGui::DestroyContext();
+    if (renderer == Renderer::SdlGpu)
+    {
+        SDL_WaitForGPUIdle(pGpuDevice);
+        ImGui_ImplSDL3_Shutdown();
+        ImGui_ImplSDLGPU3_Shutdown();
+        ImGui::DestroyContext();
 
-    SDL_ReleaseWindowFromGPUDevice(pGpuDevice, pWindow);
-    SDL_DestroyGPUDevice(pGpuDevice);
+        SDL_ReleaseWindowFromGPUDevice(pGpuDevice, pWindow);
+        SDL_DestroyGPUDevice(pGpuDevice);
+    }
+    else
+    {
+        ImGui_ImplSDL3_Shutdown();
+        ImGui_ImplOpenGL3_Shutdown();
+        ImGui::DestroyContext();
+
+        SDL_GL_DestroyContext(glContext);
+    }
     SDL_DestroyWindow(pWindow);
     SDL_hid_exit();   // started by the change count
 #endif
