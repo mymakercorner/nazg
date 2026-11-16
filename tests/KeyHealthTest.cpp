@@ -562,6 +562,10 @@ namespace
         {
             nazg::ReportKey one;
             one.name             = key.keycode.rfind("KC_", 0) == 0 ? key.keycode.substr(3) : key.keycode;
+            if (key.keycode == "KC_NUM")
+                one.name = "Num Lock";   // as the section names it: too long for one line of a 1u key
+            else if (key.keycode == "KC_CAPS")
+                one.name = "Caps Lock";
             one.row              = key.geometry.row;
             one.column           = key.geometry.column;
             one.controllerRow    = static_cast<uint8_t>(key.row);
@@ -608,6 +612,8 @@ namespace
         Check(html.find("data-moves=\"") != std::string::npos && html.find(":safe") != std::string::npos,
               "what a key's press moves, for the dashes");
         Check(nlohmann::json::parse(nazg::ReadingsOfReport(html)) == recording.json, "its readings read back as the recording");
+        Check(html.find(">Num</text>") != std::string::npos && html.find(">Lock</text>") != std::string::npos,
+              "Num Lock on two lines, inside its 1u key");
 
         if (const char* out = std::getenv("NAZG_REPORT_OUT"))
             if (FILE* file = std::fopen(out, "wb"))

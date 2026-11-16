@@ -56,6 +56,46 @@ namespace nazg
             return text;
         }
 
+        // How wide a legend sets, roughly: Arimo's glyphs average a little over half an em. Counted
+        // in characters, not bytes -- "¨ ´" is two of them.
+        double WidthOf(std::string_view text, double size)
+        {
+            size_t glyphs = 0;
+            for (const unsigned char c : text)
+                glyphs += (c & 0xC0u) != 0x80u;
+            return double(glyphs) * size * 0.56;
+        }
+
+        // A legend centred on a keycap `w` wide (Rico, 2026-11-16: "Num Lock" ran past its 1u key):
+        // on two lines at its middle space when one is too long, then smaller only if a line still
+        // is, never below 7 px.
+        std::string CentredLegend(std::string_view text, double cx, double cy, double w, double size)
+        {
+            const double room = w - 6;
+            std::vector<std::string_view> lines{ text };
+            if (WidthOf(text, size) > room)
+            {
+                size_t split = std::string_view::npos;
+                for (size_t at = text.find(' '); at != std::string_view::npos; at = text.find(' ', at + 1))
+                    if (split == std::string_view::npos || std::abs(double(at) - double(text.size()) / 2) < std::abs(double(split) - double(text.size()) / 2))
+                        split = at;
+                if (split != std::string_view::npos)
+                    lines = { text.substr(0, split), text.substr(split + 1) };
+            }
+            double widest = 0;
+            for (std::string_view line : lines)
+                widest = std::max(widest, WidthOf(line, size));
+            if (widest > room)
+                size = std::max(7.0, size * room / widest);
+
+            const double lineHeight = size * 1.15, top = cy - lineHeight * (double(lines.size()) - 1) / 2 + size * 0.35;
+            std::string  s;
+            for (size_t i = 0; i < lines.size(); ++i)
+                s += "<text class=\"lg\" x=\"" + N(cx) + "\" y=\"" + N(top + double(i) * lineHeight) + "\" style=\"font-size:" + N(size) +
+                     "px\">" + Esc(lines[i]) + "</text>";
+            return s;
+        }
+
         const char* ClassOf(KeyVerdict verdict)
         {
             switch (verdict)
@@ -345,7 +385,7 @@ details{margin:12px 0}summary{cursor:pointer;color:var(--accent)}code{font-size:
         {
             const ReportKey& k = r.keys[key];
             if (!withLevels)
-                return "<text class=\"lg\" x=\"" + N(x + w / 2) + "\" y=\"" + N(y + h / 2 + 4) + "\">" + Esc(k.name) + "</text>";
+                return CentredLegend(k.name, x + w / 2, y + h / 2, w, 11);
 
             const double pad = 3.5, fs = 8.5, row = (h - 2 * pad) / 3;
             const auto   t   = [&](const char* cls, double tx, double ty, std::optional<int> value, bool end, bool bold)
@@ -365,7 +405,10 @@ details{margin:12px 0}summary{cursor:pointer;color:var(--accent)}code{font-size:
                 lowest = *levels[key].Min();
             if (r.info.thresholds.size() > 1)
                 bin = k.bin;
-            return "<text class=\"nm\" x=\"" + N(x + pad) + "\" y=\"" + N(y + pad + row * 0.8) + "\" style=\"font-size:" + N(fs) + "px\">" +
+            // The name on its one line, smaller when it would run past the key -- semibold sets wider.
+            const double nameWidth = WidthOf(k.name, fs) * 1.05;
+            const double nameSize  = nameWidth > w - 2 * pad ? std::max(6.0, fs * (w - 2 * pad) / nameWidth) : fs;
+            return "<text class=\"nm\" x=\"" + N(x + pad) + "\" y=\"" + N(y + pad + row * 0.8) + "\" style=\"font-size:" + N(nameSize) + "px\">" +
                    Esc(k.name) + "</text>" + t("", x + pad, y + pad + row * 1.85, rest, false, true) +
                    t("ex", x + w - pad, y + pad + row * 1.85, highest, true, false) + t("bn", x + pad, y + h - pad, bin, false, false) +
                    t("ex", x + w - pad, y + h - pad, lowest, true, false);
@@ -429,7 +472,7 @@ details{margin:12px 0}summary{cursor:pointer;color:var(--accent)}code{font-size:
                 if (shape.key)
                     s += "<title>" + Esc(Tooltip(*shape.key)) + "</title>" + KeyText(*shape.key, x, y, w, h, withLevels);
                 else if (!shape.legend.empty())
-                    s += "<text class=\"lg\" x=\"" + N(x + w / 2) + "\" y=\"" + N(y + h / 2 + 4) + "\">" + Esc(shape.legend) + "</text>";
+                    s += CentredLegend(shape.legend, x + w / 2, y + h / 2, w, 11);
                 if (g.rotation != 0.0f)
                     s += "</g>";
                 s += "</g>";
