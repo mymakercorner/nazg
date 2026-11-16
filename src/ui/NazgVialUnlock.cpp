@@ -55,8 +55,10 @@ namespace nazg
 
         const float done = static_cast<float>(vial::c_UnlockSteps - std::min(m_Countdown, vial::c_UnlockSteps)) /
                            static_cast<float>(vial::c_UnlockSteps);
-        // Thin, with no words in it (Rico, 2026-10-18): a frame's height was too heavy.
-        ImGui::ProgressBar(done, ImVec2(-1.0f, ImGui::GetFontSize() * 0.4f), "");
+        // The text's height, with no words in it (Rico, 2026-11-16, after a tester found it hard to
+        // see; tester-feedback.md, 16): thicker than the other bars' 0.4, thinner than a frame's,
+        // too heavy (2026-10-18).
+        ImGui::ProgressBar(done, ImVec2(-1.0f, ImGui::GetFontSize()), "");
 
         // Quitting waits for the unlock, not leaving the board mid-unlock, where it would answer
         // nothing until unplugged (Rico, 2026-10-18).

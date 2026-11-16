@@ -298,7 +298,7 @@ a real Mac. Nothing said about Gatekeeper or Input Monitoring.
 | 13 | Graphics a bit blurry on macOS | Bug? | Nothing wrong found in the code; needs a clean picture | asked |
 | 14 | No word in a WebKit browser (Orion) that WebHID is missing | Bug | The message exists; why it was not seen is unknown | asked |
 | 15 | The space key's legend is empty | Design | True on his board: a 1u thumb space has no telling shape | 2026-11-16, agreed with Rico |
-| 16 | The Vial unlock bar should be more visible | Design | Thin by Rico's choice (2026-10-18) | -- |
+| 16 | The Vial unlock bar should be more visible | Design | Thin by Rico's choice (2026-10-18) | 2026-11-16, from a mockup |
 | 17 | Switches as the key test's default | Design | Against Rico's choice (2026-10-26); remembering the choice answers it | 2026-11-16, both |
 | 18 | The host layout in the menu bar, as in Vial | Design | True: one combo in Settings, hard to find; wanted in the header (Rico, 2026-11-16) | 2026-11-16, from a mockup |
 | 19 | International keycodes not recognised; show what `S(KC_7)` types | Feature | True: Nazg knows no `DE_*` name, and draws a shifted key as its keycap | 2026-11-16, from a mockup |
@@ -363,6 +363,13 @@ view, the picker's full-size keyboards untouched (their space bars are 2.5u and 
 `NazgVialUnlock.cpp`: thin, no words, "a frame's height was too heavy" (Rico, 2026-10-18). Rico's to
 reopen or not. In between: a little taller, or in the accent colour, which on the dark theme stands
 out more than ImGui's default fill.
+
+**Mockup** (2026-11-16): [ui-design/unlock-bar.html](ui-design/unlock-bar.html) -- the unlock panel
+at five thicknesses, filling together: today's 0.4 of the text (6.4 px), 0.6, 0.8, the text's
+height, and a frame's (26 px, ImGui's default); rounded or square ends, both themes.
+
+**Chosen by Rico** (2026-11-16): **the text's height**, 16 px at 100 %, for this bar only -- the
+other progress bars keep 0.4. Built the same day (`NazgVialUnlock.cpp`).
 
 ## 17. Switches by default in the key test
 

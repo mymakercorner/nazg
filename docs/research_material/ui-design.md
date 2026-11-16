@@ -2766,9 +2766,11 @@ gains an *Advanced* submenu (see "Getting back to the keyboard list"). VIA does 
 its Design pane, hidden until enabled in its settings.
 
 **The Vial unlock**, from the header's *Locked*: it takes the board screen's place, the keys to
-hold outlined on the board and a bar filling while they are held (`ui/NazgVialUnlock.*`) -- thin,
-in the theme's accent, as every progress bar now is: a frame's height in ImGui's yellow was too
-heavy (Rico, 2026-10-18). Once
+hold outlined on the board and a bar filling while they are held (`ui/NazgVialUnlock.*`) -- in
+the theme's accent, as every progress bar now is: a frame's height in ImGui's yellow was too
+heavy (Rico, 2026-10-18). **The text's height** (Rico, 2026-11-16, from
+[ui-design/unlock-bar.html](ui-design/unlock-bar.html)), thicker than the other bars' 0.4 of it:
+a tester found the thin one hard to see (tester-feedback.md, 16). Once
 started the firmware cannot be told to stop -- the board answers nothing else until it is
 unlocked or restarted, `vial_lock` included (via-vial-commands.md, "What the lock gates") -- so
 (Rico, 2026-10-18, on the F77):
