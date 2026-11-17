@@ -617,7 +617,7 @@ agreed with Rico** unless the table says so.*
 | 28 | Device: the R key always lit | Misread | It holds `QK_BOOT`; nothing on the key says so | 2026-11-17, the combination animated |
 | 29 | The window always opens on the leftmost screen | Bug | Its place is remembered, but not while maximized: likely cause | 2026-11-17, untested (one screen here) |
 | 30 | The interface in other languages | Feature | Planned for later (no UI code may rule it out); not now | |
-| 31 | The key test on a Leyden Jar board: hide it, drop "Press every key once" | Design | Hiding: no, it tests the keymap; a line pointing to Signal levels | |
+| 31 | The key test on a Leyden Jar board: hide it, drop "Press every key once" | Design | Hiding: no, it tests the keymap; a line pointing to Signal levels | Set aside, nothing changed (Rico, 2026-11-17) |
 | 32 | Everything at once; all Tools top-level | Design | Item 10 again; 25 and 26 answer it without a new navigation | |
 | 33 | Liked: the HTML report, the other keys moved by a press | Praise | Both built 2026-11-15 | n/a |
 
@@ -802,6 +802,9 @@ and column labels turning green.
 **Proposed**: kept, and on a Leyden Jar board **one line at the top** of its panel: "To see each
 switch's signal, Diagnostics > Signal levels." Hiding it there is Rico's call; it would take the
 keymap test away from those boards' owners.
+
+**Set aside** (Rico, 2026-11-17): neither the line nor hiding, at least for now -- the key test stays
+as it is on every board. Not to be proposed again unless Rico reopens it.
 
 ## 32. Everything at once
 
