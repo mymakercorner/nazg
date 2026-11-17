@@ -2586,6 +2586,14 @@ Chosen on the mockup (Rico, 2026-10-18):
   Device.
 - **A board without the command says how** rather than hiding it: the key holding `QK_BOOT`, lit
   on the board, and its layer; or the reset button, or `QK_BOOT` to put on a key in Keymap.
+  *Added 2026-11-17* (Rico; tester-feedback.md, 28 -- the lit R read as a key stuck): the key tagged
+  "QK_BOOT"; on another layer, the way there lit -- the layer keys, held (MO, TT, LT, LM) or tapped
+  (TG, TO, OSL), each bringing in the next layer, read as the firmware does (the highest layer on
+  first, transparent keys falling through), the shortest way, at most four -- then the `QK_BOOT` key,
+  all pressed in turn, 0.6 s apart, the holds kept until the last is let go, a key down shown pressed
+  without its highlight; no tags then, the presses say it (Rico). A layer key past layer 0 wears its
+  legend on the layer it is pressed on (L2 on the F77's space bar); the `QK_BOOT` key keeps its name.
+  A layer no layer key reaches (a tri-layer the firmware computes): "QK_BOOT, layer N" alone.
 - **The resets ask, Cancel or the action**, the line still saying Save to file... keeps what the
   board holds; the dialog offering Save to file... itself was declined.
 - **A Leyden Jar board keeps both**: the Device section, and Diagnostics' Device view with the

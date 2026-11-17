@@ -604,8 +604,10 @@ On every board, in **Tools**:
 - **Enter bootloader...**: the keyboard restarts in its bootloader, ready for new firmware. It
   leaves Nazg, and comes back in the list once flashed. VIA has no command for this, and neither
   has a Vial firmware built insecure. The section then says how instead: the lit key holding
-  `QK_BOOT`, the board's reset button, or putting `QK_BOOT` on a key in Keymap. On a locked Vial
-  board, unlock first.
+  `QK_BOOT`, the board's reset button, or putting `QK_BOOT` on a key in Keymap. When `QK_BOOT`
+  is on another layer, the layer keys that lead there are lit too, and the board shows them pressed
+  in turn, then the `QK_BOOT` key -- held down to the end, or tapped. On a locked Vial board, unlock
+  first.
 - **Reset keymap...**: every layer's keys and knobs go back to the keymap the firmware was built
   with. Macros, lighting, layout options and Vial's features stay.
 - **Empty macros...**: every macro is emptied. Keys that play one stay, and play nothing.

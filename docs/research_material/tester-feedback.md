@@ -614,7 +614,7 @@ agreed with Rico** unless the table says so.*
 | 25 | Remove the Key presses and Device pages, the Levels button: one control per function | Design | Right about Key presses: Signal levels now does most of what it did | Levels removed 2026-11-17 (Rico); Key presses open |
 | 26 | Device in one place, the bins always in sight | Design | Two Device pages is the real fault; merge them | |
 | 27 | "press twice" covers a key's numbers | Bug, small | True: the tag sits where the numbers are | 2026-11-17, from a mockup |
-| 28 | Device: the R key always lit | Misread | It holds `QK_BOOT`; nothing on the key says so | |
+| 28 | Device: the R key always lit | Misread | It holds `QK_BOOT`; nothing on the key says so | 2026-11-17, the combination animated |
 | 29 | The window always opens on the leftmost screen | Bug | Its place is remembered, but not while maximized: likely cause | |
 | 30 | The interface in other languages | Feature | Planned for later (no UI code may rule it out); not now | |
 | 31 | The key test on a Leyden Jar board: hide it, drop "Press every key once" | Design | Hiding: no, it tests the keymap; a line pointing to Signal levels | |
@@ -738,6 +738,25 @@ layer N". He read it as a key test stuck on R: nothing on the key itself says wh
 
 **Proposed**: a tag on the lit key, "QK_BOOT, layer N" (the board's `tags`, as Combos and 27 use). On
 his board 26 removes the case: Enter bootloader through the Leyden Jar's command, so nothing is lit.
+
+**Built** (Rico, 2026-11-17: the tag, and the keys of the combination, animated): the `QK_BOOT` key
+tagged; on another layer, the first key on layer 0 bringing that layer in lit as well -- held (MO,
+TT, LT, LM) or tapped (TG, TO, OSL) -- and the two shown pressed in turn every 3 s, a hold kept down
+through the second press (`DeviceSection::DescribeBoard()`, `ReachOf()`). The panel says it in words:
+"hold the key that goes down first and press the second, which holds QK_BOOT on layer N". A layer
+reached otherwise -- through another layer, a tri-layer the firmware computes -- keeps "QK_BOOT,
+layer N" on the key alone. First tried by Rico: no animation seen -- the highlight's tint is painted
+over the pressed one (`WithStates()`), so a key down now drops its highlight; and no tags with the
+animation, the presses say it (Rico). Tried again on his F77 built insecure: still nothing -- its
+`QK_BOOT` is on layer 2, and layer 0's only layer key, L1, brings in layer 1. So the way is now
+searched through the layers (`BootPath()`): breadth first from layer 0, each key read as the firmware
+reads it -- the highest layer on first, transparent keys falling through -- at most four layer keys,
+then the `QK_BOOT` key; all pressed in turn, 0.6 s apart, holds kept to the end. Third try: the
+layer-0 key never went down -- the search walked every key of the definition, and the F77's first
+MO(1) belongs to a Right Shift choice not taken; only the keys drawn, with the layout's choices
+(`PlaceKeys()`), are searched now. "Better!" (Rico); then a layer key past layer 0 wears its legend
+on the layer it is pressed on -- L2 on the F77's space bar, blank on layer 0 -- the `QK_BOOT` key
+keeping its own name. Seen working on the F77 built insecure (Rico, 2026-11-17): L1, then L2, then R.
 
 ## 29. The window always opens on the leftmost screen
 

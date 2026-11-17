@@ -18,6 +18,7 @@
 
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "adapters/vial/NazgVialProtocol.h"
 #include "async/NazgTask.h"
@@ -63,6 +64,35 @@ namespace nazg
 
         // Where QK_BOOT sits, for a board that cannot jump: the first layer holding it, -1 for none.
         [[nodiscard]] int BootLayer() const;
+
+        // How a key brings in a layer, on the way to QK_BOOT (tester-feedback.md, 28): held -- MO,
+        // TT, LT, LM -- or tapped -- TG, TO, OSL; None for any other key.
+        enum class Reach
+        {
+            None,
+            Hold,
+            Tap,
+        };
+        struct LayerChange
+        {
+            Reach how   = Reach::None;
+            int   layer = 0;
+        };
+        [[nodiscard]] static LayerChange LayerChangeOf(const Keycode& keycode);
+
+        // The keys to press, in order, to reach QK_BOOT from layer 0: layer keys, each bringing in
+        // the next layer -- read as the firmware reads them, the highest layer on first, transparent
+        // keys falling through -- then the QK_BOOT key (its `how` None). The shortest, at most four
+        // layer keys; empty when none reaches it -- a tri-layer the firmware computes, which Nazg
+        // cannot see.
+        struct PathStep
+        {
+            uint8_t row    = 0;
+            uint8_t column = 0;
+            Reach   how    = Reach::None;
+            int     layer  = 0;   // the highest layer on when it is pressed: what it is read on
+        };
+        [[nodiscard]] std::vector<PathStep> BootPath() const;
 
         void DrawBootloaderLine();
         void DrawQuestion();
