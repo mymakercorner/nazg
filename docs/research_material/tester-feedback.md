@@ -615,7 +615,7 @@ agreed with Rico** unless the table says so.*
 | 26 | Device in one place, the bins always in sight | Design | Two Device pages is the real fault; merge them | |
 | 27 | "press twice" covers a key's numbers | Bug, small | True: the tag sits where the numbers are | 2026-11-17, from a mockup |
 | 28 | Device: the R key always lit | Misread | It holds `QK_BOOT`; nothing on the key says so | 2026-11-17, the combination animated |
-| 29 | The window always opens on the leftmost screen | Bug | Its place is remembered, but not while maximized: likely cause | |
+| 29 | The window always opens on the leftmost screen | Bug | Its place is remembered, but not while maximized: likely cause | 2026-11-17, untested (one screen here) |
 | 30 | The interface in other languages | Feature | Planned for later (no UI code may rule it out); not now | |
 | 31 | The key test on a Leyden Jar board: hide it, drop "Press every key once" | Design | Hiding: no, it tests the keymap; a line pointing to Signal levels | |
 | 32 | Everything at once; all Tools top-level | Design | Item 10 again; 25 and 26 answer it without a new navigation | |
@@ -775,6 +775,12 @@ is not the display holding the saved place, move the saved place onto it -- the 
 that display, centred. `Main.cpp` only. Testable with two screens: maximize on one, Win+Shift+Arrow,
 close, open. **To ask him** whether he keeps it maximized; if not, the cause is elsewhere (mixed
 scales and SDL's coordinates), and a log line of the place saved and restored would show it.
+
+**Built** (Rico, 2026-11-17): `TrackWindowPlace()` in `Main.cpp` -- while maximized, when the display
+the window is on (`SDL_GetDisplayForWindow`) is not the one holding the saved place's corner
+(`SDL_GetDisplayForPoint`), the place moves there: its size kept, no bigger than that display's
+usable area, centred on it; a place never saved takes 85 % of the display, as a first start does.
+Builds; untested -- Rico's machine has one screen. The tester is the test, with the question above.
 
 ## 30. Other languages
 

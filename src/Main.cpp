@@ -174,6 +174,11 @@ namespace
     // Keep the settings in step with the window: its place while it is neither maximized nor
     // minimized -- so a maximized window comes back to it when restored -- and whether it is
     // maximized. App writes it with the rest, a second after a change and on exit.
+    //
+    // A maximized window moved to another display -- Win+Shift+Arrow, its title bar dragged --
+    // takes its place along: the same size, no bigger than that display, centred on it. Kept where
+    // it was, the place would bring Nazg back maximized on the first display, whichever it was left
+    // on (tester-feedback.md, 29).
     void TrackWindowPlace(SDL_Window* window, nazg::AppSettings::WindowPlace& saved)
     {
         const SDL_WindowFlags flags = SDL_GetWindowFlags(window);
@@ -186,6 +191,19 @@ namespace
         {
             SDL_GetWindowPosition(window, &place.x, &place.y);
             SDL_GetWindowSize(window, &place.width, &place.height);
+        }
+        else
+        {
+            const SDL_DisplayID on     = SDL_GetDisplayForWindow(window);
+            const SDL_Point     corner = { place.x, place.y };
+            SDL_Rect            usable{};
+            if (on != 0 && (place.width <= 0 || SDL_GetDisplayForPoint(&corner) != on) && SDL_GetDisplayUsableBounds(on, &usable))
+            {
+                place.width  = place.width > 0 ? std::min(place.width, usable.w) : usable.w * 85 / 100;
+                place.height = place.height > 0 ? std::min(place.height, usable.h) : usable.h * 85 / 100;
+                place.x      = usable.x + (usable.w - place.width) / 2;
+                place.y      = usable.y + (usable.h - place.height) / 2;
+            }
         }
 
         saved = place;
