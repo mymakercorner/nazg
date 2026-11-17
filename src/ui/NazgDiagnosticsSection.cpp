@@ -208,11 +208,11 @@ namespace nazg
 
     DiagnosticsSection::DiagnosticsSection(HidTransport& transport, std::string path, const Keyboard& keyboard,
                                            const LegendSettings& legends, SafeMargins& safeMargins,
-                                           std::string& page, bool& levelsOnKeys, DeviceIdentity identity,
+                                           std::string& page, DeviceIdentity identity,
                                            const std::vector<uint8_t>& definition, std::string_view appVersion)
         : m_Transport(transport), m_Path(std::move(path)), m_Keyboard(keyboard), m_Legends(legends),
           m_SafeMargins(safeMargins), m_Identity(std::move(identity)), m_Definition(definition), m_AppVersion(appVersion),
-          m_Page(page), m_LevelsOnKeys(levelsOnKeys)
+          m_Page(page)
     {
         // Opened as last left (tester-feedback.md, 24).
         for (size_t mode = 0; mode < std::size(c_ModeIds); ++mode)
@@ -824,10 +824,9 @@ namespace nazg
 
     // Coloured by verdict -- only the problems, the keys to test plain (Rico, 2026-10-17: the dashed
     // keys to test were dropped), those pressed ticked -- a key down lit, the
-    // selected one outlined; with Levels, the tool's numbers instead of legends.
+    // selected one outlined; the tool's numbers instead of legends.
     void DiagnosticsSection::DescribeLevels(BoardDescription& board)
     {
-        const bool numbers    = m_LevelsOnKeys;
         const bool controller = m_View == View::Controller;
         const size_t rows     = m_Info.details.controllerRows;
 
@@ -859,9 +858,6 @@ namespace nazg
                      m_Health.keys[*key].stats.pressMargin))
                     described.marks |= Mark::Highlighted;
             }
-
-            if (!numbers)
-                continue;
 
             // The key's name first, so the key under the eyes is named (tester-feedback.md, 3); then
             // the reading now in bold, its highest at the right; the bin, with several, and its lowest
@@ -1101,22 +1097,22 @@ namespace nazg
 
         const float u = Unit();
 
-        // The first line: the instruction, then the margins, Levels and the view.
+        // The first line: the instruction, then the margins, the numbers' legend and the view.
         ImGui::AlignTextToFramePadding();
         ImGui::TextUnformatted("Signal levels");
         ImGui::SameLine();
         ColouredText(PanelColour::Muted, "press each key firmly twice, holding it a moment: the second press shows the keys it moves");
 
         // For everyone, Advanced tools or not -- Diagnostics is an expert's section (Rico, 2026-10-17): the threshold
-        // margins, 3 unless changed for the session, set apart by a divider from Levels -- off by
-        // default -- and Board / Controller.
+        // margins, 3 unless changed for the session, set apart by a divider from the sample key and
+        // Board / Controller.
         const float spacing = ImGui::GetStyle().ItemSpacing.x;
         const float field   = 70 * u;
         const float divider = 4 * spacing + 1.0f;
-        const float legend  = m_LevelsOnKeys ? ImGui::CalcTextSize("each key:").x + SampleKeySize().x + 2 * spacing : 0.0f;
+        const float legend  = ImGui::CalcTextSize("each key:").x + SampleKeySize().x + 2 * spacing;
         const float width   = SegmentsWidth({ "Board", "Controller" }) + ImGui::CalcTextSize("Threshold margin").x +
                             ImGui::CalcTextSize("rest").x + ImGui::CalcTextSize("press").x + 2 * field + divider +
-                            legend + ButtonWidth("Levels") + 6 * spacing;
+                            legend + 5 * spacing;
         RightAlign(width);
         {
             const char* explained = "How close to its threshold a key may get before it is at risk, each side's.";
@@ -1150,16 +1146,11 @@ namespace nazg
             ImGui::Dummy(ImVec2(1.0f, ImGui::GetFrameHeight()));
             ImGui::SameLine(0.0f, 2 * spacing);
 
-            // With the numbers on the keys, what each one is says itself beside the button.
-            if (m_LevelsOnKeys)
-            {
-                ColouredText(PanelColour::Muted, "each key:");
-                ImGui::SameLine();
-                DrawSampleKey(m_Info.thresholds.size() > 1);
-                ImGui::SameLine();
-            }
-            if (ToggleButton("Levels", m_LevelsOnKeys))
-                m_LevelsOnKeys = !m_LevelsOnKeys;
+            // The numbers always on the keys, what each one is said by a sample key: the Levels button
+            // that switched them is gone -- one control per thing (Rico, 2026-11-17; tester-feedback.md, 25).
+            ColouredText(PanelColour::Muted, "each key:");
+            ImGui::SameLine();
+            DrawSampleKey(m_Info.thresholds.size() > 1);
             ImGui::SameLine();
         }
         if (const int chosen = Segments({ "Board", "Controller" }, m_View == View::Controller ? 1 : 0); chosen >= 0)

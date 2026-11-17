@@ -92,7 +92,6 @@ namespace
         settings.advancedTools            = true;
         settings.keyTestOnSwitches        = false;
         settings.diagnosticsPage          = "keyPresses";
-        settings.diagnosticsLevels        = false;
         settings.moveToNextKey            = true;
         settings.hostLayoutChosen         = true;
         settings.workspace.boardHeight    = 640.0f;
@@ -128,8 +127,8 @@ namespace
         computer["tools"]["keyTest"] = "telepathy";
         Check(nazg::FromJson(computer, AppSettings{}).keyTestOnSwitches, "an unknown test keeps the default");
 
-        Check(document["tools"]["diagnostics"]["page"] == "signalLevels" && document["tools"]["diagnostics"]["levels"] == true,
-              "Diagnostics on Signal levels with the numbers by default, the Leyden Jar tool's view");
+        Check(document["tools"]["diagnostics"]["page"] == "signalLevels",
+              "Diagnostics on Signal levels by default, the Leyden Jar tool's view");
     }
 
     void TestWrongOrMissing()

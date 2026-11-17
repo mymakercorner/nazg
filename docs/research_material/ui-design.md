@@ -303,7 +303,7 @@ or not; the board in Device or folded away; how the bootloader and the erase ask
 *Settled 2026-10-17 (Rico), from the mockup:*
 
 - **Opens on Key presses** -- what an owner hunting a dead key needs first. *Replaced 2026-11-17*:
-  opens as last left, at first on Signal levels with Levels on ("Signal levels, third round").
+  opens as last left, at first on Signal levels, its numbers always on ("Signal levels, third round").
 - **The view choice** -- the board, QMK's matrix, the controller's -- **in the panel**, on its first
   line.
 - **Key presses: now and seen** -- as the matrix view's live test, every key pressed since the mode
@@ -529,7 +529,10 @@ opens on **the Leyden Jar Diagnostic Tool's view** by default -- Signal levels, 
 **the mode and Levels as last left**, kept in `settings.json` (`tools.diagnostics.page`, by id, and
 `.levels`; `AppSettings::diagnosticsPage`, `diagnosticsLevels`). An id the build does not know opens
 Signal levels. The board / controller view is not kept. After trying it (Rico, the same day):
-**Signal levels first in the strip**, then Key presses, then Device.
+**Signal levels first in the strip**, then Key presses, then Device; then **the Levels button gone**
+(tester-feedback.md, 25): the numbers always on the keys, the sample key always beside the margins,
+the setting `.levels` dropped -- off only took the numbers away, the name, verdicts and ticks being the
+same in both. Save report... the same: its Levels button gone, two views instead of four.
 
 **One key in focus** (Rico, 2026-11-07, after trying it on his F77): a press selects the key, so the
 panel's line and the key's last presses show the same one -- one hand on the board under test, none

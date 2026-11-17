@@ -152,9 +152,9 @@ namespace nazg
             std::string Script() const;
             std::string KeyboardPart() const;
             std::string Counts() const;
-            std::string KeyText(size_t key, double x, double y, double w, double h, bool withLevels) const;
-            std::string BoardSvg(bool withLevels) const;
-            std::string GridSvg(bool withLevels) const;
+            std::string KeyText(size_t key, double x, double y, double w, double h) const;
+            std::string BoardSvg() const;
+            std::string GridSvg() const;
             std::string BarsHeader() const;
             std::string Bar(size_t key) const;
             std::string List() const;
@@ -294,15 +294,12 @@ details{margin:12px 0}summary{cursor:pointer;color:var(--accent)}code{font-size:
   root.classList.remove('nojs'); root.classList.add('js');
   function all(s) { return Array.prototype.slice.call(document.querySelectorAll(s)); }
   var theme = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  var levels = false, view = 'board';
+  var view = 'board';
   function show() {
     root.setAttribute('data-theme', theme);
     all('[data-theme-set]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-theme-set') === theme); });
     all('[data-view-set]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-view-set') === view); });
-    all('[data-act=levels]').forEach(function (b) { b.classList.toggle('on', levels); });
-    all('.view').forEach(function (v) {
-      v.classList.toggle('on', v.getAttribute('data-view') === view && v.getAttribute('data-levels') === (levels ? 'on' : 'off'));
-    });
+    all('.view').forEach(function (v) { v.classList.toggle('on', v.getAttribute('data-view') === view); });
   }
   var pane = document.getElementById('detail-pane'), details = document.getElementById('details');
   if (pane && details) pane.appendChild(details);
@@ -319,10 +316,9 @@ details{margin:12px 0}summary{cursor:pointer;color:var(--accent)}code{font-size:
     });
   }
   document.addEventListener('click', function (e) {
-    var t = e.target.closest('[data-key], [data-act], [data-view-set], [data-theme-set]');
+    var t = e.target.closest('[data-key], [data-view-set], [data-theme-set]');
     if (!t) return;
     if (t.hasAttribute('data-key')) select(t.getAttribute('data-key'));
-    if (t.getAttribute('data-act') === 'levels') levels = !levels;
     if (t.hasAttribute('data-view-set')) view = t.getAttribute('data-view-set');
     if (t.hasAttribute('data-theme-set')) theme = t.getAttribute('data-theme-set');
     show();
@@ -379,15 +375,13 @@ details{margin:12px 0}summary{cursor:pointer;color:var(--accent)}code{font-size:
 
         // --- The board and the controller's grid -----------------------------------------------------
 
-        // With Levels: the name on the first line; the level at rest in bold, the highest at its
-        // right; the bin, the lowest at its right (Rico, 2026-11-07) -- at rest where the section has now.
-        std::string Page::KeyText(size_t key, double x, double y, double w, double h, bool withLevels) const
+        // Each key's numbers, always, as in the section (Rico, 2026-11-17: the Levels button gone): the
+        // name on the first line; the level at rest in bold, the highest at its right; the bin, the
+        // lowest at its right (Rico, 2026-11-07) -- at rest where the section has now.
+        std::string Page::KeyText(size_t key, double x, double y, double w, double h) const
         {
-            const ReportKey& k = r.keys[key];
-            if (!withLevels)
-                return CentredLegend(k.name, x + w / 2, y + h / 2, w, 11);
-
-            const double pad = 3.5, fs = 8.5, row = (h - 2 * pad) / 3;
+            const ReportKey& k   = r.keys[key];
+            const double     pad = 3.5, fs = 8.5, row = (h - 2 * pad) / 3;
             const auto   t   = [&](const char* cls, double tx, double ty, std::optional<int> value, bool end, bool bold)
             {
                 if (!value)
@@ -437,9 +431,9 @@ details{margin:12px 0}summary{cursor:pointer;color:var(--accent)}code{font-size:
             }
         }
 
-        std::string Page::BoardSvg(bool withLevels) const
+        std::string Page::BoardSvg() const
         {
-            const double u = withLevels ? 46 : 40, margin = u * 0.35, gap = std::max(1.0, u * 0.06);
+            const double u = 46, margin = u * 0.35, gap = std::max(1.0, u * 0.06);
             double bounds[4] = { 1e9, 1e9, -1e9, -1e9 };
             for (const ReportShape& shape : r.shapes)
             {
@@ -470,7 +464,7 @@ details{margin:12px 0}summary{cursor:pointer;color:var(--accent)}code{font-size:
                          "\" width=\"" + N(g.secondWidth * u - 2 * gap) + "\" height=\"" + N(g.secondHeight * u - 2 * gap) + "\" rx=\"" +
                          N(rx) + "\"/>";
                 if (shape.key)
-                    s += "<title>" + Esc(Tooltip(*shape.key)) + "</title>" + KeyText(*shape.key, x, y, w, h, withLevels);
+                    s += "<title>" + Esc(Tooltip(*shape.key)) + "</title>" + KeyText(*shape.key, x, y, w, h);
                 else if (!shape.legend.empty())
                     s += CentredLegend(shape.legend, x + w / 2, y + h / 2, w, 11);
                 if (g.rotation != 0.0f)
@@ -481,10 +475,10 @@ details{margin:12px 0}summary{cursor:pointer;color:var(--accent)}code{font-size:
         }
 
         // The controller's connectors, its columns across, its rows down; a weak column's ruler flagged.
-        std::string Page::GridSvg(bool withLevels) const
+        std::string Page::GridSvg() const
         {
             const leydenjar::Details& d = r.info.details;
-            const double cw = withLevels ? 58 : 50, ch = withLevels ? 48 : 34, lab = 30;
+            const double cw = 58, ch = 48, lab = 30;
             std::vector<std::optional<size_t>> at(size_t{ d.controllerColumns } * d.controllerRows);
             for (size_t k = 0; k < r.keys.size(); ++k)
                 if (r.keys[k].isMapped)
@@ -515,7 +509,7 @@ details{margin:12px 0}summary{cursor:pointer;color:var(--accent)}code{font-size:
                     }
                     s += "<g class=\"key " + std::string(ClassOf(VerdictOf(*key))) + "\" data-key=\"" + I(static_cast<long long>(*key)) +
                          "\"><rect class=\"cap\" x=\"" + N(x) + "\" y=\"" + N(y) + "\" width=\"" + N(w) + "\" height=\"" + N(h) +
-                         "\" rx=\"4\"/><title>" + Esc(Tooltip(*key)) + "</title>" + KeyText(*key, x, y, w, h, withLevels) + "</g>";
+                         "\" rx=\"4\"/><title>" + Esc(Tooltip(*key)) + "</title>" + KeyText(*key, x, y, w, h) + "</g>";
                 }
             return s + "</svg>";
         }
@@ -1066,19 +1060,17 @@ details{margin:12px 0}summary{cursor:pointer;color:var(--accent)}code{font-size:
             h += KeyboardPart();
 
             h += "<h2>Signal levels</h2><p class=\"muted js-only\">Click a key, on the board or in the list, to see its levels; the keys its press "
-                 "moves are outlined in dashes. Levels puts each key's numbers on it.</p>";
-            h += "<div class=\"tools\">" + Counts() + "<span class=\"right js-only\"><button data-act=\"levels\">Levels</button><span class=\"seg\">"
+                 "moves are outlined in dashes.</p>";
+            h += "<div class=\"tools\">" + Counts() + "<span class=\"right js-only\"><span class=\"seg\">"
                  "<button data-view-set=\"board\">Board</button><button data-view-set=\"controller\">Controller</button></span></span></div>";
-            const auto view = [&](const char* name, bool withLevels, const std::string& svg, const char* caption)
+            const auto view = [&](const char* name, const std::string& svg, const char* caption)
             {
-                return "<div class=\"view\" data-view=\"" + std::string(name) + "\" data-levels=\"" + (withLevels ? "on" : "off") + "\"><div class=\"figure\">" +
-                       svg + "</div><div class=\"caption nojs-only\">" + caption + "</div></div>";
+                return "<div class=\"view\" data-view=\"" + std::string(name) + "\"><div class=\"figure\">" + svg +
+                       "</div><div class=\"caption nojs-only\">" + caption + "</div></div>";
             };
-            h += view("board", false, BoardSvg(false), "The keyboard: the problems tinted, a key not pressed hatched.");
-            h += view("board", true, BoardSvg(true), "Each key's numbers: its name; its level at rest in bold, its highest at the right; "
-                                                      "its bin, its lowest at the right.");
-            h += view("controller", false, GridSvg(false), "The same on the controller's connectors, its columns across, its rows down.");
-            h += view("controller", true, GridSvg(true), "The controller's connectors with each key's numbers.");
+            h += view("board", BoardSvg(), "The keyboard: the problems tinted, a key not pressed hatched. Each key's numbers: its name; "
+                                           "its level at rest in bold, its highest at the right; its bin, its lowest at the right.");
+            h += view("controller", GridSvg(), "The same on the controller's connectors, its columns across, its rows down.");
 
             h += "<div class=\"panel\"><div class=\"split\"><div class=\"left\">" + List() + Dots() + "</div><div class=\"right js-only\" "
                  "id=\"detail-pane\"></div></div></div>";

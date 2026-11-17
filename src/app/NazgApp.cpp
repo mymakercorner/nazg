@@ -1394,7 +1394,6 @@ namespace nazg
                                           m_Settings.advancedTools,
                                           m_SafeMargins,
                                           m_Settings.diagnosticsPage,
-                                          m_Settings.diagnosticsLevels,
                                           m_Settings.moveToNextKey,
                                           m_Settings.hostLayoutChosen,
                                           m_Board.exportable,

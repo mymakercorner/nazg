@@ -608,12 +608,12 @@ namespace
         std::printf("  %zu bytes, %zu of them the readings\n", html.size(), report.readings.size());
         Check(html.rfind("<!DOCTYPE html>", 0) == 0 && html.find("</html>") != std::string::npos, "one HTML page");
         Check(count("<section class=\"detail\"") == recording.keys.size(), "every key's detail");
-        Check(count("<div class=\"view\"") == 4, "the board and the controller, plain and with Levels");
+        Check(count("<div class=\"view\"") == 2 && html.find("data-act=\"levels\"") == std::string::npos,
+              "the board and the controller, the numbers on the keys, no Levels button");
         Check(html.find("data-moves=\"") != std::string::npos && html.find(":safe") != std::string::npos,
               "what a key's press moves, for the dashes");
         Check(nlohmann::json::parse(nazg::ReadingsOfReport(html)) == recording.json, "its readings read back as the recording");
-        Check(html.find(">Num</text>") != std::string::npos && html.find(">Lock</text>") != std::string::npos,
-              "Num Lock on two lines, inside its 1u key");
+        Check(html.find(">Num Lock</text>") != std::string::npos, "Num Lock's name on its one line, above its numbers");
 
         if (const char* out = std::getenv("NAZG_REPORT_OUT"))
             if (FILE* file = std::fopen(out, "wb"))

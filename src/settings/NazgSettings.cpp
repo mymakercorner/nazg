@@ -101,8 +101,7 @@ namespace nazg
                                    { "columnFolded", settings.workspace.isColumnFolded } };
         document["tools"]      = { { "advanced", settings.advancedTools },
                                    { "keyTest", settings.keyTestOnSwitches ? "switches" : "computer" },
-                                   { "diagnostics", { { "page", settings.diagnosticsPage },
-                                                      { "levels", settings.diagnosticsLevels } } } };
+                                   { "diagnostics", { { "page", settings.diagnosticsPage } } } };
         if (settings.window.width > 0)
             document["window"] = { { "x", settings.window.x },
                                    { "y", settings.window.y },
@@ -152,10 +151,7 @@ namespace nazg
             if (keyTest == "switches" || keyTest == "computer")
                 settings.keyTestOnSwitches = keyTest == "switches";
             if (const Json* diagnostics = Find(*tools, "diagnostics"))
-            {
                 Read(*diagnostics, "page", settings.diagnosticsPage);
-                Read(*diagnostics, "levels", settings.diagnosticsLevels);
-            }
         }
 
         // A place without a size is no place.

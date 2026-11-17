@@ -611,7 +611,7 @@ agreed with Rico** unless the table says so.*
 |---|---|---|---|---|
 | 23 | Fixed: Windows 10, two monitors, the space key, QMK matrix / Controller, the wiring flash, the legend | Confirmed | Items 1, 2, 4, 5, 7 and 3's legend proven on his machines | n/a |
 | 24 | Diagnostics should open on Signal levels with the numbers on | Design | Third time asked; against Rico's choice (2026-11-07); remembering answers it, as in 17 | 2026-11-17, both (Rico) |
-| 25 | Remove the Key presses and Device pages, the Levels button: one control per function | Design | Right about Key presses: Signal levels now does all it did | |
+| 25 | Remove the Key presses and Device pages, the Levels button: one control per function | Design | Right about Key presses: Signal levels now does most of what it did | Levels removed 2026-11-17 (Rico); Key presses open |
 | 26 | Device in one place, the bins always in sight | Design | Two Device pages is the real fault; merge them | |
 | 27 | "press twice" covers a key's numbers | Bug, small | True: the tag sits where the numbers are | |
 | 28 | Device: the R key always lit | Misread | It holds `QK_BOOT`; nothing on the key says so | |
@@ -649,7 +649,8 @@ done, only Levels is left to remember.
 Levels on, and the mode and Levels **as last left**, in `settings.json` (`tools.diagnostics`: `page`
 by id, `levels`; `AppSettings::diagnosticsPage`, `diagnosticsLevels`, replacing `App::m_LevelsOnKeys`).
 An id a later build drops -- if 25 or 26 removes a page -- opens Signal levels. Seen working by Rico
-the same day, who then put **Signal levels first in the strip**, before Key presses.
+the same day, who then put **Signal levels first in the strip**, before Key presses, and removed
+Levels (25), so only the page is kept now.
 
 ## 25. One page for the keys, not two
 
@@ -668,6 +669,14 @@ and Diagnostics has **no strip at all** -- one page, which is "everything at onc
 without making Diagnostics navigate unlike every other section (item 10). Levels stays: the bars are
 the whole board's quick read, the numbers one key's (item 6), and remembered (24) it is clicked once.
 A **mockup** first: what Key presses' panel says that Signal levels' does not, and where it goes.
+
+**Levels removed** (Rico, 2026-11-17, against the proposal above): on or off, Signal levels showed the
+same name, verdict colours, ticks and focus -- off only took the numbers away, and the bars are in the
+list either way. So the numbers are always on the keys, the sample key always on the panel's first
+line; the setting went with the button (`tools.diagnostics.levels`, an older file's key kept unread),
+and Save report...'s own Levels button too -- two views, board and controller, instead of four. The
+cost: numbers on every key in a small window, item 2's open second half. Key presses' fold-in is
+still to decide.
 
 ## 26. Device in one place
 

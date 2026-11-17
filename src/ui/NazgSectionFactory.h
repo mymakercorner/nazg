@@ -37,7 +37,6 @@ namespace nazg
         const bool&                              advancedTools;
         SafeMargins&                             safeMargins;        // the diagnostics', for the session
         std::string&                             diagnosticsPage;    // the diagnostics' page, as last left, by id
-        bool&                                    diagnosticsLevels;  // and their Levels button
         const bool&                              moveToNextKey;      // Keymap's, after a pick
         bool&                                    hostLayoutChosen;   // Macros asks until it is
         const std::vector<uint8_t>&              definitionBytes;    // the definition drawing it, as Nazg has it; may be empty

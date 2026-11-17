@@ -674,8 +674,8 @@ matrix.
 
 *Only on keyboards with a Leyden Jar controller* (Model F and Beam Spring replacements). Opening
 it turns the keyboard's typing off, and it comes back on when you leave. It opens where you left it,
-even after Nazg is closed -- the first time on Signal levels with Levels on, as the Leyden Jar
-Diagnostic Tool's Level Monitor. The strip has:
+even after Nazg is closed -- the first time on Signal levels, as the Leyden Jar Diagnostic Tool's
+Level Monitor. The strip has:
 
 - **Signal levels**: each key's readings against its threshold, and Nazg's verdict on the keys at
   risk: keys that may type by themselves, or may miss presses. Click a key for its levels and last
@@ -683,9 +683,9 @@ Diagnostic Tool's Level Monitor. The strip has:
   name and numbers -- the reading now, its highest and lowest, its threshold and bin -- appear in
   large type under the panel's first line, with its readings on one scale, while you hold it and
   after. **Click a key**, on the board or in the list, to see one you cannot press; the next key
-  you press takes its place. **Levels** puts the numbers on every key, under
-  its name: the reading now in bold with the highest beside it, the bin with the lowest; a sample key
-  beside the button says which is which. Nazg keeps Levels as you left it.
+  you press takes its place. **Every key shows its numbers** under its name: the reading now in bold
+  with the highest beside it, the bin with the lowest; a sample key on the panel's first line says
+  which is which.
   **Press each key twice**, alone: from its second press, the keys its press moves are outlined in
   dashes on the board -- grey when they stay safe, orange when the press brings one close to its
   threshold, red when it takes one past, which may type by itself. A key moved that way is listed
