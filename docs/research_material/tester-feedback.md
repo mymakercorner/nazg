@@ -11,8 +11,8 @@ the same day; built since: items 1 to 8 (2026-11-07), as the table says.*
 
 | # | What | Kind | Verdict | Done |
 |---|---|---|---|---|
-| 1 | Does not start on Windows 10; Windows 11 and the browser are fine | Bug, blocking | Likely cause found in SDL's source (corrected 2026-11-07), unproven on his machine | 2026-11-07, awaiting his retest |
-| 2 | Wrong sizes on a second monitor of another scale | Bug, known | Confirms the deferred item, and worse than it says | 2026-11-07, the scale followed; small windows not |
+| 1 | Does not start on Windows 10; Windows 11 and the browser are fine | Bug, blocking | Likely cause found in SDL's source (corrected 2026-11-07) | 2026-11-07; **starts on his Windows 10** (2026-11-17, item 23) |
+| 2 | Wrong sizes on a second monitor of another scale | Bug, known | Confirms the deferred item, and worse than it says | 2026-11-07, the scale followed, **seen on his two monitors** (2026-11-17); small windows not |
 | 3 | Key names beside the signal levels | Feature | The strongest request of the round | 2026-11-07, from a mockup |
 | 4 | The space bar is unlabelled in the matrix and diagnostics views | Bug, small | True where there is no keymap to read it from | 2026-11-07, seen on Rico's F77 |
 | 5 | Wiring flashes when the pointer moves between keys | Bug, small | True, mechanism found | 2026-11-07, seen on Rico's F77 |
@@ -597,4 +597,172 @@ Seen 2026-11-16: on Windows with `SDL_GPU_DRIVER=nonexistent`, OpenGL on the AMD
 window drawn right; with `SDL_OPENGL_LIBRARY` pointing nowhere too, the message; unforced, Direct3D
 12 as before. In WSL the same: OpenGL 4.5 through Mesa when forced, Vulkan otherwise. The web build
 compiles. Not seen: a computer that really lacks Vulkan, and macOS on OpenGL.
+
+---
+
+# Fifth round
+
+*The first round's tester again -- Leyden Jar board, Windows 10 and 11, the browser -- marking his
+first report Fixed or Not fixed, with new notes, passed on by Rico (2026-11-17). He ran
+`0.1.0-test.8`, the build with Save report... (Rico). Analysed the same day; proposals, **not yet
+agreed with Rico** unless the table says so.*
+
+| # | What | Kind | Verdict | Done |
+|---|---|---|---|---|
+| 23 | Fixed: Windows 10, two monitors, the space key, QMK matrix / Controller, the wiring flash, the legend | Confirmed | Items 1, 2, 4, 5, 7 and 3's legend proven on his machines | n/a |
+| 24 | Diagnostics should open on Signal levels with the numbers on | Design | Third time asked; against Rico's choice (2026-11-07); remembering answers it, as in 17 | 2026-11-17, both (Rico) |
+| 25 | Remove the Key presses and Device pages, the Levels button: one control per function | Design | Right about Key presses: Signal levels now does all it did | |
+| 26 | Device in one place, the bins always in sight | Design | Two Device pages is the real fault; merge them | |
+| 27 | "press twice" covers a key's numbers | Bug, small | True: the tag sits where the numbers are | |
+| 28 | Device: the R key always lit | Misread | It holds `QK_BOOT`; nothing on the key says so | |
+| 29 | The window always opens on the leftmost screen | Bug | Its place is remembered, but not while maximized: likely cause | |
+| 30 | The interface in other languages | Feature | Planned for later (no UI code may rule it out); not now | |
+| 31 | The key test on a Leyden Jar board: hide it, drop "Press every key once" | Design | Hiding: no, it tests the keymap; a line pointing to Signal levels | |
+| 32 | Everything at once; all Tools top-level | Design | Item 10 again; 25 and 26 answer it without a new navigation | |
+| 33 | Liked: the HTML report, the other keys moved by a press | Praise | Both built 2026-11-15 | n/a |
+
+## 23. Fixed, by his own marks
+
+Windows 10 starts (item 1 -- the first proof on a machine that failed); the scale right on his 300 %
+and 150 % screens (item 2); the space key named (4); the wiring view steady (5); the QMK matrix /
+Controller line (7); the legend always on screen (3). All on `0.1.0-test.8`, which carries both
+startup fixes, so which one let Windows 10 start is not known. **To ask him**: the renderer in
+Settings' about lines -- Direct3D 12 says the shader fix of test.7 did it, OpenGL that his GPU still
+refuses D3D12 and the fallback of test.8 (item 22) caught it.
+
+## 24. Diagnostics should open on the numbers
+
+> "users should not have to memorize several clicks to access the most frequently-used diagnostic
+> requirement -- you have to click Diagnostics, signal levels and then click the Levels button"
+
+Asked in the first round (items 3, 6), answered then by Rico: Key presses first, Levels kept for the
+session (2026-11-07). He asks again, and his reason is new: **his own users** got lost in the Leyden
+Jar tool for want of the levels, and he expects the same here. It is the key test's case (item 17):
+one user tests a keymap, another adjusts a capacitive board.
+
+**Proposed**: the same answer as 17 -- the page and Levels **remembered in `settings.json`**, per user
+(beside `tools.keyTest`), so he clicks once, ever. Whether a first start opens on Signal levels with
+Levels on is Rico's: for a Leyden Jar board's owner it is the reason Diagnostics exists. With 25
+done, only Levels is left to remember.
+
+**Built** (Rico, 2026-11-17): both -- by default **the Leyden Jar tool's view**, Signal levels with
+Levels on, and the mode and Levels **as last left**, in `settings.json` (`tools.diagnostics`: `page`
+by id, `levels`; `AppSettings::diagnosticsPage`, `diagnosticsLevels`, replacing `App::m_LevelsOnKeys`).
+An id a later build drops -- if 25 or 26 removes a page -- opens Signal levels. Seen working by Rico
+the same day, who then put **Signal levels first in the strip**, before Key presses.
+
+## 25. One page for the keys, not two
+
+> "I recommend removing the Key presses and Device sub-tabs and moving their contents to the left
+> column" / "Only one button should be usable for each function"
+
+Since the first round Signal levels does most of what Key presses does: it ticks a key once pressed,
+lights the key held, names it, shows the board or the controller, and says where a key is wired. Key
+presses keeps two things of its own (`DrawKeyPressesPanel`): the **QMK matrix** view beside the
+controller's -- the comparison item 7 explained -- and the **"seen N of M keys"** count with its Clear.
+The two pages are the "two buttons for the same function" he means, more than Levels is.
+
+**Proposed**: **Key presses folded into Signal levels** -- its view choice Board / QMK matrix /
+Controller, the seen count beside Clear -- the strip losing it. With 26, Device leaves too,
+and Diagnostics has **no strip at all** -- one page, which is "everything at once" for the keys
+without making Diagnostics navigate unlike every other section (item 10). Levels stays: the bars are
+the whole board's quick read, the numbers one key's (item 6), and remembered (24) it is clicked once.
+A **mockup** first: what Key presses' panel says that Signal levels' does not, and where it goes.
+
+## 26. Device in one place
+
+> "The current top level Device tab shows nothing except 2 buttons reset keymap and empty macros.
+> This could be combined with the Diagnostics - Device stuff"
+
+True, and the cause is ours: a Leyden Jar board has **two Device pages**. Tools > Device (every board)
+has Reset keymap, Empty macros, and -- his firmware lacking VIA's bootloader command -- a line sending
+him to "Diagnostics, in Device" for the bootloader. Diagnostics > Device has the controller's
+information, Enter bootloader through the Leyden Jar's own command, and Erase EEPROM.
+
+**Proposed**: on a Leyden Jar board, **Tools > Device holds it all** -- the controller's, Vial's and
+USB's information, Enter bootloader (the Leyden Jar's command where VIA's is missing), Erase EEPROM,
+then Reset keymap and Empty macros -- and Diagnostics' Device page goes. What he asks next, "show the
+bin details at the same time as the signal levels", is item 9's one line: **every bin's calibration,
+side by side, muted, in Signal levels** -- the bootloader and the erase are not clicked while
+adjusting a key, and stay off that page. A left column always on screen (his "like the Leyden Jar
+diagnostic utility") stays declined: the left column is the section list in every view.
+
+Item 9's question to him -- is it the bootloader he wants at hand, or a way to **recalibrate** after
+adjusting (the Leyden Jar's Reboot, `0x8A`) -- is still unanswered; ask it again with this.
+
+## 27. "press twice" covers the numbers
+
+> "The matrix values inside the key are partially covered after pressing one time, with a note to
+> press the key a second time."
+
+True. The focused key's tag ("press twice", "press again" -- the rest-coupling measure, Rico,
+2026-11-15, because grey words in the panel went unnoticed) is drawn for a single key at `unit * 0.42`
+below its centre (`DrawTags`, `NazgBoardView.cpp`) -- the bottom of the key, where Levels puts the
+bin and the low reading.
+
+**Proposed**, Rico's choice: (a) the tag **outside the keycap**, under it, over the gap and the next
+row's top edge; (b) the tag only while Levels is off -- with the numbers on, the panel's line says it;
+(c) "press again" only after the first press, so a user who never presses twice sees it once.
+
+## 28. The R key always lit in Device
+
+> "Device tab -- the 'R' key remains highlighted, regardless of which key is/was pressed."
+
+As built: where the firmware has no bootloader command, Device lights the key holding `QK_BOOT`
+(Rico, 2026-10-18) -- on his keymap, R on some layer -- and the panel says "press the lit key on
+layer N". He read it as a key test stuck on R: nothing on the key itself says why.
+
+**Proposed**: a tag on the lit key, "QK_BOOT, layer N" (the board's `tags`, as Combos and 27 use). On
+his board 26 removes the case: Enter bootloader through the Leyden Jar's command, so nothing is lit.
+
+## 29. The window always opens on the leftmost screen
+
+> "Even if I move the program to the desired screen, close it, and reopen it, it still opens on the
+> leftmost screen only."
+
+Nazg remembers its place (`PlaceWindow`, `TrackWindowPlace` in `Main.cpp`, since 2026-10-04), so
+something defeats it. **Likely cause**: the place is recorded only while the window is neither
+maximized nor minimized, so that a maximized window restores to it. A window **maximized, then moved
+to the other screen** -- Win+Shift+Arrow, or its title bar dragged -- keeps the place it had on the
+first screen; Nazg reopens there and maximizes there. With screens at 300 % and 150 % he very likely
+runs it maximized.
+
+**Proposed**: while maximized, follow the display the window is on (`SDL_GetDisplayForWindow`); when it
+is not the display holding the saved place, move the saved place onto it -- the same size, clamped to
+that display, centred. `Main.cpp` only. Testable with two screens: maximize on one, Win+Shift+Arrow,
+close, open. **To ask him** whether he keeps it maximized; if not, the cause is elsewhere (mixed
+scales and SDL's coordinates), and a log line of the place saved and restored would show it.
+
+## 30. Other languages
+
+> "I suggest adding an option to change the program language for non-English users."
+
+Planned, not now: the interface is to become translatable later, and no new UI code may rule it out.
+His is the first request from outside. Rico's to schedule.
+
+## 31. The key test on a Leyden Jar board
+
+> "Matrix-live test screen does not seem useful if a Leyden Jar is connected. Maybe this should be
+> hidden from those users" / "should not instruct people to click each key once"
+
+The removal was declined in the first round (item 10): for every other board it is the only test, and
+on his it still does what Diagnostics does not -- **Computer's keys**, the keymap tested through the
+computer, each layer. "Press every key once" is right for what it is: a walk over every key, the row
+and column labels turning green.
+
+**Proposed**: kept, and on a Leyden Jar board **one line at the top** of its panel: "To see each
+switch's signal, Diagnostics > Signal levels." Hiding it there is Rico's call; it would take the
+keymap test away from those boards' owners.
+
+## 32. Everything at once
+
+Item 10 again, more insistent: all the Tools top-level, fewer pages, "otherwise this tool's
+diagnostic functionality is not a significant improvement over the previous diagnostic tool". With
+25 and 26 it is met as far as it goes without a new navigation: Tools holds Device (all of it) and
+Diagnostics (one page, no strip, the numbers remembered on); the key test stays a third tool.
+
+## 33. Liked
+
+The HTML report (Save report..., 2026-11-15), and the keys moved by another's press (the rest
+coupling, the same day). Nothing to do.
 

@@ -32,7 +32,11 @@ namespace nazg
         // inside (ui-design.md, "Plugins", "Room": the panel keeps one height).
         constexpr float c_ListMinHeight = 150.0f;
 
-        const char* const c_ModeNames[] = { "Key presses", "Signal levels", "Device" };
+        // In Mode's order, the strip's.
+        const char* const c_ModeNames[] = { "Signal levels", "Key presses", "Device" };
+
+        // The modes as settings.json keeps them; an id not among them is Signal levels.
+        const char* const c_ModeIds[] = { "signalLevels", "keyPresses", "device" };
 
         // The mockups' sizes are at a 13 px font: everything drawn scales with the interface's.
         float Unit()
@@ -204,12 +208,16 @@ namespace nazg
 
     DiagnosticsSection::DiagnosticsSection(HidTransport& transport, std::string path, const Keyboard& keyboard,
                                            const LegendSettings& legends, SafeMargins& safeMargins,
-                                           bool& levelsOnKeys, DeviceIdentity identity, const std::vector<uint8_t>& definition,
-                                           std::string_view appVersion)
+                                           std::string& page, bool& levelsOnKeys, DeviceIdentity identity,
+                                           const std::vector<uint8_t>& definition, std::string_view appVersion)
         : m_Transport(transport), m_Path(std::move(path)), m_Keyboard(keyboard), m_Legends(legends),
           m_SafeMargins(safeMargins), m_Identity(std::move(identity)), m_Definition(definition), m_AppVersion(appVersion),
-          m_LevelsOnKeys(levelsOnKeys)
+          m_Page(page), m_LevelsOnKeys(levelsOnKeys)
     {
+        // Opened as last left (tester-feedback.md, 24).
+        for (size_t mode = 0; mode < std::size(c_ModeIds); ++mode)
+            if (m_Page == c_ModeIds[mode])
+                m_Mode = static_cast<Mode>(mode);
     }
 
     // Save report...: Signal levels as one HTML file (report/NazgDiagnosticsReport.h), every reading
@@ -283,6 +291,7 @@ namespace nazg
     void DiagnosticsSection::OnStripChosen(size_t entry)
     {
         m_Mode       = static_cast<Mode>(std::min<size_t>(entry, 2));
+        m_Page       = c_ModeIds[static_cast<size_t>(m_Mode)];
         m_EraseAsked = false;
 
         // Chosen again after a failure: tried again.

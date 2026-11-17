@@ -673,12 +673,10 @@ matrix.
 ### Diagnostics
 
 *Only on keyboards with a Leyden Jar controller* (Model F and Beam Spring replacements). Opening
-it turns the keyboard's typing off, and it comes back on when you leave. The strip has:
+it turns the keyboard's typing off, and it comes back on when you leave. It opens where you left it,
+even after Nazg is closed -- the first time on Signal levels with Levels on, as the Leyden Jar
+Diagnostic Tool's Level Monitor. The strip has:
 
-- **Key presses**: what is pressed now, and every key seen pressed, from the board, QMK's matrix
-  or the controller. QMK's matrix and the controller are two separate reads of the same switches:
-  on a healthy board they look the same, and a key lit in one and not the other points at the
-  mapping between the controller's connectors and QMK's rows and columns.
 - **Signal levels**: each key's readings against its threshold, and Nazg's verdict on the keys at
   risk: keys that may type by themselves, or may miss presses. Click a key for its levels and last
   presses. **The key you press is followed**: it is selected, so its last presses show, and its
@@ -687,7 +685,7 @@ it turns the keyboard's typing off, and it comes back on when you leave. The str
   after. **Click a key**, on the board or in the list, to see one you cannot press; the next key
   you press takes its place. **Levels** puts the numbers on every key, under
   its name: the reading now in bold with the highest beside it, the bin with the lowest; a sample key
-  beside the button says which is which. Nazg keeps Levels as you left it until it closes.
+  beside the button says which is which. Nazg keeps Levels as you left it.
   **Press each key twice**, alone: from its second press, the keys its press moves are outlined in
   dashes on the board -- grey when they stay safe, orange when the press brings one close to its
   threshold, red when it takes one past, which may type by itself. A key moved that way is listed
@@ -699,6 +697,10 @@ it turns the keyboard's typing off, and it comes back on when you leave. The str
 
     ![Signal levels: 28 keys good, F selected](user-manual/diagnostics-signal-levels.png)
 
+- **Key presses**: what is pressed now, and every key seen pressed, from the board, QMK's matrix
+  or the controller. QMK's matrix and the controller are two separate reads of the same switches:
+  on a healthy board they look the same, and a key lit in one and not the other points at the
+  mapping between the controller's connectors and QMK's rows and columns.
 - **Device**: the controller's information, **Enter bootloader**, and **Erase EEPROM**, which puts
   every layer, macro, tap dance, combo, override and setting back to the firmware's own. Erase asks
   first. It cannot be undone.

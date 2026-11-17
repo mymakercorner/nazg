@@ -6,16 +6,18 @@
 // Tool does, inside Nazg. The two mockups settle every detail: ui-design/diagnostics-section.html
 // (the modes, Device, Key presses) and ui-design/key-health.html (Signal levels).
 //
-// Three modes in the strip, opening on Key presses -- what an owner hunting a dead key needs first:
+// Three modes in the strip, Signal levels first, opening as last left -- at first on Signal levels with
+// Levels on, the Leyden Jar Diagnostic Tool's Level Monitor, which is what its owners come for (Rico,
+// 2026-11-17; tester-feedback.md, 24; before, Key presses, first in the strip):
 //
-//   - Key presses: the keys down now, and every key seen since the mode opened, counted -- on the
-//     board, QMK's matrix or the controller's, the choice on the panel's first line;
 //   - Signal levels: which keys may not be recognised, now and then or at all -- the board coloured
 //     by verdict, the keys to look at as bars or the whole board as one dot per key, a key's last
 //     presses side by side (model/NazgKeyHealth.h); the threshold margins the verdicts are judged by,
 //     and a Levels button putting the tool's numbers on the keys -- max, now, min and the bin -- for
 //     firmware work. All of it without Advanced tools: Diagnostics is an expert's section itself
 //     (Rico, 2026-10-17);
+//   - Key presses: the keys down now, and every key seen since the mode opened, counted -- on the
+//     board, QMK's matrix or the controller's, the choice on the panel's first line;
 //   - Device: the controller's, Vial's and USB's information, Enter bootloader, Erase EEPROM.
 //
 // Key output is off for as long as the section shows, every mode: the keys pressed while testing
@@ -66,6 +68,7 @@ namespace nazg
                            const Keyboard&             keyboard,
                            const LegendSettings&       legends,
                            SafeMargins&                safeMargins,
+                           std::string&                page,
                            bool&                       levelsOnKeys,
                            DeviceIdentity              identity,
                            const std::vector<uint8_t>& definition,
@@ -99,10 +102,11 @@ namespace nazg
         [[nodiscard]] std::optional<FileToSave> TakeFileToSave() override { return std::exchange(m_FileToSave, std::nullopt); }
 
     private:
+        // In the strip's order: Signal levels first (Rico, 2026-11-17).
         enum class Mode
         {
-            KeyPresses,
             SignalLevels,
+            KeyPresses,
             Device,
         };
 
@@ -226,9 +230,10 @@ namespace nazg
         };
         std::vector<Shape> m_Shapes;
 
-        Mode m_Mode         = Mode::KeyPresses;
+        std::string& m_Page;                  // the setting: the mode as last left, by id
+        Mode m_Mode         = Mode::SignalLevels;
         View m_View          = View::Board;   // Signal levels has no QMK matrix: it shows the board there
-        bool& m_LevelsOnKeys;                 // the Levels button: App's, kept as left for the session
+        bool& m_LevelsOnKeys;                 // the setting: the Levels button as last left
         bool m_HiddenThisFrame = false;       // WhileHidden() was called: nothing starts this frame
 
         // The board, open while the section shows.

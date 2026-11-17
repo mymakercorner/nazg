@@ -302,7 +302,8 @@ or not; the board in Device or folded away; how the bootloader and the erase ask
 
 *Settled 2026-10-17 (Rico), from the mockup:*
 
-- **Opens on Key presses** -- what an owner hunting a dead key needs first.
+- **Opens on Key presses** -- what an owner hunting a dead key needs first. *Replaced 2026-11-17*:
+  opens as last left, at first on Signal levels with Levels on ("Signal levels, third round").
 - **The view choice** -- the board, QMK's matrix, the controller's -- **in the panel**, on its first
   line.
 - **Key presses: now and seen** -- as the matrix view's live test, every key pressed since the mode
@@ -522,6 +523,13 @@ now in bold (`LegendRole::Reading`), highest and lowest muted (`LegendRole::Boun
 value colour; the panel's line under its first one, following the key the board reports pressed;
 the sample key drawn beside Levels while it is on, the button's tooltip gone; Levels kept by App for
 the session (`App::m_LevelsOnKeys`, beside the threshold margins).
+
+**Changed by Rico** (2026-11-17, the tester asking a third time; tester-feedback.md, 24): Diagnostics
+opens on **the Leyden Jar Diagnostic Tool's view** by default -- Signal levels, Levels on -- and on
+**the mode and Levels as last left**, kept in `settings.json` (`tools.diagnostics.page`, by id, and
+`.levels`; `AppSettings::diagnosticsPage`, `diagnosticsLevels`). An id the build does not know opens
+Signal levels. The board / controller view is not kept. After trying it (Rico, the same day):
+**Signal levels first in the strip**, then Key presses, then Device.
 
 **One key in focus** (Rico, 2026-11-07, after trying it on his F77): a press selects the key, so the
 panel's line and the key's last presses show the same one -- one hand on the board under test, none

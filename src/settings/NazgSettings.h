@@ -51,6 +51,12 @@ namespace nazg
         // that cannot report its switches still falls back, without changing it.
         bool keyTestOnSwitches = true;
 
+        // Diagnostics as it was last left (Rico, 2026-11-17; tester-feedback.md, 24): its page, by
+        // id -- one this build does not know opens the default -- and its Levels button. By default
+        // the Leyden Jar Diagnostic Tool's Level Monitor: Signal levels, the numbers on the keys.
+        std::string diagnosticsPage   = "signalLevels";
+        bool        diagnosticsLevels = true;
+
         // The board's share of the height under the strip, as the splitter under it was left, and
         // the section column's width.
         WorkspaceLayout workspace;
