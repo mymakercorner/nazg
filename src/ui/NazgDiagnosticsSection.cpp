@@ -899,15 +899,18 @@ namespace nazg
                         if (m_BoardKeys[index] == coupling.moved)
                             board.keys[index].tie = TieOf(coupling);
 
-        // Until its second press alone, the focused key says so itself, where the eyes are while
-        // pressing (Rico, 2026-11-15: grey words in the panel went unnoticed).
-        if (m_Selected && *m_Selected < m_Health.keys.size() && m_Health.keys[*m_Selected].pressesAlone < c_CoupledPresses)
+        // Until its second press alone, the focused key's outline breathes, where the eyes are while
+        // pressing, and the line following it says why (Rico, 2026-11-15: grey words in the panel
+        // went unnoticed; 2026-11-17: a tag on the key covered its numbers -- tester-feedback.md, 27).
+        if (AsksAnotherPress())
             for (size_t index = 0; index < board.keys.size() && index < m_BoardKeys.size(); ++index)
                 if (m_BoardKeys[index] == *m_Selected)
-                {
-                    board.tags.push_back({ { index }, m_Health.keys[*m_Selected].pressesAlone == 0 ? "press twice" : "press again" });
-                    break;
-                }
+                    board.keys[index].pulsing = true;
+    }
+
+    bool DiagnosticsSection::AsksAnotherPress() const
+    {
+        return m_Selected && *m_Selected < m_Health.keys.size() && m_Health.keys[*m_Selected].pressesAlone < c_CoupledPresses;
     }
 
     KeyTie DiagnosticsSection::TieOf(const KeyCoupling& coupling) const
@@ -1249,6 +1252,24 @@ namespace nazg
         number(k.threshold, "threshold", U32(PanelColour::Warning));
         if (m_Info.thresholds.size() > 1)
             number(k.bin, "bin", BoardColours::Legend(LegendInk::Value, KeyFill::Alpha));
+
+        // Until its second press alone, what the breathing outline asks, beside the numbers watched
+        // while pressing: in the accent colour, outlined round (Rico, 2026-11-17; tester-feedback.md, 27).
+        if (AsksAnotherPress())
+        {
+            const char* const asked = m_Health.keys[*m_Selected].pressesAlone == 0 ? "press it twice, alone" : "press it again, alone";
+            const ImVec2      text  = ImGui::CalcTextSize(asked);
+            const ImVec2      pad(10 * u, 4 * u);
+            const float       tall = big + ImGui::GetTextLineHeightWithSpacing();   // a number over its word
+            ImGui::SameLine(0.0f, 22 * u);
+            const ImVec2 at  = ImGui::GetCursorScreenPos();
+            const ImVec2 p0(at.x, at.y + std::max(0.0f, (tall - text.y) / 2 - pad.y));
+            const ImVec2 p1(p0.x + text.x + 2 * pad.x, p0.y + text.y + 2 * pad.y);
+            const ImU32  accent = ImGui::GetColorU32(ImGuiCol_CheckMark);
+            ImGui::GetWindowDrawList()->AddRect(p0, p1, accent, (p1.y - p0.y) / 2, 0, std::max(1.0f, 1.5f * u));
+            ImGui::GetWindowDrawList()->AddText(ImVec2(p0.x + pad.x, p0.y + pad.y), accent, asked);
+            ImGui::Dummy(ImVec2(p1.x - p0.x, tall));
+        }
 
         // Its readings on one line, at the right: the resting band, the threshold, the highest ring,
         // now the dot -- filled in the pressed colour once past.

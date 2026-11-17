@@ -613,7 +613,7 @@ agreed with Rico** unless the table says so.*
 | 24 | Diagnostics should open on Signal levels with the numbers on | Design | Third time asked; against Rico's choice (2026-11-07); remembering answers it, as in 17 | 2026-11-17, both (Rico) |
 | 25 | Remove the Key presses and Device pages, the Levels button: one control per function | Design | Right about Key presses: Signal levels now does most of what it did | Levels removed 2026-11-17 (Rico); Key presses open |
 | 26 | Device in one place, the bins always in sight | Design | Two Device pages is the real fault; merge them | |
-| 27 | "press twice" covers a key's numbers | Bug, small | True: the tag sits where the numbers are | |
+| 27 | "press twice" covers a key's numbers | Bug, small | True: the tag sits where the numbers are | 2026-11-17, from a mockup |
 | 28 | Device: the R key always lit | Misread | It holds `QK_BOOT`; nothing on the key says so | |
 | 29 | The window always opens on the leftmost screen | Bug | Its place is remembered, but not while maximized: likely cause | |
 | 30 | The interface in other languages | Feature | Planned for later (no UI code may rule it out); not now | |
@@ -712,6 +712,21 @@ bin and the low reading.
 **Proposed**, Rico's choice: (a) the tag **outside the keycap**, under it, over the gap and the next
 row's top edge; (b) the tag only while Levels is off -- with the numbers on, the panel's line says it;
 (c) "press again" only after the first press, so a user who never presses twice sees it once.
+
+**Below the keycap: rejected** (Rico, 2026-11-17) -- it covers the next row's numbers the same way.
+**Mockup** (2026-11-17): [ui-design/press-again-hint.html](ui-design/press-again-hint.html) -- the F77
+with its numbers, as Signal levels now draws it; two choices that combine. On the key: the tag (as
+built); a **badge in its top-right corner** counting the presses still wanted, 2 then 1 -- the one
+corner a key's numbers leave empty; its outline pulsing; nothing. The words, in the accent colour:
+none (as built); at the strip's end, above the board; **in the line following the key**, beside its
+large name and numbers. Proposed: the badge, with the words in the following line.
+
+**Chosen by Rico** (2026-11-17): **the outline pulsing**, with **the words in the following line**.
+Built the same day: the tag gone; `BoardKey::pulsing` makes the Selected outline breathe -- full
+down to 0.15 and back every 1.1 s (`Breathing()`, `NazgBoardView.cpp`); "press it twice, alone",
+then "press it again, alone", after the bin in `DrawFollowLine()`, in the accent colour, outlined
+round. Both until the focused key's second press alone (`AsksAnotherPress()`). Seen working by Rico
+the same day: "works perfectly".
 
 ## 28. The R key always lit in Device
 

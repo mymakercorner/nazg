@@ -180,6 +180,10 @@ namespace nazg
         // reports (ui-design.md, "The key test").
         bool hatched = false;
 
+        // Its Selected outline breathing: the key asks for something -- Diagnostics' second press
+        // (tester-feedback.md, 27). Nothing written on it, so it covers nothing.
+        bool pulsing = false;
+
         // One slot -- turning the key's legends into slot legends, all empty, if they were not.
         Legend& operator[](LegendSlot slot);
     };

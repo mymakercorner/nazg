@@ -608,6 +608,10 @@ once where the instructions are (Rico, 2026-11-15): Signal levels' first line re
 firmly twice, holding it a moment: the second press shows the keys it moves"; the user manual too. And
 on the board, the focused key wears a tag until then -- "press twice", then "press again" -- where the
 eyes are while pressing (Rico, 2026-11-15); the grey words on the name line are gone. Seen on the F77: "looks good" (Rico).
+*Replaced 2026-11-17* (tester-feedback.md, 27: with the numbers always on, the tag covered the bin and
+the lowest; mockup ui-design/press-again-hint.html): the focused key's **outline breathes** until its
+second press alone, and the line following it says **"press it twice, alone"**, then **"press it again,
+alone"**, in the accent colour, outlined round, after the bin (Rico's choice).
 
 *Save readings...*, **temporary** (Rico, 2026-11-15): with Advanced tools, beside Clear, every reading
 since Clear written as a recording in the tests' format (`adapters/leydenjar/NazgLeydenJarRecording.*`,

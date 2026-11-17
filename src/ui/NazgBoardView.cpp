@@ -130,6 +130,17 @@ namespace nazg
                    (static_cast<ImU32>(std::lround(alpha * strength)) << IM_COL32_A_SHIFT);
         }
 
+        // An outline's colour, breathing on a pulsing key: full, down to 0.15 and back, every 1.1 s
+        // (Rico, 2026-11-17, ui-design/press-again-hint.html). The frame loop draws every frame.
+        ImU32 Breathing(ImU32 colour, bool pulsing)
+        {
+            if (!pulsing)
+                return colour;
+            constexpr double c_Period = 1.1;
+            const double     phase    = std::fmod(ImGui::GetTime(), c_Period) / c_Period;
+            return Faded(colour, 0.15f + 0.85f * static_cast<float>(0.5 + 0.5 * std::cos(phase * 2.0 * 3.14159265358979)));
+        }
+
         // A fill with the key's states painted over it, in a fixed order.
         ImU32 WithStates(ImU32 colour, uint8_t marks, bool hovered)
         {
@@ -619,7 +630,8 @@ namespace nazg
                     {
                         if ((described.marks & mark) == 0)
                             continue;
-                        drawList->AddCircle(centre, radius - inset - thickness / 2, colour, 0, thickness);
+                        drawList->AddCircle(centre, radius - inset - thickness / 2,
+                                            Breathing(colour, mark == Mark::Selected && described.pulsing), 0, thickness);
                         inset += thickness;
                     }
                 }
@@ -706,7 +718,8 @@ namespace nazg
                     if ((described.marks & mark) == 0)
                         continue;
 
-                    StrokeContour(drawList, face, rounding, inset + thickness / 2, thickness, colour);
+                    StrokeContour(drawList, face, rounding, inset + thickness / 2, thickness,
+                                  Breathing(colour, mark == Mark::Selected && described.pulsing));
                     inset += thickness;
                 }
                 if (described.tie != KeyTie::None)

@@ -202,6 +202,7 @@ namespace nazg
         [[nodiscard]] std::string          TooltipOf(size_t key) const;
         [[nodiscard]] std::string          MoverOf(const JudgedKey& judged) const;   // the name of the key moving it, or empty
         [[nodiscard]] KeyTie               TieOf(const KeyCoupling& coupling) const;
+        [[nodiscard]] bool                 AsksAnotherPress() const;   // the focused key, before its second press alone
         void                               DrawMovedBy(size_t key);
         [[nodiscard]] const KeyCoupling*   NamedCouplingOf(size_t key) const;
         [[nodiscard]] bool                 IsPressedNow(size_t key) const;

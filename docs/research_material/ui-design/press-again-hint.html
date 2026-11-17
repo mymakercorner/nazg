@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- Mockup: where Signal levels asks for a key's second press (tester-feedback.md, 27; ui-design.md,
+     "Signal levels, third round"; the board and its numbers as levels-on-keys.html draws them).
+
+     First draft (2026-11-17). The rest-coupling measure needs each key pressed twice, alone; until
+     then the focused key wears a tag, "press twice" then "press again" (Rico, 2026-11-15: grey words in
+     the panel went unnoticed). The tag sits on the key's lower half (DrawTags(), NazgBoardView.cpp:
+     a key alone, unit * 0.42 below its centre) -- where the bin and the lowest are, now that the
+     numbers are always on the keys. The tester: "partially covered ... distracting for those who may
+     not want to press each key twice". Below the keycap: rejected by Rico, it covers the next row's
+     numbers the same way.
+
+     The board: Rico's F77, as in levels-on-keys.html -- its definition, layer 0, its bins and
+     thresholds, the readings simulated from its 2026-10-17 recording. Press a key: hold it with the
+     mouse, or press the same key on your own keyboard. A press counts once released, alone; after
+     the second, the keys it moves show dashed (made up here: the keys above and below it).
+
+     The variants, two choices that combine:
+     - on the key: the tag (as built); a badge in its top-right corner counting the presses still
+       wanted, the one empty corner of a key with its numbers; its outline pulsing; nothing;
+     - the words: none (as built); at the strip's end, above the board; in the line following the key,
+       beside its large name and numbers.
+
+     Chosen by Rico (2026-11-17): the outline pulsing, with the words in the line following the key. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Press again hint mockup</title>
+<style>
+:root{--window:#f3f3f5;--menubar:#e3e4e9;--text:#1d1e22;--muted:#6b6e78;--control:#ffffff;--border:#c8cad2;--accent:#3b82f6;--accent-text:#fff;--panel:#f8f8fa;--column:#ebecf0;--selected:rgba(59,130,246,.16);
+--plate:#d3d4d8;--key:#ffffff;--keyline:#b4b7c2;--ok:#15803d;--warn:#c2410c;--err:#dc2626;--press:#3b82f6;--seen:#dcfce7;--seenline:#86efac;--tag:#e3e4e9}
+:root[data-theme="dark"]{--window:#0f0f11;--menubar:#24252b;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--accent:#4296fa;--accent-text:#fff;--panel:#16171b;--column:#16171b;--selected:rgba(66,150,250,.22);
+--plate:#1c1d23;--key:#3a3c48;--keyline:#4b4e5c;--ok:#4ade80;--warn:#fb923c;--err:#f87171;--press:#4296fa;--seen:#1c3a27;--seenline:#2f7a4a;--tag:#24252b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--window);color:var(--text);font-family:Arimo,"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+.controls{display:flex;flex-wrap:wrap;gap:8px 22px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.group .name{color:var(--muted);margin-right:4px}
+button{font:inherit;padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--control);color:var(--text);cursor:pointer}
+button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+.stage{padding:16px;overflow-x:auto}
+.frame{margin:0 auto;width:1160px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--window)}
+.menubar{display:flex;gap:18px;align-items:center;background:var(--menubar);padding:5px 14px}
+.menubar .board{font-weight:600}
+.muted{color:var(--muted)}
+.menubar .right{margin-left:auto;color:var(--muted)}
+.body{display:flex;min-height:560px}
+.col{flex:none;width:180px;background:var(--column);border-right:1px solid var(--border);padding:6px 5px;display:flex;flex-direction:column;gap:1px}
+.col .hdr{font-weight:700;font-size:12px;padding:6px 10px 2px}
+.col .sep{border-top:1px solid var(--border);margin:5px 4px}
+.entry{padding:7px 10px;border-radius:6px;color:var(--muted)}
+.entry.on{background:var(--selected);color:var(--text);box-shadow:inset 3px 0 0 var(--accent)}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;padding:10px 14px 14px;gap:10px}
+.strip{display:flex;gap:3px;align-items:center;padding:4px 0;min-height:30px}
+.strip button{padding:2px 10px;font-size:12px}
+.strip .hint{margin-left:auto}
+.hint{color:var(--accent);font-weight:600;display:inline-flex;align-items:center;gap:7px}
+.hint .dot{width:16px;height:16px;border-radius:50%;background:var(--accent);color:var(--accent-text);font-size:11px;display:inline-flex;align-items:center;justify-content:center}
+.seg{display:inline-flex}
+.seg button{border-radius:0;padding:2px 9px;font-size:12px;margin-left:-1px}
+.seg button:first-child{border-radius:6px 0 0 6px;margin-left:0}
+.seg button:last-child{border-radius:0 6px 6px 0}
+.boardarea{display:flex;justify-content:center;overflow-x:auto}
+svg{display:block;overflow:visible}
+.panel{border:1px solid var(--border);border-radius:6px;background:var(--panel)}
+.mline{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;padding:6px 12px;border-bottom:1px solid var(--border)}
+.mline .title{font-weight:700}
+.mline .desc{color:var(--muted);font-size:12px}
+.mline .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.margins{font-size:12px;color:var(--muted);display:flex;gap:4px;align-items:center}
+.margins input{width:34px;font:inherit;padding:1px 4px;border:1px solid var(--border);border-radius:4px;background:var(--control);color:var(--text)}
+.divider{width:1px;align-self:stretch;background:var(--border)}
+.out{font-size:12px;color:var(--warn)}
+.follow{display:flex;align-items:center;gap:18px;padding:10px 12px;border-bottom:1px solid var(--border);min-height:62px}
+.follow .key{font-weight:700;font-size:18px;min-width:90px}
+.follow .num{display:flex;flex-direction:column;align-items:flex-start;font-variant-numeric:tabular-nums}
+.follow .num b{font-size:18px}
+.follow .num span{font-size:11px;color:var(--muted)}
+.follow .hint{font-size:14px;padding:4px 10px;border:1.5px solid var(--accent);border-radius:14px}
+.rest{padding:10px 12px;color:var(--muted);font-size:12px;line-height:1.5;height:120px}
+.rest .ph{border:1px dashed var(--border);border-radius:6px;padding:10px 12px;height:100%}
+.notes{max-width:1160px;margin:0 auto;padding:4px 16px 30px;color:var(--muted);line-height:1.55}
+.notes b{color:var(--text);font-weight:600}
+.notes p{margin:0 0 8px}
+@keyframes pulse{0%{stroke-opacity:1}50%{stroke-opacity:.15}100%{stroke-opacity:1}}
+</style>
+</head>
+<body>
+<div class="controls" id="controls"></div>
+<div class="stage"><div class="frame" id="frame"></div></div>
+<div class="notes" id="notes"></div>
+<script>
+// Rico's F77 (recorded 2026-10-17), as in levels-on-keys.html.
+const F77 = {"name":"leyden_jar/F77","labels":["Split Backspace",["Right Shift","No Split","HHKB Split","Non-HHKB Split"],["Enter","ANSI Enter","Tie Enter","ISO Enter"],"Split Space","Split Left Shift (ISO)","Keypad 2U Plus","Keypad 2U Enter","Keypad 2U Zero"],"keymap":[[{"x":2.5},"4,0","6,0","6,1","4,2","6,2","4,3","6,3","4,4","6,4","4,5","6,5","4,6","6,6",{"w":2},"6,7\n\n\n0,0",{"x":0.25},"6,8","4,9","6,9\n\n\n5,0",{"x":0.25},"4,7\n\n\n0,1","6,7\n\n\n0,1",{"x":4,"h":2},"5,9\n\n\n5,1"],[{"x":2.5,"w":1.5},"5,0","4,1","5,1","7,2","5,2","7,3","5,3","7,4","5,4","7,5","5,5","5,6","5,7",{"w":1.5},"7,7\n\n\n2,0",{"x":0.25},"5,8","7,9","5,9\n\n\n5,0",{"x":1,"w":1.5},"7,7\n\n\n2,1",{"x":1.75,"w":1.25,"h":2,"w2":1.5,"h2":1,"x2":-0.25},"2,7\n\n\n2,2"],[{"x":2.5,"w":1.75},"7,0","7,1","2,1","0,2","2,2","0,3","2,3","2,4","0,4","0,5","2,5","2,6",{"w":2.25},"2,7\n\n\n2,0",{"x":0.25},"2,8","7,8","2,9\n\n\n6,0",{"x":0.25},"7,6\n\n\n2,1",{"w":1.25},"2,7\n\n\n2,1",{"x":0.75},"7,6\n\n\n2,2",{"x":2,"h":2},"1,9\n\n\n6,1"],[{"w":1.25},"2,0\n\n\n4,1","0,0\n\n\n4,1",{"x":0.25,"w":2.25},"2,0\n\n\n4,0","1,1","0,1","1,2","3,2","1,3","1,4","3,4","3,5","1,5","0,6",{"w":2.75},"1,7\n\n\n1,0",{"x":0.25},"0,8","0,9","1,9\n\n\n6,0",{"x":0.25,"w":1.75},"0,7\n\n\n1,1","1,7\n\n\n1,1",{"x":0.25},"0,7\n\n\n1,2",{"w":1.75},"1,7\n\n\n1,2"],[{"x":2.5,"w":1.5},"3,0","1,0",{"w":1.5},"3,1",{"w":7},"3,3\n\n\n3,0",{"w":1.5},"1,6","3,7",{"w":1.5},"3,8",{"x":0.25},"1,8","3,9\n\n\n7,0","3,10\n\n\n7,0",{"x":0.25,"w":2},"3,10\n\n\n7,1"],[{"y":0.25,"x":6.5,"w":5.5},"3,3\n\n\n3,1",{"w":1.5},"3,6\n\n\n3,1"]],"kc":{"0,0":"KC_NUBS","0,1":"KC_X","0,2":"KC_D","0,3":"KC_G","0,4":"KC_K","0,5":"KC_L","0,6":"KC_SLSH","0,7":"MO(1)","0,8":"KC_P0","0,9":"KC_UP","1,0":"KC_LGUI","1,1":"KC_Z","1,2":"KC_C","1,3":"KC_B","1,4":"KC_N","1,5":"KC_DOT","1,6":"KC_RALT","1,7":"KC_RSFT","1,8":"KC_LEFT","1,9":"KC_PDOT","2,0":"KC_LSFT","2,1":"KC_S","2,2":"KC_F","2,3":"KC_H","2,4":"KC_J","2,5":"KC_SCLN","2,6":"KC_QUOT","2,7":"KC_ENT","2,8":"KC_P1","2,9":"KC_P3","3,0":"KC_LCTL","3,1":"KC_LALT","3,2":"KC_V","3,3":"KC_SPC","3,4":"KC_M","3,5":"KC_COMM","3,6":"KC_SPC","3,7":"KC_NUM","3,8":"MO(1)","3,9":"KC_DOWN","3,10":"KC_RGHT","4,0":"KC_ESC","4,1":"KC_Q","4,2":"KC_3","4,3":"KC_5","4,4":"KC_7","4,5":"KC_9","4,6":"KC_MINS","4,7":"KC_BSLS","4,9":"KC_P8","5,0":"KC_TAB","5,1":"KC_W","5,2":"KC_R","5,3":"KC_Y","5,4":"KC_I","5,5":"KC_P","5,6":"KC_LBRC","5,7":"KC_RBRC","5,8":"KC_P4","5,9":"KC_P6","6,0":"KC_1","6,1":"KC_2","6,2":"KC_4","6,3":"KC_6","6,4":"KC_8","6,5":"KC_0","6,6":"KC_EQL","6,7":"KC_BSPC","6,8":"KC_P7","6,9":"KC_P9","7,0":"KC_CAPS","7,1":"KC_A","7,2":"KC_E","7,3":"KC_T","7,4":"KC_U","7,5":"KC_O","7,6":"KC_NUHS","7,7":"KC_BSLS","7,8":"KC_P2","7,9":"KC_P5"},"thresholds":[384,394,397],"refs":[374,384,387],"binOf":{"0,0":1,"0,1":1,"0,2":1,"0,3":1,"0,4":1,"0,5":1,"0,6":1,"0,7":1,"0,8":1,"0,9":1,"1,0":2,"1,1":1,"1,2":2,"1,3":2,"1,4":2,"1,5":2,"1,6":2,"1,7":1,"1,8":2,"1,9":2,"2,0":1,"2,1":1,"2,2":2,"2,3":2,"2,4":2,"2,5":2,"2,6":1,"2,7":1,"2,8":1,"2,9":1,"3,0":1,"3,1":1,"3,2":1,"3,3":1,"3,4":1,"3,5":1,"3,6":0,"3,7":1,"3,8":1,"3,9":1,"3,10":1,"4,0":1,"4,1":2,"4,2":2,"4,3":2,"4,4":1,"4,5":2,"4,6":2,"4,7":1,"4,9":1,"5,0":1,"5,1":2,"5,2":2,"5,3":2,"5,4":2,"5,5":2,"5,6":1,"5,7":2,"5,8":1,"5,9":2,"6,0":1,"6,1":2,"6,2":2,"6,3":2,"6,4":2,"6,5":2,"6,6":2,"6,7":2,"6,8":1,"6,9":1,"7,0":1,"7,1":2,"7,2":2,"7,3":2,"7,4":2,"7,5":2,"7,6":1,"7,7":2,"7,8":2,"7,9":2},"rows":8,"cols":11,"stats":{"0,0":[380,380,383,null],"0,1":[385,385,388,416],"0,2":[384,384,387,418],"0,3":[383,382,386,416],"0,4":[383,382,386,404],"0,5":[384,383,386,415],"0,6":[383,383,386,418],"0,7":[380,380,383,null],"0,8":[384,382,386,420],"0,9":[384,383,387,414],"1,0":[386,385,391,406],"1,1":[385,385,391,422],"1,2":[386,386,391,406],"1,3":[386,385,388,423],"1,4":[387,386,395,416],"1,5":[387,386,389,415],"1,6":[386,385,388,415],"1,7":[385,385,387,411],"1,8":[386,386,389,416],"1,9":[386,386,389,413],"2,0":[384,383,389,419],"2,1":[385,385,388,414],"2,2":[388,386,391,405],"2,3":[388,386,391,421],"2,4":[388,387,390,427],"2,5":[387,386,390,416],"2,6":[385,384,388,418],"2,7":[383,383,386,414],"2,8":[384,384,388,420],"2,9":[384,384,387,425],"3,0":[383,382,385,408],"3,1":[383,382,385,418],"3,2":[382,382,383,407],"3,3":[385,384,387,412],"3,4":[383,382,385,409],"3,5":[382,381,384,418],"3,6":[378,377,379,null],"3,7":[379,379,381,409],"3,8":[380,380,387,404],"3,9":[380,379,381,413],"3,10":[382,382,384,420],"4,0":[385,385,390,418],"4,1":[387,386,390,429],"4,2":[386,386,389,424],"4,3":[387,386,390,422],"4,4":[385,385,390,408],"4,5":[386,385,388,419],"4,6":[386,385,389,427],"4,7":[382,382,385,null],"4,9":[385,384,388,406],"5,0":[385,384,388,422],"5,1":[386,386,390,424],"5,2":[387,386,390,414],"5,3":[386,386,389,419],"5,4":[386,385,389,420],"5,5":[386,385,389,406],"5,6":[385,385,389,416],"5,7":[386,385,388,420],"5,8":[384,383,386,404],"5,9":[386,386,389,417],"6,0":[385,385,387,430],"6,1":[386,386,388,422],"6,2":[388,387,390,420],"6,3":[388,387,390,422],"6,4":[388,387,390,423],"6,5":[388,388,390,426],"6,6":[388,387,390,428],"6,7":[386,386,389,424],"6,8":[385,385,389,428],"6,9":[385,385,389,417],"7,0":[386,385,388,423],"7,1":[389,388,391,427],"7,2":[387,386,390,430],"7,3":[387,386,390,427],"7,4":[387,386,391,424],"7,5":[387,387,395,437],"7,6":[383,382,390,null],"7,7":[387,386,390,418],"7,8":[387,386,390,422],"7,9":[387,386,390,427]}};
+
+// ---------------------------------------------------------------------------------------------
+// KLE, as in the other section mockups.
+function parseKle(rows) {
+  const keys = [];
+  let x = 0, y = 0, rx = 0, ry = 0, r = 0, p = {};
+  const pair = s => { const m = /^\s*(\d+)\s*,\s*(\d+)\s*$/.exec(s || ''); return m ? [+m[1], +m[2]] : null; };
+  for (const row of rows) {
+    if (!Array.isArray(row)) continue;
+    for (const item of row) {
+      if (typeof item === 'object') {
+        if ('r' in item) r = item.r;
+        if ('rx' in item || 'ry' in item) { if ('rx' in item) rx = item.rx; if ('ry' in item) ry = item.ry; x = rx; y = ry; }
+        if ('x' in item) x += item.x;
+        if ('y' in item) y += item.y;
+        for (const k of ['w', 'h', 'x2', 'y2', 'w2', 'h2', 'd']) if (k in item) p[k] = item[k];
+        continue;
+      }
+      const w = p.w || 1, h = p.h || 1;
+      const labels = String(item).split('\n');
+      const cell = pair(labels[0]), option = pair(labels[3]);
+      if (cell || p.d)
+        keys.push({ x, y, w, h, x2: p.x2 || 0, y2: p.y2 || 0, w2: p.w2 || w, h2: p.h2 || h, decal: !!p.d,
+                    cell, g: option ? option[0] : -1, o: option ? option[1] : 0 });
+      x += w;
+      p = {};
+    }
+    y += 1;
+    x = rx;
+  }
+  return keys;
+}
+function boundsOf(keys) {
+  const b = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+  for (const k of keys)
+    for (const [x, y, w, h] of [[k.x, k.y, k.w, k.h], [k.x + k.x2, k.y + k.y2, k.w2, k.h2]]) {
+      b.x0 = Math.min(b.x0, x); b.y0 = Math.min(b.y0, y); b.x1 = Math.max(b.x1, x + w); b.y1 = Math.max(b.y1, y + h);
+    }
+  return b;
+}
+const NAMED = { ESC: 'Esc', GRV: '`', MINS: '-', EQL: '=', BSPC: 'Bksp', NUM: 'Num', TAB: 'Tab', LBRC: '[', RBRC: ']', ENT: 'Enter',
+  P7: '7', P8: '8', P9: '9', CAPS: 'Caps', SCLN: ';', QUOT: "'", BSLS: '\\', NUHS: '#', P4: '4', P5: '5', P6: '6',
+  LSFT: 'Shift', NUBS: '\\', COMM: ',', DOT: '.', SLSH: '/', RSFT: 'Shift', UP: '↑', P1: '1', P2: '2', P3: '3',
+  LCTL: 'Ctrl', LGUI: 'Win', LALT: 'Alt', SPC: 'Space', RALT: 'AltGr', LEFT: '←', DOWN: '↓', RGHT: '→', P0: '0', PDOT: '.', NO: '' };
+const legendOf = kc => { if (/^MO\(/.test(kc)) return 'Fn'; const n = kc.replace(/^KC_/, ''); return n in NAMED ? NAMED[n] : n; };
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+const KEYS = parseKle(F77.keymap).filter(k => !k.decal && !(k.g >= 0 && k.o !== 0));
+KEYS.forEach(k => {
+  const cell = k.cell.join(',');
+  const [rest, lo, hi, press] = F77.stats[cell] || [380, 378, 382, null];
+  k.kc = F77.kc[cell] || 'KC_NO';
+  k.bin = F77.binOf[cell];
+  k.th = F77.thresholds[k.bin];
+  k.rest = rest ?? k.th - 12; k.lo = lo ?? k.rest - 1; k.hi = hi ?? k.rest + 1;
+  k.press = press ?? k.th + 6;
+});
+const BINS = F77.thresholds.length;
+
+// ---------------------------------------------------------------------------------------------
+// The readings, as in levels-on-keys.html; and each key's presses alone, counted when released.
+const READING_MS = 155, WANTED = 2;
+const held = new Set();
+let focus = null;
+function resetReadings() {
+  KEYS.forEach(k => { k.hist = []; k.max = null; k.min = null; k.heldFor = 0; k.seen = false; k.now = k.rest; k.alone = 0; k.withOthers = false; });
+  focus = null;
+}
+function reading(k) {
+  if (held.has(k)) {
+    const v = k.heldFor === 0 ? k.press + 9 : k.press + Math.round((Math.random() - 0.5) * 2);
+    k.heldFor++;
+    return v;
+  }
+  k.heldFor = 0;
+  return Math.max(k.lo, Math.min(k.hi, k.rest + Math.round((Math.random() - 0.5) * (k.hi - k.lo + 1))));
+}
+function tick() {
+  for (const k of KEYS) {
+    const v = reading(k);
+    k.now = v;
+    k.hist.push(v);
+    if (k.hist.length > 3) k.hist.shift();
+    if (v >= k.th) k.seen = true;
+    if (k.hist.length === 3) {
+      const med = [...k.hist].sort((a, b) => a - b)[1];
+      if (k.hist.every(x => x >= k.th)) k.max = k.max === null ? med : Math.max(k.max, med);
+      if (k.hist.every(x => x < k.th)) k.min = k.min === null ? med : Math.min(k.min, med);
+    }
+  }
+  redrawLive();
+}
+const needed = k => k && k.alone < WANTED;
+const asked = k => k.alone === 0 ? 'press twice' : 'press again';
+
+// The keys a press moves -- made up: the keys straight above and below, the first safe, the second close.
+function movedBy(k) {
+  const mid = k.x + k.w / 2;
+  const near = KEYS.filter(o => o !== k && Math.abs(o.y - k.y) === 1 && o.x <= mid && mid < o.x + o.w);
+  return near.slice(0, 2).map((o, i) => ({ key: o, how: i === 0 ? 'safe' : 'risk' }));
+}
+
+// ---------------------------------------------------------------------------------------------
+const state = { onKey: 'Tag over the key (as built)', words: 'None (as built)', theme: 'Light' };
+const ON_KEY = ['Tag over the key (as built)', 'Badge in its corner', 'Outline pulsing', 'Nothing'];
+const WORDS = ['None (as built)', "At the strip's end", 'In the line following the key'];
+
+function keyText(k, x, y, w, h, u) {
+  const lv = (cls, tx, ty, v, fs, anchor, bold) => v === null || v === undefined ? ''
+    : `<text class="lv ${cls}" x="${tx}" y="${ty}" style="font-size:${fs}px${bold ? ';font-weight:700' : ''}"${anchor ? ` text-anchor="${anchor}"` : ''}>${v}</text>`;
+  const bin = BINS > 1 ? k.bin : null, pad = Math.max(3, u * 0.09);
+  const fs = Math.max(8, Math.round(u * 0.21)), row = (h - 2 * pad) / 3;
+  return `<text class="nm" x="${x + pad}" y="${y + pad + row * 0.8}" style="font-size:${fs}px">${esc(legendOf(k.kc))}</text>`
+       + lv('', x + pad, y + pad + row * 1.85, k.now, fs, '', true) + lv('ex', x + w - pad, y + pad + row * 1.85, k.max, fs, 'end')
+       + lv('bn', x + pad, y + h - pad, bin, fs) + lv('ex', x + w - pad, y + h - pad, k.min, fs, 'end');
+}
+function svgStyle() {
+  return `<style>.plate{fill:var(--plate)}.k{fill:var(--key);stroke:var(--keyline)}`
+    + `.k.seen{fill:var(--seen);stroke:var(--seenline)}`
+    + `.k.live{fill:color-mix(in srgb, var(--press) 30%, var(--key));stroke:var(--press);stroke-width:2.5}`
+    + `.k.focus{stroke:var(--accent);stroke-width:2.5}`
+    + `.tie{fill:none;stroke-width:2;stroke-dasharray:5 3;pointer-events:none}.tie.safe{stroke:var(--muted)}.tie.risk{stroke:var(--warn)}`
+    + `.pulse{fill:none;stroke:var(--accent);stroke-width:3.5;pointer-events:none;animation:pulse 1.1s ease-in-out infinite}`
+    + `.lv{font-family:Arimo,Arial;pointer-events:none;fill:var(--text);font-variant-numeric:tabular-nums}.lv.ex{fill:var(--muted)}.lv.bn{fill:var(--ok)}`
+    + `.nm{font-family:Arimo,Arial;fill:var(--text);pointer-events:none;font-weight:600}`
+    + `.tagbox{fill:var(--tag);stroke:var(--accent);stroke-width:1.5}.tagtext{font:12px Arimo,Arial;fill:var(--text);text-anchor:middle}`
+    + `.badge{fill:var(--accent)}.badgetext{font-family:Arimo,Arial;font-weight:700;fill:var(--accent-text);text-anchor:middle;pointer-events:none}</style>`;
+}
+function keyClass(k) {
+  if (held.has(k)) return 'k live';
+  let c = 'k';
+  if (k.seen) c += ' seen';
+  if (focus === k) c += ' focus';
+  return c;
+}
+function boardSvg() {
+  const bd = boundsOf(KEYS), avail = 1160 - 180 - 28 - 30;
+  const u = Math.min(44, Math.floor(avail / (bd.x1 - bd.x0 + 0.7)));
+  const m = u * 0.35, gap = Math.max(1, u * 0.06);
+  const W2 = (bd.x1 - bd.x0) * u + 2 * m, H = (bd.y1 - bd.y0) * u + 2 * m;
+  const box = k => ({ x: (k.x - bd.x0) * u + gap, y: (k.y - bd.y0) * u + gap, w: k.w * u - 2 * gap, h: k.h * u - 2 * gap });
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${W2}" height="${H}">${svgStyle()}<rect class="plate" width="100%" height="100%" rx="12"/><g transform="translate(${m} ${m})">`;
+  KEYS.forEach((k, i) => {
+    const rect = (x, y, w, h) => `<rect class="${keyClass(k)}" data-key="${i}" x="${x}" y="${y}" width="${w}" height="${h}" rx="${Math.max(2, u * 0.1)}"/>`;
+    const b = box(k);
+    s += rect(b.x, b.y, b.w, b.h);
+    if (k.w2 !== k.w || k.h2 !== k.h || k.x2 || k.y2) s += rect((k.x + k.x2 - bd.x0) * u + gap, (k.y + k.y2 - bd.y0) * u + gap, k.w2 * u - 2 * gap, k.h2 * u - 2 * gap);
+    s += keyText(k, b.x, b.y, b.w, b.h, u);
+  });
+
+  // The keys the focused key's press moves, dashed, once it was pressed twice alone.
+  if (focus && !needed(focus))
+    for (const { key, how } of movedBy(focus)) {
+      const b = box(key);
+      s += `<rect class="tie ${how}" x="${b.x - 2}" y="${b.y - 2}" width="${b.w + 4}" height="${b.h + 4}" rx="${Math.max(2, u * 0.1) + 2}"/>`;
+    }
+
+  // The hint on the key, if any.
+  if (focus && needed(focus)) {
+    const b = box(focus);
+    if (state.onKey === 'Tag over the key (as built)') {
+      // As DrawTags(): under the key's centre by 0.42 of a unit, a rounded box in the group-title colours.
+      const text = asked(focus), tw = text.length * 6.3 + 12, th = 18, cx = b.x + b.w / 2, cy = b.y + b.h / 2 + u * 0.42;
+      s += `<rect class="tagbox" x="${cx - tw / 2}" y="${cy - th / 2}" width="${tw}" height="${th}" rx="${th / 2}"/>`
+         + `<text class="tagtext" x="${cx}" y="${cy + 4}">${text}</text>`;
+    } else if (state.onKey === 'Badge in its corner') {
+      // The presses still wanted, in the key's top-right corner -- the one corner its numbers leave empty.
+      const r = Math.max(6.5, u * 0.17), cx = b.x + b.w - r - 2, cy = b.y + r + 2;
+      s += `<circle class="badge" cx="${cx}" cy="${cy}" r="${r}"/><text class="badgetext" x="${cx}" y="${cy + r * 0.42}" style="font-size:${Math.round(r * 1.25)}px">${WANTED - focus.alone}</text>`;
+    } else if (state.onKey === 'Outline pulsing') {
+      s += `<rect class="pulse" x="${b.x - 1.5}" y="${b.y - 1.5}" width="${b.w + 3}" height="${b.h + 3}" rx="${Math.max(2, u * 0.1) + 1.5}"/>`;
+    }
+  }
+  return s + `</g></svg>`;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The words.
+function hintWords(k, long) {
+  const badge = state.onKey === 'Badge in its corner' ? `<span class="dot">${WANTED - k.alone}</span>` : '';
+  const name = esc(legendOf(k.kc) || 'this key');
+  if (!long) return `<span class="hint">${badge}${k.alone === 0 ? 'press it twice, alone' : 'press it again, alone'}</span>`;
+  return `<span class="hint">${badge}${k.alone === 0 ? `Press ${name} twice, alone` : `Press ${name} again, alone`}: its second press shows the keys it moves</span>`;
+}
+function sampleKey() {
+  const w = 132, h = 50, pad = 5, fs = 10;
+  const t = (x, y, s, cls, anchor, bold) => `<text class="lv ${cls}" x="${x}" y="${y}" style="font-size:${fs}px${bold ? ';font-weight:700' : ''}"${anchor ? ` text-anchor="${anchor}"` : ''}>${s}</text>`;
+  const inner = `<text class="nm" x="${pad}" y="${pad + 10}" style="font-size:${fs}px">key</text>` + t(pad, h / 2 + 5, 'now', '', '', true) + t(w - pad, h / 2 + 5, 'highest', 'ex', 'end')
+              + t(pad, h - pad, 'bin', 'bn') + t(w - pad, h - pad, 'lowest', 'ex', 'end');
+  return `<svg width="${w}" height="${h}" style="margin:-3px 0">${svgStyle()}<rect class="k" x="0.5" y="0.5" width="${w - 1}" height="${h - 1}" rx="5"/>${inner}</svg>`;
+}
+function followHtml() {
+  if (!focus)
+    return `<div class="follow" id="follow"><span class="muted">Press a key: its levels show here, live, as long as you hold it -- and stay once you let go.</span></div>`;
+  const k = focus, v = x => x === null ? '–' : x;
+  const num = (value, word, cls) => `<div class="num"><b${cls ? ` style="color:var(${cls})"` : ''}>${v(value)}</b><span>${word}</span></div>`;
+  const hint = state.words === 'In the line following the key' && needed(k) ? hintWords(k, false) : '';
+  return `<div class="follow" id="follow"><span class="key">${esc(legendOf(k.kc) || 'no key')}</span>`
+    + num(k.now, 'now', k.now >= k.th ? '--press' : '') + num(k.max, 'highest') + num(k.min, 'lowest')
+    + num(k.th, 'threshold', '--warn') + (BINS > 1 ? num(k.bin, 'bin', '--ok') : '') + hint + `</div>`;
+}
+function stripHtml() {
+  const modes = ['Signal levels', 'Key presses', 'Device'].map((m, i) => `<button class="${i === 0 ? 'on' : ''}">${m}</button>`).join('');
+  const hint = state.words === "At the strip's end" && needed(focus) ? hintWords(focus, true) : '';
+  return `<div class="strip" id="strip">${modes}${hint}</div>`;
+}
+function panelHtml() {
+  return `<div class="mline"><span class="title">Signal levels</span><span class="desc">press each key firmly twice, holding it a moment: the second press shows the keys it moves</span>`
+    + `<span class="right"><span class="margins">Threshold margin, rest <input value="3"> press <input value="3"></span><span class="divider"></span>`
+    + `<span class="muted" style="font-size:12px">each key:</span>${sampleKey()}<span class="seg"><button class="on">Board</button><button>Controller</button></span></span></div>`
+    + followHtml()
+    + `<div class="rest"><div class="ph">As built, unchanged by this mockup: the summary, then <b>Keys</b> and <b>Whole board</b>, and the key's last presses -- `
+    + `where a key moved by another's press is listed with why.</div></div>`
+    + `<div class="mline" style="border-top:1px solid var(--border);border-bottom:none"><span class="out">Key output off: the keyboard types nothing while Diagnostics shows</span></div>`;
+}
+function columnHtml() {
+  const vial = ['Keymap', 'Layout', 'Macros', 'Tap Dance', 'Combos', 'Key Overrides', 'QMK Settings'];
+  return `<div class="col"><div class="hdr">Vial</div>${vial.map(e => `<div class="entry">${e}</div>`).join('')}`
+    + `<div class="sep"></div><div class="hdr">Tools</div><div class="entry">Device</div><div class="entry on">Diagnostics</div><div class="entry">Matrix</div></div>`;
+}
+function render() {
+  document.documentElement.dataset.theme = state.theme.toLowerCase();
+  renderControls();
+  document.getElementById('frame').innerHTML =
+    `<div class="menubar"><span class="board">Model F Labs F77 ▾</span><span class="muted">Vial</span><span class="right">Settings</span></div>`
+  + `<div class="body">${columnHtml()}<div class="main">${stripHtml()}`
+  + `<div class="boardarea" id="boardarea">${boardSvg()}</div><div class="panel" id="panel">${panelHtml()}</div></div></div>`;
+}
+function redrawLive() {
+  const b = document.getElementById('boardarea');
+  if (b) b.innerHTML = boardSvg();
+  const f = document.getElementById('follow');
+  if (f) f.outerHTML = followHtml();
+  const s = document.getElementById('strip');
+  if (s) s.outerHTML = stripHtml();
+}
+function renderControls() {
+  const c = document.getElementById('controls');
+  c.innerHTML = '';
+  [['onKey', 'On the key', ON_KEY], ['words', 'The words', WORDS], ['theme', 'Theme', ['Light', 'Dark']]].forEach(([k, name, values]) => {
+    const g = document.createElement('div'); g.className = 'group';
+    g.innerHTML = `<span class="name">${name}</span>`;
+    values.forEach(v => {
+      const bt = document.createElement('button'); bt.textContent = v;
+      if (state[k] === v) bt.className = 'on';
+      bt.onclick = () => { state[k] = v; render(); };
+      g.appendChild(bt);
+    });
+    c.appendChild(g);
+  });
+  const g = document.createElement('div'); g.className = 'group';
+  g.innerHTML = `<span class="name">Try</span>`;
+  const bt = document.createElement('button'); bt.textContent = 'Clear readings'; bt.onclick = () => { resetReadings(); render(); }; g.appendChild(bt);
+  c.appendChild(g);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Pressing: the mouse on a key, or the same key on the computer's keyboard. A press counts alone
+// when no other key was down at any moment of it, and once released -- as Nazg counts it.
+function press(k) {
+  for (const o of held) { o.withOthers = true; }
+  k.withOthers = held.size > 0;
+  held.add(k); focus = k; redrawLive();
+}
+function release(k) {
+  if (!held.has(k)) return;
+  held.delete(k);
+  if (!k.withOthers) k.alone++;
+  redrawLive();
+}
+const frame = document.getElementById('frame');
+let mouseKey = null;
+frame.addEventListener('mousedown', e => {
+  const r = e.target.closest('#boardarea rect[data-key]');
+  if (!r) return;
+  mouseKey = KEYS[+r.dataset.key]; press(mouseKey); e.preventDefault();
+});
+addEventListener('mouseup', () => { if (mouseKey) { release(mouseKey); mouseKey = null; } });
+const CODE_TO_KC = c => {
+  if (/^Key[A-Z]$/.test(c)) return 'KC_' + c.slice(3);
+  if (/^Digit\d$/.test(c)) return 'KC_' + c.slice(5);
+  if (/^Numpad\d$/.test(c)) return 'KC_P' + c.slice(6);
+  return { Escape: 'KC_ESC', Minus: 'KC_MINS', Equal: 'KC_EQL', Backspace: 'KC_BSPC', Tab: 'KC_TAB',
+    BracketLeft: 'KC_LBRC', BracketRight: 'KC_RBRC', Enter: 'KC_ENT', CapsLock: 'KC_CAPS', Semicolon: 'KC_SCLN', Quote: 'KC_QUOT',
+    Backslash: 'KC_BSLS', IntlBackslash: 'KC_NUBS', Comma: 'KC_COMM', Period: 'KC_DOT', Slash: 'KC_SLSH', ShiftLeft: 'KC_LSFT',
+    ShiftRight: 'KC_RSFT', ControlLeft: 'KC_LCTL', AltLeft: 'KC_LALT', AltRight: 'KC_RALT', MetaLeft: 'KC_LGUI', Space: 'KC_SPC',
+    ArrowUp: 'KC_UP', ArrowDown: 'KC_DOWN', ArrowLeft: 'KC_LEFT', ArrowRight: 'KC_RGHT', NumLock: 'KC_NUM', NumpadDecimal: 'KC_PDOT' }[c];
+};
+addEventListener('keydown', e => {
+  const kc = CODE_TO_KC(e.code), k = kc && KEYS.find(x => x.kc === kc);
+  if (!k) return;
+  e.preventDefault();
+  if (!held.has(k)) press(k);
+});
+addEventListener('keyup', e => {
+  const kc = CODE_TO_KC(e.code), k = kc && KEYS.find(x => x.kc === kc);
+  if (k) release(k);
+});
+addEventListener('blur', () => { held.clear(); redrawLive(); });
+
+document.getElementById('notes').innerHTML = `
+<p><b>Press a key</b>, with the mouse or on your own keyboard: it takes the focus, outlined, and its numbers fill in. A press counts
+<b>alone</b> once released, if no other key was down during it. Until the second, Nazg asks for it; after it, the keys its press moves
+show dashed -- made up here: the keys above and below, one grey (safe), one orange (brought close).</p>
+<p><b>On the key</b>: <b>the tag</b>, as built -- over the lower half, where the bin and the lowest are, which is the tester's complaint;
+<b>a badge in its corner</b> -- the presses still wanted, 2 then 1, in the top-right corner, the one corner a key's numbers leave
+empty (the name is at the top left, the highest a row lower); <b>the outline pulsing</b> -- the focus outline breathing until the
+second press, nothing written on the key; <b>nothing</b>.</p>
+<p><b>The words</b>: <b>none</b>, as built; <b>at the strip's end</b>, above the board, in the accent colour -- where the key test
+puts its choice; <b>in the line following the key</b> -- beside its large name and numbers, which is what one watches while
+pressing it, outlined in the accent colour. With the badge, the words repeat its count, so the badge explains itself after the
+first time.</p>
+<p>Rico's 2026-11-15 finding stands: grey words in the panel go unnoticed -- these are in the accent colour, and where the eyes are.</p>`;
+
+resetReadings();
+render();
+setInterval(tick, READING_MS);
+</script>
+</body>
+</html>
