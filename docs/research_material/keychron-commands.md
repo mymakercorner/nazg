@@ -758,7 +758,8 @@ of `0xA9 0x30` beside Windows' own key state):
   The keys keep their order, the swap changing the type (4 to 5). Deleting a pair zeroes its slot.
 - **The keys' words are untouched**: a pair is apart from a key's mode and distances.
 - **The Launcher fills slots 1 to 5 and stops there**, "5/5" over all the types together. It is its own
-  limit: the board has 20. It **shows a pair written to slot 0**, and counts it; the board plays it. It draws
+  limit: the board has 20. It **shows a pair written to slot 0**, and counts it; the board plays it. **Six
+  pairs** written by Nazg it shows too, all listed under "6/5" (Rico). It draws
   type 1 with no icon and no badge on the keys: a client should not write it.
 - `AMC_SET_SOCD` as documented, status 0, in use at once, the profile read back showing it.
 - **A client polling the board keeps the Launcher from connecting**: it gets a copy of every reply. Seen with
@@ -777,6 +778,17 @@ The **curve** maps travel to an analog axis: four points, each x in 0.1 mm (0–
 output (0–127). The default is (0, 0), (10, 31), (30, 95), (40, 127). `SET_CURVE` is supposed
 to require ascending x, but it checks the old curve instead of the new one. The client must
 check it.
+
+Between its points the axis follows a straight line, its slope computed by `SET_CURVE`
+(`game_controller_set_curve()`); under the first point it is 0, past the last the last y. Two points at the
+same x keep the slope they had. Re-read 2026-11-23, two traps:
+
+- **A curve whose x do not ascend locks itself in**: every later `SET_CURVE` is refused, the check being made
+  on the curve already there.
+- **At power-up the slopes are not computed** (`game_controller_curve_init()`), but for the built-in default, used
+  when every y is 0. By the source, then, a stored curve plays **in steps** -- each point's y held to the next --
+  from the moment the board is plugged in until a curve is set again. To try on the K10 HE V3, whose build is
+  newer.
 
 ### Live readout
 

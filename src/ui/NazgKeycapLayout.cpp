@@ -11,6 +11,14 @@ namespace nazg
     namespace
     {
         constexpr float c_PairLine   = 1.12f;   // line height of a letter pair, in em
+
+        // The wire of two slot legends, in key units: off the names, past the longer one, its corners, its
+        // arrows and its line.
+        constexpr float c_WireGap    = 0.06f;
+        constexpr float c_WireReach  = 0.14f;
+        constexpr float c_WireCorner = 0.05f;
+        constexpr float c_WireHead   = 0.06f;
+        constexpr float c_WireStroke = 0.019f;
         constexpr float c_WordLine   = 1.0f;    // of a wrapped name, tighter
         constexpr float c_AltGrShare = 0.8f;    // the AltGr character and the fourth level, of the letter size
         constexpr float c_HeaderGap  = 0.02f;   // between the band and the header
@@ -551,6 +559,17 @@ namespace nazg
             middle = std::min(middle, bottom - line);
         const float rowTop[4] = { top, middle, bottom, front };
 
+        // A wired pair leaves the wire its room at the right: names that long are cut.
+        const float wireGap  = c_WireGap * unit;
+        const float wireRoom = (c_WireGap + c_WireReach) * unit;
+        const auto  isWired  = [&](size_t slot)
+        {
+            const auto starts = [&](size_t from)
+            { return from % 3 == 0 && from + 3 < c_LegendSlotCount && slots[from].wired && !slots[from + 3].text.empty(); };
+            return starts(slot) || (slot >= 3 && starts(slot - 3));
+        };
+        float ends[4] = {};   // where each row's left legend ends
+
         for (size_t slot = 0; slot < c_LegendSlotCount; ++slot)
         {
             const Legend& legend = slots[slot];
@@ -565,7 +584,8 @@ namespace nazg
             // A badge reaches past its words: they keep its width clear, and stand bold on it.
             const float        pad    = legend.badge ? size * 0.36f : 0.0f;
             const LegendWeight heavy  = legend.badge ? LegendWeight::Bold : weight;
-            const Line         fitted = TextChain({ legend.text, "" }, size, heavy, width - 2 * pad, line, measurer).front();
+            const float        room   = isWired(slot) ? width - wireRoom : width - 2 * pad;
+            const Line         fitted = TextChain({ legend.text, "" }, size, heavy, room, line, measurer).front();
             const float        w      = placer.Width(fitted.text, size, heavy) + 2 * pad;
             const size_t       column = slot % 3;
             const float        x      = column == 0 ? box.x0 : column == 1 ? (box.x0 + box.x1 - w) / 2.0f : box.x1 - w;
@@ -577,6 +597,26 @@ namespace nazg
                 out.texts.back().badgeTop    = rowTop[slot / 3];
                 out.texts.back().badgeBottom = rowTop[slot / 3] + line;
             }
+            if (column == 0)
+                ends[slot / 3] = x + w;
+        }
+
+        for (size_t slot = 0; slot + 3 < c_LegendSlotCount; slot += 3)
+        {
+            if (!slots[slot].wired || slots[slot + 3].text.empty())
+                continue;
+            const size_t row = slot / 3;
+            PlacedWire   wire;
+            wire.x0       = ends[row] + wireGap;
+            wire.y0       = rowTop[row] + line / 2;
+            wire.x1       = ends[row + 1] + wireGap;
+            wire.y1       = rowTop[row + 1] + line / 2;
+            wire.right    = std::max(wire.x0, wire.x1) + c_WireReach * unit;
+            wire.corner   = c_WireCorner * unit;
+            wire.head     = c_WireHead * unit;
+            wire.stroke   = std::max(1.0f, c_WireStroke * unit);
+            wire.category = slots[slot + 3].category;
+            out.wires.push_back(wire);
         }
 
         return out;

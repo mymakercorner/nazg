@@ -339,6 +339,43 @@ namespace
               "a - is centred on the capital's height, not where the font puts it");
     }
 
+    // Two slot legends joined by a wire: an SOCD pair's keys.
+    void TestWiredSlots()
+    {
+        std::printf("wired slots\n");
+
+        const nazg::FaceBox face{ 0, 0, 88, 88 };
+        const auto          lay = [&](const char* name, const char* partner)
+        {
+            nazg::SlotLegends slots;
+            slots[static_cast<size_t>(nazg::LegendSlot::TopLeft)]       = { name, nazg::LegendRole::Label };
+            slots[static_cast<size_t>(nazg::LegendSlot::TopLeft)].wired = true;
+            slots[static_cast<size_t>(nazg::LegendSlot::MiddleLeft)]    = { partner, nazg::LegendRole::Label,
+                                                                            nazg::CommandCategory::Behaviour };
+            return nazg::LayOutSlots(slots, face, c_Unit, c_Measurer);
+        };
+
+        const KeycapPrimitives pair = lay("Up", "Down");
+        Check(pair.wires.size() == 1, "one wire");
+        const PlacedText* up   = Find(pair, "Up");
+        const PlacedText* down = Find(pair, "Down");
+        if (!up || !down || pair.wires.size() != 1)
+        {
+            Check(false, "both names, uncut");
+            return;
+        }
+        const nazg::PlacedWire& wire = pair.wires.front();
+        Check(wire.x0 > up->x + up->width && wire.x1 > down->x + down->width && wire.x1 > wire.x0, "it starts past each name");
+        Check(wire.right > wire.x1 && wire.right <= face.x1, "goes past the longer, on the face");
+        Check(wire.y1 > wire.y0 && wire.category == nazg::CommandCategory::Behaviour, "down, in the partner's colour");
+
+        const KeycapPrimitives cut = lay("A", "Scroll Lock Key");
+        Check(cut.texts.size() == 2 && cut.texts[1].cut && cut.wires.front().right <= face.x1 + 0.01f,
+              "a name too long is cut for the wire to stay on the face");
+
+        Check(lay("A", "").wires.empty(), "nothing to join, no wire");
+    }
+
     void TestArrowShape()
     {
         std::printf("arrow shape\n");
@@ -369,6 +406,7 @@ int main()
     TestCommands();
     TestInk();
     TestArrowShape();
+    TestWiredSlots();
 
     return TestResult();
 }

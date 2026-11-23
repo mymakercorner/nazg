@@ -2882,8 +2882,10 @@ that day. The mockup: [ui-design/switches-socd.html](ui-design/switches-socd.htm
   other pressed meanwhile, then the other way round. The Launcher's names. Under Absolute Priority which key
   wins is two named buttons, leading the words. Rappy Snappy's words say what happens at the bottom.
 - **A new pair is Last Key Priority**, written at once.
-- **On the keys**: the other key's name in Behaviour's violet, ⇄ centred between the two -- ⇄ alone where there is
-  no room -- and pointing at a key lights its partner.
+- **On the keys**: the other key's name under this one, in Behaviour's violet, **a wire on the right joining
+  them, an arrow at each end** (Rico, after trying ⇄ between them on a row, where "< ," and "> ." had no room): the
+  same for every pair. Pointing at a key lights its partner. The wire on the left, and a straight one between the
+  two, were the others.
 
 **The test** is Test keys, on the pair: each key's travel over the last four seconds, hanging from a line,
 how far it is, *sent* or *held back*, and what was sent under them. **Sent is what the computer receives**,
@@ -2896,8 +2898,8 @@ A type the Launcher has no choice for (1) is said and left, as one Nazg does not
 leaves out says why: a One Key Multiple Commands key, a Gamepad Analog one with keyboard keys off.
 
 *Built 2026-11-23*: `adapters/keychron/NazgKeychronSocd.*`, `ui/NazgSocdEditor.*`, the rest in the section.
-**Seen working on the K10 HE V3 by Rico** the same day, the Launcher reading the values Nazg wrote. Not seen:
-more than 5 pairs and how the Launcher shows them.
+**Seen working on the K10 HE V3 by Rico** the same day, the Launcher reading the values Nazg wrote, six pairs
+included, which it lists under "6/5".
 
 ### Left from round one
 

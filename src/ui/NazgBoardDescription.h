@@ -66,6 +66,10 @@ namespace nazg
         // gamepad controls, whose RT, the right trigger, must not read as Rapid Trigger (Rico,
         // 2026-11-23). Needs a category.
         bool badge = false;
+
+        // Joined to the legend one row below it by a wire on the right, an arrow at each end, in that
+        // one's category colour: an SOCD pair's two keys (Rico, 2026-11-23). In the left column.
+        bool wired = false;
     };
 
     using SlotLegends = std::array<Legend, c_LegendSlotCount>;

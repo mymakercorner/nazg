@@ -46,9 +46,6 @@ namespace nazg
         // its way. Not RT, which is the gamepad's right trigger (Rico, 2026-11-23).
         constexpr const char* c_RapidTriggerMark = "\xE2\x87\x85";
 
-        // SOCD's mark on a key of a pair, before the other key's name.
-        constexpr const char* c_PairMark = "\xE2\x87\x84";
-
         // The Launcher's names for One Key Multiple Commands' points, in keychron::DksPoint's order.
         constexpr const char* c_DksPointNames[] = { "Starting Trigger", "Bottom In", "Bottom Out", "Bounce Back" };
 
@@ -103,20 +100,6 @@ namespace nazg
         {
             return ImGui::CalcTextSize("At the bottom").x + ImGui::CalcTextSize("00000").x +
                    ImGui::GetStyle().CellPadding.x * 4;
-        }
-
-        // The characters of a UTF-8 name.
-        size_t CharactersOf(const std::string& name)
-        {
-            return static_cast<size_t>(
-                std::count_if(name.begin(), name.end(), [](char c) { return (static_cast<unsigned char>(c) & 0xC0) != 0x80; }));
-        }
-
-        // Whether a key of `width` units has the room for its name and its partner's, SOCD's mark centred
-        // between them (Rico, 2026-11-23): about five characters to a unit, half of them on each side.
-        bool HasRoomForPartner(const std::string& name, const std::string& partner, float width)
-        {
-            return static_cast<float>(std::max(CharactersOf(name), CharactersOf(partner))) <= (5.0f * width - 1.0f) / 2.0f;
         }
 
         uint8_t ReleasePoint(uint8_t actuation)
@@ -570,18 +553,12 @@ namespace nazg
 
             if (!partners[key].empty())
             {
-                const std::string partner = NameAt(partners[key].front());
-                const bool        isOne   = partners[key].size() == 1;
-                if (isOne && HasRoomForPartner(m_Keys[key].name, partner, m_Keys[key].geometry.width))
-                {
-                    described[LegendSlot::TopCentre] = { c_PairMark, LegendRole::Label, CommandCategory::Behaviour };
-                    described[LegendSlot::TopRight]  = { partner, LegendRole::Label, CommandCategory::Behaviour };
-                }
-                else
-                {
-                    const std::string mark = isOne ? std::string(c_PairMark) : c_PairMark + std::to_string(partners[key].size());
-                    described[LegendSlot::TopRight] = { mark, LegendRole::Label, CommandCategory::Behaviour };
-                }
+                // The partner under the name, a wire joining them.
+                std::string names;
+                for (const keychron::KeyPosition partner : partners[key])
+                    names += (names.empty() ? "" : " ") + NameAt(partner);
+                described[LegendSlot::TopLeft].wired  = true;
+                described[LegendSlot::MiddleLeft]     = { names, LegendRole::Label, CommandCategory::Behaviour };
             }
             if (m_HoveredKey && *m_HoveredKey != key && *m_HoveredKey < m_Keys.size() &&
                 std::find(partners[key].begin(), partners[key].end(), m_Keys[*m_HoveredKey].position) != partners[key].end())

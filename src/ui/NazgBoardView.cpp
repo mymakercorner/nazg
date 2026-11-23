@@ -364,6 +364,26 @@ namespace nazg
                                   colour, text.text.c_str(), nullptr, 0.0f, &clip);
             }
 
+            for (const PlacedWire& wire : primitives.wires)
+            {
+                const ImU32 colour = colourOf(LegendInk::Legend, wire.category);
+                const float corner = std::min(wire.corner, (wire.y1 - wire.y0) / 2.0f);
+                constexpr float c_HalfPi = 1.57079632679f;
+                drawList->PathLineTo(ImVec2(wire.x0, wire.y0));
+                drawList->PathArcTo(ImVec2(wire.right - corner, wire.y0 + corner), corner, -c_HalfPi, 0.0f);
+                drawList->PathArcTo(ImVec2(wire.right - corner, wire.y1 - corner), corner, 0.0f, c_HalfPi);
+                drawList->PathLineTo(ImVec2(wire.x1, wire.y1));
+                drawList->PathStroke(colour, ImDrawFlags_None, wire.stroke);
+                for (const ImVec2 tip : { ImVec2(wire.x0, wire.y0), ImVec2(wire.x1, wire.y1) })
+                {
+                    const float half = wire.head * 0.75f;
+                    drawList->PathLineTo(ImVec2(tip.x + wire.head, tip.y - half));
+                    drawList->PathLineTo(tip);
+                    drawList->PathLineTo(ImVec2(tip.x + wire.head, tip.y + half));
+                    drawList->PathStroke(colour, ImDrawFlags_None, wire.stroke);
+                }
+            }
+
             // A shaft and a filled head: every arrow alike, at the legend's weight, whatever the font.
             for (const PlacedArrow& arrow : primitives.arrows)
             {

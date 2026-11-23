@@ -136,10 +136,26 @@ namespace nazg
         LegendInk      ink       = LegendInk::Legend;
     };
 
+    // A wire joining two legends, one under the other: from (x0, y0) right to `right`, down, and back to
+    // (x1, y1), its corners round, an arrow pointing at each end.
+    struct PlacedWire
+    {
+        float           x0       = 0.0f;
+        float           y0       = 0.0f;
+        float           x1       = 0.0f;
+        float           y1       = 0.0f;
+        float           right    = 0.0f;
+        float           corner   = 0.0f;   // its corners' radius
+        float           head     = 0.0f;   // its arrows' length
+        float           stroke   = 0.0f;
+        CommandCategory category = CommandCategory::None;
+    };
+
     struct KeycapPrimitives
     {
         std::vector<PlacedText>  texts;
         std::vector<PlacedArrow> arrows;
+        std::vector<PlacedWire>  wires;
     };
 
     // A keycap's face, in pixels -- the rectangle legends go on: an L-shaped key's first.
