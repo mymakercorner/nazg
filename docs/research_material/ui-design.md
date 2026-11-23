@@ -2726,6 +2726,140 @@ Keychron's Launcher**: changes made back and forth in both, each shown right by 
 - **Not built from the mockup**: selecting by drawing a box (the board reports clicks, not drags);
   renaming a profile.
 
+### Round two: advanced keys
+
+*Begun 2026-11-23, scope chosen by Rico: One Key Multiple Commands (DKS), Long-Press Switch (the
+firmware's toggle) and Gamepad Analog. SOCD, the gamepad curve and
+calibration come later. Rico still has the K10 HE V3 for a while.* The mockup:
+[ui-design/switches-advanced-keys.html](ui-design/switches-advanced-keys.html). **The
+design is complete, and built.**
+
+What it builds on, from keychron-commands.md, "Advanced modes" and "Keychron's guides":
+
+- **A key has one mode**, an advanced one replacing Regular or Rapid Trigger. Today the Switches
+  section shows Gamepad's keys as Rapid Trigger 1.7, which they are not.
+- **The Launcher's words**: One Key Multiple Commands, its points Starting Trigger, Bottom In, Bottom
+  Out and Bounce Back, Long-Press Switch, Gamepad Analog, XBox.
+- **A mode Nazg does not know** -- Turbocharged and PDO may be some -- is said, and left alone unless
+  another mode is chosen.
+- **With nothing selected, "every key" leaves the advanced keys out**: one click on Regular would
+  otherwise wipe a whole gamepad.
+- **A key newly set to One Key Multiple Commands sends what it sent**, held from the first point to
+  the last, the three other commands empty (Rico, 2026-11-23: the key itself, not the Launcher's four
+  empty commands, which leave a key dead until filled, as Nazg writes at once). At the Launcher's 1.1,
+  2.2, 2.2 and 1.1 mm, not the key's Actuation Distance: it is pressed sooner than its usual 1.7. A key
+  that is neither an ordinary key nor a modifier (Fn) starts empty. One set to Gamepad Analog is
+  written only once its control is chosen.
+- **Starting Trigger is never under 0.2 mm** (keychron-commands.md, "Advanced modes"): at 0.1 the
+  source never lets the key go.
+
+**Rico's choice** (2026-11-23): **the advanced modes are modes of the key, in Switches**, five in one
+line: what the firmware does, and no section added. Advanced keys as a section of its own, round one's
+faint entry, was the other.
+
+**Rico's choice** (2026-11-23): **One Key Multiple Commands on its travel, with bars below**. The key is
+drawn going down and up, its four points dragged on the line, a row of bars per command under them.
+A point's depth can be typed beside it too, or stepped by 0.1 mm with the wheel, up being shallower
+(Rico, 2026-11-23: dragging alone is not exact; the fields show that they can be).
+Click a point to tap, drag from one to another to hold, drag a bar's end to move it, click to remove.
+Rico asked how tap and held are told apart, so a legend under the bars says it, and each point shows a
+dashed dot and a tooltip with what a click or a drag does. The bars read from any of a key's 4096
+action combinations play as those do, and only a release without a press cannot be drawn. A list by
+moment was talked about and not drawn. The same bars with sliders, and the firmware's table of an
+action per point, were the others.
+
+**The gamepad's test, better than the Launcher's** (asked by Rico, 2026-11-23: its Joystick Effect Demo
+stood still on a PC with two virtual controllers ahead of the K10, while Windows received everything).
+Drawn in the mockup and **played there on the K10** by Rico the same day, in a browser, as a Standard
+Controller:
+- **What the computer receives, from this board's own controller**, picked by the board's VID:PID among
+  whatever controllers there are -- the key test's "computer's keys", for the gamepad. Not the board's
+  travel worked out by Nazg: that would look right while games get nothing.
+- **It is Test keys, no new button**: with it on, a profile that has gamepad keys shows both sticks with the
+  path they took -- fading in half a second (Rico: lines that stayed were not wanted) -- and their percent, both triggers, the buttons; the controller drawing and the board's keys
+  fill as they go. **Always on was tried and dropped** (Rico, the same day): the profile mixes gamepad keys
+  and ordinary ones, and a press playing one and selecting the other is confusing. One rule for every key:
+  a press selects, with Test keys on it plays. Gamepad Analog can be chosen with no key selected where the
+  profile has gamepad keys, to see the controller.
+- **It says when the computer does not see the board as a controller**, and why: Controller Recognition
+  off, or set and not plugged in again.
+- **It says what Standard Controller costs**: the two triggers share one axis (`joystick_action()`), the
+  deeper counting; as an Xbox Controller each has its own.
+- The build: SDL's joysticks, in the shell (`Main.cpp`), reaching the section through
+  `PlatformServices` as plain values; opened only while testing. To check there: that starting SDL's
+  joysticks does not disturb the board's HID traffic, that SDL gives an XInput device's VID:PID, and the
+  browser's Gamepad API for the web build. The Standard Controller's axes, X Y Z Rx Ry Rz, are HID's order.
+
+**RT means one thing** (Rico, 2026-11-23). It was Rapid Trigger's mark and a gamepad's right trigger, both
+violet, both on the Gamepad profile. **Rapid Trigger is drawn ⇅**, replacing round one's RT on the keys of
+the built section too, with a tooltip naming it, and **the gamepad's controls sit in a filled violet
+badge**, so that its 25 keys stand out and RT is what every controller prints. **The same badge
+everywhere** (Rico): on the keys, on the controller drawing with the key that plays it under it in the
+legend's ink, outlined where no key does, and in the test, at the triggers and the buttons down. ⇅ is in Noto Sans Math,
+already bundled. Only one of the two, or neither, were the others.
+
+**The lower part as short as it can be** (Rico, 2026-11-23), heights at the mockup's size, the board 278 px:
+
+| | Before | After |
+|---|---|---|
+| Regular, Rapid Trigger, Long-Press Switch | 284 | 218 |
+| One Key Multiple Commands, two commands / four | 442 | 225 / 275 |
+| Gamepad Analog, flat | 433 | 219 |
+| ... testing | 479 | 226 |
+| One Key Multiple Commands, picking a key | 684 | as unpicked |
+
+- **One header line**: the keys edited, the five modes, Select All, Clear. The profile's name and "the
+  board uses it" go: the strip's dot says both. Full travel and Reset profile sit at the strip's end.
+- **One Key Multiple Commands**: the travel 50 px, rows of 24, the commands in use and one row to add a
+  key, the legend on that row; what is always true behind a **?**, warnings only when there is one.
+- **A command's key is chosen on the board** (Rico, 2026-11-23, after trying the popup: its keyboard was
+  too small, and the board is there): its row outlined and waiting, a key clicked above or pressed. *More
+  keys...* opens the picker's Basic tab in a popup, large, for keys the board lacks.
+- **The Test column is wider** where the editor leaves room: what a key sent on one line (Rico).
+- **The gamepad's settings on one line**, and the test's sticks small, its remarks behind a **?**.
+- **Every control is a tile**, the stick presses L3 and R3 too: round, they had no reason and less room.
+
+**Rico's choice** (2026-11-23): **the gamepad flat**, the shoulder and middle buttons on a row, then the left
+stick, the D-pad, the right stick and A B X Y side by side, every control clickable and filling in the
+test. **In Nazg it grows with the room** (Rico, 2026-11-23: at the mockup's size the controls were very
+small), 1.3 times to twice, no wider than its column, and so do the test's sticks and triggers; and the line before the Test column reaches the
+panel's bottom. A controller's outline (126 px taller) and the Launcher's tiles were the others.
+
+Read on the K10 HE (2026-11-23): a DKS slot the Launcher wrote, W V U T tapped at one point each,
+whose layout is as documented -- a node is a tap, `0b110` (keychron-commands.md, "A DKS slot read").
+A key in DKS mode is read too, as documented; dots on one of the Launcher's rows, neighbours or not,
+write taps, not a hold, and the board plays them as the source says (`wWWw` typed, Rico).
+**The Launcher's screen puzzled Rico** (2026-11-23), worth keeping out of Nazg's: its four boxes, the
+keys sent, were taken for the four moments, beside a diagram of the moments as four squares.
+
+Nazg's bars offer what the Launcher's dots, clicked, do not. A hold written to the board (a script,
+unsaved) plays as drawn: W held, Left Shift held at the bottom only (Rico). Long-Press Switch is
+the firmware's toggle, read on the board. **Its Launcher words misled Rico too**: "trigger a key in
+quick succession with one press" for a key that one press holds down and the next lets go. Nazg says
+that. **The gamepad's settings are three on the K10 HE V3**: keyboard keys enabled, the
+Launcher's Controller Recognition Feature (bit 2 of the mode, set when off) and Standard or Xbox
+Controller. The published firmware has no bit 2: show the second only where the board knows it, Keychron
+protocol 4 so far (to settle in the build). Still to read before building: whether Turbocharged and
+PDO are new `adv_mode` values; how the Launcher shows a hold that Nazg wrote.
+
+*Built 2026-11-23*, tests passing on Windows and Linux, tried by Rico on the K10 HE V3 as it went:
+- the writes (`adapters/keychron/NazgKeychronAdvanced.*`, `SetKeyAdvanced()`, the gamepad mode), tested on
+  the bytes read that day; a slot played as the firmware plays it (`DksPlayer`), wWWw and walk and run;
+- in the section the five modes on one line, Long-Press Switch set -- **seen working on the K10 by Rico** --
+  the marks on the keys, full travel and Reset at the strip's end (`Strip::note`, `Strip::action`);
+- the One Key Multiple Commands editor (`ui/NazgDksEditor.*`), a command's key chosen on the board, its
+  steps in Test keys -- **seen working on the K10 by Rico**.
+- Gamepad Analog (`ui/NazgGamepadView.*`), its controls assigned, its settings on one line -- each writing
+  its own bit of the mode, read again first -- and its test, what the computer receives
+  (`model/NazgGameController.h`, read by `GameControllers` in `Main.cpp` through
+  `PlatformServices::readGameController`, SDL's joysticks started only while testing; `Section::
+  WantsGameController()`): **seen working on the K10 by Rico**, as a Standard Controller.
+
+Not seen: Xbox mode, how the Launcher shows a hold Nazg wrote, the gamepad test in the web build and on
+Linux. Turbocharged and PDO stay unread.
+
+### Left from round one
+
 Left for the build, not the mockup: whether "every key" writes each key, as the Launcher does, or
 the profile's global and 0 into the keys (untested: nothing has been written to a board yet); the
 sensitivity's range (0.1-2.0 mm in the mockup; the firmware takes up to 3.9); and how Nazg notices

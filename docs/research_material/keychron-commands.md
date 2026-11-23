@@ -99,8 +99,12 @@ board. Its HE Mode page:
   presets behind "Gaming" and "Gamepad" (profiles 1 and 2) have never been read.
 - **Calibration** and **Reset** buttons under the profiles.
 - Tabs: Actuation Distance, One Key Multiple Commands (DKS), **Long-Press Switch**, SOCD, Gamepad
-  Analog, Curve, **PDO**, **Turbocharged**. The three in bold are in no published source, so this
-  firmware has more advanced modes than the `adv_mode` values documented below.
+  Analog, Curve, **PDO**, **Turbocharged**. The last two are in no published source, so this
+  firmware has more advanced modes than the `adv_mode` values documented below. **Long-Press Switch
+  is the toggle mode** (`adv_mode` 5), read off the board on 2026-11-23: W set to it in the Launcher
+  holds `0x00500000`, every other field 0 -- and `0` again once taken out of it in the Launcher -- and plays as a toggle: one tap types until the next
+  (Rico). It had been in DKS, whose slot 0 stays filled. The
+  Launcher marks it with an L on the key, in place of its Actuation Distance.
 - Rapid Trigger with Basic and Advanced sensitivity (probably one value, then press and release apart).
 - What the keys show: No Data, Actuation Distance or Rapid Trigger; Select All and Clear.
 
@@ -126,7 +130,8 @@ slots were all zero, `name` empty, and `crc16` `0000` -- confirming the firmware
 So `analog_key_config_t`'s `mode`, `act_pt` and both sensitivities are **confirmed on hardware**.
 Still derived only: `adv_mode` and `adv_mode_data`, zero everywhere in profile 0 -- since seen in the
 Gamepad preset, gamepad mode as documented (see "The three profiles read") -- and the whole of
-`okmc_config_t` and `socd_config_t`, whose slots are all empty.
+`okmc_config_t` and `socd_config_t`, whose slots are all empty (`okmc_config_t` since seen: "A DKS
+slot read").
 
 **`key_config` is confirmed too, and its indexing with it** -- by luck, a few hours later. The
 first read had all 126 entries at 0, every key following the profile, which proves nothing about
@@ -286,9 +291,12 @@ in the Launcher, and a read afterwards found it byte for byte as before: its 25 
 The same read found Gaming changed since the first one -- `global` still rapid trigger 1.7 / 0.4 /
 0.4, but all 126 keys at 0: the 103 mode-only words and Caps Lock's 2.4 mm Reset Distance gone. Rico had
 reset Gaming too: **Gaming's preset is `global` rapid trigger and every key at 0**, and the state
-first read -- Caps Lock's 2.4 mm included -- was someone's configuration. So this firmware,
-unlike the published source's single `profile_reset()` default, keeps a preset per profile: regular
-for 0, rapid trigger for 1, the gamepad keys for 2.
+first read -- Caps Lock's 2.4 mm included -- was someone's configuration. So this firmware keeps a
+preset per profile: regular for 0, rapid trigger for 1, the gamepad keys for 2. **The published
+source does the same** (read 2026-11-23, correcting this document): `profile_reset()` takes each
+profile's mode from the board's `profile_gobal_mode[]` (sic) and its keys from `default_profiles[]`,
+both in the board's `profiles.c` -- and the K10 HE ANSI's, on `2025q3`, are exactly the presets read
+here, gamepad keys included.
 
 **The presets are the firmware's**, not the Launcher's: Nazg's own Reset, which sends
 `AMC_RESET_PROFILE` and nothing else, brought them back (Rico, 2026-11-08, read with the probe before
@@ -481,7 +489,7 @@ full travel, whatever switch is fitted ([How travel is computed](#how-travel-is-
 | `0x14` | `AMC_SET_TRAVAL` (sic) | see [Actuation](#actuation-and-rapid-trigger) | status |
 | `0x15` | `AMC_SET_ADVANCE_MODE` | see [Advanced modes](#advanced-modes) | status |
 | `0x16` | `AMC_SET_SOCD` | see [SOCD](#socd) | status |
-| `0x1E` | `AMC_RESET_PROFILE` | `[2]` profile | status — back to that profile's own preset (the firmware keeps one per profile on the K10 HE V3; the published source has one default), **stored at once** |
+| `0x1E` | `AMC_RESET_PROFILE` | `[2]` profile | status — back to that profile's own preset, the board's (`profiles.c`), **stored at once** |
 | `0x1F` | `AMC_SAVE_PROFILE` | `[2]` profile | status — **stores the profile** |
 | `0x20` | `AMC_GET_CURVE` | — | `[2..9]` four points, x then y — **no status** |
 | `0x21` | `AMC_SET_CURVE` | `[2..9]` four points | status — stored at once |
@@ -551,8 +559,61 @@ becomes 0.4 mm.
 `socd_config_t`, 3 bytes: byte 0 bits 0–2 key 1's row, bits 3–7 its column, byte 1 the same for
 key 2, byte 2 the type. Rows above 7 or columns above 31 cannot be stored.
 
-**These layouts are derived, not seen.** The first read should check them against the defaults:
-a reset profile has `global` with `act_pt` 20 and both sensitivities 4.
+**All of these but `socd_config_t` have been seen on a board**: `key_config` on 2026-11-08, gamepad
+words and all, and a DKS slot on 2026-11-23 (below). No SOCD slot yet.
+
+**A DKS slot read** (2026-11-23, Rico's borrowed K10 HE V3, `nazg-probe-keychron`, read-only). Profile
+0 had slot 0 filled and no key in DKS -- left by the Launcher after its key was cleared, which shows
+on the board what the source says: **clearing a key leaves its slot**. Nothing else in the three
+profiles differs from the 2026-11-08 recording. The 19 bytes, at offset 508 = 4 + 4 x 126:
+
+    CB 62 59   1A 00 19 00 18 00 17 00   06 00  00 06  00 60  60 00
+
+| Bytes | Read as |
+|---|---|
+| `CB 62 59` | shallow press 11, shallow release 11, deep press 22, deep release 22 -- the Launcher's 1.10, 1.10, 2.20, 2.20 mm |
+| `001A` `0019` `0018` `0017` | W, V, U, T |
+| `06 00` | W: shallow press `0b110`, a tap |
+| `00 06` | V: deep press, a tap |
+| `00 60` | U: deep release, a tap |
+| `60 00` | T: shallow release, a tap |
+
+So the points, the keycodes and the action nibbles lie as the table says, and **the Launcher writes
+`0b110` for a node**: one command a point is a tap at each. The Launcher's columns run Starting
+Trigger, Bottom In, Bottom Out, Bounce Back; the stored order is shallow press, shallow release, deep
+press, deep release.
+
+**A key in DKS mode read** (the same day). Rico set W in the Launcher, to send W from Starting Trigger
+to Bounce Back, and the read found, against the one before:
+
+- **the key's word `0x00300000` at (2, 2)**: `adv_mode` 3, slot 0, every other field 0 -- DKS as
+  documented, the basic mode and distances left to the profile;
+- **slot 0 taken again**, its old keys overwritten: `CB 62 59  1A 00 00 00 00 00 1A 00  66 00 00 00 00
+  00 00 00`. Same points. Key 1 is W with `66`, **a tap at Starting Trigger and a tap at Bounce Back**.
+  Key 4 is W too, with no action, which does nothing: Rico put W in two boxes, the first and probably
+  the fourth, then clicked the dots of the top row under Starting Trigger and Bounce Back. The fourth
+  row's dots stayed off, which fits **a row being its box's command**;
+- nothing else in the three profiles changed.
+
+So two nodes **clicked** on a row wrote **two taps, not a key held between them**. Whether the Launcher
+can write a hold at all -- `0b010` at one point, `0b001` at another, by dragging perhaps -- is not
+known: no action but `0b110` has been read. The firmware's source plays one either way.
+
+**A second try, read the same day**: W in box 1 with all four dots on, Left Shift in box 2 with Bottom
+In and Bottom Out -- `1A 00 E1 00 00 00 00 00  66 66  00 66  00 00  00 00`. Four taps of W, two of
+Shift, again no hold: **neighbouring dots are not joined into one**. A modifier is stored as its
+keycode, `00E1`. By the published source a tap's press and release are 1 ms apart, keys of one moment
+pressed in one report, so a full press types `wWWw` -- **and it does on the K10 HE V3** (Rico,
+2026-11-23): this firmware plays taps as the published `action_okmc.c` does.
+
+**A hold written by us, accepted** (the same day, Rico's yes, one `AMC_SET_ADVANCE_MODE` from a script
+and no `AMC_SAVE_PROFILE`): W pressed at shallow press and released at shallow release, Left Shift
+pressed at deep press and released at deep release. Status 0, read back byte for byte, `12 00  00 12`
+for the actions; nothing else in the three profiles changed. The first AMC_SET_ADVANCE_MODE sent here.
+**It plays as the source says** (Rico): W pressed lightly repeats as a held key, Left Shift is held too
+at the bottom only, W until the key is let go -- walk and run. And **an unsaved change is gone at
+power-up**: replugged, the board types `wWWw` again, and the slot reads the Launcher's taps. So a RAM
+write without `AMC_SAVE_PROFILE` is a safe way to try something on a board.
 
 ### Actuation and rapid trigger
 
@@ -613,17 +674,35 @@ release, bit 1 press, bit 2 release. So `0b001` release, `0b010` press, `0b110` 
 - **The shallow release actions play only after the key went deep.** A key that goes past the
   shallow point and comes back without reaching the deep point releases its keycodes and plays
   nothing.
+- **A DKS key is outside the keymap.** It never enters the matrix (`analog_matrix_get_key_state()`
+  answers false), so QMK sees no key: its commands are the same on every layer, and a layer key put
+  in DKS switches no layer. The matrix state Keychron answers for VIA does show it pressed, from
+  going past the shallow point to coming back above the deep one.
+- **The points arm one after another** (`okmc_action()`): deep release plays only once the key has
+  been **strictly below** that point, so a deep release point deeper than the deep press point needs
+  the key past it, and one at full travel never plays. Shallow release counts only above the shallow
+  press point less 0.1 mm. **So a shallow press point of 0.1 mm never releases the key**: it would have
+  to be above 0.0 (the source; not tried on a board). A client keeps it at 0.2 or more. After deep
+  release the key must come all the way back before it can go
+  deep again. Whatever is still held is let go when the key comes back up.
 - **The client allocates the slots.** The key names its slot, but clearing the key does not
   clear the slot. A slot is free when no key in the profile refers to it, so finding one means
   reading every key.
 
 **Toggle**: each press past the actuation point flips the key; it stays held until the next one.
+It goes through the keymap as a key held would, on the layer it was pressed on.
 
 **Gamepad**: the key drives a half-axis or a button of the board's game controller. Values
 0–11 are half-axes (X left/right, Y down/up, Z −/+, then RX, RY, RZ the same way), 12 is
 invalid, and 13–44 are buttons 0–31. In XInput mode the buttons follow the Xbox order
 (`xinput_keycodes.h`): 0 A, 1 B, 2 X, 3 Y, 4 LB, 5 RB, 6 View, 7 Menu, 8 L3, 9 R3, 10–13 the
-D-pad up, down, left, right, 14 Xbox. The triggers are axes 4 and 5.
+D-pad up, down, left, right, 14 Xbox. The triggers are axes 4 and 5. Read in `action_xinput.c` and
+`action_joystick.c` (2026-11-23): **a button acts at the key's actuation point**, released 0.3 mm
+above it as a regular key; **the half-axes follow the travel** through the curve, but XInput's
+triggers do not use the curve. XInput has no button past 15 and no RZ axis; the joystick is built
+with 16 buttons on the K10 HE. Without the typing bit a gamepad key types nothing; the matrix state
+answered for VIA shows it pressed either way. One mode per key: an advanced mode replaces `mode`
+(`update_key_config()`), while `AMC_SET_TRAVAL` leaves the advanced fields alone.
 
 ### SOCD
 
@@ -644,7 +723,8 @@ key wins, and past 3.8 mm the last one stays; 3 the last key pressed wins; 4 key
 ### Game controller
 
 The mode bits (`0x22`, `0x23`): bit 0 **XInput** (otherwise a HID joystick), bit 1 **typing**
-(otherwise a gamepad key sends no keystroke). XInput is chosen when the board enumerates
+(otherwise a gamepad key sends no keystroke), bit 2 on the K10 HE V3 **recognition off** ("Keychron's
+guides"). XInput is chosen when the board enumerates
 (`usb_descriptor_override.c`), so changing it takes effect only at the next replug.
 
 The **curve** maps travel to an analog axis: four points, each x in 0.1 mm (0–40) and y as the
@@ -743,6 +823,46 @@ rest, `0x02` bottom), `[3]` the state (0 off, 1 power-up, 2 rest, 3 bottom, 4 st
 
 ---
 
+## Keychron's guides
+
+*Read 2026-11-23 on keychron.com (blog, "How to set ... on Launcher"), shown on a Q1 HE 8K, Launcher
+1.1.8. They give the Launcher's words, which Nazg keeps.*
+
+- **One Key Multiple Commands**: one key at a time, up to 4 output keys, at four points named
+  **Starting Trigger**, **Bottom In**, **Bottom Out** and **Bounce Back** -- shallow press, deep
+  press, deep release, shallow release. Drawn as four rows of four nodes; a list, "Commands Bindings
+  List", n / 20. Rico's screenshot of the K10 HE V3's page (Launcher 1.5.5, 2026-11-23): the rows are
+  the four commands, a box each, the columns the points, dashed lines joining the nodes of one
+  **column**; the depths at 1.10, 2.20, 2.20, 1.10 mm under them; some nodes drawn as a half moon,
+  probably those switched on. The guide's example, A with A, B, C, D, puts
+  one key on each point, at 1.10, 2.20, 2.20 and 1.10 mm. It speaks of 0.01 mm steps, which this
+  profile's 0.1 mm fields cannot hold: a newer firmware's, presumably.
+- **Long-Press Switch**: one press and release starts the key's output, the same again stops it --
+  toggle, by the description.
+- **Gamepad Analog**: one key at a time, then a control. Two switches: **Enable or disable keyboard
+  keys** (the typing bit) and **XBox** (XInput). Curve: Linear or Smooth.
+  **On the K10 HE V3** (Rico's screenshot, Launcher 1.5.5, 2026-11-23) the page has instead of XBox a
+  **Controller Recognition Feature**, OFF or Open ("once disabled, the keyboard will no longer be
+  recognized as a controller"; a replug needed), and under it **Standard Controller** or **Xbox
+  Controller**. With typing off, recognition open and Standard chosen, `0xA9 0x22` answers mode
+  **`00`** and Windows lists a HID game controller. So Standard is XInput's bit clear, as the source
+  has it. **With recognition switched off it answers `04`** (Rico, the same day): **bit 2 set is
+  recognition off**, a bit no published source has. Keyboard keys enabled on top of it
+  answers `06`: bit 1, as the source has it, and with it the gamepad keys type on the board, without
+  a replug (Rico). Windows still lists the controller until a
+  replug, as the Launcher says. **Xbox Controller chosen, recognition on, answers `01`**: bit 0, as the source has it --
+  with typing switched off by Rico too. All three bits are read. Where the bit is unknown, the published
+  source stores the byte as sent, so it would read back and do nothing. A client must **read the byte
+  and change only its own bit**.
+- **The gamepad plays on the board** (2026-11-23, Gamepad profile, Standard controller, read through
+  Windows' joystick API): W, S, A and D move X and Y from the centre to the full range and back, in
+  8 to 32 steps a press; U moves Ry up, Left Ctrl moves Z to its end, as many steps -- analog, as the
+  source has it. / and ' press buttons 0 and 1, Up button 10. All as "Gamepad" numbers them.
+- **The curve, changed by Rico in the Launcher** that day: (0, 0) (8, 31) (26, 95) (35, 127) before,
+  (0, 0) (11, 42) (23, 84) (35, 127) after, a straight line. The board's stored curve reads as documented.
+
+---
+
 ## Firmware bugs a client must step around
 
 | Command | Bug | What the client does |
@@ -795,8 +915,8 @@ rest, `0x02` bottom), `[3]` the state (0 off, 1 power-up, 2 rest, 3 bottom, 4 st
    entries landing on exactly the 104 positions the board has keys at. The adapter's own code read
    it over the real transport (`nazg-probe-keychron`), not only a scripted channel. `adv_mode` /
    `adv_mode_data` were seen too, in the Gamepad preset (gamepad mode 4 and its axes and buttons). What
-   no board has shown yet: DKS and toggle keys, a populated DKS or SOCD slot. Those still want a board
-   before a write depends on them.
+   no board has shown yet: the DKS actions `0b111` and `0b011`, a populated SOCD slot. Those still want
+   a board before a write depends on them.
 
    **A board the Launcher has touched is not in its default state** (see "The 2026-11-08 read"):
    it rewrites every key. Read the profile; never assume one.
