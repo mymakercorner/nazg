@@ -527,6 +527,118 @@ namespace
 #endif
 }
 
+namespace
+{
+    // The computer's game controllers, for the Switches section's gamepad test: SDL's joysticks started
+    // only while it shows, and the board's own opened by its vendor and product numbers among whatever
+    // others there are. An Xbox one is read as SDL's gamepad, whose parts it orders the same on every
+    // system; any other as the joystick it is, its axes in HID's order.
+    class GameControllers
+    {
+    public:
+        void Watch(bool watch)
+        {
+            if (watch == m_Watching)
+                return;
+            m_Watching = watch;
+            Close();
+            if (!watch)
+                SDL_QuitSubSystem(SDL_INIT_GAMEPAD);
+            else if (!SDL_InitSubSystem(SDL_INIT_GAMEPAD))
+            {
+                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_InitSubSystem(SDL_INIT_GAMEPAD) failed: %s", SDL_GetError());
+                m_Watching = false;
+            }
+        }
+
+        nazg::GameControllerReading Read(uint16_t vendorId, uint16_t productId)
+        {
+            nazg::GameControllerReading reading;
+            if (!m_Watching)
+                return reading;
+            SDL_UpdateJoysticks();
+
+            SDL_JoystickID  own   = 0;
+            int             count = 0;
+            SDL_JoystickID* ids   = SDL_GetJoysticks(&count);
+            for (int index = 0; ids && index < count; ++index)
+            {
+                if (!own && SDL_GetJoystickVendorForID(ids[index]) == vendorId &&
+                    SDL_GetJoystickProductForID(ids[index]) == productId)
+                    own = ids[index];
+                else
+                    ++reading.others;
+            }
+            SDL_free(ids);
+
+            if (own != m_Id)
+                Close();
+            if (!own)
+                return reading;
+            if (!m_Id)
+                Open(own);
+
+            if (m_Gamepad)
+            {
+                reading.isSeen = true;
+                reading.isXbox = true;
+                for (const SDL_GamepadAxis axis :
+                     { SDL_GAMEPAD_AXIS_LEFTX, SDL_GAMEPAD_AXIS_LEFTY, SDL_GAMEPAD_AXIS_RIGHTX, SDL_GAMEPAD_AXIS_RIGHTY,
+                       SDL_GAMEPAD_AXIS_LEFT_TRIGGER, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER })
+                    reading.axes.push_back(Unit(SDL_GetGamepadAxis(m_Gamepad, axis)));
+                for (const SDL_GamepadButton button :
+                     { SDL_GAMEPAD_BUTTON_SOUTH, SDL_GAMEPAD_BUTTON_EAST, SDL_GAMEPAD_BUTTON_WEST, SDL_GAMEPAD_BUTTON_NORTH,
+                       SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER, SDL_GAMEPAD_BUTTON_BACK,
+                       SDL_GAMEPAD_BUTTON_START, SDL_GAMEPAD_BUTTON_LEFT_STICK, SDL_GAMEPAD_BUTTON_RIGHT_STICK,
+                       SDL_GAMEPAD_BUTTON_DPAD_UP, SDL_GAMEPAD_BUTTON_DPAD_DOWN, SDL_GAMEPAD_BUTTON_DPAD_LEFT,
+                       SDL_GAMEPAD_BUTTON_DPAD_RIGHT, SDL_GAMEPAD_BUTTON_GUIDE })
+                    reading.buttons.push_back(SDL_GetGamepadButton(m_Gamepad, button));
+            }
+            else if (m_Joystick)
+            {
+                reading.isSeen = true;
+                for (int axis = 0; axis < SDL_GetNumJoystickAxes(m_Joystick); ++axis)
+                    reading.axes.push_back(Unit(SDL_GetJoystickAxis(m_Joystick, axis)));
+                for (int button = 0; button < SDL_GetNumJoystickButtons(m_Joystick); ++button)
+                    reading.buttons.push_back(SDL_GetJoystickButton(m_Joystick, button));
+            }
+            return reading;
+        }
+
+    private:
+        static float Unit(Sint16 value)
+        {
+            return value < 0 ? static_cast<float>(value) / 32768.0f : static_cast<float>(value) / 32767.0f;
+        }
+
+        void Open(SDL_JoystickID id)
+        {
+            m_Id                       = id;
+            const SDL_GamepadType type = SDL_GetGamepadTypeForID(id);
+            if (SDL_IsGamepad(id) && (type == SDL_GAMEPAD_TYPE_XBOX360 || type == SDL_GAMEPAD_TYPE_XBOXONE))
+                m_Gamepad = SDL_OpenGamepad(id);
+            if (!m_Gamepad)
+                m_Joystick = SDL_OpenJoystick(id);
+        }
+
+        void Close()
+        {
+            if (m_Gamepad)
+                SDL_CloseGamepad(m_Gamepad);
+            if (m_Joystick)
+                SDL_CloseJoystick(m_Joystick);
+            m_Gamepad  = nullptr;
+            m_Joystick = nullptr;
+            m_Id       = 0;
+        }
+
+        bool           m_Watching = false;
+        SDL_JoystickID m_Id       = 0;
+        SDL_Gamepad*   m_Gamepad  = nullptr;
+        SDL_Joystick*  m_Joystick = nullptr;
+    };
+}
+
 int main(int, char**)
 {
     if (!SDL_Init(SDL_INIT_VIDEO))
@@ -744,6 +856,10 @@ int main(int, char**)
             SDL_ResetHint(SDL_HINT_WINDOWS_CLOSE_ON_ALT_F4);
         SDL_SetWindowKeyboardGrab(pWindow, take);
     };
+    GameControllers controllers;
+    platform.watchGameControllers = [&controllers](bool watch) { controllers.Watch(watch); };
+    platform.readGameController   = [&controllers](uint16_t vendorId, uint16_t productId)
+    { return controllers.Read(vendorId, productId); };
     platform.openUrl = [](const std::string& url)
     {
         if (!SDL_OpenURL(url.c_str()))

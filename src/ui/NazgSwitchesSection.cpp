@@ -4,6 +4,7 @@
 #include "NazgSwitchesSection.h"
 
 #include <algorithm>
+#include <cfloat>
 #include <cstdio>
 #include <exception>
 #include <iterator>
@@ -12,6 +13,7 @@
 #include "imgui.h"
 
 #include "adapters/NazgProtocolError.h"
+#include "adapters/qmk/NazgQmkKeycodeCodec.h"
 #include "ui/NazgBoardDescription.h"
 #include "ui/NazgSlotParts.h"
 #include "ui/NazgTheme.h"
@@ -35,6 +37,16 @@ namespace nazg
 
         // Readings at the firmware's clamp in a row before full travel counts as measured.
         constexpr int c_ClampReadingsToMeasure = 3;
+
+        // How long what was written stays at the strip's end, in seconds.
+        constexpr double c_MessageTime = 5.0;
+
+        // Rapid Trigger's mark on a key: released and pressed again as it goes up and down, anywhere on
+        // its way. Not RT, which is the gamepad's right trigger (Rico, 2026-11-23).
+        constexpr const char* c_RapidTriggerMark = "\xE2\x87\x85";
+
+        // The Launcher's names for One Key Multiple Commands' points, in keychron::DksPoint's order.
+        constexpr const char* c_DksPointNames[] = { "Starting Trigger", "Bottom In", "Bottom Out", "Bounce Back" };
 
         // The Launcher's names where the board's name field is empty -- every profile read so far.
         constexpr const char* c_LauncherNames[] = { "Default", "Gaming", "Gamepad" };
@@ -93,39 +105,6 @@ namespace nazg
         {
             return actuation > c_ReleaseGap ? static_cast<uint8_t>(actuation - c_ReleaseGap) : uint8_t{ 0 };
         }
-
-        // Two keys doing the same: mode and Actuation Distance, and the two distances only in Rapid
-        // Trigger -- a Regular key's do nothing.
-        bool DoSame(const keychron::KeyConfig& a, const keychron::KeyConfig& b)
-        {
-            if (a.mode != b.mode || a.actuationPoint != b.actuationPoint)
-                return false;
-            return a.mode != keychron::KeyMode::RapidTrigger ||
-                   (a.pressSensitivity == b.pressSensitivity && a.releaseSensitivity == b.releaseSensitivity);
-        }
-
-        // "Regular, 1.7 mm", "Rapid Trigger, 1.7 mm, Trigger 0.4, Reset 0.4".
-        std::string Briefly(const keychron::KeyConfig& config)
-        {
-            if (config.mode != keychron::KeyMode::RapidTrigger)
-                return "Regular, " + Millimetres(config.actuationPoint) + " mm";
-            return "Rapid Trigger, " + Millimetres(config.actuationPoint) + " mm, Trigger " +
-                   Millimetres(config.pressSensitivity) + ", Reset " + Millimetres(config.releaseSensitivity);
-        }
-
-        std::string Says(const keychron::KeyConfig& config)
-        {
-            const std::string pressed  = Millimetres(config.actuationPoint);
-            const std::string released = Millimetres(ReleasePoint(config.actuationPoint));
-            if (config.mode != keychron::KeyMode::RapidTrigger)
-                return "Pressed when it goes down past " + pressed + " mm, released when it comes back above " +
-                       released + " mm.";
-            // The key's movement, step by step; the sliders above name the settings (Rico, 2026-11-08: the
-            // first wording, naming them in the sentence, was unclear).
-            return "Pressed at " + pressed + " mm. From there, at any depth: released as soon as it comes up " +
-                   Millimetres(config.releaseSensitivity) + " mm, pressed again as soon as it goes down " +
-                   Millimetres(config.pressSensitivity) + " mm. Back above " + released + " mm, it starts over.";
-        }
     }
 
     SwitchesSection::SwitchesSection(HidTransport& transport, std::string path, const Keyboard& keyboard,
@@ -144,11 +123,39 @@ namespace nazg
         return IsBusy() && m_RequestIsPoll;
     }
 
+    bool SwitchesSection::HasGamepadKeys() const
+    {
+        const keychron::Profile* profile = Shown();
+        return profile && std::any_of(profile->keys.begin(), profile->keys.end(), [](const keychron::KeyConfig& key)
+                                      { return key.advancedMode == keychron::AdvancedMode::Gamepad; });
+    }
+
+    bool SwitchesSection::WantsGameController() const
+    {
+        return m_Testing && m_Link == Link::Open && HasGamepadKeys();
+    }
+
+    void SwitchesSection::OnGameController(const GameControllerReading& reading)
+    {
+        m_Controller = reading;
+        if (!reading.isSeen)
+        {
+            m_Levels.reset();
+            return;
+        }
+        m_Levels = keychron::GamepadLevelsOf(reading);
+        m_Trail.Add(*m_Levels);
+    }
+
     void SwitchesSection::WhileHidden()
     {
         m_HiddenThisFrame = true;
         m_ResetAsked      = false;
         m_Testing         = false;
+        m_PickCommand.reset();
+        m_GamepadOpen = false;
+        m_HoveredControl.reset();
+        m_Levels.reset();
         m_DraggedField.reset();
         if (IsBusy())
             return;
@@ -168,6 +175,14 @@ namespace nazg
         m_Link = Link::Closed;
         m_PendingSelect.reset();
         m_PendingReset.reset();
+        m_PendingMode.reset();
+    }
+
+    void SwitchesSection::Say(std::string message, bool isWarning)
+    {
+        m_Message   = std::move(message);
+        m_IsWarning = isWarning;
+        m_MessageAt = ImGui::GetTime();
     }
 
     void SwitchesSection::Fail(std::string message)
@@ -205,6 +220,7 @@ namespace nazg
 
             Key key;
             key.position = position;
+            key.geometry = geometry;
             if (const auto* legend = std::get_if<KeycapLegend>(&board.keys[index].legends))
                 key.name = CaptionOf(*legend);
             if (key.name.empty())
@@ -231,6 +247,7 @@ namespace nazg
         return std::nullopt;
     }
 
+    // The selection; with none, every key but the advanced ones.
     std::vector<size_t> SwitchesSection::Targets() const
     {
         std::vector<size_t> targets;
@@ -239,7 +256,8 @@ namespace nazg
                 targets.push_back(key);
         if (targets.empty())
             for (size_t key = 0; key < m_Keys.size(); ++key)
-                targets.push_back(key);
+                if (!Shown() || ConfigOf(key).advancedMode == keychron::AdvancedMode::None)
+                    targets.push_back(key);
         return targets;
     }
 
@@ -263,6 +281,154 @@ namespace nazg
     }
 
     // ------------------------------------------------------------------------------------------
+    // What a key does, in a word, a mark and a sentence.
+
+    SwitchesSection::Mode SwitchesSection::ModeOf(const keychron::KeyConfig& config)
+    {
+        switch (config.advancedMode)
+        {
+        case keychron::AdvancedMode::None:
+            return config.mode == keychron::KeyMode::RapidTrigger ? Mode::RapidTrigger : Mode::Regular;
+        case keychron::AdvancedMode::Dks: return Mode::Dks;
+        case keychron::AdvancedMode::Toggle: return Mode::LongPress;
+        case keychron::AdvancedMode::Gamepad: return Mode::Gamepad;
+        }
+        return Mode::Unknown;
+    }
+
+    // Whether its Actuation Distance counts: not One Key Multiple Commands, which has points of its
+    // own, nor a gamepad's half-axis, which follows the travel.
+    bool SwitchesSection::UsesActuation(const keychron::KeyConfig& config)
+    {
+        switch (ModeOf(config))
+        {
+        case Mode::Regular:
+        case Mode::RapidTrigger:
+        case Mode::LongPress: return true;
+        case Mode::Gamepad: return keychron::IsGamepadButton(config.advancedData);
+        case Mode::Dks:
+        case Mode::Unknown: break;
+        }
+        return false;
+    }
+
+    // Two keys doing the same: the mode, the Actuation Distance where it counts, and the two distances
+    // only in Rapid Trigger -- a Regular key's do nothing.
+    bool SwitchesSection::DoSame(const keychron::KeyConfig& a, const keychron::KeyConfig& b)
+    {
+        if (ModeOf(a) != ModeOf(b) || a.advancedMode != b.advancedMode)
+            return false;
+        if (UsesActuation(a) && a.actuationPoint != b.actuationPoint)
+            return false;
+        if (a.advancedMode != keychron::AdvancedMode::None && a.advancedData != b.advancedData)
+            return false;
+        return ModeOf(a) != Mode::RapidTrigger ||
+               (a.pressSensitivity == b.pressSensitivity && a.releaseSensitivity == b.releaseSensitivity);
+    }
+
+    // "Regular, 1.7 mm", "Rapid Trigger, 1.7 mm, Trigger 0.4, Reset 0.4", "Gamepad Analog, A button".
+    std::string SwitchesSection::Briefly(const keychron::KeyConfig& config) const
+    {
+        const std::string distance = Millimetres(config.actuationPoint) + " mm";
+        switch (ModeOf(config))
+        {
+        case Mode::Regular: return "Regular, " + distance;
+        case Mode::RapidTrigger:
+            return "Rapid Trigger, " + distance + ", Trigger " + Millimetres(config.pressSensitivity) + ", Reset " +
+                   Millimetres(config.releaseSensitivity);
+        case Mode::Dks: return "One Key Multiple Commands";
+        case Mode::LongPress: return "Long-Press Switch, " + distance;
+        case Mode::Gamepad: return "Gamepad Analog, " + keychron::GamepadControlWords(config.advancedData);
+        case Mode::Unknown: break;
+        }
+        return "a mode Nazg does not know (" + std::to_string(static_cast<unsigned>(config.advancedMode)) + ")";
+    }
+
+    std::string SwitchesSection::Says(const keychron::KeyConfig& config) const
+    {
+        const std::string pressed  = Millimetres(config.actuationPoint);
+        const std::string released = Millimetres(ReleasePoint(config.actuationPoint));
+        switch (ModeOf(config))
+        {
+        case Mode::Regular:
+            return "Pressed when it goes down past " + pressed + " mm, released when it comes back above " + released +
+                   " mm.";
+        case Mode::RapidTrigger:
+            // The key's movement, step by step; the sliders above name the settings (Rico, 2026-11-08:
+            // the first wording, naming them in the sentence, was unclear).
+            return "Pressed at " + pressed + " mm. From there, at any depth: released as soon as it comes up " +
+                   Millimetres(config.releaseSensitivity) + " mm, pressed again as soon as it goes down " +
+                   Millimetres(config.pressSensitivity) + " mm. Back above " + released + " mm, it starts over.";
+        case Mode::LongPress:
+            return "Pressed once, the key stays down; pressed again, it is let go. It sends what the Keymap says.";
+        case Mode::Gamepad:
+            return "Plays " + keychron::GamepadControlWords(config.advancedData) +
+                   (keychron::IsGamepadButton(config.advancedData) ? ", pressed at " + pressed + " mm."
+                                                                   : ", by how far the key goes down.");
+        case Mode::Dks:
+        {
+            const keychron::Profile* profile = Shown();
+            if (!profile || config.advancedData >= profile->dksSlots.size())
+                return "One Key Multiple Commands, from a slot the board does not have.";
+            std::string lines;
+            for (size_t point = 0; point < keychron::c_DksPoints; ++point)
+                lines += (point ? "\n" : "") + DksPointSays(profile->dksSlots[config.advancedData], point);
+            return lines;
+        }
+        case Mode::Unknown: break;
+        }
+        return "A mode Nazg does not know (" + std::to_string(static_cast<unsigned>(config.advancedMode)) +
+               "), set with Keychron's Launcher: its Turbocharged or PDO, perhaps. Nazg leaves it as it is unless "
+               "another mode is chosen here.";
+    }
+
+    // On the key, in its Actuation Distance's place: empty where that shows.
+    std::string SwitchesSection::MarkOf(const keychron::KeyConfig& config) const
+    {
+        switch (ModeOf(config))
+        {
+        case Mode::Regular:
+        case Mode::RapidTrigger: break;
+        case Mode::Dks: return "DKS";
+        case Mode::LongPress: return "Long";
+        case Mode::Gamepad: return keychron::GamepadControlName(config.advancedData);
+        case Mode::Unknown: return "?";
+        }
+        return {};
+    }
+
+    std::string SwitchesSection::KeycodeName(uint16_t keycode) const
+    {
+        const LegendContext context{ m_Legends.Layout(), m_Legends.modifierNames };
+        const std::string   name =
+            CaptionOf(LegendFor(qmk::DecodeKeycode(keycode, m_Keyboard.keycodeVersion), context));
+        return name.empty() ? "keycode " + std::to_string(keycode) : name;
+    }
+
+    // "Bottom In, 2.2 mm: Shift pressed".
+    std::string SwitchesSection::DksPointSays(const keychron::DksSlot& slot, size_t point) const
+    {
+        std::string text = std::string(c_DksPointNames[point]) + ", " +
+                           Millimetres(keychron::DksDepth(slot, static_cast<keychron::DksPoint>(point))) + " mm: ";
+        std::string done;
+        for (size_t command = 0; command < keychron::c_DksCommands; ++command)
+        {
+            if (!slot.keycodes[command])
+                continue;
+            for (const keychron::DksBar bar : keychron::DksBarsOf(keychron::DksActionsOf(slot, command)))
+            {
+                const char* what = bar.from == point && bar.to == point ? " tapped"
+                                   : bar.from == point                  ? " pressed"
+                                   : bar.to == point                    ? " let go"
+                                                                        : nullptr;
+                if (what)
+                    done += (done.empty() ? "" : ", ") + KeycodeName(slot.keycodes[command]) + what;
+            }
+        }
+        return text + (done.empty() ? "nothing" : done);
+    }
+
+    // ------------------------------------------------------------------------------------------
     // The strip: the profiles. Picking one makes the board use it.
 
     Strip SwitchesSection::DescribeStrip() const
@@ -272,7 +438,42 @@ namespace nazg
         for (size_t profile = 0; profile < m_Profiles.size(); ++profile)
             strip.entries.push_back(ProfileName(profile));
         strip.chosen = m_ShownProfile;
+        if (m_Profiles.empty())
+            return strip;
+
+        // At its end what is written, else the full travel every slider is bounded by; and Reset.
+        const bool writing = !m_PendingChanges.empty() || (IsBusy() && !m_RequestIsPoll);
+        if (m_PendingSelect || writing)
+        {
+            strip.note = m_PendingSelect ? "Switching..." : "Writing...";
+        }
+        else if (!m_Message.empty() && (m_IsWarning || ImGui::GetTime() - m_MessageAt < c_MessageTime))
+        {
+            strip.note          = m_Message;
+            strip.noteIsNews    = !m_IsWarning;
+            strip.noteIsWarning = m_IsWarning;
+        }
+        else
+        {
+            strip.note = "Full travel " + Millimetres(m_FullTravel ? m_FullTravel : c_SourceFullTravel) + " mm " +
+                         (m_TravelMeasured ? "(measured)" : "(estimated)");
+            strip.noteTip = m_TravelMeasured
+                                ? "Read from a key pressed fully down.\n\nEvery key is calibrated to this travel, whatever "
+                                  "its switch: with a longer switch fitted, an Actuation Distance is the same share of its "
+                                  "travel, so a little deeper in fact."
+                                : "Estimated from the board's gamepad curve: no command reports it. A key pressed fully down "
+                                  "while testing measures it.\n\nEvery key is calibrated to this travel, whatever its "
+                                  "switch: with a longer switch fitted, an Actuation Distance is the same share of its "
+                                  "travel, so a little deeper in fact.";
+        }
+        strip.action         = "Reset profile...";
+        strip.actionDisabled = IsBusy() && !m_RequestIsPoll;
         return strip;
+    }
+
+    void SwitchesSection::OnStripAction()
+    {
+        m_ResetAsked = true;
     }
 
     void SwitchesSection::OnStripChosen(size_t entry)
@@ -281,6 +482,9 @@ namespace nazg
             return;
         m_ShownProfile  = entry;
         m_PendingSelect = static_cast<uint8_t>(entry);
+        m_GamepadOpen   = false;
+        m_PickCommand.reset();
+        m_Trail.Clear();
         m_Message.clear();
     }
 
@@ -293,7 +497,8 @@ namespace nazg
             Step();
 
         // The names first, as the keycaps read on the board's default layer, then every switch's
-        // Actuation Distance under it, and RT for Rapid Trigger.
+        // Actuation Distance under it, and Rapid Trigger's mark -- or an advanced mode's, a gamepad
+        // control's on a badge.
         DescribeLegends(board, m_Keyboard, m_NameLayer, m_Legends, SpaceBar::Named);
         if (m_KeysSelection != m_Keyboard.layoutSelection || m_KeysNameLayer != m_NameLayer ||
             m_BoardKeys.size() != board.keys.size())
@@ -315,14 +520,34 @@ namespace nazg
             if (profile)
             {
                 const keychron::KeyConfig config = ConfigOf(key);
-                described[LegendSlot::BottomLeft] = { Millimetres(config.actuationPoint), LegendRole::Bound };
-                if (config.mode == keychron::KeyMode::RapidTrigger)
-                    described[LegendSlot::BottomRight] = { "RT", LegendRole::Label, CommandCategory::Behaviour };
+                const Mode                mode   = ModeOf(config);
+                if (const std::string mark = MarkOf(config); !mark.empty())
+                    described[LegendSlot::BottomLeft] = { mark, LegendRole::Label, CommandCategory::Behaviour,
+                                                          mode == Mode::Gamepad };
+                else
+                    described[LegendSlot::BottomLeft] = { Millimetres(config.actuationPoint), LegendRole::Bound };
+                if (mode == Mode::RapidTrigger)
+                    described[LegendSlot::BottomRight] = { c_RapidTriggerMark, LegendRole::Label,
+                                                           CommandCategory::Behaviour };
             }
 
             if (key < m_Selected.size() && m_Selected[key])
                 described.marks |= Mark::Selected;
-            if (m_Testing && m_Followed == key && m_Travel)
+            if (profile)
+            {
+                const keychron::KeyConfig config = ConfigOf(key);
+                if (ModeOf(config) == Mode::Gamepad && config.advancedData < keychron::c_GamepadControlCount)
+                {
+                    if (m_HoveredControl == config.advancedData)
+                        described.marks |= Mark::Highlighted;
+                    if (m_Levels && (*m_Levels)[config.advancedData] > 0.02f)
+                    {
+                        described.fill = KeyFill::Heat;
+                        described.heat = std::min(1.0f, (*m_Levels)[config.advancedData]);
+                    }
+                }
+            }
+            if (m_Testing && m_Followed == key && m_Travel && !(m_Levels && profile && ModeOf(ConfigOf(key)) == Mode::Gamepad))
             {
                 described.fill = KeyFill::Heat;
                 described.heat = std::min(1.0f, static_cast<float>(m_Travel->travelSixtieths) / (full * 6.0f));
@@ -339,19 +564,35 @@ namespace nazg
         {
             const size_t              key    = *m_BoardKeys[*events.hoveredKey];
             const keychron::KeyConfig config = ConfigOf(key);
-            std::string               tip    = m_Keys[key].name + "\n" +
-                                (config.mode == keychron::KeyMode::RapidTrigger ? "Rapid Trigger" : "Regular") +
-                                "\nActuation Distance " + Millimetres(config.actuationPoint) + " mm";
-            if (config.mode == keychron::KeyMode::RapidTrigger)
-                tip += "\n(Press) Trigger Distance " + Millimetres(config.pressSensitivity) +
+            std::string tip = m_Keys[key].name + "\n";
+            switch (ModeOf(config))
+            {
+            case Mode::Regular: tip += "Regular\nActuation Distance " + Millimetres(config.actuationPoint) + " mm"; break;
+            case Mode::RapidTrigger:
+                tip += "Rapid Trigger\nActuation Distance " + Millimetres(config.actuationPoint) +
+                       " mm\n(Press) Trigger Distance " + Millimetres(config.pressSensitivity) +
                        " mm\n(Release) Reset Distance " + Millimetres(config.releaseSensitivity) + " mm";
+                break;
+            case Mode::Dks: tip += "One Key Multiple Commands\n" + Says(config); break;
+            case Mode::LongPress:
+                tip += "Long-Press Switch\nActuation Distance " + Millimetres(config.actuationPoint) + " mm";
+                break;
+            case Mode::Gamepad:
+                tip += "Gamepad Analog\n" + keychron::GamepadControlWords(config.advancedData);
+                if (UsesActuation(config))
+                    tip += "\nActuation Distance " + Millimetres(config.actuationPoint) + " mm";
+                break;
+            case Mode::Unknown: tip += Briefly(config); break;
+            }
             ImGui::SetTooltip("%s", tip.c_str());
         }
 
         if (!events.clickedKey || *events.clickedKey >= m_BoardKeys.size() || !m_BoardKeys[*events.clickedKey])
             return;
         const size_t key = *m_BoardKeys[*events.clickedKey];
-        if (key < m_Selected.size())
+        if (m_PickCommand)
+            PickFromBoard(key);
+        else if (key < m_Selected.size())
             m_Selected[key] = !m_Selected[key];
     }
 
@@ -364,8 +605,14 @@ namespace nazg
             {
                 m_Travel.reset();
                 m_ClampReadings = 0;
+                m_Player.Reset();
             }
             m_Followed = key;
+            return;
+        }
+        if (m_PickCommand)
+        {
+            PickFromBoard(key);
             return;
         }
         if (key < m_Selected.size())
@@ -389,6 +636,12 @@ namespace nazg
         if (m_PendingSelect)
         {
             m_Request = Select(*std::exchange(m_PendingSelect, std::nullopt));
+            return;
+        }
+        if (m_PendingMode)
+        {
+            const ModeChange change = *std::exchange(m_PendingMode, std::nullopt);
+            m_Request               = WriteGamepadMode(change.mask, change.value);
             return;
         }
         if (m_PendingReset)
@@ -428,12 +681,182 @@ namespace nazg
 
         keychron::Profile&  profile = m_Profiles[m_ShownProfile];
         const uint8_t       columns = m_Keyboard.definition.matrixColumns;
-        PendingChange       pending{ static_cast<uint8_t>(m_ShownProfile),
+        PendingChange       pending{ static_cast<uint8_t>(m_ShownProfile), {},
                                      keychron::PlanTravelWrites(profile, columns, keys, change) };
         for (const keychron::TravelWrite& write : pending.writes)
             keychron::ApplyTravelWrite(profile, columns, write);
         m_PendingChanges.push_back(std::move(pending));
         m_Message.clear();
+    }
+
+    // The targets' mode: the advanced fields first, then -- for Regular and Rapid Trigger -- the mode
+    // under them, which the firmware keeps apart.
+    void SwitchesSection::AskMode(Mode mode)
+    {
+        if (m_ShownProfile >= m_Profiles.size())
+            return;
+
+        const std::vector<size_t> targets = Targets();
+        keychron::Profile&        profile = m_Profiles[m_ShownProfile];
+        const uint8_t             columns = m_Keyboard.definition.matrixColumns;
+
+        // Gamepad Analog needs a control: the controls first, written once one is chosen.
+        m_GamepadOpen = mode == Mode::Gamepad;
+        if (m_GamepadOpen)
+        {
+            m_GamepadOpenFor = m_Selected;
+            return;
+        }
+
+        // One Key Multiple Commands starts with the key itself, held, as the keymap has it on the
+        // layer the board types with (Rico, 2026-11-23).
+        if (mode == Mode::Dks)
+        {
+            const std::optional<size_t>  key  = OneSelected();
+            const std::optional<uint8_t> slot = keychron::FreeDksSlot(profile);
+            if (!key)
+                return;
+            if (!slot)
+            {
+                Say("All " + std::to_string(profile.dksSlots.size()) + " are in use: set another key to Regular first", true);
+                return;
+            }
+            const ResolvedKey resolved = ResolveKey(m_Keyboard, m_Keys[*key].geometry, m_NameLayer);
+            AskDks(*key, *slot,
+                   keychron::NewDksSlot(qmk::EncodeKeycode(resolved.keycode, m_Keyboard.keycodeVersion).value_or(uint16_t{ 0 }),
+                                        m_FullTravel));
+            return;
+        }
+
+        PendingChange             pending{ static_cast<uint8_t>(m_ShownProfile), {}, {} };
+        const bool                basic = mode == Mode::Regular || mode == Mode::RapidTrigger;
+
+        for (const size_t key : targets)
+        {
+            const keychron::KeyConfig config = ConfigOf(key);
+            if (basic ? config.advancedMode == keychron::AdvancedMode::None : ModeOf(config) == mode)
+                continue;
+            keychron::AdvancedWrite write;
+            write.key  = m_Keys[key].position;
+            write.mode = mode == Mode::LongPress ? keychron::AdvancedMode::Toggle : keychron::AdvancedMode::None;
+            pending.advanced.push_back(write);
+        }
+        for (const keychron::AdvancedWrite& write : pending.advanced)
+            keychron::ApplyAdvancedWrite(profile, columns, write);
+
+        if (basic)
+        {
+            std::vector<keychron::KeyPosition> keys;
+            for (const size_t key : targets)
+                keys.push_back(m_Keys[key].position);
+            keychron::TravelChange change;
+            change.mode    = mode == Mode::Regular ? keychron::KeyMode::Regular : keychron::KeyMode::RapidTrigger;
+            pending.writes = keychron::PlanTravelWrites(profile, columns, keys, change);
+            for (const keychron::TravelWrite& write : pending.writes)
+                keychron::ApplyTravelWrite(profile, columns, write);
+        }
+        if (pending.advanced.empty() && pending.writes.empty())
+            return;
+        m_PendingChanges.push_back(std::move(pending));
+        m_Message.clear();
+    }
+
+    void SwitchesSection::AskDks(size_t key, uint8_t slot, const keychron::DksSlot& settings)
+    {
+        if (m_ShownProfile >= m_Profiles.size())
+            return;
+        keychron::AdvancedWrite write;
+        write.key  = m_Keys[key].position;
+        write.mode = keychron::AdvancedMode::Dks;
+        write.data = slot;
+        write.dks  = settings;
+        keychron::ApplyAdvancedWrite(m_Profiles[m_ShownProfile], m_Keyboard.definition.matrixColumns, write);
+        m_PendingChanges.push_back({ static_cast<uint8_t>(m_ShownProfile), { write }, {} });
+        m_Message.clear();
+    }
+
+    // What the command being chosen sends from now on. One just added is held all along; a key replaced
+    // keeps what its command does.
+    void SwitchesSection::PickForCommand(uint16_t keycode)
+    {
+        const std::optional<size_t> key = OneSelected();
+        if (!key || !m_PickCommand || *m_PickCommand >= keychron::c_DksCommands || ModeOf(ConfigOf(*key)) != Mode::Dks)
+            return;
+        const uint8_t slot = ConfigOf(*key).advancedData;
+        if (slot >= Shown()->dksSlots.size())
+            return;
+
+        keychron::DksSlot changed = Shown()->dksSlots[slot];
+        const size_t      command = *m_PickCommand;
+        if (keycode == 0)
+            keychron::SetDksActions(changed, command, {});
+        else if (!changed.keycodes[command])
+            keychron::SetDksActions(changed, command,
+                                    keychron::DksActionsFrom({ { 0, static_cast<uint8_t>(keychron::c_DksPoints - 1) } }));
+        changed.keycodes[command] = keycode;
+        m_PickCommand.reset();
+        if (!(changed == Shown()->dksSlots[slot]))
+            AskDks(*key, slot, changed);
+    }
+
+    // The key clicked or pressed: what the keymap has there, on the layer the names are read from.
+    void SwitchesSection::PickFromBoard(size_t key)
+    {
+        const ResolvedKey resolved = ResolveKey(m_Keyboard, m_Keys[key].geometry, m_NameLayer);
+        const uint16_t    keycode  = qmk::EncodeKeycode(resolved.keycode, m_Keyboard.keycodeVersion).value_or(uint16_t{ 0 });
+        if (!keychron::IsDksKeycode(keycode))
+        {
+            Say(m_Keys[key].name + " sends no ordinary key: choose another", true);
+            return;
+        }
+        PickForCommand(keycode);
+    }
+
+    // A control clicked: what the one key selected plays from now on, or -- with none -- the keys that
+    // play it, selected.
+    void SwitchesSection::ChooseControl(uint8_t control)
+    {
+        if (m_ShownProfile >= m_Profiles.size() || !keychron::IsGamepadControl(control))
+            return;
+        const bool none = std::none_of(m_Selected.begin(), m_Selected.end(), [](bool selected) { return selected; });
+        if (none)
+        {
+            for (size_t key = 0; key < m_Keys.size(); ++key)
+            {
+                const keychron::KeyConfig config = ConfigOf(key);
+                if (ModeOf(config) == Mode::Gamepad && config.advancedData == control)
+                    m_Selected[key] = true;
+            }
+            return;
+        }
+        const std::optional<size_t> key = OneSelected();
+        if (!key)
+        {
+            Say("Select one key to choose what it plays", true);
+            return;
+        }
+        keychron::AdvancedWrite write;
+        write.key  = m_Keys[*key].position;
+        write.mode = keychron::AdvancedMode::Gamepad;
+        write.data = control;
+        if (keychron::Holds(m_Profiles[m_ShownProfile], m_Keyboard.definition.matrixColumns, write))
+            return;
+        keychron::ApplyAdvancedWrite(m_Profiles[m_ShownProfile], m_Keyboard.definition.matrixColumns, write);
+        m_PendingChanges.push_back({ static_cast<uint8_t>(m_ShownProfile), { write }, {} });
+        m_Message.clear();
+    }
+
+    std::optional<size_t> SwitchesSection::OneSelected() const
+    {
+        std::optional<size_t> one;
+        for (size_t key = 0; key < m_Selected.size(); ++key)
+            if (m_Selected[key])
+            {
+                if (one)
+                    return std::nullopt;
+                one = key;
+            }
+        return one;
     }
 
     // ------------------------------------------------------------------------------------------
@@ -459,7 +882,7 @@ namespace nazg
             return;
         }
 
-        DrawHeader();
+        DrawHead();
         ImGui::Separator();
 
         // The Test column as wide as what it holds -- the bar and its words, the raw values beside them
@@ -471,8 +894,15 @@ namespace nazg
         float             contents = TravelBarWidth();
         if (m_Testing && m_Raw)
             contents += style.ItemSpacing.x + RawTableWidth();
-        const float testWidth = std::max({ ImGui::GetFontSize() * 17.0f, header, contents });
-        if (ImGui::BeginTable("switches", 2, ImGuiTableFlags_BordersInnerV))
+        // Wider where the editor leaves room (Rico, 2026-11-23): what a key's commands sent on one line.
+        const float room      = ImGui::GetContentRegionAvail().x - ImGui::GetFontSize() * 46.0f;
+        if (m_Testing && HasGamepadKeys())
+            contents = std::max(contents, GamepadTestWidth());
+        const float testWidth = std::max({ ImGui::GetFontSize() * 17.0f, header, contents,
+                                           std::min(room, ImGui::GetFontSize() * 30.0f) });
+        // As tall as the panel at least, so that the line between the two reaches its bottom.
+        const ImVec2 wholePanel(0.0f, std::max(0.0f, ImGui::GetContentRegionAvail().y));
+        if (ImGui::BeginTable("switches", 2, ImGuiTableFlags_BordersInnerV, wholePanel))
         {
             ImGui::TableSetupColumn("editor", ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableSetupColumn("test", ImGuiTableColumnFlags_WidthFixed, testWidth);
@@ -487,74 +917,118 @@ namespace nazg
         DrawResetQuestion();
     }
 
-    void SwitchesSection::DrawHeader()
-    {
-        ImGui::AlignTextToFramePadding();
-        PushHeaderFont();
-        ImGui::TextUnformatted(ProfileName(m_ShownProfile).c_str());
-        ImGui::PopFont();
-        ImGui::SameLine();
-        if (m_PendingSelect || (IsBusy() && !m_RequestIsPoll && m_Geometry.currentProfile != m_ShownProfile))
-            ColouredText(PanelColour::Muted, "switching...");
-        else
-            ColouredText(PanelColour::Success, "the board uses it");
-
-        ImGui::SameLine();
-        if (!m_PendingChanges.empty() || (IsBusy() && !m_RequestIsPoll))
-            ColouredText(PanelColour::Muted, "Writing...");
-        else if (!m_Message.empty())
-            ColouredText(m_IsWarning ? PanelColour::Warning : PanelColour::Success, "%s", m_Message.c_str());
-
-        // At the right end: full travel, and Reset profile.
-        const std::string travel = "Full travel " + Millimetres(m_FullTravel ? m_FullTravel : c_SourceFullTravel) +
-                                   " mm " + (m_TravelMeasured ? "(measured)" : "(estimated)");
-        const char* reset = "Reset profile...";
-        const float width = ImGui::CalcTextSize(travel.c_str()).x + ButtonWidth(reset) + ImGui::GetStyle().ItemSpacing.x * 2;
-        ImGui::SameLine();
-        ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), ImGui::GetContentRegionMax().x - width));
-        ColouredText(PanelColour::Muted, "%s", travel.c_str());
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("%s", m_TravelMeasured
-                                        ? "Read from a key pressed fully down.\n\nEvery key is calibrated to this travel, "
-                                          "whatever its switch: with a longer switch fitted, an Actuation Distance is the "
-                                          "same share of its travel, so a little deeper in fact."
-                                        : "Estimated from the board's gamepad curve: no command reports it. A key pressed "
-                                          "fully down while testing measures it.\n\nEvery key is calibrated to this travel, "
-                                          "whatever its switch: with a longer switch fitted, an Actuation Distance is the "
-                                          "same share of its travel, so a little deeper in fact.");
-        ImGui::SameLine();
-        ImGui::BeginDisabled(IsBusy() && !m_RequestIsPoll);
-        if (ImGui::Button(reset))
-            m_ResetAsked = true;
-        ImGui::EndDisabled();
-    }
-
-    void SwitchesSection::DrawEditor()
+    // What is edited, its mode, Select All and Clear: one line (Rico, 2026-11-23, the lower part as
+    // short as it can be). The profile is the strip's.
+    void SwitchesSection::DrawHead()
     {
         const std::vector<size_t> targets  = Targets();
         const size_t              selected = static_cast<size_t>(std::count(m_Selected.begin(), m_Selected.end(), true));
+        const ImGuiStyle&         style    = ImGui::GetStyle();
 
-        // What it acts on, Select All and Clear at the right.
-        ImGui::AlignTextToFramePadding();
-        if (selected == 0)
+        // The modes the targets share, and what each button can do.
+        std::optional<Mode> mode;
+        bool                mixed = targets.empty();
+        for (const size_t key : targets)
         {
-            ImGui::Text("All %zu keys", m_Keys.size());
+            const Mode own = ModeOf(ConfigOf(key));
+            if (mode && *mode != own)
+                mixed = true;
+            mode = own;
+        }
+
+        struct Choice
+        {
+            Mode        mode;
+            const char* label;
+            const char* tip;
+        };
+        static constexpr Choice c_Choices[] = {
+            { Mode::Regular, "Regular", "" },
+            { Mode::RapidTrigger, "Rapid Trigger", "" },
+            { Mode::Dks, "One Key Multiple Commands",
+              "Up to four keys sent by one, at four points of its travel." },
+            { Mode::LongPress, "Long-Press Switch", "One press holds the key down, the next lets it go." },
+            { Mode::Gamepad, "Gamepad Analog", "Plays a game controller." },
+        };
+
+        // The controls opened with nothing chosen yet belong to the selection they were opened on.
+        if (m_GamepadOpen && m_GamepadOpenFor != m_Selected)
+            m_GamepadOpen = false;
+
+        float modesWidth = 0.0f;
+        for (const Choice& choice : c_Choices)
+            modesWidth += ButtonWidth(choice.label);
+        const float endWidth = ButtonWidth("Select All") + ButtonWidth("Clear") + style.ItemSpacing.x;
+        const float right    = ImGui::GetContentRegionMax().x;
+        const float modesX   = std::max(ImGui::GetCursorPosX() + ImGui::GetFontSize() * 7.0f,
+                                        right - endWidth - style.ItemSpacing.x * 2 - modesWidth);
+
+        // What: the key, or how many -- all of it on hover.
+        std::string what, all;
+        std::vector<std::string> names;
+        for (const size_t key : targets)
+            names.push_back(m_Keys[key].name);
+        if (selected == 1)
+        {
+            what = names.front();
+        }
+        else if (selected > 1)
+        {
+            what = std::to_string(selected) + " keys";
+            std::string list;
+            for (const std::string& name : names)
+                list += (list.empty() ? "" : " ") + name;
+            all = list;
+            what += "  " + list;
         }
         else
         {
-            std::vector<std::string> names;
-            for (size_t i = 0; i < targets.size() && i < 10; ++i)
-                names.push_back(m_Keys[targets[i]].name);
-            std::string list = JoinNames(names);
-            if (targets.size() > 10)
-                list += " and " + std::to_string(targets.size() - 10) + " more";
-            ImGui::Text("%zu key%s:", targets.size(), targets.size() == 1 ? "" : "s");
-            ImGui::SameLine();
-            ColouredText(PanelColour::Muted, "%s", list.c_str());
+            const size_t apart = m_Keys.size() - targets.size();
+            what = apart ? std::to_string(targets.size()) + " keys, not the " + std::to_string(apart) + " advanced"
+                         : "All " + std::to_string(m_Keys.size()) + " keys";
+            all  = apart ? "Every key but those with an advanced mode: select them to change them." : "";
         }
-        const float buttons = ButtonWidth("Select All") + ButtonWidth("Clear") + ImGui::GetStyle().ItemSpacing.x;
+        ImGui::AlignTextToFramePadding();
+        const ImVec2 at    = ImGui::GetCursorScreenPos();
+        const float  room  = modesX - ImGui::GetCursorPosX() - style.ItemSpacing.x;
+        const ImVec2 size  = ImGui::CalcTextSize(what.c_str());
+        ImGui::PushClipRect(at, ImVec2(at.x + room, at.y + ImGui::GetFrameHeight()), true);
+        ImGui::TextUnformatted(what.c_str());
+        ImGui::PopClipRect();
+        if (ImGui::IsItemHovered() && (size.x > room || !all.empty()))
+            ImGui::SetTooltip("%s", all.empty() ? what.c_str() : all.c_str());
+
+        // The modes, side by side, the targets' lit.
         ImGui::SameLine();
-        ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), ImGui::GetContentRegionMax().x - buttons));
+        ImGui::SetCursorPosX(modesX);
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, style.ItemSpacing.y));
+        for (size_t index = 0; index < std::size(c_Choices); ++index)
+        {
+            const Choice& choice = c_Choices[index];
+            if (index)
+                ImGui::SameLine();
+            const bool        isCurrent = m_GamepadOpen ? choice.mode == Mode::Gamepad : !mixed && mode == choice.mode;
+            const bool        needsOne  = (choice.mode == Mode::Dks && selected != 1) ||
+                                  (choice.mode == Mode::Gamepad && selected != 1 && !(selected == 0 && HasGamepadKeys()));
+            const bool        needs     = needsOne || (choice.mode == Mode::LongPress && selected == 0);
+            const std::string tip       = needsOne && !isCurrent ? std::string("Select one key: each has its own.\n\n") + choice.tip
+                                          : needs && !isCurrent  ? std::string("Select the keys first.\n\n") + choice.tip
+                                                                 : std::string(choice.tip);
+            if (isCurrent)
+                ImGui::PushStyleColor(ImGuiCol_Button, style.Colors[ImGuiCol_ButtonActive]);
+            ImGui::BeginDisabled(!isCurrent && (needs || (targets.empty() && choice.mode != Mode::Gamepad)));
+            if (ImGui::Button(choice.label) && !isCurrent)
+                AskMode(choice.mode);
+            ImGui::EndDisabled();
+            if (isCurrent)
+                ImGui::PopStyleColor();
+            if (!tip.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                ImGui::SetTooltip("%s", tip.c_str());
+        }
+        ImGui::PopStyleVar();
+
+        ImGui::SameLine();
+        ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), right - endWidth));
         ImGui::BeginDisabled(selected == m_Keys.size());
         if (ImGui::Button("Select All"))
             m_Selected.assign(m_Keys.size(), true);
@@ -564,9 +1038,276 @@ namespace nazg
         if (ImGui::Button("Clear"))
             m_Selected.assign(m_Keys.size(), false);
         ImGui::EndDisabled();
-        ImGui::Spacing();
+    }
 
-        // The settings the keys share, or none where they differ.
+    void SwitchesSection::DrawEditor()
+    {
+        const std::vector<size_t> targets  = Targets();
+        const size_t              selected = static_cast<size_t>(std::count(m_Selected.begin(), m_Selected.end(), true));
+        m_HoveredControl.reset();
+        if (m_GamepadOpen || (selected > 0 && std::all_of(targets.begin(), targets.end(), [&](size_t key)
+                                                          { return ModeOf(ConfigOf(key)) == Mode::Gamepad; })))
+        {
+            m_PickCommand.reset();
+            DrawGamepad(targets);
+            return;
+        }
+        if (targets.empty())
+        {
+            ColouredText(PanelColour::Muted, "Every key has an advanced mode. Select some to change them.");
+            return;
+        }
+
+        // The mode they share, and whether they do the same.
+        const keychron::KeyConfig first = ConfigOf(targets.front());
+        bool                      sameMode = true, same = true;
+        for (const size_t key : targets)
+        {
+            const keychron::KeyConfig config = ConfigOf(key);
+            sameMode                         = sameMode && ModeOf(config) == ModeOf(first);
+            same                             = same && DoSame(config, first);
+        }
+        // One key's commands have a drawing of their own.
+        if (const std::optional<size_t> one = OneSelected(); one && ModeOf(first) == Mode::Dks)
+        {
+            DrawDks(*one);
+            return;
+        }
+        m_PickCommand.reset();
+        DrawDistances(targets, sameMode ? ModeOf(first) : Mode::Unknown);
+
+        ImGui::PushTextWrapPos(0.0f);
+        if (same && ModeOf(first) != Mode::Dks)
+            ColouredText(PanelColour::Muted, "%s", Says(first).c_str());
+        else if (sameMode && ModeOf(first) == Mode::Dks)
+            ColouredText(PanelColour::Muted, "Select one key to see what it does.");
+        else
+            DrawDifferences(targets);
+        if (selected == 0)
+            ColouredText(PanelColour::Muted, "%s",
+                         m_MatrixRefused ? "Click keys to select them -- this firmware does not report its switches, so "
+                                           "pressing them selects nothing."
+                                         : "Click keys to select them, or press them on the keyboard.");
+        ImGui::PopTextWrapPos();
+    }
+
+    void SwitchesSection::DrawDks(size_t key)
+    {
+        const keychron::Profile&  profile = m_Profiles[m_ShownProfile];
+        const uint8_t             slot    = ConfigOf(key).advancedData;
+        if (slot >= profile.dksSlots.size())
+        {
+            ColouredText(PanelColour::Warning, "This key's commands are in slot %u, which the board does not have.", slot);
+            return;
+        }
+
+        const keychron::DksSlot settings = profile.dksSlots[slot];
+        DksEditorInput          input{ settings };
+        input.fullTravel  = m_FullTravel ? m_FullTravel : c_SourceFullTravel;
+        input.keycodeName = [this](uint16_t keycode) { return KeycodeName(keycode); };
+        input.slotsUsed   = keychron::DksSlotsInUse(profile);
+        input.slotsCount  = profile.dksSlots.size();
+        input.player      = m_Testing && m_Followed == key ? &m_Player : nullptr;
+
+        input.picking        = m_PickCommand;
+        input.pickByPressing = !m_Testing && !m_MatrixRefused;
+
+        const DksEditorEvents events = DrawDksEditor(m_DksState, input);
+        if (events.changed)
+            AskDks(key, slot, *events.changed);
+        if (events.pick)
+            m_PickCommand = events.pick;
+        if (events.more)
+            m_OpenPicker = true;
+        if (events.remove)
+            PickForCommand(0);
+        if (events.cancel || ImGui::IsKeyPressed(ImGuiKey_Escape))
+            m_PickCommand.reset();
+        DrawDksPicker(settings);
+    }
+
+    void SwitchesSection::DrawGamepad(const std::vector<size_t>& targets)
+    {
+        DrawGamepadSettings();
+
+        const std::optional<size_t> one      = OneSelected();
+        const size_t                selected = static_cast<size_t>(std::count(m_Selected.begin(), m_Selected.end(), true));
+
+        GamepadViewInput input;
+        for (size_t key = 0; key < m_Keys.size(); ++key)
+        {
+            const keychron::KeyConfig config = ConfigOf(key);
+            if (ModeOf(config) == Mode::Gamepad && config.advancedData < input.keys.size())
+            {
+                std::string& names = input.keys[config.advancedData];
+                names += (names.empty() ? "" : ", ") + m_Keys[key].name;
+            }
+        }
+        std::optional<keychron::KeyConfig> config;
+        if (one && ModeOf(ConfigOf(*one)) == Mode::Gamepad)
+            config = ConfigOf(*one);
+        if (config)
+            input.selected = config->advancedData;
+        input.levels = m_Levels ? &*m_Levels : nullptr;
+
+        // As large as the panel allows, room kept for the line under it and a button's slider.
+        const ImVec2 room  = ImGui::GetContentRegionAvail();
+        const float  under = ImGui::GetTextLineHeightWithSpacing() + ImGui::GetFrameHeightWithSpacing() +
+                            ImGui::GetStyle().ItemSpacing.y * 2;
+        input.scale        = GamepadViewScale(room.x, room.y - under);
+
+        const GamepadViewEvents events = DrawGamepadView(input);
+        m_HoveredControl               = events.hovered;
+        if (events.clicked)
+            ChooseControl(*events.clicked);
+
+        ImGui::PushTextWrapPos(0.0f);
+        if (selected == 0)
+            ColouredText(PanelColour::Muted, "Click a control to select the key that plays it, or a key on the board to give "
+                                             "it a control.");
+        else if (!one)
+            ColouredText(PanelColour::Muted, "Select one key to choose what it plays.");
+        else if (!config)
+            ColouredText(PanelColour::Muted, "Click the control it plays.");
+        else if (UsesActuation(*config))
+            ColouredText(PanelColour::Muted, "Plays %s.", keychron::GamepadControlWords(config->advancedData).c_str());
+        else
+            ColouredText(PanelColour::Muted, "Plays %s, by how far the key goes down%s.",
+                         keychron::GamepadControlWords(config->advancedData).c_str(),
+                         config->advancedData == keychron::c_GamepadLeftTrigger ||
+                                 config->advancedData == keychron::c_GamepadRightTrigger
+                             ? ""
+                             : ", through the gamepad curve");
+        ImGui::PopTextWrapPos();
+        if (selected > 0 && (config || !one))
+            DrawDistances(targets, Mode::Gamepad);
+    }
+
+    // The gamepad's settings, the whole board's: one line.
+    void SwitchesSection::DrawGamepadSettings()
+    {
+        if (!m_GamepadMode)
+            return;
+        const uint8_t mode   = *m_GamepadMode;
+        const auto    change = [&](uint8_t bit, bool set)
+        {
+            m_PendingMode = ModeChange{ bit, set ? bit : uint8_t{ 0 } };
+            m_GamepadMode = static_cast<uint8_t>(set ? mode | bit : mode & ~bit);
+            m_Message.clear();
+        };
+        const auto tip = [](const char* words)
+        {
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                ImGui::SetTooltip("%s", words);
+        };
+
+        bool typing = (mode & keychron::GamepadMode::Typing) != 0;
+        if (ImGui::Checkbox("Keyboard keys enabled", &typing))
+            change(keychron::GamepadMode::Typing, typing);
+        tip("On: a gamepad key also types its key. Off: it types nothing.\n\nThe whole board, every profile.");
+
+        const bool recognised = (mode & keychron::GamepadMode::RecognitionOff) == 0;
+        if (m_HasRecognition)
+        {
+            ImGui::SameLine();
+            bool on = recognised;
+            if (ImGui::Checkbox("Controller Recognition Feature", &on))
+                change(keychron::GamepadMode::RecognitionOff, !on);
+            tip("Off: the computer does not see a controller, and the gamepad keys play nothing.\n\nTakes effect when the "
+                "board is next plugged in. The whole board, every profile.");
+        }
+
+        ImGui::SameLine();
+        ImGui::BeginDisabled(!recognised);
+        const bool xbox = (mode & keychron::GamepadMode::XInput) != 0;
+        if (ImGui::RadioButton("Standard", !xbox) && xbox)
+            change(keychron::GamepadMode::XInput, false);
+        tip("Standard Controller: a plain joystick, for any program that reads one.\n\nTakes effect when the board is next "
+            "plugged in.");
+        ImGui::SameLine();
+        if (ImGui::RadioButton("Xbox", xbox) && !xbox)
+            change(keychron::GamepadMode::XInput, true);
+        tip("Xbox Controller: as games expect.\n\nTakes effect when the board is next plugged in.");
+        ImGui::EndDisabled();
+    }
+
+    // A command's key that the board does not have, from the picker's Basic tab in a popup: the only keys
+    // that work there.
+    void SwitchesSection::DrawDksPicker(const keychron::DksSlot& settings)
+    {
+        if (std::exchange(m_OpenPicker, false))
+            ImGui::OpenPopup("##dkspicker");
+
+        // Over the board and the panel, as wide as the picker draws its keyboard: the lower part keeps its
+        // height.
+        const ImGuiViewport* viewport = ImGui::GetMainViewport();
+        const ImVec2 size(std::min(ImGui::GetFontSize() * 84.0f, viewport->WorkSize.x * 0.95f),
+                          std::min(ImGui::GetFontSize() * 30.0f, viewport->WorkSize.y * 0.9f));
+        ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + viewport->WorkSize.x / 2, viewport->WorkPos.y + viewport->WorkSize.y / 2),
+                                ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+        ImGui::SetNextWindowSize(size, ImGuiCond_Always);
+        if (!ImGui::BeginPopup("##dkspicker"))
+            return;
+        if (!m_PickCommand || *m_PickCommand >= keychron::c_DksCommands)
+        {
+            ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+            return;
+        }
+
+        const size_t command = *m_PickCommand;
+        ImGui::AlignTextToFramePadding();
+        PushHeaderFont();
+        ImGui::Text("Command %zu", command + 1);
+        ImGui::PopFont();
+        ImGui::SameLine();
+        ColouredText(PanelColour::Muted, "Ordinary keys and modifiers only.");
+        ImGui::SameLine();
+        ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), ImGui::GetContentRegionMax().x - ButtonWidth("Close")));
+        if (ImGui::Button("Close"))
+            ImGui::CloseCurrentPopup();
+
+        // The Basic tab alone, built again only when the whole catalogue is.
+        const std::vector<CatalogueTab>& tabs = CatalogueOf(m_Picker, m_Keyboard, m_Legends, false);
+        if (m_BasicTab.empty() || m_BasicTabFor != m_Picker.catalogueFor)
+        {
+            m_BasicTabFor = m_Picker.catalogueFor;
+            m_BasicTab.clear();
+            for (const CatalogueTab& tab : tabs)
+                if (tab.id == "basic")
+                    m_BasicTab.push_back(tab);
+        }
+
+        const LegendContext    context{ m_Legends.Layout(), m_Legends.modifierNames };
+        std::optional<Keycode> current;
+        if (settings.keycodes[command])
+            current = qmk::DecodeKeycode(settings.keycodes[command], m_Keyboard.keycodeVersion);
+        const auto codeOf = [&](const Keycode& keycode)
+        { return qmk::EncodeKeycode(keycode, m_Keyboard.keycodeVersion).value_or(uint16_t{ 0 }); };
+        const KeycodePickerEvents events = DrawKeycodePicker(
+            m_Picker, { m_BasicTab, context, m_Keyboard.keycodeVersion, current, &m_Keyboard,
+                        [&](const Keycode& keycode) -> std::optional<std::string>
+                        {
+                            if (keychron::IsDksKeycode(codeOf(keycode)))
+                                return std::nullopt;
+                            return "One Key Multiple Commands sends ordinary keys and modifiers only.";
+                        } });
+        if (events.picked && keychron::IsDksKeycode(codeOf(*events.picked)))
+        {
+            PickForCommand(codeOf(*events.picked));
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+
+    // The sliders the mode has, each at the targets' value or mixed. Unknown: theirs differ.
+    void SwitchesSection::DrawDistances(const std::vector<size_t>& targets, Mode mode)
+    {
+        const bool actuation = std::all_of(targets.begin(), targets.end(),
+                                           [&](size_t key) { return UsesActuation(ConfigOf(key)); });
+        if (!actuation)
+            return;
+
         const auto common = [&](auto field) -> std::optional<uint8_t>
         {
             std::optional<uint8_t> value;
@@ -579,145 +1320,115 @@ namespace nazg
             }
             return value;
         };
-        const std::optional<uint8_t> mode =
-            common([](const keychron::KeyConfig& config) { return static_cast<uint8_t>(config.mode); });
-        const bool rapid = mode == static_cast<uint8_t>(keychron::KeyMode::RapidTrigger);
 
         const uint8_t full = m_FullTravel ? m_FullTravel : c_SourceFullTravel;
-        if (ImGui::BeginTable("settings", 2, ImGuiTableFlags_SizingFixedFit))
+        if (!ImGui::BeginTable("settings", 2, ImGuiTableFlags_SizingFixedFit))
+            return;
+        ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthFixed);
+        ImGui::TableSetupColumn("control", ImGuiTableColumnFlags_WidthStretch);
+        DrawDistance("Actuation Distance", "##actuation", "How far the key goes down before it counts as pressed.",
+                     common([](const keychron::KeyConfig& config) { return config.actuationPoint; }), full,
+                     Field::Actuation);
+        if (mode == Mode::RapidTrigger)
         {
-            ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthFixed);
-            ImGui::TableSetupColumn("control", ImGuiTableColumnFlags_WidthStretch);
-
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted("Mode");
-            ImGui::TableSetColumnIndex(1);
-            if (ImGui::RadioButton("Regular", mode == static_cast<uint8_t>(keychron::KeyMode::Regular)) &&
-                mode != static_cast<uint8_t>(keychron::KeyMode::Regular))
-                Ask({ keychron::KeyMode::Regular, std::nullopt, std::nullopt, std::nullopt });
-            ImGui::SameLine();
-            if (ImGui::RadioButton("Rapid Trigger", rapid) && !rapid)
-                Ask({ keychron::KeyMode::RapidTrigger, std::nullopt, std::nullopt, std::nullopt });
-            if (!mode)
-            {
-                ImGui::SameLine();
-                ColouredText(PanelColour::Muted, "mixed");
-            }
-
-            DrawDistance("Actuation Distance", "##actuation", "How far the key goes down before it counts as pressed.",
-                         common([](const keychron::KeyConfig& config) { return config.actuationPoint; }), full,
-                         Field::Actuation);
-            if (rapid)
-            {
-                const uint8_t most = std::min(c_SensitivityMax, full);
-                DrawDistance("(Press) Trigger Distance", "##press", "Going down by this much presses it again.",
-                             common([](const keychron::KeyConfig& config) { return config.pressSensitivity; }), most,
-                             Field::Press);
-                DrawDistance("(Release) Reset Distance", "##release", "Coming up by this much releases it.",
-                             common([](const keychron::KeyConfig& config) { return config.releaseSensitivity; }), most,
-                             Field::Release);
-            }
-            ImGui::EndTable();
+            const uint8_t most = std::min(c_SensitivityMax, full);
+            DrawDistance("(Press) Trigger Distance", "##press", "Going down by this much presses it again.",
+                         common([](const keychron::KeyConfig& config) { return config.pressSensitivity; }), most,
+                         Field::Press);
+            DrawDistance("(Release) Reset Distance", "##release", "Coming up by this much releases it.",
+                         common([](const keychron::KeyConfig& config) { return config.releaseSensitivity; }), most,
+                         Field::Release);
         }
+        ImGui::EndTable();
+    }
 
-        // What it does, in words, when the keys all do the same.
-        ImGui::Spacing();
-        ImGui::PushTextWrapPos(0.0f);
-        // What the keys differ in, by what they do: a Regular key's Trigger and Reset Distances do
-        // nothing, so they set no key apart -- Gaming's keys, alike on the board, differed only there
-        // (Rico, 2026-11-08).
+    // What the keys differ in, by what they do: a Regular key's Trigger and Reset Distances do nothing,
+    // so they set no key apart -- Gaming's keys, alike on the board, differed only there (Rico,
+    // 2026-11-08).
+    void SwitchesSection::DrawDifferences(const std::vector<size_t>& targets)
+    {
+        const size_t selected = static_cast<size_t>(std::count(m_Selected.begin(), m_Selected.end(), true));
+
+        const keychron::KeyConfig          first = ConfigOf(targets.front());
+        std::optional<keychron::KeyConfig> firstActuated, firstRapid;
+        bool                               mode = false, actuation = false, press = false, release = false;
+        for (const size_t key : targets)
+        {
+            const keychron::KeyConfig config = ConfigOf(key);
+            mode                             = mode || ModeOf(config) != ModeOf(first) ||
+                   (config.advancedMode != keychron::AdvancedMode::None && config.advancedData != first.advancedData);
+            if (UsesActuation(config))
+            {
+                if (!firstActuated)
+                    firstActuated = config;
+                actuation = actuation || config.actuationPoint != firstActuated->actuationPoint;
+            }
+            if (ModeOf(config) != Mode::RapidTrigger)
+                continue;
+            if (!firstRapid)
+                firstRapid = config;
+            press   = press || config.pressSensitivity != firstRapid->pressSensitivity;
+            release = release || config.releaseSensitivity != firstRapid->releaseSensitivity;
+        }
         std::vector<std::string> differ;
-        if (!targets.empty())
-        {
-            const keychron::KeyConfig  first = ConfigOf(targets.front());
-            std::optional<keychron::KeyConfig> firstRapid;
-            bool mode = false, actuation = false, press = false, release = false;
-            for (const size_t key : targets)
-            {
-                const keychron::KeyConfig config = ConfigOf(key);
-                mode      = mode || config.mode != first.mode;
-                actuation = actuation || config.actuationPoint != first.actuationPoint;
-                if (config.mode != keychron::KeyMode::RapidTrigger)
-                    continue;
-                if (!firstRapid)
-                    firstRapid = config;
-                press   = press || config.pressSensitivity != firstRapid->pressSensitivity;
-                release = release || config.releaseSensitivity != firstRapid->releaseSensitivity;
-            }
-            if (mode)
-                differ.push_back("Mode");
-            if (actuation)
-                differ.push_back("Actuation Distance");
-            if (press)
-                differ.push_back("(Press) Trigger Distance");
-            if (release)
-                differ.push_back("(Release) Reset Distance");
-        }
+        if (mode)
+            differ.push_back("Mode");
+        if (actuation)
+            differ.push_back("Actuation Distance");
+        if (press)
+            differ.push_back("(Press) Trigger Distance");
+        if (release)
+            differ.push_back("(Release) Reset Distance");
 
-        if (!targets.empty() && differ.empty())
-        {
-            ColouredText(PanelColour::Muted, "%s", Says(ConfigOf(targets.front())).c_str());
-        }
-        else if (!targets.empty())
-        {
-            const std::string which = selected == 0 ? "All " + std::to_string(targets.size()) + " keys"
-                                                    : "These " + std::to_string(targets.size()) + " keys";
-            ColouredText(PanelColour::Muted, "%s", (which + " differ in their " + JoinNames(differ) + ".").c_str());
+        const std::string which = selected == 0 ? std::to_string(targets.size()) + " keys"
+                                                : "These " + std::to_string(targets.size()) + " keys";
+        ColouredText(PanelColour::Muted, "%s", (which + " differ in their " + JoinNames(differ) + ".").c_str());
 
-            // The keys apart from what most do, named when few, and a button selecting them -- one of
-            // 104 is hard to find on the board (Rico, 2026-11-08).
-            std::vector<std::pair<keychron::KeyConfig, std::vector<size_t>>> groups;
-            for (const size_t key : targets)
-            {
-                const keychron::KeyConfig config = ConfigOf(key);
-                const auto group = std::find_if(groups.begin(), groups.end(),
-                                                [&](const auto& known) { return DoSame(known.first, config); });
-                if (group != groups.end())
-                    group->second.push_back(key);
-                else
-                    groups.push_back({ config, { key } });
-            }
-            const auto most = std::max_element(groups.begin(), groups.end(), [](const auto& a, const auto& b)
-                                               { return a.second.size() < b.second.size(); });
-            std::vector<size_t> apart;
-            for (const size_t key : targets)
-                if (std::find(most->second.begin(), most->second.end(), key) == most->second.end())
-                    apart.push_back(key);
-
-            std::string named;
-            if (apart.size() <= 5)
-            {
-                std::vector<std::string> names;
-                for (const size_t key : apart)
-                    names.push_back(m_Keys[key].name);
-                named = JoinNames(names) + (apart.size() == 1 ? " is" : " are");
-            }
+        // The keys apart from what most do, named when few, and a button selecting them -- one of
+        // 104 is hard to find on the board (Rico, 2026-11-08).
+        std::vector<std::pair<keychron::KeyConfig, std::vector<size_t>>> groups;
+        for (const size_t key : targets)
+        {
+            const keychron::KeyConfig config = ConfigOf(key);
+            const auto group = std::find_if(groups.begin(), groups.end(),
+                                            [&](const auto& known) { return DoSame(known.first, config); });
+            if (group != groups.end())
+                group->second.push_back(key);
             else
-            {
-                named = std::to_string(apart.size()) + " keys are";
-            }
-            ImGui::AlignTextToFramePadding();
-            ColouredText(PanelColour::Muted, "Most are %s; %s not.", Briefly(most->first).c_str(), named.c_str());
-            ImGui::SameLine();
-            if (ImGui::SmallButton(apart.size() == 1 ? "Select it" : "Select them"))
-            {
-                m_Selected.assign(m_Keys.size(), false);
-                for (const size_t key : apart)
-                    m_Selected[key] = true;
-            }
-            ColouredText(PanelColour::Muted, "%s", differ.size() == 1
-                                                       ? "Setting it sets it on all of them."
-                                                       : "Setting one sets that one on all of them; the rest stays as "
-                                                         "each key has it.");
+                groups.push_back({ config, { key } });
         }
-        ImGui::Spacing();
-        ColouredText(PanelColour::Muted, "%s", m_MatrixRefused
-                                                   ? "Click keys to select them -- this firmware does not report its "
-                                                     "switches, so pressing them selects nothing."
-                                                   : "Click keys to select them, or press them on the keyboard.");
-        ImGui::PopTextWrapPos();
+        const auto most = std::max_element(groups.begin(), groups.end(), [](const auto& a, const auto& b)
+                                           { return a.second.size() < b.second.size(); });
+        std::vector<size_t> apart;
+        for (const size_t key : targets)
+            if (std::find(most->second.begin(), most->second.end(), key) == most->second.end())
+                apart.push_back(key);
+
+        std::string named;
+        if (apart.size() <= 5)
+        {
+            std::vector<std::string> names;
+            for (const size_t key : apart)
+                names.push_back(m_Keys[key].name);
+            named = JoinNames(names) + (apart.size() == 1 ? " is" : " are");
+        }
+        else
+        {
+            named = std::to_string(apart.size()) + " keys are";
+        }
+        ImGui::AlignTextToFramePadding();
+        ColouredText(PanelColour::Muted, "Most are %s; %s not.", Briefly(most->first).c_str(), named.c_str());
+        ImGui::SameLine();
+        if (ImGui::SmallButton(apart.size() == 1 ? "Select it" : "Select them"))
+        {
+            m_Selected.assign(m_Keys.size(), false);
+            for (const size_t key : apart)
+                m_Selected[key] = true;
+        }
+        ColouredText(PanelColour::Muted, "%s", differ.size() == 1
+                                                   ? "Setting it sets it on all of them."
+                                                   : "Setting one sets that one on all of them; the rest stays as each key "
+                                                     "has it.");
     }
 
     // A distance as a slider from 0.1 mm: shown while it moves, written when let go.
@@ -777,6 +1488,8 @@ namespace nazg
             if (ImGui::Button("Test keys"))
             {
                 m_Testing = true;
+                m_Player.Reset();
+                m_Trail.Clear();
                 m_Travel.reset();
                 m_ClampReadings = 0;
                 m_Followed.reset();
@@ -787,7 +1500,7 @@ namespace nazg
             ImGui::PushTextWrapPos(0.0f);
             ColouredText(PanelColour::Muted, "Press keys on the board to see how far they go, and where they are pressed "
                                              "and released with these settings. While testing, pressing a key does not "
-                                             "select it.");
+                                             "select it.%s", HasGamepadKeys() ? " The gamepad shows here too." : "");
             ImGui::PopTextWrapPos();
             return;
         }
@@ -803,8 +1516,35 @@ namespace nazg
             m_Testing = false;
             m_Followed.reset();
             m_Travel.reset();
+            m_Levels.reset();
             return;
         }
+
+        // What the computer receives, under the key followed, on a profile with gamepad keys.
+        const auto gamepad = [&]
+        {
+            if (!HasGamepadKeys())
+                return;
+            GamepadTestInput input;
+            input.isSeen = m_Controller.isSeen;
+            input.isXbox = m_Controller.isXbox;
+            input.others = m_Controller.others;
+            input.levels = m_Levels ? &*m_Levels : nullptr;
+            input.trail  = &m_Trail;
+            input.whyNotSeen =
+                m_GamepadMode && (*m_GamepadMode & keychron::GamepadMode::RecognitionOff)
+                    ? "Controller Recognition Feature is off."
+                    : "It is set to be seen: plug it in again.";
+            const auto playsTrigger = [&](uint8_t control)
+            {
+                return std::any_of(Shown()->keys.begin(), Shown()->keys.end(), [&](const keychron::KeyConfig& key)
+                                   { return key.advancedMode == keychron::AdvancedMode::Gamepad && key.advancedData == control; });
+            };
+            input.sharesTriggers =
+                playsTrigger(keychron::c_GamepadLeftTrigger) && playsTrigger(keychron::c_GamepadRightTrigger);
+            ImGui::Separator();
+            DrawGamepadTest(input);
+        };
 
         if (!m_Followed)
         {
@@ -814,10 +1554,12 @@ namespace nazg
                                                          "click Test keys."
                                                        : "Press a key on the board.");
             ImGui::PopTextWrapPos();
+            gamepad();
             return;
         }
 
         const keychron::KeyConfig config = ConfigOf(*m_Followed);
+        ImGui::AlignTextToFramePadding();
         PushHeaderFont();
         ImGui::TextUnformatted(m_Keys[*m_Followed].name.c_str());
         ImGui::PopFont();
@@ -836,10 +1578,43 @@ namespace nazg
 
         const keychron::RealtimeTravel travel = m_Travel.value_or(keychron::RealtimeTravel{});
         ImGui::BeginGroup();
-        DrawTravelBar(travel, config);
+        if (ModeOf(config) == Mode::Dks)
+        {
+            // What its slot sends, played from the travel as the firmware plays it.
+            std::string sent;
+            if (config.advancedData < Shown()->dksSlots.size())
+                for (const keychron::DksPlayer::Sent& one : m_Player.SentSince())
+                    sent += (sent.empty() ? "" : ", ") +
+                            KeycodeName(Shown()->dksSlots[config.advancedData].keycodes[one.command]) +
+                            (one.down ? " down" : " up");
+            ImGui::PushTextWrapPos(m_Raw ? ImGui::GetCursorPosX() + TravelBarWidth() : 0.0f);
+            ColouredText(PanelColour::Muted, "Sent");
+            ImGui::TextUnformatted(sent.empty() ? "nothing yet" : sent.c_str());
+            ImGui::PopTextWrapPos();
+        }
+        else
+        {
+            if (ModeOf(config) == Mode::LongPress && *m_Followed < m_WasPressed.size())
+                ColouredText(m_WasPressed[*m_Followed] ? PanelColour::Success : PanelColour::Muted, "%s",
+                             m_WasPressed[*m_Followed] ? "held down" : "let go");
+            // With the gamepad under it, the bar lies down: the column stays as tall.
+            if (HasGamepadKeys() && !m_Raw)
+            {
+                const uint8_t full = m_FullTravel ? m_FullTravel : c_SourceFullTravel;
+                ImGui::ProgressBar(std::min(1.0f, static_cast<float>(travel.travelSixtieths) / (full * 6.0f)),
+                                   ImVec2(-FLT_MIN, ImGui::GetFontSize() * 0.6f), "");
+            }
+            else
+            {
+                DrawTravelBar(travel, config);
+            }
+        }
         ImGui::EndGroup();
         if (!m_Raw)
+        {
+            gamepad();
             return;
+        }
 
         ImGui::SameLine();
         if (ImGui::BeginTable("raw", 2, ImGuiTableFlags_SizingFixedFit))
@@ -867,6 +1642,7 @@ namespace nazg
             row("Scale factor", scale, "Turns this key's readings into the board's travel, from its calibration.");
             ImGui::EndTable();
         }
+        gamepad();
     }
 
     // The key's travel top to bottom -- rest at the top -- with where it presses and releases.
@@ -910,6 +1686,8 @@ namespace nazg
         const int   released = ReleasePoint(config.actuationPoint);
         const float apart    = y(pressed) - y(released);
         const float push     = apart < unit * 1.1f ? (unit * 1.1f - apart) / 2.0f : 0.0f;
+        if (!UsesActuation(config))
+            return;
         mark(pressed, accent, "pressed " + Millimetres(pressed), push);
         mark(released, muted, "released above " + Millimetres(released), -push);
     }
@@ -997,6 +1775,18 @@ namespace nazg
             {
             }
 
+            // The gamepad's settings; a firmware without them keeps the rest.
+            m_GamepadMode.reset();
+            m_HasRecognition = false;
+            try
+            {
+                m_GamepadMode    = co_await keychron.GetGamepadMode();
+                m_HasRecognition = keychron::HasRecognitionSwitch((co_await keychron.GetIdentity()).protocolVersion);
+            }
+            catch (const ProtocolError&)
+            {
+            }
+
             std::vector<keychron::Profile> profiles;
             for (uint8_t profile = 0; profile < m_Geometry.profileCount; ++profile)
                 profiles.push_back(keychron::DecodeProfile(co_await keychron.GetProfileRaw(profile, m_Geometry), rows,
@@ -1053,6 +1843,10 @@ namespace nazg
                 if (m_Followed == key)
                 {
                     m_Travel = read;
+                    const keychron::KeyConfig followed = ConfigOf(key);
+                    if (ModeOf(followed) == Mode::Dks && followed.advancedData < Shown()->dksSlots.size())
+                        m_Player.Step(Shown()->dksSlots[followed.advancedData],
+                                      std::min<int>(read.travelSixtieths, (m_FullTravel ? m_FullTravel : c_SourceFullTravel) * 6));
 
                     // At the bottom the 1/60 mm field pins at (F + 1) x 6 - 1: full travel, measured
                     // (keychron-commands.md, "How travel is computed").
@@ -1089,8 +1883,7 @@ namespace nazg
                     geometry.currentProfile < m_Profiles.size())
                 {
                     m_ShownProfile = geometry.currentProfile;
-                    m_Message      = "switched to " + ProfileName(m_ShownProfile) + " from the keyboard";
-                    m_IsWarning    = false;
+                    Say("switched to " + ProfileName(m_ShownProfile) + " from the keyboard", false);
                 }
                 m_Geometry.currentProfile = geometry.currentProfile;
             }
@@ -1108,6 +1901,8 @@ namespace nazg
         try
         {
             keychron::Protocol keychron(*m_Channel);
+            for (const keychron::AdvancedWrite& write : change.advanced)
+                co_await keychron.SetKeyAdvanced(change.profile, write);
             for (const keychron::TravelWrite& write : change.writes)
                 co_await keychron.SetKeysTravel(change.profile, write.config, write.keys);
             co_await keychron.SaveProfile(change.profile);
@@ -1116,6 +1911,8 @@ namespace nazg
             keychron::Profile kept = keychron::DecodeProfile(co_await keychron.GetProfileRaw(change.profile, m_Geometry),
                                                              rows, columns, m_Geometry.dksSlots, m_Geometry.socdSlots);
             bool same = true;
+            for (const keychron::AdvancedWrite& write : change.advanced)
+                same = same && keychron::Holds(kept, columns, write);
             for (const keychron::TravelWrite& write : change.writes)
                 for (const keychron::KeyPosition key : write.keys)
                 {
@@ -1131,14 +1928,12 @@ namespace nazg
             if (!newer && change.profile < m_Profiles.size())
                 m_Profiles[change.profile] = std::move(kept);
 
-            m_Message   = same ? "saved, read back the same" : "the board kept something else -- shown as it is";
-            m_IsWarning = !same;
+            Say(same ? "Saved, read back the same" : "The board kept something else -- shown as it is", !same);
         }
         catch (const ProtocolError& failure)
         {
-            m_Message   = std::string("the board refused it: ") + failure.what();
-            m_IsWarning = true;
-            m_Link      = Link::Closed;   // read everything again
+            Say(std::string("The board refused it: ") + failure.what(), true);
+            m_Link = Link::Closed;   // read everything again
             m_Channel.reset();
         }
         catch (const std::exception& failure)
@@ -1155,14 +1950,36 @@ namespace nazg
             co_await keychron.SelectProfile(profile);
             m_Geometry.currentProfile = (co_await keychron.GetProfileGeometry()).currentProfile;
             m_ShownProfile            = m_Geometry.currentProfile;
-            m_Message                 = m_ShownProfile == profile ? "the board now types with it"
-                                                                  : "the board kept " + ProfileName(m_ShownProfile);
-            m_IsWarning               = m_ShownProfile != profile;
-            m_LastInUseRead           = ImGui::GetTime();
+            Say(m_ShownProfile == profile ? "The board now types with it" : "The board kept " + ProfileName(m_ShownProfile),
+                m_ShownProfile != profile);
+            m_LastInUseRead = ImGui::GetTime();
         }
         catch (const std::exception& failure)
         {
             Fail(std::string("The profile could not be changed: ") + failure.what());
+        }
+    }
+
+    // The bits asked, and only those: the byte is read again first, the Launcher may have changed it and a
+    // firmware may keep bits Nazg does not know.
+    Task<void> SwitchesSection::WriteGamepadMode(uint8_t mask, uint8_t value)
+    {
+        try
+        {
+            keychron::Protocol keychron(*m_Channel);
+            const uint8_t      now    = co_await keychron.GetGamepadMode();
+            const uint8_t      wanted = static_cast<uint8_t>((now & ~mask) | (value & mask));
+            const uint8_t      kept   = co_await keychron.SetGamepadMode(wanted);
+            m_GamepadMode             = kept;
+            const bool replug = (mask & (keychron::GamepadMode::XInput | keychron::GamepadMode::RecognitionOff)) != 0;
+            Say(kept != wanted ? "The board kept something else -- shown as it is"
+                : replug       ? "Saved: plug the board in again for it to take effect"
+                               : "Saved, read back the same",
+                kept != wanted);
+        }
+        catch (const std::exception& failure)
+        {
+            Fail(std::string("The gamepad's settings could not be changed: ") + failure.what());
         }
     }
 
@@ -1177,8 +1994,7 @@ namespace nazg
             if (profile < m_Profiles.size())
                 m_Profiles[profile] = keychron::DecodeProfile(co_await keychron.GetProfileRaw(profile, m_Geometry), rows,
                                                               columns, m_Geometry.dksSlots, m_Geometry.socdSlots);
-            m_Message   = "reset to the board's defaults";
-            m_IsWarning = false;
+            Say("Reset to the board's defaults", false);
         }
         catch (const std::exception& failure)
         {

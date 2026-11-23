@@ -30,6 +30,12 @@ namespace nazg::keychron
         constexpr size_t c_TravelRowsAt     = 8;
         constexpr size_t c_TravelColumnsMax = 24;
 
+        // AMC_SET_ADVANCE_MODE's operations, which are not the stored AdvancedMode values.
+        constexpr uint8_t c_AdvancedClear   = 0;
+        constexpr uint8_t c_AdvancedDks     = 1;
+        constexpr uint8_t c_AdvancedGamepad = 2;
+        constexpr uint8_t c_AdvancedToggle  = 3;
+
         // One analog_key_config_t, one okmc_config_t, one socd_config_t.
         constexpr size_t c_KeyConfigSize = 4;
         constexpr size_t c_DksSlotSize   = 19;
@@ -345,6 +351,58 @@ namespace nazg::keychron
         }
 
         RequireSuccess(co_await SendFrame(std::move(request), true, c_EchoedGroup), "writing the travel");
+    }
+
+    Task<void> Protocol::SetKeyAdvanced(uint8_t profile, const AdvancedWrite& write)
+    {
+        uint8_t operation = c_AdvancedClear;
+        switch (write.mode)
+        {
+        case AdvancedMode::None: operation = c_AdvancedClear; break;
+        case AdvancedMode::Dks: operation = c_AdvancedDks; break;
+        case AdvancedMode::Gamepad: operation = c_AdvancedGamepad; break;
+        case AdvancedMode::Toggle: operation = c_AdvancedToggle; break;
+        default:
+            throw std::invalid_argument("Keychron: advanced mode " +
+                                        std::to_string(static_cast<unsigned>(write.mode)) + " is none Nazg writes");
+        }
+
+        // [2] profile, [3] the operation, [4] row, [5] column, [6] the DKS slot or the control, then
+        // for DKS [7..10] its four depths, [11..18] four keycodes, [19..26] four pairs of actions.
+        std::vector<uint8_t> request = MakeRequest(Command::AnalogMatrix, static_cast<uint8_t>(Analog::SetAdvanceMode),
+                                                   { profile, operation, write.key.row, write.key.column,
+                                                     write.mode == AdvancedMode::None ? uint8_t{ 0 } : write.data });
+        if (write.mode == AdvancedMode::Dks)
+        {
+            request[7]  = write.dks.shallowPress;
+            request[8]  = write.dks.shallowRelease;
+            request[9]  = write.dks.deepPress;
+            request[10] = write.dks.deepRelease;
+            for (size_t command = 0; command < 4; ++command)
+            {
+                request[11 + 2 * command] = LowByte(write.dks.keycodes[command]);
+                request[12 + 2 * command] = HighByte(write.dks.keycodes[command]);
+                request[19 + 2 * command] = static_cast<uint8_t>((write.dks.onShallowPress[command] & 0x0Fu) |
+                                                                 ((write.dks.onShallowRelease[command] & 0x0Fu) << 4));
+                request[20 + 2 * command] = static_cast<uint8_t>((write.dks.onDeepPress[command] & 0x0Fu) |
+                                                                 ((write.dks.onDeepRelease[command] & 0x0Fu) << 4));
+            }
+        }
+        RequireSuccess(co_await SendFrame(std::move(request), true, c_EchoedGroup), "writing the advanced mode");
+    }
+
+    Task<uint8_t> Protocol::GetGamepadMode()
+    {
+        const std::vector<uint8_t> reply =
+            co_await Ask(Command::AnalogMatrix, static_cast<uint8_t>(Analog::GetGamepadMode));
+        RequireSuccess(reply, "the gamepad mode");
+        co_return reply[3];
+    }
+
+    Task<uint8_t> Protocol::SetGamepadMode(uint8_t mode)
+    {
+        co_await Ask(Command::AnalogMatrix, static_cast<uint8_t>(Analog::SetGamepadMode), { mode });
+        co_return co_await GetGamepadMode();
     }
 
     Task<void> Protocol::SaveProfile(uint8_t profile)

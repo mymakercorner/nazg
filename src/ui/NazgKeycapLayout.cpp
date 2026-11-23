@@ -562,12 +562,21 @@ namespace nazg
                                         : legend.role == LegendRole::Bound ? LegendInk::Muted
                                                                            : LegendInk::Legend;
 
-            const Line  fitted = TextChain({ legend.text, "" }, size, weight, width, line, measurer).front();
-            const float w      = placer.Width(fitted.text, size, weight);
-            const size_t column = slot % 3;
-            const float  x      = column == 0 ? box.x0 : column == 1 ? (box.x0 + box.x1 - w) / 2.0f : box.x1 - w;
+            // A badge reaches past its words: they keep its width clear, and stand bold on it.
+            const float        pad    = legend.badge ? size * 0.36f : 0.0f;
+            const LegendWeight heavy  = legend.badge ? LegendWeight::Bold : weight;
+            const Line         fitted = TextChain({ legend.text, "" }, size, heavy, width - 2 * pad, line, measurer).front();
+            const float        w      = placer.Width(fitted.text, size, heavy) + 2 * pad;
+            const size_t       column = slot % 3;
+            const float        x      = column == 0 ? box.x0 : column == 1 ? (box.x0 + box.x1 - w) / 2.0f : box.x1 - w;
 
-            placer.InRoom(fitted.text, x, rowTop[slot / 3], line, size, weight, ink, fitted.cut, legend.category);
+            placer.InRoom(fitted.text, x + pad, rowTop[slot / 3], line, size, heavy, ink, fitted.cut, legend.category);
+            if (legend.badge && !out.texts.empty())
+            {
+                out.texts.back().badgePad    = pad;
+                out.texts.back().badgeTop    = rowTop[slot / 3];
+                out.texts.back().badgeBottom = rowTop[slot / 3] + line;
+            }
         }
 
         return out;

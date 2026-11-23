@@ -59,8 +59,13 @@ namespace nazg
         LegendRole  role = LegendRole::Label;
 
         // A command category's colour instead of the role's ink, solved for the face as a header's
-        // -- the Switches section's RT in Behaviour's violet, what layer keys wear. None: the ink.
+        // -- the Switches section's marks in Behaviour's violet, what layer keys wear. None: the ink.
         CommandCategory category = CommandCategory::None;
+
+        // On a filled badge of its category's colour, the words in the face's: the Switches section's
+        // gamepad controls, whose RT, the right trigger, must not read as Rapid Trigger (Rico,
+        // 2026-11-23). Needs a category.
+        bool badge = false;
     };
 
     using SlotLegends = std::array<Legend, c_LegendSlotCount>;

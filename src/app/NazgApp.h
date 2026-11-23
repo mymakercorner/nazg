@@ -89,6 +89,11 @@ namespace nazg
 
         // A web page shown in the user's browser -- in a browser, a new tab.
         std::function<void(const std::string& url)> openUrl;
+
+        // The computer's game controllers, read only between watch(true) and watch(false) -- the Switches
+        // section's gamepad test: what the one with these vendor and product numbers sends.
+        std::function<void(bool watch)>                                             watchGameControllers;
+        std::function<GameControllerReading(uint16_t vendorId, uint16_t productId)> readGameController;
     };
 
     class App
@@ -335,6 +340,7 @@ namespace nazg
         bool                  m_QuitRequested         = false;   // the window's close, heard by the shell
         bool                  m_QuitConfirmed         = false;   // and allowed
         bool                  m_QuitWaiting           = false;   // asked, waiting for the board to be left
+        bool                  m_ControllersWatched    = false;   // PlatformServices::watchGameControllers, last said
         bool                  m_KeyboardTaken         = false;   // PlatformServices::takeKeyboard, last said
 
         // "Export definition...": the bytes are taken when Export is clicked -- a user

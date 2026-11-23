@@ -275,6 +275,7 @@ namespace nazg
             if (strip.entries.empty())
                 return;
 
+            const float rowY = ImGui::GetCursorPosY();
             ImGui::AlignTextToFramePadding();
             ImGui::TextUnformatted(strip.label.c_str());
             ImGui::SameLine();
@@ -319,9 +320,15 @@ namespace nazg
                 for (const std::string& choice : strip.choices)
                     choiceWidth += ImGui::CalcTextSize(choice.c_str()).x + 2 * style.FramePadding.x;
             }
+            float noteWidth = 0.0f;
+            if (strip.choices.empty() && !strip.note.empty())
+                noteWidth = ImGui::CalcTextSize(strip.note.c_str()).x + style.ItemSpacing.x;
+            if (strip.choices.empty() && !strip.action.empty())
+                noteWidth += ImGui::CalcTextSize(strip.action.c_str()).x + 2 * style.FramePadding.x;
             const float right     = ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x;
             const float available = ImGui::GetContentRegionAvail().x - groupWidth -
-                                    (strip.choices.empty() ? 0.0f : choiceWidth + style.ItemSpacing.x);
+                                    (strip.choices.empty() ? 0.0f : choiceWidth + style.ItemSpacing.x) -
+                                    (noteWidth > 0.0f ? noteWidth + style.ItemSpacing.x : 0.0f);
             const bool  overflows = total > available;
             const float arrow     = ImGui::GetFrameHeight();
             const float inside    = overflows ? std::max(arrow, available - 2 * (arrow + style.ItemSpacing.x)) : available;
@@ -514,6 +521,36 @@ namespace nazg
                     ImGui::PopID();
                 }
                 ImGui::PopStyleVar();
+            }
+
+            // The words at the right end, and the button after them.
+            if (noteWidth > 0.0f)
+            {
+                // Level with the label: at the row's own height, whatever the line before it came to.
+                ImGui::SameLine();
+                ImGui::SetCursorPos(ImVec2(right - noteWidth, rowY));
+                if (!strip.note.empty())
+                {
+                    ImGui::AlignTextToFramePadding();
+                    ColouredText(strip.noteIsWarning ? PanelColour::Warning
+                                 : strip.noteIsNews  ? PanelColour::Success
+                                                     : PanelColour::Muted,
+                                 "%s", strip.note.c_str());
+                    if (!strip.noteTip.empty() && ImGui::IsItemHovered())
+                        ImGui::SetTooltip("%s", strip.noteTip.c_str());
+                    if (!strip.action.empty())
+                    {
+                        ImGui::SameLine();
+                        ImGui::SetCursorPosY(rowY);
+                    }
+                }
+                if (!strip.action.empty())
+                {
+                    ImGui::BeginDisabled(strip.actionDisabled);
+                    if (ImGui::Button(strip.action.c_str()))
+                        section.OnStripAction();
+                    ImGui::EndDisabled();
+                }
             }
             section.OnStripHovered(hovered);
         }

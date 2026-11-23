@@ -29,6 +29,7 @@
 #include <string_view>
 #include <vector>
 
+#include "model/NazgGameController.h"
 #include "ui/NazgBoardDescription.h"
 #include "ui/NazgIcons.h"
 
@@ -72,6 +73,17 @@ namespace nazg
         size_t                   choiceChosen = 0;
         std::vector<bool>        choiceWarning;
         std::vector<std::string> choiceDisabled;
+
+        // At the strip's right end too, where there is no choice: a line of words -- muted, or the
+        // success colour when it is news (`noteIsNews`), the warning's with `noteIsWarning` -- and a
+        // button after it: the Switches section's full travel, what was written, and Reset profile
+        // (Rico, 2026-11-23: no line of the panel for them). Empty: neither.
+        std::string note;
+        std::string noteTip;
+        bool        noteIsNews    = false;
+        bool        noteIsWarning = false;
+        std::string action;
+        bool        actionDisabled = false;
     };
 
     // The column's groups (ui-design.md, "Nazg's sections, then the board's menus"): the sections
@@ -107,6 +119,9 @@ namespace nazg
         virtual void OnStripGroupChosen(size_t /*entry*/) {}
         virtual void OnStripChoice(size_t /*entry*/) {}
 
+        // The button at the strip's right end, clicked.
+        virtual void OnStripAction() {}
+
         // 2. The board. Every frame, `board` arrives as the board's definition draws it
         // (DescribeKeyboard()); the section fills it in -- or replaces its keys, to draw
         // something else. After drawing, it hears what the mouse did there.
@@ -140,6 +155,12 @@ namespace nazg
         // It reads the computer's keys: the window takes the keyboard -- Win and Alt+Tab reach Nazg,
         // Alt+F4 does not close it -- and keyboard navigation is off, so no key it reads drives the UI.
         [[nodiscard]] virtual bool WantsComputerKeys() const { return false; }
+
+        // It shows what the computer receives from the board's own game controller -- the Switches
+        // section's gamepad test: the shell reads its controllers while one section wants it, and every
+        // frame tells it what it read.
+        [[nodiscard]] virtual bool WantsGameController() const { return false; }
+        virtual void               OnGameController(const GameControllerReading& /*reading*/) {}
 
         // The board was sent away by a command it never answers -- to its bootloader, or erased and
         // restarting: what the keyboard list says of it, empty while it is here. Nazg closes the

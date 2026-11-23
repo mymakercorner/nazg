@@ -347,8 +347,22 @@ namespace nazg
 
             const ImVec4 clip(p0.x, p0.y, p1.x, p1.y);
             for (const PlacedText& text : primitives.texts)
+            {
+                // On a badge: filled in the category's colour, the words cut out of it in the face's.
+                ImU32 colour = colourOf(text.ink, text.category);
+                if (text.badgePad > 0.0f)
+                {
+                    const float radius = (text.badgeBottom - text.badgeTop) / 2.0f;
+                    drawList->AddRectFilled(ImVec2(std::max(p0.x, text.x - text.badgePad), text.badgeTop),
+                                            ImVec2(std::min(p1.x, text.x + text.width + text.badgePad), text.badgeBottom),
+                                            colour, radius);
+                    colour = BoardColours::Fill(key.fill, key.heat).face;
+                    if (dimmed)
+                        colour = Over(colour, BoardColours::Dimmed());
+                }
                 drawList->AddText(measurer.FontFor(text.weight), measurer.ImGuiSize(text.size), ImVec2(text.x, text.y),
-                                  colourOf(text.ink, text.category), text.text.c_str(), nullptr, 0.0f, &clip);
+                                  colour, text.text.c_str(), nullptr, 0.0f, &clip);
+            }
 
             // A shaft and a filled head: every arrow alike, at the legend's weight, whatever the font.
             for (const PlacedArrow& arrow : primitives.arrows)

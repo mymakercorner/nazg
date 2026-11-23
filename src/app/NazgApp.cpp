@@ -787,6 +787,23 @@ namespace nazg
             m_KeyboardTaken = takeKeyboard;
         }
 
+        // The board's own game controller, for a section testing it.
+        const bool watch = std::any_of(m_Board.sections.begin(), m_Board.sections.end(),
+                                       [](const auto& section) { return section->WantsGameController(); });
+        if (watch != m_ControllersWatched && m_Platform.watchGameControllers)
+        {
+            m_Platform.watchGameControllers(watch);
+            m_ControllersWatched = watch;
+        }
+        if (watch && m_Platform.readGameController)
+        {
+            const GameControllerReading reading =
+                m_Platform.readGameController(m_Board.identity.vendorId, m_Board.identity.productId);
+            for (const auto& section : m_Board.sections)
+                if (section->WantsGameController())
+                    section->OnGameController(reading);
+        }
+
         if (takeKeyboard || (m_Board.matrix && m_Board.matrix->IsLiveTestRunning()))
             io.ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard;
         else

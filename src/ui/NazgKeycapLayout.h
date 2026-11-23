@@ -117,6 +117,12 @@ namespace nazg
         LegendInk       ink      = LegendInk::Legend;
         bool            cut      = false;   // ended with "..." as nothing shorter fitted
         CommandCategory category = CommandCategory::None;
+
+        // Drawn on a filled badge in the category's colour, reaching this far past the text left and
+        // right, from `badgeTop` to `badgeBottom`: 0, no badge.
+        float badgePad    = 0.0f;
+        float badgeTop    = 0.0f;
+        float badgeBottom = 0.0f;
     };
 
     // An arrow drawn as a shaft and a filled head, centred on (x, y), `size` long.

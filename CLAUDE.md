@@ -134,13 +134,14 @@ exists, where, and how far it has been proven.
   - **A board's own menus** (VIA V3 custom menus, Board group) -- submenus in the strip, lines in two
     columns, showIf, sliders tied by constraints, Keymap's picker under the lines, written at once
     (`ui/NazgCustomMenuSection.*`, `adapters/via/NazgViaCustomMenu.*`). Read per submenu when shown.
-  - **Switches** (Board group, a Hall-effect Keychron found by probing `0xA9`; 2026-11-08,
-    `ui/NazgSwitchesSection.*`, the writes in `adapters/keychron`) -- the three profiles in the strip,
-    picking one makes the board use it; the Actuation Distance on every key, RT on Rapid Trigger keys;
-    the selection or every key edited, (Press) Trigger and (Release) Reset Distance apart, the
-    Launcher's words; selecting by click or by pressing the key; written at once, saved, read back;
-    Test keys with raw values. Round two: DKS, toggle, gamepad, SOCD, calibration (ui-design.md,
-    "The Switches section").
+  - **Switches** (Board group, a Hall-effect Keychron found by probing `0xA9`; `ui/NazgSwitchesSection.*`,
+    the writes in `adapters/keychron`) -- the three profiles in the strip, picking one makes the board
+    use it; each key's mode (2026-11-23): Regular, Rapid Trigger (⇅ on its keys) and the advanced ones --
+    One Key Multiple Commands (DKS, `ui/NazgDksEditor.*`), Long-Press Switch, Gamepad Analog
+    (`ui/NazgGamepadView.*`) -- with the distances the mode has, in the Launcher's words; the selection or
+    every key but the advanced edited, selecting by click or by pressing; written at once, saved, read
+    back; Test keys with raw values, a DKS key's steps and what the computer receives from the gamepad.
+    Left: SOCD, the gamepad curve, calibration (ui-design.md, "The Switches section", "Round two").
   - Every planned section is built; `PlaceholderSection` stays as the fallback for a new kind.
   - Shared panel parts: `ui/NazgKeycodePicker.*`, `ui/NazgKeyLine.*` (Sent with and its popup),
     `ui/NazgSlotParts.*` (what the slot sections repeat: reading, Save / Revert, a tag's words).
@@ -170,7 +171,8 @@ one board to unlock).
 | Combos and the combo term, read and written (Model F) | |
 | Key overrides, read and written (Model F) | |
 | | Alt repeat keys -- no board at hand has them |
-| The Switches section on Rico's borrowed K10 HE V3 (2026-11-08): profiles read, picked and followed from Fn + P + X, travel written, saved and read back, the key test with raw values; changes made back and forth with Keychron's Launcher, each shown right by the other (Rico); Nazg's own Reset bringing back each profile's preset, kept by the firmware | DKS, SOCD and gamepad keys -- round two |
+| The Switches section on Rico's borrowed K10 HE V3 (2026-11-08): profiles read, picked and followed from Fn + P + X, travel written, saved and read back, the key test with raw values; changes made back and forth with Keychron's Launcher, each shown right by the other (Rico); Nazg's own Reset bringing back each profile's preset, kept by the firmware | |
+| Its advanced keys (Rico, 2026-11-23): Long-Press Switch, One Key Multiple Commands taps and holds (walk and run), gamepad keys assigned, the gamepad test on a Standard Controller beside two vJoy ones | Xbox Controller mode; Turbocharged and PDO keys; SOCD -- not built |
 | Audio planned from a definition, and a firmware without audio said (Concordia, a test definition) | Audio and Clicky read or written, Play a sound -- no board at hand has audio built in |
 | Saved layouts on the Model F (Rico, 2026-10-18): Save; its own file loaded back as "the same"; a changed key found and written back; a .vil from Vial loaded; Nazg's file loaded in Vial; the Concordia's file asked about, its keymap left out. Save on the Concordia (probe). Unlock and apply, a macro and Boot written once unlocked; an ordinary key applied locked (F77 in secure mode). A file the VIA app wrote, loaded and applied on a VIA board (Rico) | |
 | A board's own menus: a few EC features (Concordia Type C); all 35909 registry controls parse (test) | |

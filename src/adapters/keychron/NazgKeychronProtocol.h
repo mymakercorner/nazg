@@ -286,6 +286,16 @@ namespace nazg::keychron
     // the advanced mode left alone.
     void ApplyTravelWrite(Profile& profile, uint8_t columns, const TravelWrite& write);
 
+    // One AMC_SET_ADVANCE_MODE: one key into an advanced mode, or out of it (None). What a change
+    // plans, and what it makes of a profile, is adapters/keychron/NazgKeychronAdvanced.h.
+    struct AdvancedWrite
+    {
+        KeyPosition  key;
+        AdvancedMode mode = AdvancedMode::None;
+        uint8_t      data = 0;   // DKS: its slot. Gamepad: the half-axis or button.
+        DksSlot      dks;        // DKS only: what the slot holds, written whole with the key
+    };
+
     // 0xA9 0x20 / 0x21: travel -> an analog axis. x is 0.1 mm, y is the output, 0-127.
     struct CurvePoint
     {
@@ -379,11 +389,24 @@ namespace nazg::keychron
         [[nodiscard]] Task<void> SetKeysTravel(uint8_t profile, const KeyConfig& config,
                                                const std::vector<KeyPosition>& keys);
 
+        // 0xA9 0x15: one key of `profile` into an advanced mode, or out of it, in RAM as SetKeysTravel()
+        // is. The board uses it at once if the profile is current, and forgets it at power-up unless
+        // SaveProfile() follows -- seen on a K10 HE V3 (2026-11-23). A DKS slot is written whole. A key
+        // past the matrix or a slot or control out of range is refused by the firmware; a mode that is
+        // none of the four throws std::invalid_argument.
+        [[nodiscard]] Task<void> SetKeyAdvanced(uint8_t profile, const AdvancedWrite& write);
+
+        // 0xA9 0x22 / 0x23: the game controller's mode, a byte of bits (NazgKeychronAdvanced.h,
+        // GamepadMode), the whole board's, stored at once. The set carries no status -- the firmware
+        // sends the request back -- so the mode is read again, and what the board holds returned.
+        [[nodiscard]] Task<uint8_t> GetGamepadMode();
+        [[nodiscard]] Task<uint8_t> SetGamepadMode(uint8_t mode);
+
         // 0xA9 0x1F: stores `profile` as it is in RAM.
         [[nodiscard]] Task<void> SaveProfile(uint8_t profile);
 
-        // 0xA9 0x1E: `profile` back to its own preset, which the firmware keeps per profile on the
-        // K10 HE V3 -- not one set of defaults, as the published source has. Stored at once.
+        // 0xA9 0x1E: `profile` back to its own preset, which the board keeps per profile
+        // (default_profiles[] in its profiles.c). Stored at once.
         [[nodiscard]] Task<void> ResetProfile(uint8_t profile);
 
     private:
