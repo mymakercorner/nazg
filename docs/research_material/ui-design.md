@@ -2729,7 +2729,7 @@ Keychron's Launcher**: changes made back and forth in both, each shown right by 
 ### Round two: advanced keys
 
 *Begun 2026-11-23, scope chosen by Rico: One Key Multiple Commands (DKS), Long-Press Switch (the
-firmware's toggle) and Gamepad Analog. SOCD, the gamepad curve and
+firmware's toggle) and Gamepad Analog. SOCD followed ("SOCD", below); the gamepad curve and
 calibration come later. Rico still has the K10 HE V3 for a while.* The mockup:
 [ui-design/switches-advanced-keys.html](ui-design/switches-advanced-keys.html). **The
 design is complete, and built.**
@@ -2857,6 +2857,47 @@ PDO are new `adv_mode` values; how the Launcher shows a hold that Nazg wrote.
 
 Not seen: Xbox mode, how the Launcher shows a hold Nazg wrote, the gamepad test in the web build and on
 Linux. Turbocharged and PDO stay unread.
+
+### SOCD
+
+*Begun 2026-11-23, round three, on the K10 HE V3.* Two keys, and what is sent while both are down. The
+wire, the four choices and how they play are keychron-commands.md, "SOCD": read and played on the board
+that day. The mockup: [ui-design/switches-socd.html](ui-design/switches-socd.html).
+
+**Rico's choices** (2026-11-23):
+- **Beside the modes**: in the Launcher SOCD is a tab on the row of the modes Nazg already has. It ends the
+  line of modes, a little apart, since it is not one key's mode -- a pair leaves its keys' modes and
+  distances untouched. It carries no number of pairs: "SOCD 4" read as a name once built, and the keys' marks
+  say there are some. A view picked in the
+  strip, a tab of two selected keys and a section of its own were the others.
+- **From the pairs a mode button goes back to the keys, and changes nothing**, the pair's two keys selected:
+  going back must not set a mode.
+- **The pairs on a line of their own**, their names in keycaps with the arrows between them, each with a **×** to remove it at once, then **+ Add pair**: first
+  key, other key, clicked or pressed. Two keys clicked without it add one too; a key of another pair shows
+  that pair. "4 pairs of 20", the board's, its tooltip saying the Launcher makes 5 at most.
+- **Nothing said twice**: no choice's name beside a pair (its tooltip and its keys' say it), no line
+  repeating the chosen pair. One key of a pair is changed by removing the pair and adding another.
+- **Each choice drawn**, the Launcher's screen being hard to read (Rico): a card with its name, the two keys
+  going down and up -- the height is the depth -- and what is sent, first with the first key held and the
+  other pressed meanwhile, then the other way round. The Launcher's names. Under Absolute Priority which key
+  wins is two named buttons, leading the words. Rappy Snappy's words say what happens at the bottom.
+- **A new pair is Last Key Priority**, written at once.
+- **On the keys**: the other key's name in Behaviour's violet, ⇄ centred between the two -- ⇄ alone where there is
+  no room -- and pointing at a key lights its partner.
+
+**The test** is Test keys, on the pair: each key's travel over the last four seconds, hanging from a line,
+how far it is, *sent* or *held back*, and what was sent under them. **Sent is what the computer receives**,
+since no command answers what is left after SOCD, by the key each sends on the board's default layer; where
+the computer cannot tell the two apart -- a macro, Fn, both sending the same -- the pair is played from the
+travels as the firmware plays it (`SocdPlayer`, tested on presses recorded that day). Nazg takes the
+computer's keys meanwhile, so that an arrow or Space drives nothing.
+
+A type the Launcher has no choice for (1) is said and left, as one Nazg does not know. A pair the firmware
+leaves out says why: a One Key Multiple Commands key, a Gamepad Analog one with keyboard keys off.
+
+*Built 2026-11-23*: `adapters/keychron/NazgKeychronSocd.*`, `ui/NazgSocdEditor.*`, the rest in the section.
+**Seen working on the K10 HE V3 by Rico** the same day, the Launcher reading the values Nazg wrote. Not seen:
+more than 5 pairs and how the Launcher shows them.
 
 ### Left from round one
 

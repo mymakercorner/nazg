@@ -14,6 +14,7 @@
 
 #include "adapters/NazgProtocolError.h"
 #include "adapters/qmk/NazgQmkKeycodeCodec.h"
+#include "model/NazgHostKeys.h"
 #include "ui/NazgBoardDescription.h"
 #include "ui/NazgSlotParts.h"
 #include "ui/NazgTheme.h"
@@ -44,6 +45,9 @@ namespace nazg
         // Rapid Trigger's mark on a key: released and pressed again as it goes up and down, anywhere on
         // its way. Not RT, which is the gamepad's right trigger (Rico, 2026-11-23).
         constexpr const char* c_RapidTriggerMark = "\xE2\x87\x85";
+
+        // SOCD's mark on a key of a pair, before the other key's name.
+        constexpr const char* c_PairMark = "\xE2\x87\x84";
 
         // The Launcher's names for One Key Multiple Commands' points, in keychron::DksPoint's order.
         constexpr const char* c_DksPointNames[] = { "Starting Trigger", "Bottom In", "Bottom Out", "Bounce Back" };
@@ -101,6 +105,20 @@ namespace nazg
                    ImGui::GetStyle().CellPadding.x * 4;
         }
 
+        // The characters of a UTF-8 name.
+        size_t CharactersOf(const std::string& name)
+        {
+            return static_cast<size_t>(
+                std::count_if(name.begin(), name.end(), [](char c) { return (static_cast<unsigned char>(c) & 0xC0) != 0x80; }));
+        }
+
+        // Whether a key of `width` units has the room for its name and its partner's, SOCD's mark centred
+        // between them (Rico, 2026-11-23): about five characters to a unit, half of them on each side.
+        bool HasRoomForPartner(const std::string& name, const std::string& partner, float width)
+        {
+            return static_cast<float>(std::max(CharactersOf(name), CharactersOf(partner))) <= (5.0f * width - 1.0f) / 2.0f;
+        }
+
         uint8_t ReleasePoint(uint8_t actuation)
         {
             return actuation > c_ReleaseGap ? static_cast<uint8_t>(actuation - c_ReleaseGap) : uint8_t{ 0 };
@@ -155,6 +173,9 @@ namespace nazg
         m_PickCommand.reset();
         m_GamepadOpen = false;
         m_HoveredControl.reset();
+        m_HoveredKey.reset();
+        m_AddingPair = false;
+        m_PairFirst.reset();
         m_Levels.reset();
         m_DraggedField.reset();
         if (IsBusy())
@@ -485,6 +506,7 @@ namespace nazg
         m_GamepadOpen   = false;
         m_PickCommand.reset();
         m_Trail.Clear();
+        ForgetPair();
         m_Message.clear();
     }
 
@@ -506,6 +528,21 @@ namespace nazg
 
         const keychron::Profile* profile = Shown();
         const uint8_t            full    = m_FullTravel ? m_FullTravel : c_SourceFullTravel;
+
+        // SOCD: each key's partners, by the pairs of the profile; the pair shown, while the pairs are.
+        std::vector<std::vector<keychron::KeyPosition>> partners(m_Keys.size());
+        if (profile)
+            for (const uint8_t slot : keychron::SocdSlotsInUse(*profile))
+            {
+                const keychron::KeyPosition ends[2] = { keychron::FirstKeyOf(profile->socdSlots[slot]),
+                                                        keychron::SecondKeyOf(profile->socdSlots[slot]) };
+                for (size_t end = 0; end < 2; ++end)
+                    if (const std::optional<size_t> key = KeyAt(ends[end]))
+                        partners[*key].push_back(ends[1 - end]);
+            }
+        const std::optional<uint8_t> pairSlot = m_ShowPairs && !m_AddingPair && !m_PairFirst ? ShownPair() : std::nullopt;
+        const keychron::SocdSlot     pair     = pairSlot ? profile->socdSlots[*pairSlot] : keychron::SocdSlot{};
+
         for (size_t index = 0; index < board.keys.size(); ++index)
         {
             if (!m_BoardKeys[index])
@@ -531,8 +568,38 @@ namespace nazg
                                                            CommandCategory::Behaviour };
             }
 
-            if (key < m_Selected.size() && m_Selected[key])
+            if (!partners[key].empty())
+            {
+                const std::string partner = NameAt(partners[key].front());
+                const bool        isOne   = partners[key].size() == 1;
+                if (isOne && HasRoomForPartner(m_Keys[key].name, partner, m_Keys[key].geometry.width))
+                {
+                    described[LegendSlot::TopCentre] = { c_PairMark, LegendRole::Label, CommandCategory::Behaviour };
+                    described[LegendSlot::TopRight]  = { partner, LegendRole::Label, CommandCategory::Behaviour };
+                }
+                else
+                {
+                    const std::string mark = isOne ? std::string(c_PairMark) : c_PairMark + std::to_string(partners[key].size());
+                    described[LegendSlot::TopRight] = { mark, LegendRole::Label, CommandCategory::Behaviour };
+                }
+            }
+            if (m_HoveredKey && *m_HoveredKey != key && *m_HoveredKey < m_Keys.size() &&
+                std::find(partners[key].begin(), partners[key].end(), m_Keys[*m_HoveredKey].position) != partners[key].end())
+                described.marks |= Mark::Highlighted;
+
+            const size_t end = !pairSlot                                                  ? 2u
+                               : m_Keys[key].position == keychron::FirstKeyOf(pair)  ? 0u
+                               : m_Keys[key].position == keychron::SecondKeyOf(pair) ? 1u
+                                                                                     : 2u;
+            if (m_ShowPairs ? end < 2 || m_PairFirst == key : key < m_Selected.size() && m_Selected[key])
                 described.marks |= Mark::Selected;
+            if (m_Testing && m_ShowPairs && end < 2 && m_PairTravel[end])
+            {
+                described.fill = KeyFill::Heat;
+                described.heat = std::min(1.0f, static_cast<float>(m_PairTravel[end]->travelSixtieths) / (full * 6.0f));
+                if (end == 0 ? m_PairSent.first : m_PairSent.second)
+                    described.marks |= Mark::Pressed;
+            }
             if (profile)
             {
                 const keychron::KeyConfig config = ConfigOf(key);
@@ -547,7 +614,7 @@ namespace nazg
                     }
                 }
             }
-            if (m_Testing && m_Followed == key && m_Travel && !(m_Levels && profile && ModeOf(ConfigOf(key)) == Mode::Gamepad))
+            if (m_Testing && !pairSlot && m_Followed == key && m_Travel && !(m_Levels && profile && ModeOf(ConfigOf(key)) == Mode::Gamepad))
             {
                 described.fill = KeyFill::Heat;
                 described.heat = std::min(1.0f, static_cast<float>(m_Travel->travelSixtieths) / (full * 6.0f));
@@ -559,6 +626,9 @@ namespace nazg
 
     void SwitchesSection::OnBoardEvents(const BoardDescription& /*board*/, const BoardEvents& events)
     {
+        m_HoveredKey = events.hoveredKey && *events.hoveredKey < m_BoardKeys.size() ? m_BoardKeys[*events.hoveredKey]
+                                                                                    : std::nullopt;
+
         // A key's settings in full on hover: the key holds one value, the tooltip all of them.
         if (events.hoveredKey && *events.hoveredKey < m_BoardKeys.size() && m_BoardKeys[*events.hoveredKey] && Shown())
         {
@@ -584,13 +654,27 @@ namespace nazg
                 break;
             case Mode::Unknown: tip += Briefly(config); break;
             }
+            for (const uint8_t slot : keychron::SocdSlotsInUse(*Shown()))
+            {
+                const keychron::SocdSlot&   pair   = Shown()->socdSlots[slot];
+                const keychron::KeyPosition first  = keychron::FirstKeyOf(pair);
+                const keychron::KeyPosition second = keychron::SecondKeyOf(pair);
+                if (m_Keys[key].position == first || m_Keys[key].position == second)
+                    tip += "\nSOCD with " + NameAt(m_Keys[key].position == first ? second : first) + ": " +
+                           SocdBriefly(PairView(pair));
+            }
             ImGui::SetTooltip("%s", tip.c_str());
         }
 
         if (!events.clickedKey || *events.clickedKey >= m_BoardKeys.size() || !m_BoardKeys[*events.clickedKey])
             return;
         const size_t key = *m_BoardKeys[*events.clickedKey];
-        if (m_PickCommand)
+        if (m_ShowPairs)
+        {
+            if (!m_Testing)
+                PairKeyChosen(key);
+        }
+        else if (m_PickCommand)
             PickFromBoard(key);
         else if (key < m_Selected.size())
             m_Selected[key] = !m_Selected[key];
@@ -599,6 +683,13 @@ namespace nazg
     // A key pressed on the board: followed while testing, else selected or unselected, as a click.
     void SwitchesSection::PressSeen(size_t key)
     {
+        if (IsTestingPair())
+            return;
+        if (m_ShowPairs && !m_Testing)
+        {
+            PairKeyChosen(key);
+            return;
+        }
         if (m_Testing)
         {
             if (m_Followed != key)
@@ -682,7 +773,7 @@ namespace nazg
         keychron::Profile&  profile = m_Profiles[m_ShownProfile];
         const uint8_t       columns = m_Keyboard.definition.matrixColumns;
         PendingChange       pending{ static_cast<uint8_t>(m_ShownProfile), {},
-                                     keychron::PlanTravelWrites(profile, columns, keys, change) };
+                                     keychron::PlanTravelWrites(profile, columns, keys, change), {} };
         for (const keychron::TravelWrite& write : pending.writes)
             keychron::ApplyTravelWrite(profile, columns, write);
         m_PendingChanges.push_back(std::move(pending));
@@ -728,7 +819,7 @@ namespace nazg
             return;
         }
 
-        PendingChange             pending{ static_cast<uint8_t>(m_ShownProfile), {}, {} };
+        PendingChange             pending{ static_cast<uint8_t>(m_ShownProfile), {}, {}, {} };
         const bool                basic = mode == Mode::Regular || mode == Mode::RapidTrigger;
 
         for (const size_t key : targets)
@@ -771,7 +862,7 @@ namespace nazg
         write.data = slot;
         write.dks  = settings;
         keychron::ApplyAdvancedWrite(m_Profiles[m_ShownProfile], m_Keyboard.definition.matrixColumns, write);
-        m_PendingChanges.push_back({ static_cast<uint8_t>(m_ShownProfile), { write }, {} });
+        m_PendingChanges.push_back({ static_cast<uint8_t>(m_ShownProfile), { write }, {}, {} });
         m_Message.clear();
     }
 
@@ -842,8 +933,375 @@ namespace nazg
         if (keychron::Holds(m_Profiles[m_ShownProfile], m_Keyboard.definition.matrixColumns, write))
             return;
         keychron::ApplyAdvancedWrite(m_Profiles[m_ShownProfile], m_Keyboard.definition.matrixColumns, write);
-        m_PendingChanges.push_back({ static_cast<uint8_t>(m_ShownProfile), { write }, {} });
+        m_PendingChanges.push_back({ static_cast<uint8_t>(m_ShownProfile), { write }, {}, {} });
         m_Message.clear();
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // SOCD: the pairs.
+
+    std::optional<uint8_t> SwitchesSection::ShownPair() const
+    {
+        const keychron::Profile* profile = Shown();
+        if (!profile)
+            return std::nullopt;
+        const std::vector<uint8_t> used = keychron::SocdSlotsInUse(*profile);
+        if (used.empty())
+            return std::nullopt;
+        return m_Pair && std::find(used.begin(), used.end(), *m_Pair) != used.end() ? *m_Pair : used.front();
+    }
+
+    std::string SwitchesSection::NameAt(keychron::KeyPosition position) const
+    {
+        if (const std::optional<size_t> key = KeyAt(position))
+            return m_Keys[*key].name;
+        return "R" + std::to_string(position.row) + " C" + std::to_string(position.column);
+    }
+
+    SocdPairView SwitchesSection::PairView(const keychron::SocdSlot& pair) const
+    {
+        return { NameAt(keychron::FirstKeyOf(pair)), NameAt(keychron::SecondKeyOf(pair)), pair.type,
+                 m_FullTravel ? m_FullTravel : c_SourceFullTravel };
+    }
+
+    // What keeps the pair from doing anything: a key the firmware leaves out of SOCD.
+    std::string SwitchesSection::PairWarning(const keychron::SocdSlot& pair) const
+    {
+        for (const keychron::KeyPosition position : { keychron::FirstKeyOf(pair), keychron::SecondKeyOf(pair) })
+        {
+            const std::optional<size_t> key = KeyAt(position);
+            if (!key)
+                return NameAt(position) + " is no key of the layout shown: this pair does nothing.";
+            const Mode mode = ModeOf(ConfigOf(*key));
+            if (mode == Mode::Dks)
+                return m_Keys[*key].name + " is One Key Multiple Commands: the board leaves it out of SOCD, so this pair does "
+                                           "nothing.";
+            if (mode == Mode::Gamepad && m_GamepadMode && !(*m_GamepadMode & keychron::GamepadMode::Typing))
+                return m_Keys[*key].name + " plays the gamepad only, with keyboard keys off: this pair does nothing.";
+        }
+        return {};
+    }
+
+    void SwitchesSection::AskPair(const keychron::SocdWrite& write)
+    {
+        if (m_ShownProfile >= m_Profiles.size())
+            return;
+        keychron::ApplySocdWrite(m_Profiles[m_ShownProfile], write);
+        m_PendingChanges.push_back({ static_cast<uint8_t>(m_ShownProfile), {}, {}, { write } });
+        m_Message.clear();
+    }
+
+    // A key clicked or pressed while the pairs show: the first or the other key of a new pair, or a pair it
+    // is in, shown; one already shown starts a new pair with it. A new pair is Last Key Priority, written at
+    // once (Rico, 2026-11-23).
+    void SwitchesSection::PairKeyChosen(size_t key)
+    {
+        const keychron::Profile* profile = Shown();
+        if (!profile)
+            return;
+
+        if (m_PairFirst)
+        {
+            const size_t first = *m_PairFirst;
+            m_PairFirst.reset();
+            m_AddingPair = false;
+            if (first == key || first >= m_Keys.size())
+                return;
+            const keychron::KeyPosition a = m_Keys[first].position, b = m_Keys[key].position;
+            if (const std::optional<uint8_t> known = keychron::SocdSlotPairing(*profile, a, b))
+            {
+                m_Pair = known;
+                return;
+            }
+            const std::optional<uint8_t> slot = keychron::FreeSocdSlot(*profile);
+            if (!slot)
+            {
+                Say("The board holds " + std::to_string(profile->socdSlots.size()) + " pairs per profile", true);
+                return;
+            }
+            if (!keychron::FitsSocdSlot(a) || !keychron::FitsSocdSlot(b))
+            {
+                Say("This board's firmware cannot pair " + m_Keys[first].name + " and " + m_Keys[key].name, true);
+                return;
+            }
+            keychron::SocdWrite write;
+            write.slot = *slot;
+            write.pair = keychron::MakeSocdSlot(a, b, keychron::SocdType::LastWins);
+            AskPair(write);
+            m_Pair = slot;
+            return;
+        }
+
+        if (!m_AddingPair)
+        {
+            const std::optional<uint8_t> shown = ShownPair();
+            for (const uint8_t slot : keychron::SocdSlotsInUse(*profile))
+            {
+                const keychron::SocdSlot& pair = profile->socdSlots[slot];
+                if (slot != shown && (keychron::FirstKeyOf(pair) == m_Keys[key].position ||
+                                      keychron::SecondKeyOf(pair) == m_Keys[key].position))
+                {
+                    m_Pair = slot;
+                    return;
+                }
+            }
+        }
+        if (!keychron::FreeSocdSlot(*profile))
+        {
+            Say("The board holds " + std::to_string(profile->socdSlots.size()) + " pairs per profile", true);
+            return;
+        }
+        m_PairFirst = key;
+    }
+
+    void SwitchesSection::ForgetPair()
+    {
+        m_Pair.reset();
+        m_AddingPair = false;
+        m_PairFirst.reset();
+        m_PairTrail.Clear();
+        m_PairPlayer.Reset();
+        m_PairSent = {};
+        std::fill(std::begin(m_PairTravel), std::end(m_PairTravel), std::nullopt);
+        std::fill(std::begin(m_HostDown), std::end(m_HostDown), false);
+    }
+
+    // To the pairs, at the one the keys selected are in; and back to the keys, the pair's two selected, so
+    // that a mode button clicked to go back changes nothing.
+    void SwitchesSection::ShowPairs()
+    {
+        const keychron::Profile* profile = Shown();
+        std::vector<size_t>      selected;
+        for (size_t key = 0; key < m_Selected.size(); ++key)
+            if (m_Selected[key])
+                selected.push_back(key);
+
+        ForgetPair();
+        m_ShowPairs   = true;
+        m_Testing     = false;
+        m_GamepadOpen = false;
+        m_PickCommand.reset();
+        if (!profile || selected.empty() || selected.size() > 2)
+            return;
+        if (selected.size() == 2)
+            m_Pair = keychron::SocdSlotPairing(*profile, m_Keys[selected[0]].position, m_Keys[selected[1]].position);
+        else
+            for (const uint8_t slot : keychron::SocdSlotsInUse(*profile))
+                if (const keychron::SocdSlot& pair = profile->socdSlots[slot];
+                    !m_Pair && (keychron::FirstKeyOf(pair) == m_Keys[selected[0]].position ||
+                                keychron::SecondKeyOf(pair) == m_Keys[selected[0]].position))
+                    m_Pair = slot;
+    }
+
+    void SwitchesSection::ShowKeys()
+    {
+        if (const std::optional<uint8_t> slot = ShownPair())
+        {
+            const keychron::SocdSlot& pair = Shown()->socdSlots[*slot];
+            m_Selected.assign(m_Keys.size(), false);
+            for (const keychron::KeyPosition position : { keychron::FirstKeyOf(pair), keychron::SecondKeyOf(pair) })
+                if (const std::optional<size_t> key = KeyAt(position))
+                    m_Selected[*key] = true;
+        }
+        ForgetPair();
+        m_ShowPairs = false;
+        m_Testing   = false;
+    }
+
+    // The pairs, each with an x to remove it, and Add pair. What a pair does is said on hover, its cards
+    // saying it once it is chosen (Rico, 2026-11-23).
+    void SwitchesSection::DrawPairsLine()
+    {
+        const keychron::Profile& profile = *Shown();
+        const ImGuiStyle&        style   = ImGui::GetStyle();
+        const bool               adding  = m_AddingPair || m_PairFirst;
+        const float              right   = ImGui::GetContentRegionMax().x;
+        const std::optional<uint8_t> shown = ShownPair();
+        std::optional<uint8_t>   removed;
+
+        const auto placed = [&](float width, bool isFirst)
+        {
+            if (isFirst)
+                return;
+            ImGui::SameLine();
+            if (ImGui::GetCursorPosX() + width > right)
+                ImGui::NewLine();
+        };
+        bool isFirst = true;
+        for (const uint8_t slot : keychron::SocdSlotsInUse(profile))
+        {
+            const SocdPairView view  = PairView(profile.socdSlots[slot]);
+            placed(SocdPairItemWidth(view.first, view.second, true), isFirst);
+            isFirst = false;
+
+            ImGui::PushID(slot);
+            const SocdPairItemEvents item = DrawSocdPairItem(view.first, view.second, !adding && slot == shown, true);
+            if (item.clicked)
+            {
+                m_AddingPair = false;
+                m_PairFirst.reset();
+                if (shown != slot)
+                    ForgetPair();
+                m_Pair = slot;
+            }
+            if (item.hovered)
+                ImGui::SetTooltip("%s", SocdBriefly(view).c_str());
+            if (item.removed)
+                removed = slot;
+            ImGui::PopID();
+        }
+
+        const bool isFull = !keychron::FreeSocdSlot(profile);
+        placed(ButtonWidth("+ Add pair"), isFirst);
+        if (adding)
+            ImGui::PushStyleColor(ImGuiCol_Button, style.Colors[ImGuiCol_ButtonActive]);
+        ImGui::BeginDisabled(isFull || m_Testing);
+        if (ImGui::Button("+ Add pair"))
+        {
+            m_AddingPair = !adding;
+            m_PairFirst.reset();
+        }
+        ImGui::EndDisabled();
+        if (adding)
+            ImGui::PopStyleColor();
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        {
+            if (isFull)
+                ImGui::SetTooltip("The board holds %zu pairs per profile.", profile.socdSlots.size());
+            else
+                ImGui::SetTooltip("%s", m_Testing ? "Stop the test first." : "Or click two keys of the board.");
+        }
+
+        if (removed)
+        {
+            // The one before it is shown next, if it was the one shown.
+            const std::vector<uint8_t> used = keychron::SocdSlotsInUse(profile);
+            const auto                 at   = std::find(used.begin(), used.end(), *removed);
+            const std::optional<uint8_t> next = shown != removed        ? shown
+                                                : at != used.begin()    ? std::optional<uint8_t>(*std::prev(at))
+                                                                        : std::nullopt;
+            keychron::SocdWrite write;
+            write.slot = *removed;
+            AskPair(write);
+            if (shown == removed)
+                ForgetPair();
+            m_Pair = next;
+        }
+    }
+
+    void SwitchesSection::DrawPairs()
+    {
+        if (m_AddingPair || m_PairFirst)
+        {
+            const bool hasFirst = m_PairFirst && *m_PairFirst < m_Keys.size();
+            (void)DrawSocdPairItem(hasFirst ? m_Keys[*m_PairFirst].name : std::string(), std::string(), false, false);
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape))
+            {
+                m_AddingPair = false;
+                m_PairFirst.reset();
+                return;
+            }
+            ImGui::PushTextWrapPos(0.0f);
+            ColouredText(PanelColour::Muted, "Click the %s key on the board%s.", m_PairFirst ? "other" : "first",
+                         m_MatrixRefused ? "" : ", or press it");
+            ImGui::PopTextWrapPos();
+            return;
+        }
+
+        const std::optional<uint8_t> slot = ShownPair();
+        if (!slot)
+        {
+            ImGui::PushTextWrapPos(0.0f);
+            ColouredText(PanelColour::Muted, "No pair on this profile. Add one, or click two keys of the board -- A and D, for "
+                                             "example -- to choose what is sent while both are held down.");
+            ImGui::PopTextWrapPos();
+            return;
+        }
+
+        const keychron::SocdSlot pair = Shown()->socdSlots[*slot];
+        if (const std::optional<keychron::SocdType> type = DrawSocdEditor(PairView(pair), PairWarning(pair)))
+        {
+            keychron::SocdWrite write;
+            write.slot      = *slot;
+            write.pair      = pair;
+            write.pair.type = *type;
+            AskPair(write);
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // SOCD: the pair tested.
+
+    bool SwitchesSection::IsTestingPair() const
+    {
+        return m_Testing && m_ShowPairs && m_Link == Link::Open && ShownPair().has_value();
+    }
+
+    bool SwitchesSection::WantsComputerKeys() const
+    {
+        return IsTestingPair();
+    }
+
+    // The keycode a key sends on the layer the names are read from, by the name the computer's key is
+    // matched to; none when the computer would report nothing of it.
+    std::optional<std::string_view> SwitchesSection::NameSent(keychron::KeyPosition position) const
+    {
+        const std::optional<size_t> key = KeyAt(position);
+        if (!key)
+            return std::nullopt;
+        return TestedName(ResolveKey(m_Keyboard, m_Keys[*key].geometry, m_NameLayer).keycode, m_Keyboard.keycodeVersion);
+    }
+
+    void SwitchesSection::OnHostKey(uint32_t usage, bool down)
+    {
+        if (!IsTestingPair())
+            return;
+        const keychron::SocdSlot&           pair  = Shown()->socdSlots[*ShownPair()];
+        const std::vector<std::string_view> names = KeycodesSending(usage, m_Keyboard.keycodeVersion);
+        const keychron::KeyPosition         ends[2] = { keychron::FirstKeyOf(pair), keychron::SecondKeyOf(pair) };
+        for (size_t end = 0; end < 2; ++end)
+            if (const std::optional<std::string_view> sent = NameSent(ends[end]);
+                sent && std::find(names.begin(), names.end(), *sent) != names.end())
+                m_HostDown[end] = down;
+    }
+
+    // Both keys of the pair, read. What is sent is what the computer receives, where it tells the two
+    // apart; else the pair played from their travels, as the firmware plays it.
+    void SwitchesSection::PairRead(const keychron::SocdSlot& pair, const keychron::RealtimeTravel& first,
+                                   const keychron::RealtimeTravel& second)
+    {
+        const keychron::SocdPlayer::Sent played = m_PairPlayer.Step(pair.type, { first.travelSixtieths, first.pressed },
+                                                                    { second.travelSixtieths, second.pressed });
+        const std::optional<std::string_view> firstSent  = NameSent(keychron::FirstKeyOf(pair));
+        const std::optional<std::string_view> secondSent = NameSent(keychron::SecondKeyOf(pair));
+        if (firstSent && secondSent && *firstSent != *secondSent)
+            m_PairSent = { first.pressed && m_HostDown[0], second.pressed && m_HostDown[1] };
+        else
+            m_PairSent = played;
+
+        m_PairTravel[0] = first;
+        m_PairTravel[1] = second;
+        const float full = (m_FullTravel ? m_FullTravel : c_SourceFullTravel) * 6.0f;
+        m_PairTrail.Add({ ImGui::GetTime(), static_cast<float>(first.travelSixtieths) / full,
+                          static_cast<float>(second.travelSixtieths) / full, m_PairSent.first, m_PairSent.second });
+    }
+
+    void SwitchesSection::DrawPairTest()
+    {
+        const uint8_t full = m_FullTravel ? m_FullTravel : c_SourceFullTravel;
+        SocdTestInput input;
+        input.pair         = PairView(Shown()->socdSlots[*ShownPair()]);
+        input.firstTravel  = m_PairTravel[0] ? FineMillimetres(*m_PairTravel[0], full) + " mm" : "";
+        input.secondTravel = m_PairTravel[1] ? FineMillimetres(*m_PairTravel[1], full) + " mm" : "";
+        input.firstSent    = m_PairSent.first;
+        input.secondSent   = m_PairSent.second;
+        // Held back only by the other: a key alone is on its way to the computer.
+        const bool both      = m_PairTravel[0] && m_PairTravel[1] && m_PairTravel[0]->pressed && m_PairTravel[1]->pressed;
+        input.firstHeldBack  = both && !m_PairSent.first;
+        input.secondHeldBack = both && !m_PairSent.second;
+        input.trail          = &m_PairTrail;
+        DrawSocdTest(input);
     }
 
     std::optional<size_t> SwitchesSection::OneSelected() const
@@ -884,6 +1342,11 @@ namespace nazg
 
         DrawHead();
         ImGui::Separator();
+        if (m_ShowPairs)
+        {
+            DrawPairsLine();
+            ImGui::Separator();
+        }
 
         // The Test column as wide as what it holds -- the bar and its words, the raw values beside them
         // -- so nothing in it collides (Rico, 2026-11-08), and never narrower than its sentence needs.
@@ -958,17 +1421,28 @@ namespace nazg
         float modesWidth = 0.0f;
         for (const Choice& choice : c_Choices)
             modesWidth += ButtonWidth(choice.label);
+        // SOCD ends the line of modes, apart from them: it is not one key's. No number of pairs on it, which
+        // read as a name (Rico, 2026-11-23): the keys' marks say there are some.
+        const std::vector<uint8_t> pairs    = keychron::SocdSlotsInUse(*Shown());
+        const size_t               slots    = Shown()->socdSlots.size();
+        const float                socdWide = slots ? ButtonWidth("SOCD") + style.ItemSpacing.x * 2 : 0.0f;
         const float endWidth = ButtonWidth("Select All") + ButtonWidth("Clear") + style.ItemSpacing.x;
         const float right    = ImGui::GetContentRegionMax().x;
-        const float modesX   = std::max(ImGui::GetCursorPosX() + ImGui::GetFontSize() * 7.0f,
-                                        right - endWidth - style.ItemSpacing.x * 2 - modesWidth);
+        const float modesX   = std::max(ImGui::GetCursorPosX() + ImGui::GetFontSize() * 4.0f,
+                                        right - endWidth - style.ItemSpacing.x * 2 - socdWide - modesWidth);
 
         // What: the key, or how many -- all of it on hover.
         std::string what, all;
         std::vector<std::string> names;
         for (const size_t key : targets)
             names.push_back(m_Keys[key].name);
-        if (selected == 1)
+        if (m_ShowPairs)
+        {
+            what = std::to_string(pairs.size()) + (pairs.size() == 1 ? " pair of " : " pairs of ") + std::to_string(slots);
+            all  = "Each profile has its own " + std::to_string(slots) +
+                  ". Keychron's Launcher makes 5 at most; the board takes " + std::to_string(slots) + ".";
+        }
+        else if (selected == 1)
         {
             what = names.front();
         }
@@ -1007,6 +1481,15 @@ namespace nazg
             const Choice& choice = c_Choices[index];
             if (index)
                 ImGui::SameLine();
+            // From the pairs, every mode goes back to the keys, and changes nothing.
+            if (m_ShowPairs)
+            {
+                if (ImGui::Button(choice.label))
+                    ShowKeys();
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Back to the keys: changes nothing.");
+                continue;
+            }
             const bool        isCurrent = m_GamepadOpen ? choice.mode == Mode::Gamepad : !mixed && mode == choice.mode;
             const bool        needsOne  = (choice.mode == Mode::Dks && selected != 1) ||
                                   (choice.mode == Mode::Gamepad && selected != 1 && !(selected == 0 && HasGamepadKeys()));
@@ -1027,6 +1510,22 @@ namespace nazg
         }
         ImGui::PopStyleVar();
 
+        if (slots)
+        {
+            ImGui::SameLine(0.0f, style.ItemSpacing.x * 2);
+            const bool isOn = m_ShowPairs;
+            if (isOn)
+                ImGui::PushStyleColor(ImGuiCol_Button, style.Colors[ImGuiCol_ButtonActive]);
+            if (ImGui::Button("SOCD") && !isOn)
+                ShowPairs();
+            if (isOn)
+                ImGui::PopStyleColor();
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Two keys, and what is sent while both are down.");
+        }
+        if (m_ShowPairs)
+            return;
+
         ImGui::SameLine();
         ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), right - endWidth));
         ImGui::BeginDisabled(selected == m_Keys.size());
@@ -1045,6 +1544,12 @@ namespace nazg
         const std::vector<size_t> targets  = Targets();
         const size_t              selected = static_cast<size_t>(std::count(m_Selected.begin(), m_Selected.end(), true));
         m_HoveredControl.reset();
+        if (m_ShowPairs)
+        {
+            m_PickCommand.reset();
+            DrawPairs();
+            return;
+        }
         if (m_GamepadOpen || (selected > 0 && std::all_of(targets.begin(), targets.end(), [&](size_t key)
                                                           { return ModeOf(ConfigOf(key)) == Mode::Gamepad; })))
         {
@@ -1479,6 +1984,7 @@ namespace nazg
 
     void SwitchesSection::DrawTest()
     {
+        const bool onPair = m_ShowPairs && ShownPair();
         ImGui::AlignTextToFramePadding();
         ImGui::TextUnformatted("Test");
         if (!m_Testing)
@@ -1488,6 +1994,11 @@ namespace nazg
             if (ImGui::Button("Test keys"))
             {
                 m_Testing = true;
+                m_AddingPair = false;
+                m_PairFirst.reset();
+                const std::optional<uint8_t> pair = ShownPair();
+                ForgetPair();
+                m_Pair = pair;
                 m_Player.Reset();
                 m_Trail.Clear();
                 m_Travel.reset();
@@ -1498,6 +2009,13 @@ namespace nazg
                         m_Followed = key;
             }
             ImGui::PushTextWrapPos(0.0f);
+            if (onPair)
+            {
+                ColouredText(PanelColour::Muted, "Press the pair's keys on the board to see how far they go, and which the "
+                                                 "computer receives. Meanwhile keys do nothing else in Nazg.");
+                ImGui::PopTextWrapPos();
+                return;
+            }
             ColouredText(PanelColour::Muted, "Press keys on the board to see how far they go, and where they are pressed "
                                              "and released with these settings. While testing, pressing a key does not "
                                              "select it.%s", HasGamepadKeys() ? " The gamepad shows here too." : "");
@@ -1506,17 +2024,30 @@ namespace nazg
         }
 
         ImGui::SameLine();
-        const float right = ImGui::CalcTextSize("Raw values").x + ImGui::GetFrameHeight() +
-                            ImGui::GetStyle().ItemInnerSpacing.x + ButtonWidth("Stop") + ImGui::GetStyle().ItemSpacing.x;
+        const float right = (onPair ? 0.0f
+                                    : ImGui::CalcTextSize("Raw values").x + ImGui::GetFrameHeight() +
+                                          ImGui::GetStyle().ItemInnerSpacing.x + ImGui::GetStyle().ItemSpacing.x) +
+                            ButtonWidth("Stop");
         ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), ImGui::GetContentRegionMax().x - right));
-        ImGui::Checkbox("Raw values", &m_Raw);
-        ImGui::SameLine();
+        if (!onPair)
+        {
+            ImGui::Checkbox("Raw values", &m_Raw);
+            ImGui::SameLine();
+        }
         if (ImGui::Button("Stop"))
         {
             m_Testing = false;
             m_Followed.reset();
             m_Travel.reset();
             m_Levels.reset();
+            m_PairTrail.Clear();
+            m_PairSent = {};
+            std::fill(std::begin(m_PairTravel), std::end(m_PairTravel), std::nullopt);
+            return;
+        }
+        if (onPair)
+        {
+            DrawPairTest();
             return;
         }
 
@@ -1834,8 +2365,19 @@ namespace nazg
                 }
             }
 
+            // The pair tested: both its keys.
+            if (IsTestingPair())
+            {
+                const uint8_t                  slot   = *ShownPair();
+                const keychron::SocdSlot       pair   = Shown()->socdSlots[slot];
+                const keychron::RealtimeTravel first  = co_await keychron.GetRealtimeTravel(pair.firstRow, pair.firstColumn);
+                const keychron::RealtimeTravel second = co_await keychron.GetRealtimeTravel(pair.secondRow, pair.secondColumn);
+                if (IsTestingPair() && ShownPair() == slot && Shown()->socdSlots[slot] == pair)
+                    PairRead(pair, first, second);
+            }
+
             // The key followed, live; its scale factor once.
-            if (m_Testing && m_Followed && *m_Followed < m_Keys.size())
+            else if (m_Testing && m_Followed && *m_Followed < m_Keys.size())
             {
                 const size_t                key     = *m_Followed;
                 const keychron::KeyPosition at      = m_Keys[key].position;
@@ -1883,6 +2425,7 @@ namespace nazg
                     geometry.currentProfile < m_Profiles.size())
                 {
                     m_ShownProfile = geometry.currentProfile;
+                    ForgetPair();
                     Say("switched to " + ProfileName(m_ShownProfile) + " from the keyboard", false);
                 }
                 m_Geometry.currentProfile = geometry.currentProfile;
@@ -1905,6 +2448,8 @@ namespace nazg
                 co_await keychron.SetKeyAdvanced(change.profile, write);
             for (const keychron::TravelWrite& write : change.writes)
                 co_await keychron.SetKeysTravel(change.profile, write.config, write.keys);
+            for (const keychron::SocdWrite& write : change.socd)
+                co_await keychron.SetSocd(change.profile, write);
             co_await keychron.SaveProfile(change.profile);
 
             // Read back: what the board kept.
@@ -1913,6 +2458,8 @@ namespace nazg
             bool same = true;
             for (const keychron::AdvancedWrite& write : change.advanced)
                 same = same && keychron::Holds(kept, columns, write);
+            for (const keychron::SocdWrite& write : change.socd)
+                same = same && keychron::Holds(kept, write);
             for (const keychron::TravelWrite& write : change.writes)
                 for (const keychron::KeyPosition key : write.keys)
                 {

@@ -210,13 +210,13 @@ namespace nazg::keychron
     // socd_config_t, 3 bytes. Rows above 7 and columns above 31 cannot be stored.
     enum class SocdType : uint8_t
     {
-        Off            = 0,
-        DeeperWins     = 1,   // both stay pressed once both are past 3.8 mm
-        DeeperThenLast = 2,
-        LastWins       = 3,
-        FirstKeyWins   = 4,
-        SecondKeyWins  = 5,
-        Neither        = 6,
+        Off             = 0,
+        DeeperWins      = 1,  // both are sent once both are past 3.83 mm, a depth a K10 HE never reaches
+        DeeperThenFirst = 2,  // past 3.83 mm on both, the one pressed first
+        LastWins        = 3,
+        FirstKeyWins    = 4,
+        SecondKeyWins   = 5,
+        Neither         = 6,
     };
 
     struct SocdSlot
@@ -294,6 +294,14 @@ namespace nazg::keychron
         AdvancedMode mode = AdvancedMode::None;
         uint8_t      data = 0;   // DKS: its slot. Gamepad: the half-axis or button.
         DksSlot      dks;        // DKS only: what the slot holds, written whole with the key
+    };
+
+    // One AMC_SET_SOCD: a slot's pair, or -- empty -- the slot cleared. What a change plans, and what it
+    // makes of a profile, is adapters/keychron/NazgKeychronSocd.h.
+    struct SocdWrite
+    {
+        uint8_t  slot = 0;
+        SocdSlot pair;
     };
 
     // 0xA9 0x20 / 0x21: travel -> an analog axis. x is 0.1 mm, y is the output, 0-127.
@@ -395,6 +403,11 @@ namespace nazg::keychron
         // past the matrix or a slot or control out of range is refused by the firmware; a mode that is
         // none of the four throws std::invalid_argument.
         [[nodiscard]] Task<void> SetKeyAdvanced(uint8_t profile, const AdvancedWrite& write);
+
+        // 0xA9 0x16: one SOCD slot of `profile`, in RAM as SetKeysTravel() is -- in use at once, read back
+        // and played on a K10 HE V3 (2026-11-23). The firmware refuses a pair of one key with itself, and a
+        // type past Neither. std::invalid_argument for a key a slot cannot hold (8 rows, 32 columns).
+        [[nodiscard]] Task<void> SetSocd(uint8_t profile, const SocdWrite& write);
 
         // 0xA9 0x22 / 0x23: the game controller's mode, a byte of bits (NazgKeychronAdvanced.h,
         // GamepadMode), the whole board's, stored at once. The set carries no status -- the firmware

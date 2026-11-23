@@ -716,9 +716,55 @@ answered for VIA shows it pressed either way. One mode per key: an advanced mode
 | `[7]` | slot, < 20 |
 | `[8]` | type; 0 clears the slot |
 
-The types: 1 the deeper key wins, and both stay pressed once both are past 3.8 mm; 2 the deeper
-key wins, and past 3.8 mm the last one stays; 3 the last key pressed wins; 4 key 1 wins;
-5 key 2 wins; 6 neither (both released). Here too, finding a free slot is the client's job.
+The types, as `socd_action()` plays them (re-read 2026-11-23, the same on both branches):
+
+| Type | Source's name | Both keys held |
+|---|---|---|
+| 1 | `DEEPER_TRAVEL` | the deeper key is sent; past 230/60 mm on both (3.83 mm), both are |
+| 2 | `DEEPER_TRAVEL_SINGLE` | the deeper key is sent; past 3.83 mm on both, **the one pressed first** |
+| 3 | `LAST_KEYSTROKE` | the last one pressed is sent |
+| 4, 5 | `KEY_1`, `KEY_2` | always that key |
+| 6 | `NEUTRAL` | neither |
+
+Once one is released the other, still held, is sent again, whatever the type. At the same depth, types
+1 and 2 keep the one pressed first. Type 2's "first" is the last key held **alone** (`state[i]`,
+which the deeper branches never change), not the one sent just before the bottom.
+
+- **The 230 is a literal, not a share of the board's travel.** Travel is capped at (F + 1) x 6 - 1,
+  215 on a board of 3.5 mm, so **type 1 never sends both on a K10 HE** and plays as type 2 does. Seen on
+  the K10 HE V3 (below).
+- **It works on the matrix, after the key's mode**: a Regular, Rapid Trigger or Long-Press Switch key
+  takes part, a Gamepad Analog key only with keyboard keys enabled (its axis or button is not held back),
+  and **a One Key Multiple Commands key never does** (`analog_matrix_get_key_state()` answers false).
+- **No command answers what is left after SOCD**: `0xA9 0x30`'s last byte and VIA's matrix state both give
+  the keys before it (`analog_raw_matrix`, `analog_matrix_get_row()`). A test must look at what the
+  computer receives, or work it out from the travels.
+- A key may be in several pairs: each pair masks what it holds back.
+- The firmware refuses a pair of one key with itself, and a type past 6. It takes a free slot or an
+  occupied one alike: finding a free one is the client's job.
+
+**Read and played on the K10 HE V3** (2026-11-23, Launcher 1.5.5, Gaming profile, watched with the travels
+of `0xA9 0x30` beside Windows' own key state):
+
+| Launcher | Type | Played |
+|---|---|---|
+| **Rappy Snappy**: "the one pressed deeper trigger and the other reset" | 2 | D at 2.0 mm, A at 3.2: A sent. D at the bottom, then A too: D stays, A is never sent. A at the bottom, then D: A stays |
+| **Last Key Priority** | 3 | Q held, E pressed: E. E released: Q again |
+| **Absolute Priority**, "1st" on the first key / on the second | 4 / 5 | the key marked, the other sent again once it is released |
+| **Neutral** | 6 | neither while both are down |
+| not offered | 1 | as type 2, at the bottom too |
+
+- **The slot is as documented**: A + D, (3,1) and (3,3), is `0B 1B 02` -- row in the low 3 bits, column above.
+  The keys keep their order, the swap changing the type (4 to 5). Deleting a pair zeroes its slot.
+- **The keys' words are untouched**: a pair is apart from a key's mode and distances.
+- **The Launcher fills slots 1 to 5 and stops there**, "5/5" over all the types together. It is its own
+  limit: the board has 20. It **shows a pair written to slot 0**, and counts it; the board plays it. It draws
+  type 1 with no icon and no badge on the keys: a client should not write it.
+- `AMC_SET_SOCD` as documented, status 0, in use at once, the profile read back showing it.
+- **A client polling the board keeps the Launcher from connecting**: it gets a copy of every reply. Seen with
+  a script reading 25 times a second; stopped, the Launcher connected.
+- **On Rapid Trigger keys depth seldom decides**: lifting the winner by its Reset Distance releases it, and
+  a pair only chooses between keys both pressed.
 
 ### Game controller
 
@@ -914,9 +960,8 @@ rest, `0x02` bottom), `[3]` the state (0 off, 1 power-up, 2 rest, 3 bottom, 4 st
    decoded exactly on 2026-11-08 -- `act_pt` agreeing with Keychron's Launcher, and the per-key
    entries landing on exactly the 104 positions the board has keys at. The adapter's own code read
    it over the real transport (`nazg-probe-keychron`), not only a scripted channel. `adv_mode` /
-   `adv_mode_data` were seen too, in the Gamepad preset (gamepad mode 4 and its axes and buttons). What
-   no board has shown yet: the DKS actions `0b111` and `0b011`, a populated SOCD slot. Those still want
-   a board before a write depends on them.
+   `adv_mode_data` were seen too, in the Gamepad preset (gamepad mode 4 and its axes and buttons). A populated SOCD slot was read on 2026-11-23 (SOCD, above). What
+   no board has shown yet: the DKS actions `0b111` and `0b011`.
 
    **A board the Launcher has touched is not in its default state** (see "The 2026-11-08 read"):
    it rewrites every key. Read the profile; never assume one.

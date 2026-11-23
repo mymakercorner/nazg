@@ -141,7 +141,9 @@ exists, where, and how far it has been proven.
     (`ui/NazgGamepadView.*`) -- with the distances the mode has, in the Launcher's words; the selection or
     every key but the advanced edited, selecting by click or by pressing; written at once, saved, read
     back; Test keys with raw values, a DKS key's steps and what the computer receives from the gamepad.
-    Left: SOCD, the gamepad curve, calibration (ui-design.md, "The Switches section", "Round two").
+    SOCD beside the modes (2026-11-23, `ui/NazgSocdEditor.*`, `adapters/keychron/NazgKeychronSocd.*`): the pairs, each choice
+    drawn, the test on what the computer receives -- working on the K10, the Launcher reading the same (Rico).
+    Left: the gamepad curve, calibration (ui-design.md, "The Switches section", "SOCD").
   - Every planned section is built; `PlaceholderSection` stays as the fallback for a new kind.
   - Shared panel parts: `ui/NazgKeycodePicker.*`, `ui/NazgKeyLine.*` (Sent with and its popup),
     `ui/NazgSlotParts.*` (what the slot sections repeat: reading, Save / Revert, a tag's words).
@@ -172,7 +174,8 @@ one board to unlock).
 | Key overrides, read and written (Model F) | |
 | | Alt repeat keys -- no board at hand has them |
 | The Switches section on Rico's borrowed K10 HE V3 (2026-11-08): profiles read, picked and followed from Fn + P + X, travel written, saved and read back, the key test with raw values; changes made back and forth with Keychron's Launcher, each shown right by the other (Rico); Nazg's own Reset bringing back each profile's preset, kept by the firmware | |
-| Its advanced keys (Rico, 2026-11-23): Long-Press Switch, One Key Multiple Commands taps and holds (walk and run), gamepad keys assigned, the gamepad test on a Standard Controller beside two vJoy ones | Xbox Controller mode; Turbocharged and PDO keys; SOCD -- not built |
+| Its advanced keys (Rico, 2026-11-23): Long-Press Switch, One Key Multiple Commands taps and holds (walk and run), gamepad keys assigned, the gamepad test on a Standard Controller beside two vJoy ones | Xbox Controller mode; Turbocharged and PDO keys |
+| SOCD on it (2026-11-23): every type read, played and swapped; Nazg's pairs read the same by the Launcher (Rico) | More than 5 pairs, and how the Launcher shows them |
 | Audio planned from a definition, and a firmware without audio said (Concordia, a test definition) | Audio and Clicky read or written, Play a sound -- no board at hand has audio built in |
 | Saved layouts on the Model F (Rico, 2026-10-18): Save; its own file loaded back as "the same"; a changed key found and written back; a .vil from Vial loaded; Nazg's file loaded in Vial; the Concordia's file asked about, its keymap left out. Save on the Concordia (probe). Unlock and apply, a macro and Boot written once unlocked; an ordinary key applied locked (F77 in secure mode). A file the VIA app wrote, loaded and applied on a VIA board (Rico) | |
 | A board's own menus: a few EC features (Concordia Type C); all 35909 registry controls parse (test) | |

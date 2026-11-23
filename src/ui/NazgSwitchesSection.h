@@ -21,6 +21,11 @@
 // profile saved and read back. Keys are told apart by what they do, never by whether their own word
 // is 0 (keychron-commands.md, "Rapid Trigger is written per key").
 //
+// SOCD, beside the modes as in the Launcher (Rico, 2026-11-23): the profile's pairs on a line -- Add pair,
+// or two keys clicked or pressed -- and the chosen one's four choices under it (ui/NazgSocdEditor.h). A
+// pair is apart from its keys' modes: from SOCD a mode button goes back to the keys, and changes nothing.
+// Its test shows what the computer receives, no command answering what is left after SOCD.
+//
 // Testing is asked for: Test keys follows the key pressed, its travel read live (0xA9 0x30), and its
 // raw values on request; while testing, a press selects nothing.
 //
@@ -39,6 +44,7 @@
 
 #include "adapters/keychron/NazgKeychronAdvanced.h"
 #include "adapters/keychron/NazgKeychronProtocol.h"
+#include "adapters/keychron/NazgKeychronSocd.h"
 #include "adapters/via/NazgViaProtocol.h"
 #include "async/NazgTask.h"
 #include "model/NazgKeyboard.h"
@@ -48,6 +54,7 @@
 #include "ui/NazgGamepadView.h"
 #include "ui/NazgKeycodePicker.h"
 #include "ui/NazgSection.h"
+#include "ui/NazgSocdEditor.h"
 
 namespace nazg
 {
@@ -76,6 +83,9 @@ namespace nazg
         [[nodiscard]] bool WantsGameController() const override;
         void               OnGameController(const GameControllerReading& reading) override;
 
+        [[nodiscard]] bool WantsComputerKeys() const override;   // a pair tested: the keys drive nothing else
+        void               OnHostKey(uint32_t usage, bool down) override;
+
         [[nodiscard]] bool IsBusy() const override;
         [[nodiscard]] bool IsPolling() const override;
         void               WhileHidden() override;
@@ -103,6 +113,7 @@ namespace nazg
             uint8_t                              profile = 0;
             std::vector<keychron::AdvancedWrite> advanced;   // before the travels
             std::vector<keychron::TravelWrite>   writes;
+            std::vector<keychron::SocdWrite>     socd;
         };
 
         // What a key does, its mode in the firmware's sense: one of these at a time.
@@ -138,6 +149,25 @@ namespace nazg
         void AskDks(size_t key, uint8_t slot, const keychron::DksSlot& settings);
         [[nodiscard]] std::optional<size_t> OneSelected() const;
         void PressSeen(size_t key);
+
+        // SOCD: the pair shown -- the one chosen, else the first -- by its slot, and its keys as they are
+        // named; what a key clicked or pressed does while the pairs show; going there and back.
+        [[nodiscard]] std::optional<uint8_t> ShownPair() const;
+        [[nodiscard]] SocdPairView           PairView(const keychron::SocdSlot& pair) const;
+        [[nodiscard]] std::string            NameAt(keychron::KeyPosition position) const;
+        [[nodiscard]] std::string            PairWarning(const keychron::SocdSlot& pair) const;
+        void AskPair(const keychron::SocdWrite& write);
+        void PairKeyChosen(size_t key);
+        void ForgetPair();
+        void ShowPairs();
+        void ShowKeys();
+        void DrawPairsLine();
+        void DrawPairs();
+        void DrawPairTest();
+        [[nodiscard]] bool IsTestingPair() const;
+        void PairRead(const keychron::SocdSlot& pair, const keychron::RealtimeTravel& first,
+                      const keychron::RealtimeTravel& second);
+        [[nodiscard]] std::optional<std::string_view> NameSent(keychron::KeyPosition position) const;
 
         void DrawHead();
         void DrawEditor();
@@ -235,6 +265,22 @@ namespace nazg
         GameControllerReading               m_Controller;
         std::optional<keychron::GamepadLevels> m_Levels;
         GamepadTrail                        m_Trail;
+
+        // SOCD: whether the pairs show instead of the keys, the slot chosen, and a pair being added with
+        // the first of its keys; the key under the pointer, whose partner lights.
+        bool                   m_ShowPairs  = false;
+        std::optional<uint8_t> m_Pair;
+        bool                   m_AddingPair = false;
+        std::optional<size_t>  m_PairFirst;
+        std::optional<size_t>  m_HoveredKey;
+
+        // The pair tested: the keys the computer holds down, what is sent -- as it receives it, else as the
+        // firmware plays it -- and the last seconds.
+        bool                                    m_HostDown[2] = {};
+        std::optional<keychron::RealtimeTravel> m_PairTravel[2];
+        keychron::SocdPlayer                    m_PairPlayer;
+        keychron::SocdPlayer::Sent              m_PairSent;
+        SocdTrail                               m_PairTrail;
 
         // Writes waiting, one at a time.
         std::vector<PendingChange>   m_PendingChanges;

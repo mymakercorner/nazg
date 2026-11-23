@@ -391,6 +391,20 @@ namespace nazg::keychron
         RequireSuccess(co_await SendFrame(std::move(request), true, c_EchoedGroup), "writing the advanced mode");
     }
 
+    Task<void> Protocol::SetSocd(uint8_t profile, const SocdWrite& write)
+    {
+        const SocdSlot pair = write.pair.IsEmpty() ? SocdSlot{} : write.pair;
+        if (pair.firstRow > 7 || pair.secondRow > 7 || pair.firstColumn > 31 || pair.secondColumn > 31)
+            throw std::invalid_argument("Keychron: an SOCD slot holds keys of 8 rows and 32 columns");
+
+        // [2] profile, [3..4] the first key, [5..6] the second, [7] the slot, [8] the type, 0 clearing it.
+        std::vector<uint8_t> request =
+            MakeRequest(Command::AnalogMatrix, static_cast<uint8_t>(Analog::SetSocd),
+                        { profile, pair.firstRow, pair.firstColumn, pair.secondRow, pair.secondColumn, write.slot,
+                          static_cast<uint8_t>(pair.type) });
+        RequireSuccess(co_await SendFrame(std::move(request), true, c_EchoedGroup), "writing the SOCD pair");
+    }
+
     Task<uint8_t> Protocol::GetGamepadMode()
     {
         const std::vector<uint8_t> reply =
