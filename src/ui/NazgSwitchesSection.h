@@ -26,6 +26,10 @@
 // pair is apart from its keys' modes: from SOCD a mode button goes back to the keys, and changes nothing.
 // Its test shows what the computer receives, no command answering what is left after SOCD.
 //
+// The gamepad's curve after it (Rico, 2026-11-24), on every profile: how far a stick goes for how far its key
+// is pressed, the whole board's (ui/NazgCurveEditor.h), the keys it plays lit. Its mode buttons go back to
+// the keys, as SOCD's do.
+//
 // Testing is asked for: Test keys follows the key pressed, its travel read live (0xA9 0x30), and its
 // raw values on request; while testing, a press selects nothing.
 //
@@ -43,6 +47,7 @@
 #include <vector>
 
 #include "adapters/keychron/NazgKeychronAdvanced.h"
+#include "adapters/keychron/NazgKeychronCurve.h"
 #include "adapters/keychron/NazgKeychronProtocol.h"
 #include "adapters/keychron/NazgKeychronSocd.h"
 #include "adapters/via/NazgViaProtocol.h"
@@ -50,6 +55,7 @@
 #include "model/NazgKeyboard.h"
 #include "transport/NazgDeviceChannel.h"
 #include "transport/NazgHidTransport.h"
+#include "ui/NazgCurveEditor.h"
 #include "ui/NazgDksEditor.h"
 #include "ui/NazgGamepadView.h"
 #include "ui/NazgKeycodePicker.h"
@@ -178,6 +184,11 @@ namespace nazg
         void DrawGamepadSettings();
         void ChooseControl(uint8_t control);
         [[nodiscard]] bool HasGamepadKeys() const;
+
+        // The gamepad curve: whether it shows; whether it plays a key -- not an Xbox Controller's triggers.
+        [[nodiscard]] bool IsShowingCurve() const;
+        [[nodiscard]] bool IsOnCurve(const keychron::KeyConfig& config) const;
+        void               DrawCurve();
         void DrawDksPicker(const keychron::DksSlot& settings);
         void PickForCommand(uint16_t keycode);
         void PickFromBoard(size_t key);
@@ -193,6 +204,7 @@ namespace nazg
         Task<void> Select(uint8_t profile);
         Task<void> Reset(uint8_t profile);
         Task<void> WriteGamepadMode(uint8_t mask, uint8_t value);
+        Task<void> WriteCurve(std::vector<keychron::CurvePoint> curve);
         void       Fail(std::string message);
         void       Say(std::string message, bool isWarning);
 
@@ -260,6 +272,13 @@ namespace nazg
             uint8_t value = 0;
         };
         std::optional<ModeChange>     m_PendingMode;
+
+        // The gamepad curve, the whole board's -- none where the board has none; whether it shows instead of
+        // the keys; one waiting to be written.
+        std::vector<keychron::CurvePoint>                m_Curve;
+        bool                                             m_ShowCurve = false;
+        CurveEditorState                                 m_CurveState;
+        std::optional<std::vector<keychron::CurvePoint>> m_PendingCurve;
 
         // What the computer receives, while testing a profile with gamepad keys.
         GameControllerReading               m_Controller;

@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Rico <rico@mymakercorner.com> -->
+<!-- Mockup: the gamepad curve of a Keychron Hall-effect board -- how far a stick goes for how far its key
+     is pressed (ui-design.md, "The gamepad curve"; the wire is keychron-commands.md, "Game controller"). The
+     section around it is switches-advanced-keys.html, as built.
+
+     What it rests on, read on the K10 HE V3 (2026-11-24):
+     - four points, x in 0.1 mm up to the full travel, y 0 to 127; the whole board's, every profile's; a write
+       is stored at once;
+     - played as a straight line between the points, right after a replug too, in steps of 0.1 mm; nothing
+       under the first point, whose x is so the dead zone; the last y past the last;
+     - the Launcher (1.5.5) has Linear and Smooth, written at once, and points to drag, then Save Curvature;
+     - a curve whose x do not ascend could never be changed again: a point stops 0.1 mm short of its neighbour;
+     - Nazg takes the board's full travel from the last point's x, which stays where it is: the third point
+       raised to 100 % reaches the full output before the bottom just as well.
+
+     Settled by Rico (2026-11-24), the variants removed: beside the modes, after SOCD -- not a button in Gamepad
+     Analog, not under the controller; the values beside the curve, always. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gamepad curve mockup</title>
+<style>
+:root{--window:#f3f3f5;--menubar:#e3e4e9;--text:#1d1e22;--muted:#6b6e78;--control:#ffffff;--border:#c8cad2;--accent:#3b82f6;--accent-text:#fff;--panel:#f8f8fa;--column:#ebecf0;--selected:rgba(59,130,246,.16);
+--plate:#d3d4d8;--key:#ffffff;--keyline:#b4b7c2;--ok:#15803d;--warn:#c2410c;--err:#dc2626;--press:#3b82f6;--rt:#7c3aed;--heat:#f59e0b;--sel:#f59e0b}
+:root[data-theme="dark"]{--window:#0f0f11;--menubar:#24252b;--text:#ececf1;--muted:#80838f;--control:#20232b;--border:#3a3d48;--accent:#4296fa;--accent-text:#fff;--panel:#16171b;--column:#16171b;--selected:rgba(66,150,250,.22);
+--plate:#1c1d23;--key:#3a3c48;--keyline:#4b4e5c;--ok:#4ade80;--warn:#fb923c;--err:#f87171;--press:#4296fa;--rt:#a78bfa;--heat:#fbbf24;--sel:#fbbf24}
+*{box-sizing:border-box}
+body{margin:0;background:var(--window);color:var(--text);font-family:Arimo,"Segoe UI",Helvetica,Arial,sans-serif;font-size:13px}
+.controls{display:flex;flex-wrap:wrap;gap:8px 22px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+.group{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.group .name{color:var(--muted);margin-right:4px}
+button{font:inherit;padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--control);color:var(--text);cursor:pointer}
+button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+button:disabled{opacity:.45;cursor:default}
+.toast{color:var(--accent);font-size:12px;align-self:center}
+.stage{padding:16px;overflow-x:auto}
+.frame{margin:0 auto;width:1160px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--window);user-select:none}
+.menubar{display:flex;gap:18px;align-items:center;background:var(--menubar);padding:5px 14px}
+.menubar .board{font-weight:600}
+.muted{color:var(--muted)}
+.menubar .right{margin-left:auto;color:var(--muted)}
+.body{display:flex;min-height:600px}
+.col{flex:none;width:180px;background:var(--column);border-right:1px solid var(--border);padding:6px 5px;display:flex;flex-direction:column;gap:1px}
+.col .hdr{font-weight:700;font-size:12px;padding:6px 10px 2px}
+.col .sep{border-top:1px solid var(--border);margin:5px 4px}
+.entry{padding:7px 10px;border-radius:6px;color:var(--muted)}
+.entry.on{background:var(--selected);color:var(--text);box-shadow:inset 3px 0 0 var(--accent)}
+.entry.later{opacity:.45;font-style:italic}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;padding:10px 14px 14px;gap:10px}
+.strip{display:flex;gap:3px;align-items:center;padding:4px 0;min-height:30px}
+.strip button{padding:2px 10px;font-size:12px}
+.strip button.later{opacity:.45;font-style:italic;cursor:default}
+.strip .dot{color:var(--ok);margin-right:4px}
+.strip button.on .dot{color:var(--accent-text)}
+.seg{display:inline-flex}
+.seg button{border-radius:0;padding:2px 10px;margin-left:-1px}
+.seg button:first-child{border-radius:6px 0 0 6px;margin-left:0}
+.seg button:last-child{border-radius:0 6px 6px 0}
+.seg.mixed button{border-style:dashed}
+.boardarea{display:flex;justify-content:center;position:relative}
+svg{display:block;overflow:visible}
+.panel{position:relative;border:1px solid var(--border);border-radius:6px;background:var(--panel)}
+.mline{display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap;padding:6px 12px;border-bottom:1px solid var(--border);min-height:36px}
+.mline .title{font-weight:700}
+.mline .right{margin-left:auto;display:flex;gap:10px;align-items:center}
+.mline select,.mline input[type=text]{font:inherit;padding:2px 6px;border:1px solid var(--border);border-radius:6px;background:var(--control);color:var(--text)}
+.link{color:var(--accent);cursor:pointer}
+.inuse{color:var(--ok);font-size:12px}
+.tabs{display:flex;gap:0;padding:0 12px;border-bottom:1px solid var(--border)}
+.tabs div{padding:6px 12px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs div.on{color:var(--text);border-bottom-color:var(--accent);font-weight:600}
+.cols{display:flex;gap:0;min-height:178px}
+.cols>div{padding:8px 12px}
+.editor{flex:1;min-width:0}
+.erow{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.erow .lab{width:170px;color:var(--muted)}
+.erow input[type=range]{width:230px}
+.erow .val{width:62px;font-variant-numeric:tabular-nums;font-weight:600}
+.erow .val.mixed{color:var(--muted);font-weight:400;font-style:italic}
+.target{font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:10px;min-height:26px}
+.target .sub{font-weight:400;color:var(--muted);font-size:12px}
+.words{color:var(--muted);font-size:12px;line-height:1.5}
+.gauge{width:330px;border-left:1px solid var(--border)}
+.gauge .h{font-size:12px;color:var(--muted);margin-bottom:4px}
+.gauge .kname{font-weight:700;font-size:15px}
+.notes{max-width:1160px;margin:0 auto;padding:4px 16px 30px;color:var(--muted);line-height:1.55}
+.notes b{color:var(--text);font-weight:600}
+.notes p{margin:0 0 8px}
+.tip{position:fixed;z-index:9;max-width:380px;padding:6px 9px;border:1px solid var(--border);border-radius:6px;background:var(--control);color:var(--text);font-size:12px;line-height:1.45;box-shadow:0 2px 8px rgba(0,0,0,.15);pointer-events:none;display:none;white-space:pre-line}
+.box{position:absolute;border:1px dashed var(--accent);background:var(--selected);pointer-events:none;display:none}
+
+.hline{display:flex;align-items:center;gap:10px;padding:6px 12px;border-bottom:1px solid var(--border)}
+.hline .what{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hline .right{display:flex;gap:6px}
+.unk{font-style:italic}
+svg.dks text{font-family:Arimo,Arial}
+svg.dks .hit{cursor:pointer}
+svg.dks .handle{cursor:ns-resize}
+svg.dks .ptv{display:flex;align-items:center;gap:3px;font:700 11px Arimo,Arial;color:var(--text)}
+svg.dks .ptv.r{justify-content:flex-end}
+svg.dks .ptv input{font:inherit;width:30px;padding:0 2px;text-align:right;border:1px solid var(--border);border-radius:4px;background:var(--control);color:inherit}
+svg.dks .ptv input:hover{border-color:var(--accent)}
+svg.dks .ptv input:focus{border-color:var(--accent);background:var(--control);outline:none}
+svg.dks .ghost{opacity:0;pointer-events:none}
+svg.dks .hit:hover + .ghost{opacity:1}
+.curve{display:flex;gap:18px;align-items:flex-start}
+.curve svg.plot{flex:none;touch-action:none}
+.curve .pt{cursor:grab}
+.curve .side{display:flex;flex-direction:column;gap:8px;min-width:0}
+.presets{display:flex;gap:6px;align-items:center}
+.preset{border:1px solid var(--border);border-radius:6px;background:var(--control);padding:3px 7px;cursor:pointer;text-align:center;font-size:12px}
+.preset:hover{border-color:var(--accent)}
+.preset.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:var(--selected)}
+.vals{display:grid;grid-template-columns:auto auto auto auto;gap:3px 4px;align-items:center;font-size:12px;width:fit-content}
+.vals input{font:inherit;width:38px;padding:1px 4px;text-align:right;border:1px solid var(--border);border-radius:4px;background:var(--control);color:inherit}
+.vals input:disabled{opacity:.55}
+.pick{position:absolute;left:12px;bottom:10px;z-index:5;border:1px solid var(--border);border-radius:8px;padding:8px 12px 10px;background:var(--panel);box-shadow:0 6px 24px rgba(0,0,0,.25)}
+.pick .h{display:flex;gap:10px;align-items:center;margin-bottom:8px}
+.padset{display:flex;gap:16px;align-items:center;font-size:12px;margin-bottom:7px}
+.padset label{white-space:nowrap}
+.help{display:inline-block;width:17px;height:17px;line-height:16px;text-align:center;border-radius:50%;border:1px solid var(--border);color:var(--muted);font-size:11px;cursor:help}
+.sent{font-size:12px;line-height:1.5;margin-top:6px;max-height:66px;overflow:hidden}
+</style>
+</head>
+<body>
+<div class="controls" id="controls"></div>
+<div class="stage"><div class="frame" id="frame"></div></div>
+<div class="notes" id="notes"></div>
+<div class="tip" id="tip"></div>
+<script>
+// The K10 HE ANSI, corrected 0EA7 definition (dist/k10_he_0EA7/k10_he_ansi_0EA7.json): its KLE.
+const KLE = [[{"c":"#777777"},"0,0",{"x":1,"c":"#cccccc"},"0,2","0,3","0,4","0,5",{"x":0.5},"0,6","0,7","0,8","0,9",{"x":0.5},"0,10","0,11","0,12","0,13",{"x":0.25},"0,14","0,15","0,16"],[{"y":0.25},"1,0","1,1","1,2","1,3","1,4","1,5","1,6","1,7","1,8","1,9","1,10","1,11","1,12",{"w":2},"1,13",{"x":0.25},"1,14","1,15","1,16",{"x":0.25},"1,17","1,18","1,19","1,20"],[{"w":1.5},"2,0","2,1","2,2","2,3","2,4","2,5","2,6","2,7","2,8","2,9","2,10","2,11","2,12",{"w":1.5},"2,13",{"x":0.25},"2,14","2,15","2,16",{"x":0.25},"2,17","2,18","2,19",{"h":2},"2,20"],[{"w":1.75},"3,0","3,1","3,2","3,3","3,4","3,5","3,6","3,7","3,8","3,9","3,10","3,11",{"w":2.25,"c":"#777777"},"3,12",{"x":3.5,"c":"#cccccc"},"3,17","3,18","3,19"],[{"w":2.25},"4,0","4,2","4,3","4,4","4,5","4,6","4,7","4,8","4,9","4,10","4,11",{"w":2.75},"4,13",{"x":1.25},"4,15",{"x":1.25},"4,17","4,18","4,19",{"h":2},"4,20"],[{"w":1.25},"5,0",{"w":1.25},"5,1",{"w":1.25},"5,2",{"w":6.25},"5,6",{"w":1.25},"5,9",{"w":1.25},"5,10",{"w":1.25},"5,11",{"w":1.25},"5,12",{"x":0.25},"5,14","5,15","5,16",{"x":0.25,"w":2},"5,17","5,18"]];
+
+// The Windows base layer's legends, and the KeyboardEvent.code that plays each key.
+const LEGEND = {
+ '0,0':['Esc','Escape'],'0,2':['F1','F1'],'0,3':['F2','F2'],'0,4':['F3','F3'],'0,5':['F4','F4'],'0,6':['F5','F5'],'0,7':['F6','F6'],'0,8':['F7','F7'],'0,9':['F8','F8'],
+ '0,10':['F9','F9'],'0,11':['F10','F10'],'0,12':['F11','F11'],'0,13':['F12','F12'],'0,14':['PrtSc','PrintScreen'],'0,15':['Cortana','ScrollLock'],'0,16':['Light','Pause'],
+ '1,0':['`','Backquote'],'1,1':['1','Digit1'],'1,2':['2','Digit2'],'1,3':['3','Digit3'],'1,4':['4','Digit4'],'1,5':['5','Digit5'],'1,6':['6','Digit6'],'1,7':['7','Digit7'],
+ '1,8':['8','Digit8'],'1,9':['9','Digit9'],'1,10':['0','Digit0'],'1,11':['-','Minus'],'1,12':['=','Equal'],'1,13':['Backspace','Backspace'],'1,14':['Ins','Insert'],
+ '1,15':['Home','Home'],'1,16':['PgUp','PageUp'],'1,17':['Num','NumLock'],'1,18':['/','NumpadDivide'],'1,19':['*','NumpadMultiply'],'1,20':['-','NumpadSubtract'],
+ '2,0':['Tab','Tab'],'2,1':['Q','KeyQ'],'2,2':['W','KeyW'],'2,3':['E','KeyE'],'2,4':['R','KeyR'],'2,5':['T','KeyT'],'2,6':['Y','KeyY'],'2,7':['U','KeyU'],'2,8':['I','KeyI'],
+ '2,9':['O','KeyO'],'2,10':['P','KeyP'],'2,11':['[','BracketLeft'],'2,12':[']','BracketRight'],'2,13':['\\','Backslash'],'2,14':['Del','Delete'],'2,15':['End','End'],
+ '2,16':['PgDn','PageDown'],'2,17':['7','Numpad7'],'2,18':['8','Numpad8'],'2,19':['9','Numpad9'],'2,20':['+','NumpadAdd'],
+ '3,0':['Caps','CapsLock'],'3,1':['A','KeyA'],'3,2':['S','KeyS'],'3,3':['D','KeyD'],'3,4':['F','KeyF'],'3,5':['G','KeyG'],'3,6':['H','KeyH'],'3,7':['J','KeyJ'],'3,8':['K','KeyK'],
+ '3,9':['L','KeyL'],'3,10':[';','Semicolon'],'3,11':["'",'Quote'],'3,12':['Enter','Enter'],'3,17':['4','Numpad4'],'3,18':['5','Numpad5'],'3,19':['6','Numpad6'],
+ '4,0':['Shift','ShiftLeft'],'4,2':['Z','KeyZ'],'4,3':['X','KeyX'],'4,4':['C','KeyC'],'4,5':['V','KeyV'],'4,6':['B','KeyB'],'4,7':['N','KeyN'],'4,8':['M','KeyM'],
+ '4,9':[',','Comma'],'4,10':['.','Period'],'4,11':['/','Slash'],'4,13':['Shift','ShiftRight'],'4,15':['↑','ArrowUp'],'4,17':['1','Numpad1'],'4,18':['2','Numpad2'],
+ '4,19':['3','Numpad3'],'4,20':['Enter','NumpadEnter'],
+ '5,0':['Ctrl','ControlLeft'],'5,1':['Win','MetaLeft'],'5,2':['Alt','AltLeft'],'5,6':['Space','Space'],'5,9':['Alt','AltRight'],'5,10':['Win','MetaRight'],
+ '5,11':['Fn','ContextMenu'],'5,12':['Ctrl','ControlRight'],'5,14':['←','ArrowLeft'],'5,15':['↓','ArrowDown'],'5,16':['→','ArrowRight'],'5,17':['0','Numpad0'],'5,18':['.','NumpadDecimal']};
+
+function parseKle(rows) {
+  const keys = []; let y = 0;
+  for (const row of rows) {
+    let x = 0, p = {};
+    for (const item of row) {
+      if (typeof item === 'object') { if ('x' in item) x += item.x; if ('y' in item) y += item.y; if ('w' in item) p.w = item.w; if ('h' in item) p.h = item.h; continue; }
+      const w = p.w || 1, h = p.h || 1;
+      keys.push({ x, y, w, h, cell: item, name: (LEGEND[item] || ['?'])[0], code: (LEGEND[item] || [])[1] });
+      x += w; p = {};
+    }
+    y += 1;
+  }
+  return keys;
+}
+const KEYS = parseKle(KLE);
+const BY_CODE = new Map(KEYS.map((k, i) => [k.code, i]));
+
+// ---------------------------------------------------------------------------------------------
+// The profile. A key: mode 1 regular / 2 rapid trigger and its distances (0.1 mm), as round one; adv 0
+// none, 3 DKS, 4 gamepad, 5 toggle -- the STORED adv_mode -- and data, the DKS slot or the control.
+const FULL = 35;
+const REGULAR = 1, RAPID = 2, DKS = 3, PAD = 4, TOGGLE = 5;
+const MODES = [[REGULAR, 'Regular'], [RAPID, 'Rapid Trigger'], [DKS, 'One Key Multiple Commands'], [TOGGLE, 'Long-Press Switch'], [PAD, 'Gamepad Analog']];
+const POINTS = ['Starting Trigger', 'Bottom In', 'Bottom Out', 'Bounce Back'];
+const POINT_SAYS = ['Going down past it.', 'Going down further, past it.', 'Coming back up above it, after Bottom In.', 'Coming back up above it, after Bottom Out.'];
+// Game controller values (game_controller_common.h), named as an Xbox controller's (xinput_keycodes.h).
+const GC = { 0: 'L ←', 1: 'L →', 2: 'L ↓', 3: 'L ↑', 4: 'LT', 5: 'RT', 6: 'R ←', 7: 'R →', 8: 'R ↓', 9: 'R ↑', 10: 'RZ −', 11: 'RZ +',
+  13: 'A', 14: 'B', 15: 'X', 16: 'Y', 17: 'LB', 18: 'RB', 19: 'View', 20: 'Menu', 21: 'L3', 22: 'R3', 23: 'D ↑', 24: 'D ↓', 25: 'D ←', 26: 'D →', 27: 'Xbox' };
+const GC_LONG = { 0: 'Left stick, left', 1: 'Left stick, right', 2: 'Left stick, down', 3: 'Left stick, up', 4: 'Left trigger', 5: 'Right trigger', 6: 'Right stick, left',
+  7: 'Right stick, right', 8: 'Right stick, down', 9: 'Right stick, up', 17: 'Left bumper', 18: 'Right bumper', 21: 'Left stick pressed', 22: 'Right stick pressed',
+  23: 'D-pad up', 24: 'D-pad down', 25: 'D-pad left', 26: 'D-pad right', 27: 'Xbox button' };
+const gcName = v => GC[v] || `Button ${v - 12}`;
+const gcLong = v => GC_LONG[v] || (GC[v] ? `${GC[v]} button` : `Button ${v - 12}`);
+const PRESET = { '3,1': 0, '3,3': 1, '3,2': 2, '2,2': 3, '5,0': 4, '5,12': 5, '3,6': 6, '3,8': 7, '3,7': 8, '2,7': 9, '4,11': 13, '3,11': 14, '3,10': 15, '2,11': 16,
+  '2,3': 17, '2,6': 18, '1,0': 19, '1,16': 20, '4,0': 21, '4,13': 22, '4,15': 23, '5,15': 24, '5,14': 25, '5,16': 26, '1,15': 27 };
+const at = c => KEYS.findIndex(k => k.cell === c);
+// The picker's names: the keyboard's, but for the three keys that are not basic keys.
+const CMD = { '0,15': 'ScrLk', '0,16': 'Pause', '5,11': 'Menu', '5,0': 'LCtrl', '5,12': 'RCtrl', '4,0': 'LShift', '4,13': 'RShift', '5,2': 'LAlt', '5,9': 'RAlt', '5,1': 'LWin', '5,10': 'RWin' };
+const cmdName = c => c ? (CMD[c] || KEYS[at(c)].name) : '';
+
+const REL = 1, PRESS = 2, TAP = 6;   // bit 0 release, bit 1 press, bit 2 release
+function emptySlot() { return { pts: [11, 22, 22, 11], cmds: [0, 1, 2, 3].map(() => ({ key: null, acts: [0, 0, 0, 0] })) }; }
+// Bars over the four points <-> the firmware's action bits: a bar of one point is a tap, a longer one is
+// pressed at its first point and released at its last. A key pressed and never released is let go when
+// the key comes back (release_okmc_keys), so its bar runs to the last point.
+function bars(acts) {
+  // What is played, not the bits: pressing a key already held changes nothing, releasing one ends its bar.
+  // Every one of the 4096 combinations of a key's actions plays as the bars read from it play.
+  const out = []; let from = null;
+  acts.forEach((a, p) => { for (let bit = 0; bit < 3; bit++) if (a & (1 << bit)) {
+    if (bit % 2) { if (from === null) from = p; } else if (from !== null) { out.push([from, p]); from = null; }
+  } });
+  if (from !== null) out.push([from, 3]);
+  return out;
+}
+function actsOf(list) {
+  const a = [0, 0, 0, 0];
+  for (const [f, t] of list) if (f === t) a[f] |= TAP; else { a[f] |= PRESS; a[t] |= REL; }
+  return a;
+}
+function freshProfiles() {
+  const base = mode => ({ mode, act: 17, press: 4, rel: 4, adv: 0, data: 0 });
+  const all = mode => ({ keys: KEYS.map(() => base(mode)), slots: Array.from({ length: 20 }, emptySlot) });
+  const def = all(REGULAR), gaming = all(RAPID), pad = all(RAPID);
+  for (const [c, v] of Object.entries(PRESET)) Object.assign(pad.keys[at(c)], { adv: PAD, data: v });
+  // Made up: W walks, and runs when bottomed; F is Keychron's own A B C D example; C held by a tap.
+  Object.assign(def.keys[at('2,2')], { adv: DKS, data: 0 });
+  def.slots[0] = { pts: [5, 25, 22, 4], cmds: [{ key: '2,2', acts: actsOf([[0, 3]]) }, { key: '4,0', acts: actsOf([[1, 2]]) }, { key: null, acts: [0, 0, 0, 0] }, { key: null, acts: [0, 0, 0, 0] }] };
+  Object.assign(def.keys[at('3,4')], { adv: DKS, data: 1 });
+  def.slots[1] = { pts: [11, 22, 22, 11], cmds: ['3,1', '4,6', '4,4', '3,3'].map((key, p) => ({ key, acts: actsOf([[p, p]]) })) };
+  Object.assign(def.keys[at('4,4')], { adv: TOGGLE });
+  Object.assign(def.keys[at('3,9')], { adv: 7, data: 2 });
+  return [def, gaming, pad];
+}
+const state = { theme: 'Light', hot: null, profile: 2, testing: false,
+  want: 'curve', slotPick: null, xinput: false, typing: false, recognised: true, seen: 'Yes', hover: null, toast: '' };
+let profiles = freshProfiles(), selected = new Set();
+const P = () => profiles[state.profile];
+const modeOf = i => P().keys[i].adv || P().keys[i].mode;
+const isAdv = i => P().keys[i].adv !== 0;
+const mm = v => (v / 10).toFixed(1);
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const PNAMES = ['Default', 'Gaming', 'Gamepad'];
+
+// What the editor acts on: the selection; with none, every key but the advanced ones, which a change
+// for "every key" must not wipe (a whole gamepad, say).
+function target() { return selected.size ? [...selected] : KEYS.map((_, i) => i).filter(i => !isAdv(i)); }
+const common = (list, f) => list.length && list.every(i => f(i) === f(list[0])) ? f(list[0]) : null;
+function names(list, max = 10) { const n = list.map(i => KEYS[i].name); return n.length > max ? n.slice(0, max).join(' ') + ` … ${n.length - max} more` : n.join(' '); }
+const slotsUsed = () => new Set(P().keys.filter(k => k.adv === DKS).map(k => k.data));
+function saved(what) { state.toast = `${what}, then AMC_SAVE_PROFILE`; }
+
+function setMode(m) {
+  if (state.want === 'curve' || (state.want === PAD && !selected.size)) { state.want = m === PAD ? PAD : null; return; }   // back to the keys: changes nothing
+  const list = target();
+  state.want = null; state.slotPick = null;
+  if (m === REGULAR || m === RAPID) {
+    const cleared = list.filter(isAdv).length;
+    list.forEach(i => Object.assign(P().keys[i], { mode: m, adv: 0, data: 0 }));
+    saved(`${cleared ? `${cleared} x AMC_SET_ADVANCE_MODE none, ` : ''}AMC_SET_TRAVAL`);
+  } else if (m === TOGGLE) {
+    list.forEach(i => Object.assign(P().keys[i], { adv: TOGGLE, data: 0 }));
+    saved(`${list.length} x AMC_SET_ADVANCE_MODE toggle`);
+  } else if (m === PAD) {
+    state.want = PAD;             // written once a control is chosen: the mode needs one
+  } else if (m === DKS) {
+    const i = list[0], used = slotsUsed(), slot = [...Array(20).keys()].find(s => !used.has(s));
+    if (slot === undefined) { state.toast = 'All 20 are in use'; return; }
+    // A new one sends what the key sent, held as a plain key, pressed at the Launcher's 1.1 mm.
+    const c = KEYS[i].cell === '5,11' ? null : KEYS[i].cell;
+    const s = emptySlot(); s.cmds[0] = { key: c, acts: actsOf([[0, 3]]) };
+    P().slots[slot] = s; Object.assign(P().keys[i], { adv: DKS, data: slot });
+    saved(`AMC_SET_ADVANCE_MODE DKS, slot ${slot}`);
+  }
+}
+function setControl(v) {
+  if (!selected.size) { const i = KEYS.findIndex((_, n) => P().keys[n].adv === PAD && P().keys[n].data === v); if (i >= 0) selected.add(i); return; }
+  if (selected.size > 1) { state.toast = 'Select one key to choose what it plays'; return; }
+  const i = [...selected][0];
+  Object.assign(P().keys[i], { adv: PAD, data: v }); state.want = null;
+  saved(`AMC_SET_ADVANCE_MODE gamepad, ${gcLong(v)}`);
+}
+
+// ---------------------------------------------------------------------------------------------
+// The switches simulated, One Key Multiple Commands with the firmware's own state machine (okmc_action).
+const sim = KEYS.map(() => ({ travel: 0, down: false, pressed: false, hold: false, st: 0, held: new Set(), log: [], flash: {} }));
+let followed = null;
+const SPEED = FULL / 420 * 16;   // full travel in ~420 ms: slow enough to see the points
+function play(s, slot, p) {
+  for (let bit = 0; bit < 3; bit++) slot.cmds.forEach((c, n) => {
+    if (!c.key || !(c.acts[p] & (1 << bit))) return;
+    if (bit % 2) { s.held.add(n); s.flash[n] = performance.now(); s.log.push(`${cmdName(c.key)} ↓`); } else if (s.held.delete(n)) s.log.push(`${cmdName(c.key)} ↑`);
+  });
+}
+function releaseAll(s, slot) { [...s.held].forEach(n => { s.held.delete(n); s.log.push(`${cmdName(slot.cmds[n].key)} ↑`); }); }
+function stepDks(s, slot) {
+  const t = s.travel, [a, d, o, b] = slot.pts, up = t < b && t < a - 1;
+  if (s.st === 0) { if (t >= a) { s.st = 1; s.log.length = 0; play(s, slot, 0); } }
+  else if (s.st === 1) { if (up) { s.st = 0; releaseAll(s, slot); } else if (t >= d) { s.st = 2; play(s, slot, 1); } }
+  else if (s.st === 2) { if (t > o) s.st = 3; else if (up) { s.st = 0; releaseAll(s, slot); } }
+  else if (s.st === 3) { if (t <= o) { s.st = 4; play(s, slot, 2); } }
+  else if (t <= b && t < a - 1) { s.st = 0; play(s, slot, 3); releaseAll(s, slot); }
+  s.pressed = s.st >= 1 && s.st <= 3;
+}
+function step() {
+  let moved = false;
+  sim.forEach((s, i) => {
+    const goal = s.down ? FULL : 0;
+    if (s.travel === goal) return;
+    s.travel = s.down ? Math.min(FULL, s.travel + SPEED) : Math.max(0, s.travel - SPEED);
+    moved = true;
+    const k = P().keys[i], m = modeOf(i), off = Math.max(0, k.act - 3);
+    if (m === DKS) { stepDks(s, P().slots[k.data]); return; }
+    const was = s.pressed;
+    if (!s.pressed && s.travel >= k.act) s.pressed = true; else if (s.pressed && s.travel < off) s.pressed = false;
+    if (m === TOGGLE && s.pressed && !was) s.hold = !s.hold;
+  });
+  if (moved) redrawLive();
+}
+setInterval(step, 16);
+
+// ---------------------------------------------------------------------------------------------
+// The board.
+let U = 39, M = 14, GAP = 2, BD = null;
+function bounds() { let x1 = 0, y1 = 0; for (const k of KEYS) { x1 = Math.max(x1, k.x + k.w); y1 = Math.max(y1, k.y + k.h); } return { x1, y1 }; }
+const SVGSTYLE = `<style>.plate{fill:var(--plate)}.k{fill:var(--key);stroke:var(--keyline)}.k.sel{stroke:var(--sel);stroke-width:2.5}.k.hov{stroke:var(--rt);stroke-width:2.5}`
+  + `.lg{font-family:Arimo,Arial;fill:var(--text);pointer-events:none}.vl{font-family:Arimo,Arial;fill:var(--muted);pointer-events:none;font-variant-numeric:tabular-nums}`
+  + `.rt{font-family:Arimo,Arial;fill:var(--rt);font-weight:700;pointer-events:none}`
+  + `.fill{fill:var(--press);opacity:.22;pointer-events:none}.fill.on{opacity:.5}.ring{fill:none;stroke:var(--press);stroke-width:2.5;pointer-events:none}</style>`;
+function markOf(i) {
+  const k = P().keys[i];
+  return k.adv === DKS ? 'DKS' : k.adv === TOGGLE ? 'Long' : k.adv === PAD ? gcName(k.data) : k.adv ? '?' : '';
+}
+function describe(i) {
+  const k = P().keys[i];
+  if (k.adv === DKS) {
+    const s = P().slots[k.data];
+    return 'One Key Multiple Commands\n' + POINTS.map((n, p) => `${n} ${mm(s.pts[p])} mm: ${says(s, p) || 'nothing'}`).join('\n');
+  }
+  if (k.adv === TOGGLE) return `Long-Press Switch · Actuation Distance ${mm(k.act)} mm`;
+  if (k.adv === PAD) return `Gamepad Analog · ${gcLong(k.data)}` + (k.data > 12 ? `, at ${mm(k.act)} mm` : ', by how far it goes');
+  if (k.adv) return `A mode Nazg does not know (${k.adv})`;
+  return (k.mode === RAPID ? 'Rapid Trigger' : 'Regular') + ` · Actuation Distance ${mm(k.act)} mm`;
+}
+// A gamepad control, drawn the same on the keys, on the controller and in the test (Rico, 2026-11-23): filled,
+// so that RT, the right trigger, is not read as Rapid Trigger. `off`: no key plays it.
+const badgeWidth = label => label.length * 6 + 7;
+function badgeSvg(label, x, y, anchor, off) {
+  const w = badgeWidth(label), left = anchor === 'middle' ? x - w / 2 : x;
+  return `<rect x="${left}" y="${y}" width="${w}" height="12" rx="6" fill="${off ? 'none' : 'var(--rt)'}" stroke="var(--rt)" stroke-opacity="${off ? .45 : 1}" stroke-width="1" pointer-events="none"/>`
+    + `<text x="${left + w / 2}" y="${y + 9}" text-anchor="middle" style="font:700 8.5px Arimo,Arial;fill:${off ? 'var(--muted)' : 'var(--key)'};pointer-events:none">${esc(label)}</text>`;
+}
+function badgeHtml(label, off) { const w = badgeWidth(label) + 1; return `<svg width="${w}" height="14" style="display:inline-block;vertical-align:-3px">${badgeSvg(label, .5, 1, 'start', off)}</svg>`; }
+function keySvg(k, i) {
+  const x = k.x * U + GAP, y = k.y * U + GAP, w = k.w * U - 2 * GAP, h = k.h * U - 2 * GAP, s = sim[i], c = P().keys[i], mark = markOf(i);
+  let t = `<g><rect class="k${selected.has(i) && state.want !== 'curve' ? ' sel' : ''}${state.hover === i || (state.want === 'curve' && onCurveKey(i)) ? ' hov' : ''}" data-key="${i}" data-tip="${esc(`${k.name} (${k.cell.replace(',', ', ')})\n${describe(i)}`)}" x="${x}" y="${y}" width="${w}" height="${h}" rx="4"/>`;
+  t += `<text class="lg" x="${x + 4}" y="${y + 12}" style="font-size:${k.name.length > 4 ? 9 : 11}px">${esc(k.name)}</text>`;
+  if (c.adv === PAD) t += badgeSvg(mark, x + 3, y + h - 15, 'start');
+  else if (mark) t += `<text class="rt" x="${x + 4}" y="${y + h - 5}" style="font-size:${mark.length > 4 ? 9 : 10}px">${esc(mark)}</text>`;
+  else {
+    t += `<text class="vl" x="${x + 4}" y="${y + h - 5}" style="font-size:10px">${mm(c.act)}</text>`;
+    if (c.mode === RAPID) t += `<text class="rt" x="${x + w - 4}" y="${y + h - 5}" text-anchor="end" style="font-size:11px">⇅</text>`;
+  }
+  const got = padLive() && live.source === 'board' && c.adv === PAD ? live.v[c.data] || 0 : 0;
+  if (got > 0.02) t += `<rect class="fill on" x="${x + 1}" y="${y + 1}" width="${w - 2}" height="${(h - 2) * got}" rx="3"/>`;
+  else if (s.travel > 0) t += `<rect class="fill${s.pressed ? ' on' : ''}" x="${x + 1}" y="${y + 1}" width="${w - 2}" height="${(h - 2) * s.travel / FULL}" rx="3"/>`;
+  if (c.adv === TOGGLE ? s.hold : s.pressed) t += `<rect class="ring" x="${x}" y="${y}" width="${w}" height="${h}" rx="4"/>`;
+  return t + '</g>';
+}
+function boardSvg() {
+  BD = bounds(); U = Math.floor((1160 - 180 - 28 - 2 * M - 8) / BD.x1);
+  return `<svg id="board" xmlns="http://www.w3.org/2000/svg" width="${BD.x1 * U + 2 * M}" height="${BD.y1 * U + 2 * M}">${SVGSTYLE}<rect class="plate" width="100%" height="100%" rx="12"/><g transform="translate(${M} ${M})" id="keys">${KEYS.map(keySvg).join('')}</g></svg>`;
+}
+
+// ---------------------------------------------------------------------------------------------
+// One Key Multiple Commands.
+function says(s, p) {
+  const out = [];
+  s.cmds.forEach(c => {
+    if (!c.key || !c.acts[p]) return;
+    const a = c.acts[p], n = cmdName(c.key);
+    out.push(a === TAP ? `${n} tapped` : a === 7 ? `${n} let go, then tapped` : a === 3 ? `${n} let go and pressed again` : a & 2 ? `${n} pressed` : `${n} let go`);
+  });
+  return out.join(', ');
+}
+const COL = [176, 288, 400, 512], XR = [112, 344, 576];
+const DTOP = 32, DH = 50;
+function dksSvg(i) {
+  const s = P().slots[P().keys[i].data], live = sim[i], top = DTOP, dh = DH, Y = v => top + v / FULL * dh;
+  // The commands in use, and one row to add the next.
+  const free = s.cmds.findIndex(c => !c.key), rows = s.cmds.map((_, n) => n).filter(n => s.cmds[n].key || n === free);
+  const lane0 = top + dh + 18, lh = 24, H = lane0 + rows.length * lh + 1;
+  let t = `<svg class="dks" width="600" height="${H}" data-dks="${i}">`;
+  POINTS.forEach((n, p) => {
+    t += `<text x="${COL[p]}" y="11" text-anchor="middle" style="font-size:11.5px;fill:var(--muted)" data-tip="${esc(POINT_SAYS[p])}">${n}</text>`;
+    t += `<line x1="${COL[p]}" x2="${COL[p]}" y1="${Y(s.pts[p])}" y2="${H - 6}" stroke="var(--border)" stroke-dasharray="2 3"/>`;
+  });
+  {
+    t += `<line x1="${XR[0] - 8}" x2="${XR[2] + 8}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--border)"/><line x1="${XR[0] - 8}" x2="${XR[2] + 8}" y1="${Y(FULL)}" y2="${Y(FULL)}" stroke="var(--border)"/>`
+      + `<text x="${XR[0] - 14}" y="${Y(0) + 4}" text-anchor="end" style="font-size:10px;fill:var(--muted)">rest 0.0</text><text x="${XR[0] - 14}" y="${Y(FULL) + 4}" text-anchor="end" style="font-size:10px;fill:var(--muted)">bottom ${mm(FULL)}</text>`;
+    const pts = [[XR[0], 0], [COL[0], s.pts[0]], [COL[1], s.pts[1]], [XR[1], FULL], [COL[2], s.pts[2]], [COL[3], s.pts[3]], [XR[2], 0]];
+    t += `<polyline points="${pts.map(([x, v]) => `${x},${Y(v)}`).join(' ')}" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linejoin="round"/>`;
+    if (live.travel > 0) {                // where the key is now, on the way down or up
+      const up = live.st >= 3 && !live.down || live.st === 4, seg = up ? pts.slice(3) : pts.slice(0, 4);
+      for (let n = 0; n < 3; n++) {
+        const [xa, va] = seg[n], [xb, vb] = seg[n + 1], lo = Math.min(va, vb), hi = Math.max(va, vb);
+        if (live.travel >= lo && live.travel <= hi) { const f = vb === va ? 0 : (live.travel - va) / (vb - va); t += `<circle cx="${xa + (xb - xa) * f}" cy="${Y(live.travel)}" r="6" fill="var(--press)"/>`; break; }
+      }
+    }
+    POINTS.forEach((n, p) => {
+      t += `<circle class="handle" data-handle="${p}" cx="${COL[p]}" cy="${Y(s.pts[p])}" r="6.5" fill="var(--control)" stroke="var(--accent)" stroke-width="2.5" data-tip="Drag up or down, or turn the wheel: 0.1 mm at a time."/>`
+        + `<foreignObject x="${p === 0 ? COL[p] + 10 : p === 1 ? COL[p] - 72 : p === 2 ? COL[p] + 10 : COL[p] - 72}" y="${Y(s.pts[p]) + (p === 1 || p === 2 ? 2 : -18)}" width="62" height="19"><div xmlns="http://www.w3.org/1999/xhtml" class="ptv${p === 0 || p === 2 ? '' : ' r'}"><input data-ptv="${p}" value="${mm(s.pts[p])}" data-tip="Type a depth, ${p === 0 ? '0.2' : '0.1'} to ${mm(FULL)} mm, or turn the wheel."> mm</div></foreignObject>`;
+    });
+  }
+  rows.forEach((n, row) => {
+    const c = s.cmds[n], y = lane0 + row * lh + lh / 2, on = live.held.has(n) || performance.now() - (live.flash[n] || -1e9) < 180;
+    t += `<rect class="hit" data-slotkey="${n}" x="1" y="${y - 10.5}" width="84" height="21" rx="5" fill="${c.key ? 'var(--key)' : 'transparent'}" stroke="${state.slotPick === n ? 'var(--sel)' : 'var(--keyline)'}"${state.slotPick === n ? ' stroke-width="2.5"' : ''}${c.key ? '' : ' stroke-dasharray="3 3"'}/>`
+      + `<text x="43" y="${y + 4}" text-anchor="middle" style="font-size:11.5px;fill:var(${c.key ? '--text' : '--muted'});pointer-events:none">${c.key ? esc(cmdName(c.key)) : 'add a key'}</text>`;
+    if (!c.key) return;
+    t += `<line x1="${COL[0]}" x2="${COL[3]}" y1="${y}" y2="${y}" stroke="var(--border)"/>`;
+    const dragging = laneDrag && laneDrag.n === n && laneDrag.to !== laneDrag.from;
+    if (dragging) { const [f, g] = [laneDrag.anchor, laneDrag.to].sort((a, b) => a - b); t += `<rect x="${COL[f] - 9}" y="${y - 8}" width="${COL[g] - COL[f] + 18}" height="16" rx="8" fill="var(--accent)" opacity=".3" stroke="var(--accent)" stroke-dasharray="3 3"/>`; }
+    bars(c.acts).forEach(([f, g]) => {
+      if (dragging && laneDrag.bar && laneDrag.bar[0] === f && laneDrag.bar[1] === g) return;
+      t += f === g ? `<circle cx="${COL[f]}" cy="${y}" r="9" fill="var(--accent)" opacity="${on ? 1 : .8}"/><text x="${COL[f] + 13}" y="${y - 2}" style="font-size:9.5px;fill:var(--muted);pointer-events:none">tap</text>`
+        : `<rect x="${COL[f] - 9}" y="${y - 8}" width="${COL[g] - COL[f] + 18}" height="16" rx="8" fill="var(--accent)" opacity="${on ? 1 : .62}"/><text x="${(COL[f] + COL[f + 1]) / 2}" y="${y + 4}" text-anchor="middle" style="font-size:10px;fill:var(--accent-text);pointer-events:none">held</text>`;
+    });
+    COL.forEach((x, p) => {
+      const hit = bars(c.acts).find(([f, g]) => p >= f && p <= g), k = cmdName(c.key), name = POINTS[p];
+      const says = !hit ? `Click: tap ${k} at ${name}.\nDrag to another point: hold ${k} between them.` : hit[0] === hit[1] ? `Click: remove the tap.\nDrag to another point: hold ${k} instead.`
+        : p === hit[0] || p === hit[1] ? 'Click: remove the hold.\nDrag: move this end.' : 'Click: remove the hold.';
+      t += `<circle cx="${x}" cy="${y}" r="3.5" fill="var(--control)" stroke="var(--muted)" pointer-events="none"/>`
+        + `<rect class="hit" data-lane="${n}" data-pt="${p}" data-tip="${esc(says)}" x="${x - 30}" y="${y - 12}" width="60" height="24" fill="transparent"/>`
+        + `<circle class="ghost" cx="${x}" cy="${y}" r="9" fill="${hit ? 'none' : 'var(--accent)'}" fill-opacity=".25" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="3 2"/>`;
+    });
+  });
+  return t + '</svg>';
+}
+function dksWarn(s) {
+  const [a, d, o, b] = s.pts, w = [];
+  if (d <= a) w.push('Bottom In is not below Starting Trigger: both play at once.');
+  if (o > d && o < FULL) w.push(`Bottom Out, ${mm(o)} mm, is deeper than Bottom In: it plays only if the key went past ${mm(o)} mm.`);
+  if (o >= FULL) w.push('Bottom Out is at full travel: the key never goes past it, so Bottom Out and Bounce Back never play.');
+  if (b > a) w.push(`Bounce Back counts only above Starting Trigger: from ${mm(a - 1)} mm.`);
+  return w;
+}
+function dksHtml(i) {
+  const s = P().slots[P().keys[i].data];
+  let t = dksSvg(i);
+  // How to tap and how to hold, as a legend: Rico asked (2026-11-23), the sentence alone was not seen.
+  if (state.slotPick !== null) t += `<div style="display:flex;gap:8px;align-items:center;${s.cmds.some(c => !c.key) ? 'margin:-24px 0 0 100px;position:relative' : 'margin-top:4px'};font-size:12px"><span>Click a key on the board above, or press it.</span><button data-act="more">More keys…</button><button data-cmdkey=""${s.cmds[state.slotPick].key ? '' : ' disabled'}>Remove</button><button data-act="pickdone">Cancel</button></div>`;
+  else {
+  // On the row that adds a key, where there is one: no line of its own.
+  t += `<div style="display:flex;gap:16px;align-items:center;${s.cmds.some(c => !c.key) ? 'margin:-22px 0 0 100px;position:relative;width:fit-content' : 'margin-top:4px'};font-size:12px;min-height:18px">`
+    + `<span><svg width="14" height="14" style="display:inline-block;vertical-align:-2px"><circle cx="7" cy="7" r="6" fill="var(--accent)" opacity=".8"/></svg> <b>Click a point</b>: tap</span>`
+    + `<span><svg width="34" height="14" style="display:inline-block;vertical-align:-2px"><rect width="34" height="14" rx="7" fill="var(--accent)" opacity=".62"/></svg> <b>Drag to another</b>: hold</span>`
+    + `<span class="muted"><b>Click again</b>: remove</span>`
+    + `<span class="help" data-tip="Let go before Bottom In, the key releases everything and the last two points play nothing.\n\nIt sends these on every layer: the keymap is not used.\n\n${slotsUsed().size} of the 20 a profile can hold are used.">?</span></div>`;
+  }
+  t += dksWarn(s).map(w => `<div style="color:var(--warn);font-size:12px;margin-top:3px">${w}</div>`).join('');
+  return t;
+}
+function pickerHtml(i) {
+  const n = state.slotPick, s = P().slots[P().keys[i].data], u = 27;
+  let t = `<div class="pick"><div class="h"><b>Command ${n + 1}</b><span class="muted">Only ordinary keys and modifiers work here.</span><span style="margin-left:auto;display:flex;gap:6px"><button data-cmdkey=""${s.cmds[n].key ? '' : ' disabled'}>Remove</button><button data-act="pickdone">Close</button></span></div>`;
+  t += `<svg width="${BD.x1 * u}" height="${BD.y1 * u}" style="margin:0 auto">${SVGSTYLE}`;
+  KEYS.forEach(k => { const c = k.cell, nm = cmdName(c); t += `<rect class="k hit" style="cursor:pointer${s.cmds[n].key === c ? ';stroke:var(--sel);stroke-width:2.5' : ''}" data-cmdkey="${c}" x="${k.x * u + 1}" y="${k.y * u + 1}" width="${k.w * u - 2}" height="${k.h * u - 2}" rx="3"/><text class="lg" x="${k.x * u + k.w * u / 2}" y="${k.y * u + k.h * u / 2 + 3}" text-anchor="middle" style="font-size:${nm.length > 4 ? 7 : 9}px">${esc(nm)}</text>`; });
+  return t + '</svg></div>';
+}
+
+// ---------------------------------------------------------------------------------------------
+// Gamepad Analog.
+function boundTo(v) { return KEYS.map((_, i) => i).filter(i => P().keys[i].adv === PAD && P().keys[i].data === v); }
+function controllerSvg() {
+  const sel = selected.size === 1 ? P().keys[[...selected][0]] : null;
+  const ctl = (v, x, y, w, h) => {
+    const b = boundTo(v), cur = sel && sel.adv === PAD && sel.data === v, nm = b.map(i => KEYS[i].name).join(' '), col = cur ? 'var(--sel)' : 'var(--keyline)';
+    const g = `<rect x="${x - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="5" `;   // every control a tile, the stick presses too (Rico, 2026-11-23)
+    const lv = padLive() ? live.v[v] || 0 : 0;
+    const lit = lv > 0.02 ? `<rect x="${x - w / 2 + 1}" y="${y + h / 2 - 1 - (h - 2) * lv}" width="${w - 2}" height="${(h - 2) * lv}" rx="4" fill="var(--press)" opacity=".5" pointer-events="none"/>` : '';
+    return `${g}class="hit" style="cursor:pointer" data-gc="${v}" data-tip="${esc(gcLong(v) + (b.length ? `\nPlayed by ${b.map(i => KEYS[i].name).join(', ')}` : '\nNo key plays it'))}" fill="var(--key)" stroke="${col}" stroke-width="${cur ? 2.5 : 1}"/>`
+      + lit
+      + badgeSvg(gcName(v), x, y - 11.5, 'middle', !b.length)
+      + `<text x="${x}" y="${y + 10}" text-anchor="middle" style="font:700 ${nm.length > 4 ? 8 : 10}px Arimo,Arial;fill:var(--text);pointer-events:none">${esc(nm)}</text>`;
+  };
+  const cross = (cx, cy, vs, r = 30, w = 31, h = 27) => ctl(vs[0], cx, cy - r, w, h) + ctl(vs[1], cx, cy + r, w, h) + ctl(vs[2], cx - w - 3, cy, w, h) + ctl(vs[3], cx + w + 3, cy, w, h);
+  let f = `<svg id="controller" width="580" height="112" style="overflow:visible">`;
+  f += ctl(4, 48, 13, 54, 25) + ctl(17, 108, 13, 54, 25) + ctl(19, 230, 13, 44, 25) + ctl(27, 280, 13, 44, 25) + ctl(20, 330, 13, 44, 25) + ctl(18, 452, 13, 54, 25) + ctl(5, 512, 13, 54, 25);
+  f += cross(78, 72, [3, 2, 0, 1], 26, 31, 24) + ctl(21, 78, 72, 31, 24) + cross(212, 72, [23, 24, 25, 26], 26, 31, 24) + cross(348, 72, [9, 8, 6, 7], 26, 31, 24) + ctl(22, 348, 72, 31, 24) + cross(482, 72, [16, 13, 15, 14], 26, 31, 24);
+  return f + '</svg>';
+}
+// The gamepad as the computer receives it, live while testing. The K10 itself if the browser has it -- picked
+// by its own vendor and product among whatever controllers there are -- else the simulated keys.
+const LINEAR = [[0, 0], [11, 42], [23, 84], [35, 127]];   // both read on the board, set by the Launcher
+const SMOOTH = [[0, 0], [12, 19], [23, 48], [35, 127]];
+const copy = c => c.map(p => [...p]);
+let CURVE = copy(SMOOTH);
+const sameCurve = (a, b) => a.every(([x, y], n) => x === b[n][0] && y === b[n][1]);
+const PRESETS = [['Linear', LINEAR], ['Smooth', SMOOTH]];
+function onCurve(t) {   // the line; the board plays it 0.1 mm at a time
+  if (!t || t < CURVE[0][0]) return 0;
+  for (let n = 3; n > 0; n--) if (t >= CURVE[n - 1][0]) return Math.min(127, CURVE[n - 1][1] + (CURVE[n][1] - CURVE[n - 1][1]) * Math.min(1, (t - CURVE[n - 1][0]) / (CURVE[n][0] - CURVE[n - 1][0]))) / 127;
+  return 0;
+}
+const OURS = /3434.*0?ea7/i;
+function browserPads() { try { return [...navigator.getGamepads()].filter(Boolean); } catch (e) { return []; } }
+let live = { source: 'sim', v: {}, others: 0, kind: '' }, trail = { L: [], R: [] }, lastSig = '';
+// Values 0..1 by the firmware's numbers (GC): the half-axes, then the buttons.
+function readLive() {
+  const pads = browserPads(), own = pads.find(g => OURS.test(g.id)), v = {};
+  const half = (a, neg, pos) => { v[neg] = Math.max(0, -a); v[pos] = Math.max(0, a); };
+  if (own && own.mapping === 'standard') {          // Xbox Controller: the browser's standard layout
+    half(own.axes[0], 0, 1); half(-own.axes[1], 2, 3); half(own.axes[2], 6, 7); half(-own.axes[3], 8, 9);
+    v[4] = own.buttons[6].value; v[5] = own.buttons[7].value;
+    [0, 1, 2, 3, 4, 5, null, null, 8, 9, 10, 11, 12, 13, 14, 15].forEach((b, n) => { if (b !== null) v[{ 0: 13, 1: 14, 2: 15, 3: 16, 4: 17, 5: 18, 8: 19, 9: 20, 10: 21, 11: 22, 12: 23, 13: 24, 14: 25, 15: 26 }[n]] = own.buttons[n].value; });
+    if (own.buttons[16]) v[27] = own.buttons[16].value;
+  } else if (own) {                                 // Standard Controller: X Y Z Rx Ry Rz, 16 buttons
+    half(own.axes[0], 0, 1); half(-own.axes[1], 2, 3); half(own.axes[2], 4, 5); half(own.axes[3], 6, 7); half(-own.axes[4], 8, 9);
+    own.buttons.forEach((b, n) => { v[13 + n] = b.value; });
+  } else {                                          // simulated, as the firmware computes
+    KEYS.forEach((_, i) => {
+      const k = P().keys[i], t = sim[i].travel;
+      if (k.adv !== PAD || !t) return;
+      v[k.data] = Math.max(v[k.data] || 0, k.data > 12 ? (sim[i].pressed ? 1 : 0) : onCurve(t));
+    });
+    // Two keys of a stick at once: scaled back towards a circle, a little past it, as joystick_action() does.
+    for (const four of [[0, 1, 2, 3], [6, 7, 8, 9]]) { const len = Math.hypot(...four.map(n => v[n] || 0)); if (len > 1.15) four.forEach(n => { if (v[n]) v[n] *= 1.15 / len; }); }
+    // One axis for both triggers: the deeper counts.
+    if (v[4] && v[5]) v[v[4] >= v[5] ? 5 : 4] = 0;
+  }
+  live = { source: own ? 'board' : 'sim', v, others: pads.length - (own ? 1 : 0), kind: own ? (own.mapping === 'standard' ? 'Xbox Controller' : 'Standard Controller') : 'Standard Controller' };
+}
+const axis = (neg, pos) => (live.v[pos] || 0) - (live.v[neg] || 0);
+// Only while testing (Rico, 2026-11-23): a profile mixes gamepad keys and ordinary ones, and one rule for all of
+// them -- a press selects, with Test keys on it plays -- is the clear one. Always on was tried and dropped.
+const hasPadKeys = () => P().keys.some(k => k.adv === PAD);
+function padLive() { return state.testing && hasPadKeys(); }
+function padStep() {
+  if (!padLive()) return;
+  readLive();
+  const sig = JSON.stringify(live);
+  if (sig === lastSig) return;
+  lastSig = sig;
+  for (const [n, x, y] of [['L', axis(0, 1), axis(2, 3)], ['R', axis(6, 7), axis(8, 9)]]) { trail[n].push([x, y]); if (trail[n].length > 80) trail[n].shift(); }
+  redrawLive();
+}
+setInterval(padStep, 16);
+// One stick: the path it took, where it is, its two values in percent.
+function stickSvg(n, name) {
+  const [x, y] = n === 'L' ? [axis(0, 1), axis(2, 3)] : [axis(6, 7), axis(8, 9)], R = 29, c = R + 6, at = ([a, b]) => `${c + a * R},${c - b * R}`;
+  return `<span data-tip="${name}" style="display:flex;align-items:center;gap:3px"><svg width="${2 * c}" height="${2 * c}"><circle cx="${c}" cy="${c}" r="${R}" fill="var(--key)" stroke="var(--keyline)"/><line x1="${c - R}" x2="${c + R}" y1="${c}" y2="${c}" stroke="var(--border)"/><line y1="${c - R}" y2="${c + R}" x1="${c}" x2="${c}" stroke="var(--border)"/>`
+    + `<polyline points="${trail[n].map(at).join(' ')}" fill="none" stroke="var(--press)" opacity=".35" stroke-width="2"/><circle cx="${c + x * R}" cy="${c - y * R}" r="5" fill="var(--press)"/></svg>`
+    + `<span style="width:44px;font-size:11px;line-height:1.5;font-variant-numeric:tabular-nums">${badgeHtml(n)}<br>↔ ${Math.round(x * 100)} %<br>↕ ${Math.round(y * 100)} %</span></span>`;
+}
+function triggerBar(v, name) {
+  const f = live.v[v] || 0;
+  return `<span style="display:flex;flex-direction:column;align-items:center;gap:3px" data-tip="${gcLong(v)}, ${Math.round(f * 100)} %"><svg width="16" height="50"><rect x="2" y="2" width="12" height="46" rx="4" fill="var(--key)" stroke="var(--keyline)"/><rect x="3" y="${3 + 44 * (1 - f)}" width="10" height="${44 * f}" rx="3" fill="var(--press)" opacity=".6"/></svg>${badgeHtml(name)}</span>`;
+}
+function padTestHtml() {
+  const down = Object.keys(live.v).filter(k => k > 12 && live.v[k] > .5).map(k => gcName(+k));
+  const seen = state.seen === 'Yes' || live.source === 'board';
+  let t = `<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">`;
+  if (!seen) return t + `<div style="font-size:12px;line-height:1.5;color:var(--warn)">The computer does not see this board as a controller.</div>`
+    + `<div class="muted" style="font-size:12px;line-height:1.5">${state.recognised ? 'It is set to be seen: plug it in again.' : 'Controller Recognition Feature is off.'} Games get nothing from its gamepad keys until then.</div></div>`;
+  const shared = live.kind === 'Standard Controller' && boundTo(4).length && boundTo(5).length;
+  t += `<div style="font-size:12px;display:flex;gap:8px;align-items:center"><span><span class="muted">The computer receives a</span> <b>${live.kind}</b></span>`
+    + `<span class="help" data-tip="This board's own controller, by its vendor and product numbers${live.others ? `, not the ${live.others === 1 ? 'other one' : `${live.others} others`} plugged in` : ''}.${shared ? '\n\nAs a Standard Controller the two triggers share one axis: pressed together, only the deeper one counts. As an Xbox Controller each has its own.' : ''}${live.source === 'sim' ? '\n\nIn this mockup: simulated. Plug the K10 in and press one of its gamepad keys for the real one.' : ''}">?</span></div>`;
+  t += `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">${triggerBar(4, 'LT')}${stickSvg('L', 'Left stick')}${stickSvg('R', 'Right stick')}${triggerBar(5, 'RT')}</div>`;
+  return t + `<div style="font-size:12px;min-height:18px"><span class="muted">Buttons</span> ${down.length ? down.map(n => badgeHtml(n)).join(' ') : '<span class="muted">none</span>'}</div></div>`;
+}
+// ---------------------------------------------------------------------------------------------
+// The curve: travel across, what the stick gets up, in percent as the test says it.
+const CX = 40, CY = 9, CW = 320, CH = 128;
+let curveDrag = null;
+const px = x => CX + x / FULL * CW, py = y => CY + (1 - y / 127) * CH, pct = y => Math.round(y / 127 * 100);
+function thumb(c, w, h) { return `<svg width="${w}" height="${h}" style="display:inline-block;vertical-align:middle"><polyline points="${c.map(([x, y]) => `${2 + x / FULL * (w - 4)},${h - 2 - y / 127 * (h - 4)}`).join(' ')}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>`; }
+// The keys held that the curve plays: the sticks', and the triggers' but for an Xbox Controller's.
+function onCurveKey(i) { const k = P().keys[i]; return k.adv === PAD && k.data < 12 && !(state.xinput && (k.data === 4 || k.data === 5)); }
+function heldOnCurve() { return KEYS.map((_, i) => i).filter(i => state.testing && onCurveKey(i) && sim[i].travel > 0); }
+function plotSvg() {
+  const pts = CURVE.map(([x, y]) => `${px(x)},${py(y)}`).join(' '), dead = `${px(0)},${py(0)} ${px(CURVE[0][0])},${py(0)}`;
+  let t = `<svg class="plot" id="plot" width="${CX + CW + 12}" height="${CY + CH + 17}"><rect x="${CX}" y="${CY}" width="${CW}" height="${CH}" fill="var(--key)" stroke="var(--border)"/>`;
+  for (let n = 1; n < 4; n++) t += `<line x1="${CX}" x2="${CX + CW}" y1="${CY + CH * n / 4}" y2="${CY + CH * n / 4}" stroke="var(--border)" opacity=".6"/>`;
+  for (let m = 10; m < FULL; m += 10) t += `<line x1="${px(m)}" x2="${px(m)}" y1="${CY}" y2="${CY + CH}" stroke="var(--border)" opacity=".6"/>`;
+  const lab = (x, y, a, w) => `<text x="${x}" y="${y}" text-anchor="${a}" style="font:10px Arimo,Arial;fill:var(--muted);pointer-events:none">${w}</text>`;
+  t += lab(CX - 5, CY + 8, 'end', '100 %') + lab(CX - 5, CY + CH, 'end', '0');
+  for (let m = 0; m <= 30; m += 10) t += lab(px(m), CY + CH + 13, 'middle', m / 10);
+  t += lab(px(FULL) + 8, CY + CH + 13, 'end', `${mm(FULL)} mm`);
+  t += `<polygon points="${dead} ${pts} ${px(FULL)},${py(0)}" fill="var(--rt)" opacity=".13" pointer-events="none"/><polyline points="${dead} ${pts}" fill="none" stroke="var(--rt)" stroke-width="2" stroke-linejoin="round" pointer-events="none"/>`;
+  heldOnCurve().forEach(i => {
+    const x = px(sim[i].travel), y = py(onCurve(sim[i].travel) * 127);
+    t += `<line x1="${x}" x2="${x}" y1="${CY + CH}" y2="${y}" stroke="var(--press)" stroke-dasharray="2 3"/><line x1="${CX}" x2="${x}" y1="${y}" y2="${y}" stroke="var(--press)" stroke-dasharray="2 3"/><circle cx="${x}" cy="${y}" r="5" fill="var(--press)"/><text x="${x - 9}" y="${y - 6}" text-anchor="end" style="font:700 11px Arimo,Arial;fill:var(--press)">${esc(KEYS[i].name)}</text>`;
+  });
+  CURVE.forEach(([x, y], n) => {
+    const on = state.hot === n;
+    t += `<circle class="pt" data-pt4="${n}" cx="${px(x)}" cy="${py(y)}" r="6.5" fill="var(--control)" stroke="var(--rt)" stroke-width="${on ? 3.5 : 2.5}"/>`;
+  });
+  return t + '</svg>';
+}
+function sideHtml() {
+  let t = `<div class="presets">${PRESETS.map(([n, c], i) => `<div class="preset${sameCurve(CURVE, c) ? ' on' : ''}" data-preset="${i}">${thumb(c, 52, 28)}<div>${n}</div></div>`).join('')}`
+    + `<span class="help" data-tip="This setting is global for the whole board: the same in every profile.\n\nDrag a point. Under the first one the stick stays still: a dead zone.\n\nFor the sticks, and a Standard Controller's triggers; an Xbox Controller's triggers do not use it.">?</span></div>`;
+  t += `<div class="vals">${CURVE.map(([x, y], n) => `<input data-cv="${n}" data-ax="0" value="${mm(x)}"${n === 3 ? ' disabled data-tip="The bottom: it stays there."' : ''}><span class="muted">mm</span><input data-cv="${n}" data-ax="1" value="${pct(y)}" style="margin-left:6px"><span class="muted">%</span>`).join('')}</div>`;
+  return t;
+}
+function curveHtml() { return `<div class="curve" id="curve">${plotSvg()}<div class="side">${sideHtml()}</div></div>`; }
+// A point stays between its neighbours: 0.1 mm at least from each, never under the one before. The last
+// one's x stays the bottom.
+function setCurve(n, x, y) {
+  const lo = n ? CURVE[n - 1] : [-1, 0], hi = n < 3 ? CURVE[n + 1] : [FULL + 1, 127];
+  CURVE[n] = [n === 3 ? FULL : Math.max(lo[0] + 1, Math.min(hi[0] - 1, x)), Math.max(lo[1], Math.min(hi[1], y))];
+}
+function redrawCurve() { const c = document.getElementById('curve'); if (c) c.outerHTML = curveHtml(); }
+function curveSaved() { state.toast = `AMC_SET_CURVE ${CURVE.map(p => p.join(',')).join('  ')}, stored at once`; }
+function padHtml(list) {
+  const one = list.length === 1 && selected.size === 1, k = one ? P().keys[list[0]] : null;
+  let line = !selected.size ? hasPadKeys() ? 'Click a control to select the key that plays it, or a key on the board to give it a control.' : 'No key of this profile plays the gamepad. Click a key on the board to give it a control.' : !one ? 'Select one key to choose what it plays.'
+    : k.adv === PAD ? `Plays <b style="color:var(--text)">${gcLong(k.data)}</b>.` : 'Click the control it plays.';
+  const check = (flag, label, tip) => `<label data-tip="${tip}"><input type="checkbox" data-flag="${flag}"${state[flag] ? ' checked' : ''}> ${label}</label>`;
+  let t = `<div class="padset">`
+    + check('typing', 'Keyboard keys enabled', 'This setting is global for the whole board: the same in every profile.\n\nOn: a gamepad key also types its key. Off: it types nothing.\n\nThe Launcher: Enable or disable keyboard keys.')
+    + check('recognised', 'Controller Recognition Feature', 'This setting is global for the whole board: the same in every profile.\n\nOff: the computer does not see a controller, and the gamepad keys play nothing.\n\nTakes effect when the board is next plugged in.')
+    + `<span style="display:flex;gap:10px${state.recognised ? '' : ';opacity:.45'}">${[[false, 'Standard'], [true, 'Xbox']].map(([x, n]) => `<label data-tip="This setting is global for the whole board: the same in every profile.\n\n${x ? 'Xbox Controller: as games expect.' : 'Standard Controller: a plain joystick, for any program that reads one.'}\n\nTakes effect when the board is next plugged in."><input type="radio" name="xin" data-xin="${x ? 1 : 0}"${state.xinput === x ? ' checked' : ''}${state.recognised ? '' : ' disabled'}> ${n}</label>`).join('')}</span></div>`;
+  t += controllerSvg();
+  const how = k && k.adv === PAD && k.data <= 12 ? (k.data === 4 || k.data === 5 ? ' By how far the key goes down.' : ' By how far the key goes down, through the gamepad curve.') : '';
+  t += `<div style="display:flex;gap:16px;align-items:center;margin-top:5px;min-height:20px"><span class="words">${line}${how}</span>${k && k.adv === PAD && k.data > 12 ? slider('Actuation Distance', 'act', 1, FULL, list).replace('class="erow"', 'class="erow" style="margin:0 0 0 auto"').replace('class="lab"', 'class="lab" style="width:auto"') : ''}</div>`;
+  return t;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The panel.
+function slider(label, field, min, max, list) {
+  const v = common(list, i => P().keys[i][field]);
+  return `<div class="erow"><span class="lab">${label}</span><input type="range" min="${min}" max="${max}" value="${v === null ? Math.round((min + max) / 2) : v}" data-field="${field}"><span class="val${v === null ? ' mixed' : ''}">${v === null ? 'mixed' : `${mm(v)} mm`}</span></div>`;
+}
+// What is edited, its mode, Select All and Clear, on one line (2026-11-23: the lower part as short as can be). The profile is
+// the strip's, its full travel and Reset at the strip's end.
+function headLine(list) {
+  const n = selected.size, adv = KEYS.filter((_, i) => isAdv(i)).length;
+  const full = n ? `${n} key${n > 1 ? 's' : ''}: ${names([...selected], 30)}` : adv ? `All but the ${adv} keys with an advanced mode: select those to change them.` : `All ${KEYS.length} keys`;
+  const head = n === 1 ? `<b>${esc(KEYS[[...selected][0]].name)}</b>` : n ? `<b>${n} keys</b> <span class="muted">${esc(names([...selected], 5))}</span>` : adv ? `<b>${KEYS.length - adv} keys</b> <span class="muted">not the ${adv} advanced</span>` : `<b>All ${KEYS.length} keys</b>`;
+  return `<div class="hline"><span class="what" data-tip="${esc(state.want === 'curve' ? 'This setting is global for the whole board: the same in every profile.' : full)}">${state.want === 'curve' ? '<b>Sticks</b>' : head}</span>${modeSeg(list)}<span class="right"${state.want === 'curve' ? ' style="visibility:hidden"' : ''}><button data-act="selall">Select All</button><button data-act="clear"${n ? '' : ' disabled'}>Clear</button></span></div>`;
+}
+function modeSeg(list) {
+  let cur = common(list, modeOf);
+  if (state.want) cur = state.want;
+  const back = state.want === 'curve';
+  const seg = MODES.map(([m, label]) => {
+    const single = m === DKS || m === PAD, bad = (single && selected.size !== 1 && !(m === PAD && !selected.size)) || (m === TOGGLE && !selected.size);
+    const tip = bad ? (single ? 'Select one key: each has its own.' : 'Select the keys first.') : m === TOGGLE ? 'One press holds the key down, the next lets it go.' : m === DKS ? 'Up to four keys sent by one, at four points of its travel.' : m === PAD ? 'Plays a game controller.' : '';
+    return `<button class="${cur === m ? 'on' : ''}" data-mode="${m}"${bad && !back ? ' disabled' : ''}${back ? ' data-tip="Back to the keys: changes nothing."' : tip ? ` data-tip="${tip}"` : ''}>${label}</button>`;
+  }).join('');
+  const apart = `<span class="seg" style="margin-left:6px"><button data-tip="As built: not in this mockup.">SOCD</button><button class="${state.want === 'curve' ? 'on' : ''}" data-act="curve" data-tip="How far a stick goes for how far its key is pressed.">Curve</button></span>`;
+  return `<span class="seg${cur === null ? ' mixed' : ''}">${seg}</span>${apart}${cur === null && list.length ? '<span class="muted">mixed</span>' : ''}`;
+}
+function rapidWords(k) {
+  return k.mode === REGULAR ? `Pressed when it goes down past ${mm(k.act)} mm, released when it comes back above ${mm(Math.max(0, k.act - 3))} mm.`
+    : `Pressed at ${mm(k.act)} mm. From there, at any depth: released as soon as it comes up ${mm(k.rel)} mm, pressed again as soon as it goes down ${mm(k.press)} mm. Back above ${mm(Math.max(0, k.act - 3))} mm, it starts over.`;
+}
+function editorBody(list) {
+  if (state.want === 'curve') return curveHtml();
+  if (state.want === PAD) return padHtml(list);
+  const m = common(list, modeOf);
+  if (m === DKS && list.length === 1) return dksHtml(list[0]);
+  if (m === DKS) return `<div class="words">Select one key to see its commands.</div>`;
+  if (m === PAD) return padHtml(list);
+  if (m === TOGGLE) return slider('Actuation Distance', 'act', 1, FULL, list) + `<div class="words">Pressed once, the key stays down; pressed again, it is let go. It sends what the Keymap says.</div>`;
+  if (m > TOGGLE) return `<div class="words">A mode Nazg does not know (${m}), set with Keychron's Launcher: its Turbocharged or PDO, perhaps. Nazg leaves it as it is unless another mode is chosen here.</div>`;
+  let t = slider('Actuation Distance', 'act', 1, FULL, list);
+  if (m === RAPID) t += slider('(Press) Trigger Distance', 'press', 1, 20, list) + slider('(Release) Reset Distance', 'rel', 1, 20, list);
+  return t + `<div class="words">${m ? rapidWords(P().keys[list[0]]) : `These ${list.length} keys differ in their Mode.`}</div>`;
+}
+function testHtml() {
+  if (!state.testing) return `<div class="gauge" id="gauge"><div class="h" style="display:flex;align-items:center">Test<button style="margin-left:auto" data-act="test">Test keys</button></div><div class="muted" style="font-size:12px;line-height:1.5;margin-top:6px">Press keys on the board to see how far they go, and what they do with these settings. While testing, pressing a key does not select it.${hasPadKeys() ? ' The gamepad shows here too.' : ''}</div></div>`;
+  const i = followed !== null ? followed : null, h = `<div class="h" style="display:flex;align-items:center">Test<button class="on" style="margin-left:auto" data-act="test">Stop</button></div>`;
+  if (i === null) return `<div class="gauge" id="gauge">${h}<div class="muted" style="font-size:12px">Press a key on the board. <i>(Here: on your own keyboard.)</i></div>${padLive() ? padTestHtml() : ''}</div>`;
+  const s = sim[i], k = P().keys[i];
+  let extra = '';
+  if (k.adv === DKS) extra = `<div class="sent"><span class="muted">Sent</span> ${s.log.length ? s.log.map(esc).join(', ') : '<span class="muted">nothing yet</span>'}</div>`;
+  if (k.adv === TOGGLE) extra = `<div class="sent">${s.hold ? '<b style="color:var(--press)">held down</b>' : '<span class="muted">let go</span>'}</div>`;
+  return `<div class="gauge" id="gauge">${h}<div style="display:flex;align-items:center;gap:8px"><span class="kname">${esc(KEYS[i].name)}</span><span class="muted" style="white-space:nowrap">${mm(Math.floor(s.travel))} mm</span>`
+    + `<span style="flex:1;height:11px;border:1px solid var(--keyline);border-radius:6px;background:var(--key);overflow:hidden"><span style="display:block;height:100%;width:${s.travel / FULL * 100}%;background:var(--press);opacity:${s.pressed ? .6 : .3}"></span></span><b style="color:var(--press);width:48px;font-size:12px">${s.pressed ? 'pressed' : ''}</b></div>${extra}${padLive() ? padTestHtml() : ''}</div>`;
+}
+function panelHtml() {
+  const list = target(), one = list.length === 1;
+  let t = headLine(list);
+  t += `<div class="cols"><div class="editor">${editorBody(list)}</div>${testHtml()}</div>`;
+  if (state.slotPick !== null && state.more && one && selected.size && P().keys[list[0]].adv === DKS) t += pickerHtml(list[0]);
+  return t;
+}
+function columnHtml() {
+  return `<div class="col"><div class="hdr">VIA</div><div class="entry">Keymap</div><div class="entry">Macros</div><div class="sep"></div><div class="hdr">Board</div><div class="entry">Lighting</div>`
+    + '<div class="entry on">Switches</div>'
+    + `<div class="sep"></div><div class="hdr">Tools</div><div class="entry">Matrix view</div><div class="entry">Device</div></div>`;
+}
+function stripHtml() {
+  return PNAMES.map((n, i) => `<button class="${state.profile === i ? 'on' : ''}" data-prof="${i}"${state.profile === i ? ' data-tip="The board uses this profile"' : ''}>${state.profile === i ? '<span class="dot">●</span>' : ''}${n}</button>`).join('')
+    + `<span style="margin-left:auto;display:flex;gap:14px;font-size:12px"><span class="muted">Full travel ${mm(FULL)} mm <i>(estimated)</i></span><span class="link">Reset profile…</span></span>`;
+}
+function render() {
+  document.documentElement.dataset.theme = state.theme.toLowerCase();
+  renderControls();
+  document.getElementById('frame').innerHTML = `<div class="menubar"><span class="board">Keychron K10 HE ANSI ▾</span><span class="muted">VIA</span><span class="right">Settings</span></div>`
+    + `<div class="body">${columnHtml()}<div class="main"><div class="strip">${stripHtml()}</div><div class="boardarea">${boardSvg()}</div><div class="panel" id="panel">${panelHtml()}</div></div></div>`;
+}
+function redrawBoard() { const g = document.getElementById('keys'); if (g) g.innerHTML = KEYS.map(keySvg).join(''); }
+function redrawLive() {
+  redrawBoard();
+  const g = document.getElementById('gauge'); if (g) g.outerHTML = testHtml();
+  const pad = document.getElementById('controller'); if (pad) pad.outerHTML = controllerSvg();
+  const pl = document.getElementById('plot'); if (pl && curveDrag === null) pl.outerHTML = plotSvg();
+  const d = document.querySelector('svg[data-dks]'); if (d) d.outerHTML = dksSvg(+d.dataset.dks);
+}
+function redraw() { document.getElementById('panel').innerHTML = panelHtml(); redrawBoard(); renderControls(); }
+function renderControls() {
+  const c = document.getElementById('controls'); c.innerHTML = '';
+  [['theme', 'Theme', ['Light', 'Dark']]].forEach(([k, name, values]) => {
+    const g = document.createElement('div'); g.className = 'group'; g.innerHTML = `<span class="name">${name}</span>`;
+    values.forEach(v => { const b = document.createElement('button'); b.textContent = v; if (state[k] === v) b.className = 'on'; b.onclick = () => { state[k] = v; render(); }; g.appendChild(b); });
+    c.appendChild(g);
+  });
+  const t = document.createElement('span'); t.className = 'toast'; t.textContent = state.toast; c.appendChild(t);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Events.
+const frame = document.getElementById('frame'), tip = document.getElementById('tip');
+let handleDrag = null, laneDrag = null;
+function toggleKey(i) { if (state.want === 'curve') return; selected.has(i) ? selected.delete(i) : selected.add(i); if (state.want !== PAD) state.want = null; state.slotPick = null; state.toast = ''; }
+// Starting Trigger is never under 0.2 mm: the firmware lets the key go below it less 0.1 mm, and nothing
+// is below 0.0 (okmc_action).
+function setPoint(p, v) { theDks().pts[p] = Math.max(p === 0 ? 2 : 1, Math.min(FULL, v)); }
+// What the command being chosen sends: clicked on the board, pressed, or -- for a key the board does not
+// have -- from the picker in a popup (Rico, 2026-11-23: a keyboard in a popup was too small).
+function pickCommand(cell) {
+  const c = theDks().cmds[state.slotPick];
+  if (cell === '5,11') { state.toast = 'Fn sends no ordinary key: choose another'; return; }
+  if (!cell) Object.assign(c, { key: null, acts: [0, 0, 0, 0] });
+  else { if (!c.key) c.acts = actsOf([[0, 3]]); c.key = cell; }
+  state.slotPick = null; state.more = false; saved('AMC_SET_ADVANCE_MODE DKS');
+}
+function theDks() { const i = [...selected][0]; return P().slots[P().keys[i].data]; }
+frame.addEventListener('mousedown', ev => {
+  const t = ev.target;
+  if (t.dataset.pt4 !== undefined) { curveDrag = +t.dataset.pt4; state.hot = curveDrag; ev.preventDefault(); redrawCurve(); }
+  if (t.dataset.handle !== undefined) { handleDrag = { p: +t.dataset.handle }; ev.preventDefault(); }
+  if (t.dataset.lane !== undefined) {
+    const n = +t.dataset.lane, p = +t.dataset.pt, bar = bars(theDks().cmds[n].acts).find(([f, g]) => f !== g && (p === f || p === g));
+    laneDrag = { n, from: p, to: p, bar, anchor: bar ? (p === bar[0] ? bar[1] : bar[0]) : p };
+    ev.preventDefault();
+  }
+});
+window.addEventListener('mousemove', ev => {
+  if (curveDrag !== null) {
+    const r = document.getElementById('plot').getBoundingClientRect();
+    setCurve(curveDrag, Math.round((ev.clientX - r.left - CX) / CW * FULL), Math.round((1 - (ev.clientY - r.top - CY) / CH) * 127));
+    redrawCurve();
+  }
+  if (handleDrag) {
+    const svg = document.querySelector('svg[data-dks]'), y = ev.clientY - svg.getBoundingClientRect().top;
+    setPoint(handleDrag.p, Math.round((y - DTOP) / DH * FULL));
+    redrawLive();
+  }
+  if (laneDrag) {
+    const svg = document.querySelector('svg[data-dks]'), x = ev.clientX - svg.getBoundingClientRect().left;
+    laneDrag.to = COL.reduce((best, c, p) => Math.abs(c - x) < Math.abs(COL[best] - x) ? p : best, 0);
+    redrawLive();
+  }
+});
+window.addEventListener('mouseup', () => {
+  if (curveDrag !== null) { curveDrag = null; curveSaved(); redraw(); }
+  if (handleDrag) { handleDrag = null; saved('AMC_SET_ADVANCE_MODE DKS'); redraw(); }
+  if (laneDrag) {
+    const { n, from, to, bar, anchor } = laneDrag, c = theDks().cmds[n], list = bars(c.acts); laneDrag = null;
+    if (from === to) {
+      const hit = list.findIndex(([a, b]) => from >= a && from <= b);
+      if (hit >= 0) list.splice(hit, 1); else list.push([from, from]);
+      c.acts = actsOf(list.sort((a, b) => a[0] - b[0]));
+    } else {
+      // The new bar, or the one whose end was dragged; what it covers goes, what it only touches stays.
+      const [f, g] = [anchor, to].sort((a, b) => a - b);
+      const rest = list.filter(([a, b]) => !(bar && a === bar[0] && b === bar[1]) && (b < f || a > g || (f !== g && a !== b && (b === f || a === g))));
+      c.acts = actsOf([...rest, [f, g]].sort((a, b) => a[0] - b[0]));
+    }
+    saved('AMC_SET_ADVANCE_MODE DKS'); redraw();
+  }
+});
+frame.addEventListener('click', ev => {
+  const t = ev.target.closest('button,[data-preset],[data-key],[data-gc],[data-slotkey],[data-cmdkey]') || ev.target, d = t.dataset;
+  if (d.key !== undefined && state.slotPick !== null) { pickCommand(KEYS[+d.key].cell); redraw(); }
+  else if (d.key !== undefined) { toggleKey(+d.key); redraw(); }
+  else if (d.prof !== undefined) { state.profile = +d.prof; selected.clear(); if (state.want !== 'curve') state.want = null; state.slotPick = null; sim.forEach(s => { s.st = 0; s.held.clear(); s.hold = false; }); trail = { L: [], R: [] }; lastSig = ''; readLive(); state.toast = 'AMC_SELECT_PROFILE'; render(); }
+  else if (d.mode !== undefined) { setMode(+d.mode); redraw(); }
+  else if (d.gc !== undefined) { setControl(+d.gc); redraw(); }
+  else if (d.slotkey !== undefined) { state.slotPick = state.slotPick === +d.slotkey ? null : +d.slotkey; redraw(); }
+  else if (d.cmdkey !== undefined) { pickCommand(d.cmdkey); redraw(); }
+  else if (d.act === 'more') { state.more = true; redraw(); }
+  else if (d.preset !== undefined) { CURVE = copy(PRESETS[+d.preset][1]); curveSaved(); redraw(); }
+  else if (d.act === 'curve') { state.want = 'curve'; redraw(); }
+  else if (d.act === 'test') { state.testing = !state.testing; followed = null; trail = { L: [], R: [] }; lastSig = ''; if (state.testing) readLive(); else sim.forEach(s => { s.down = false; s.travel = 0; s.pressed = false; }); redraw(); }
+  else if (d.act === 'pickdone') { state.slotPick = null; state.more = false; redraw(); }
+  else if (d.act === 'clear') { selected.clear(); state.want = null; state.slotPick = null; redraw(); }
+  else if (d.act === 'selall') { KEYS.forEach((_, i) => selected.add(i)); state.want = null; redraw(); }
+});
+frame.addEventListener('input', ev => {
+  const d = ev.target.dataset, v = ev.target.parentElement.querySelector('.val');
+  if (d.field && v) { v.textContent = `${mm(+ev.target.value)} mm`; v.classList.remove('mixed'); }
+});
+frame.addEventListener('change', ev => {
+  const d = ev.target.dataset;
+  if (d.field) { target().forEach(i => { P().keys[i][d.field] = +ev.target.value; }); saved('AMC_SET_TRAVAL'); redraw(); }
+  if (d.cv !== undefined) {
+    const v = parseFloat(ev.target.value.replace(',', '.')), n = +d.cv;
+    if (!Number.isNaN(v)) { d.ax === '0' ? setCurve(n, Math.round(v * 10), CURVE[n][1]) : setCurve(n, CURVE[n][0], Math.round(v / 100 * 127)); curveSaved(); }
+    redraw();
+  }
+  if (d.ptv !== undefined) {
+    const v = Math.round(parseFloat(ev.target.value.replace(',', '.')) * 10);
+    if (!Number.isNaN(v)) { setPoint(+d.ptv, v); saved('AMC_SET_ADVANCE_MODE DKS'); }
+    redraw();
+  }
+  if (d.xin !== undefined) { state.xinput = d.xin === '1'; state.toast = 'AMC_SET_GAME_CONTROLLER_MODE, stored at once'; redraw(); }
+  if (d.flag) { state[d.flag] = ev.target.checked; state.toast = 'AMC_SET_GAME_CONTROLLER_MODE, stored at once'; redraw(); }
+});
+frame.addEventListener('mousemove', ev => {
+  const t = ev.target.closest('[data-tip]');
+  const hot = curveDrag !== null ? curveDrag : ev.target.dataset.pt4 !== undefined ? +ev.target.dataset.pt4 : null;
+  if (hot !== state.hot) { state.hot = hot; const pl = document.getElementById('plot'); if (curveDrag === null && pl) pl.outerHTML = plotSvg(); }
+  const gc = ev.target.dataset.gc, hov = gc !== undefined ? (boundTo(+gc)[0] ?? null) : null;
+  if (hov !== state.hover) { state.hover = hov; redrawBoard(); }
+  if (!t || handleDrag || laneDrag || curveDrag !== null) { tip.style.display = 'none'; return; }
+  tip.textContent = t.dataset.tip; tip.style.display = 'block';
+  tip.style.left = Math.min(ev.clientX + 14, window.innerWidth - 400) + 'px'; tip.style.top = ev.clientY + 16 + 'px';
+});
+// The wheel moves a point as the circle moves: up is shallower.
+frame.addEventListener('wheel', ev => {
+  const cv = ev.target.dataset.cv;
+  if (cv !== undefined && !ev.target.disabled) {
+    ev.preventDefault();
+    const n = +cv, up = -Math.sign(ev.deltaY), y = CURVE[n][1];
+    if (ev.target.dataset.ax === '0') setCurve(n, CURVE[n][0] + up, y); else setCurve(n, CURVE[n][0], Math.round((pct(y) + up) * 1.27));
+    curveSaved(); redraw(); return;
+  }
+  const p = ev.target.dataset.handle ?? ev.target.dataset.ptv;
+  if (p === undefined) return;
+  ev.preventDefault();
+  setPoint(+p, theDks().pts[+p] + Math.sign(ev.deltaY)); saved('AMC_SET_ADVANCE_MODE DKS'); redraw();
+}, { passive: false });
+frame.addEventListener('keydown', ev => { if ((ev.target.dataset.ptv !== undefined || ev.target.dataset.cv !== undefined) && ev.key === 'Enter') ev.target.blur(); });
+frame.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+window.addEventListener('keydown', ev => {
+  if (/INPUT|SELECT/.test(ev.target.tagName) && ev.target.type !== 'checkbox' && ev.target.type !== 'range') return;
+  const i = BY_CODE.get(ev.code);
+  if (i === undefined) return;
+  ev.preventDefault();
+  if (ev.repeat) return;
+  if (state.testing) { sim[i].down = true; followed = i; return; }
+  if (state.slotPick !== null) pickCommand(KEYS[i].cell); else toggleKey(i);
+  redraw();
+});
+window.addEventListener('keyup', ev => { const i = BY_CODE.get(ev.code); if (i !== undefined) { ev.preventDefault(); sim[i].down = false; } });
+window.addEventListener('blur', () => sim.forEach(s => { s.down = false; }));
+
+document.getElementById('notes').innerHTML = `
+<p><b>Try it</b>: drag the points, click Linear or Smooth, then <b>Test keys</b> and hold W, A, S, D (or U, H, J, K) on your own keyboard: each key held
+is a dot on the curve.</p>
+<p><b>Beside the modes</b> (Rico): after SOCD, as the Launcher's tabs have it -- it is not one key's mode either. On every profile, as in the Launcher: it is the whole board's.
+Nothing is selected; a mode button goes back to the keys and changes nothing, as from SOCD; the keys the curve plays are lit. The panel keeps its height.</p>
+<p><b>The values beside the curve</b> (Rico), typed or turned with the wheel.</p>
+<p><b>A point stays between its neighbours</b>, 0.1 mm from each and never below the one before: the firmware would refuse for ever after a curve whose travels do
+not ascend. The last one stays at the bottom, 3.5 mm; the third raised to 100 % does what moving it would. Output in percent, as the test says it, not the
+Launcher's 0 to 127. Written when a point is let go: no Save Curvature.</p>`;
+
+render();
+</script>
+</body>
+</html>

@@ -2729,8 +2729,8 @@ Keychron's Launcher**: changes made back and forth in both, each shown right by 
 ### Round two: advanced keys
 
 *Begun 2026-11-23, scope chosen by Rico: One Key Multiple Commands (DKS), Long-Press Switch (the
-firmware's toggle) and Gamepad Analog. SOCD followed ("SOCD", below); the gamepad curve and
-calibration come later. Rico still has the K10 HE V3 for a while.* The mockup:
+firmware's toggle) and Gamepad Analog. SOCD followed ("SOCD", below), then the gamepad curve;
+calibration comes later. Rico still has the K10 HE V3 for a while.* The mockup:
 [ui-design/switches-advanced-keys.html](ui-design/switches-advanced-keys.html). **The
 design is complete, and built.**
 
@@ -2779,8 +2779,10 @@ Controller:
   path they took -- fading in half a second (Rico: lines that stayed were not wanted) -- and their percent, both triggers, the buttons; the controller drawing and the board's keys
   fill as they go. **Always on was tried and dropped** (Rico, the same day): the profile mixes gamepad keys
   and ordinary ones, and a press playing one and selecting the other is confusing. One rule for every key:
-  a press selects, with Test keys on it plays. Gamepad Analog can be chosen with no key selected where the
-  profile has gamepad keys, to see the controller.
+  a press selects, with Test keys on it plays. **Gamepad Analog opens with no key selected, on any
+  profile** (Rico, 2026-11-24; at first only where the profile had gamepad keys), to see the controller and its
+  settings: a key clicked then is given a control. With none selected a mode button goes back and changes
+  nothing, as from SOCD and the curve -- it would change every key.
 - **It says when the computer does not see the board as a controller**, and why: Controller Recognition
   off, or set and not plugged in again.
 - **It says what Standard Controller costs**: the two triggers share one axis (`joystick_action()`), the
@@ -2900,6 +2902,44 @@ leaves out says why: a One Key Multiple Commands key, a Gamepad Analog one with 
 *Built 2026-11-23*: `adapters/keychron/NazgKeychronSocd.*`, `ui/NazgSocdEditor.*`, the rest in the section.
 **Seen working on the K10 HE V3 by Rico** the same day, the Launcher reading the values Nazg wrote, six pairs
 included, which it lists under "6/5".
+
+### The gamepad curve
+
+*2026-11-24, on the K10 HE V3.* How far a stick goes for how far its key is pressed: four points, the whole
+board's. The wire, the Launcher's Linear and Smooth and how the board plays a curve are keychron-commands.md,
+"Game controller" and "Keychron's guides", read and played on the board that day. The mockup:
+[ui-design/switches-curve.html](ui-design/switches-curve.html).
+
+**Rico's choices** (2026-11-24):
+- **Beside the modes**, *Curve* after *SOCD*, as the Launcher's tabs have it, **on every profile**, as there
+  (Rico, once built; the mockup had it where the profile has gamepad keys): it is the whole board's, and stays
+  shown when the profile changes. The panel keeps its height (218 px in the mockup). A button of Gamepad Analog turning the controller
+  into the curve (237 px), and the curve under the controller (381 px), were the others.
+- **The values beside the curve**, always, typed or turned with the wheel; the Launcher shows none. Only on the
+  point pointed at was the other.
+
+And, in the mockup he chose from:
+- **Linear and Smooth**, the Launcher's two, drawn; lit when the board holds that curve.
+- **The output in percent**, as the gamepad's test says it, not the Launcher's 0 to 127.
+- **Written when a point is let go**; the Launcher has Save Curvature for what is dragged, not for its presets.
+- **A point stops 0.1 mm short of its neighbours and never goes below the one before**: a curve whose travels do
+  not ascend could never be replaced (keychron-commands.md). **The last point stays at the bottom**: its travel is
+  how Nazg knows the board's, and the third point at 100 % does what moving it would. The first point's travel
+  is the dead zone.
+- **From the curve a mode button goes back to the keys and changes nothing**, as from SOCD; clicks and presses
+  select nothing there. **The keys the curve plays are lit**: the sticks', and a Standard Controller's triggers --
+  an Xbox Controller's do not use it, as the **?** says. Nazg used to say that no trigger goes through the
+  curve.
+- **That it is the whole board's comes first** in its tooltip, as in the gamepad's settings' (Rico, after trying it: "The
+  whole board, every profile" at their end was not clear): "This setting is global for the whole board: the same
+  in every profile."
+- **In Test keys the key followed is a dot on the curve.** It follows the line, read in 1/60 mm and at every
+  frame: drawn at the 0.1 mm steps the board plays it jumped (Rico). `CurveOutput()` is tested on the 36 outputs
+  recorded that day; what the computer receives is the test's.
+
+*Built 2026-11-24*: `adapters/keychron/NazgKeychronCurve.*`, `ui/NazgCurveEditor.*`, the rest in the section.
+The drawing, drags, typing and presets checked off screen, **then seen working on the K10 HE V3 by Rico** the same
+day.
 
 ### Left from round one
 

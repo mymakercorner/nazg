@@ -313,8 +313,6 @@ namespace nazg::keychron
         bool operator==(const CurvePoint&) const = default;
     };
 
-    using Curve = CurvePoint[4];
-
     // 0xA9 0x30, one key as the firmware sees it.
     struct RealtimeTravel
     {
@@ -414,6 +412,11 @@ namespace nazg::keychron
         // sends the request back -- so the mode is read again, and what the board holds returned.
         [[nodiscard]] Task<uint8_t> GetGamepadMode();
         [[nodiscard]] Task<uint8_t> SetGamepadMode(uint8_t mode);
+
+        // 0xA9 0x21: the gamepad curve, the whole board's, stored at once; then read again, and what the
+        // board holds returned. std::invalid_argument for a curve IsWritableCurve() (NazgKeychronCurve.h)
+        // refuses: the firmware would take it, and no other after it.
+        [[nodiscard]] Task<std::vector<CurvePoint>> SetCurve(std::vector<CurvePoint> curve);
 
         // 0xA9 0x1F: stores `profile` as it is in RAM.
         [[nodiscard]] Task<void> SaveProfile(uint8_t profile);

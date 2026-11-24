@@ -11,6 +11,7 @@
 
 #include "adapters/NazgByteOrder.h"
 #include "adapters/NazgProtocolError.h"
+#include "adapters/keychron/NazgKeychronCurve.h"
 
 namespace nazg::keychron
 {
@@ -286,6 +287,21 @@ namespace nazg::keychron
         for (size_t i = 0; i < 4; ++i)
             curve[i] = CurvePoint{ reply[2 + 2 * i], reply[3 + 2 * i] };
         co_return curve;
+    }
+
+    Task<std::vector<CurvePoint>> Protocol::SetCurve(std::vector<CurvePoint> curve)
+    {
+        if (!IsWritableCurve(curve))
+            throw std::invalid_argument("Keychron: a curve's points must each be further down than the one before");
+
+        std::vector<uint8_t> request = MakeRequest(Command::AnalogMatrix, static_cast<uint8_t>(Analog::SetCurve));
+        for (size_t point = 0; point < curve.size(); ++point)
+        {
+            request[2 + 2 * point] = curve[point].x;
+            request[3 + 2 * point] = curve[point].y;
+        }
+        RequireSuccess(co_await SendFrame(std::move(request), true, c_EchoedGroup), "writing the gamepad curve");
+        co_return co_await GetCurve();
     }
 
     Task<RealtimeTravel> Protocol::GetRealtimeTravel(uint8_t row, uint8_t column)

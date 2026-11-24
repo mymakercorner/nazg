@@ -260,6 +260,7 @@ const slotsUsed = () => new Set(P().keys.filter(k => k.adv === DKS).map(k => k.d
 function saved(what) { state.toast = `${what}, then AMC_SAVE_PROFILE`; }
 
 function setMode(m) {
+  if (state.want === PAD && !selected.size) { state.want = m === PAD ? PAD : null; return; }   // back to the keys: changes nothing
   const list = target();
   state.want = null; state.slotPick = null;
   if (m === REGULAR || m === RAPID) {
@@ -572,13 +573,13 @@ function padTestHtml() {
 }
 function padHtml(list) {
   const one = list.length === 1 && selected.size === 1, k = one ? P().keys[list[0]] : null;
-  let line = !selected.size ? 'Click a control to select the key that plays it, or a key on the board to give it a control.' : !one ? 'Select one key to choose what it plays.'
+  let line = !selected.size ? hasPadKeys() ? 'Click a control to select the key that plays it, or a key on the board to give it a control.' : 'No key of this profile plays the gamepad. Click a key on the board to give it a control.' : !one ? 'Select one key to choose what it plays.'
     : k.adv === PAD ? `Plays <b style="color:var(--text)">${gcLong(k.data)}</b>.` : 'Click the control it plays.';
   const check = (flag, label, tip) => `<label data-tip="${tip}"><input type="checkbox" data-flag="${flag}"${state[flag] ? ' checked' : ''}> ${label}</label>`;
-  let t = `<div class="padset" data-tip="The whole board, every profile.">`
-    + check('typing', 'Keyboard keys enabled', 'On: a gamepad key also types its key. Off: it types nothing.\n\nThe Launcher: Enable or disable keyboard keys.\n\nThe whole board, every profile.')
-    + check('recognised', 'Controller Recognition Feature', 'Off: the computer does not see a controller, and the gamepad keys play nothing.\n\nTakes effect when the board is next plugged in. The whole board, every profile.')
-    + `<span style="display:flex;gap:10px${state.recognised ? '' : ';opacity:.45'}">${[[false, 'Standard'], [true, 'Xbox']].map(([x, n]) => `<label data-tip="${x ? 'Xbox Controller: as games expect.' : 'Standard Controller: a plain joystick, for any program that reads one.'}\n\nTakes effect when the board is next plugged in."><input type="radio" name="xin" data-xin="${x ? 1 : 0}"${state.xinput === x ? ' checked' : ''}${state.recognised ? '' : ' disabled'}> ${n}</label>`).join('')}</span></div>`;
+  let t = `<div class="padset">`
+    + check('typing', 'Keyboard keys enabled', 'This setting is global for the whole board: the same in every profile.\n\nOn: a gamepad key also types its key. Off: it types nothing.\n\nThe Launcher: Enable or disable keyboard keys.')
+    + check('recognised', 'Controller Recognition Feature', 'This setting is global for the whole board: the same in every profile.\n\nOff: the computer does not see a controller, and the gamepad keys play nothing.\n\nTakes effect when the board is next plugged in.')
+    + `<span style="display:flex;gap:10px${state.recognised ? '' : ';opacity:.45'}">${[[false, 'Standard'], [true, 'Xbox']].map(([x, n]) => `<label data-tip="This setting is global for the whole board: the same in every profile.\n\n${x ? 'Xbox Controller: as games expect.' : 'Standard Controller: a plain joystick, for any program that reads one.'}\n\nTakes effect when the board is next plugged in."><input type="radio" name="xin" data-xin="${x ? 1 : 0}"${state.xinput === x ? ' checked' : ''}${state.recognised ? '' : ' disabled'}> ${n}</label>`).join('')}</span></div>`;
   t += controllerSvg();
   const how = k && k.adv === PAD && k.data <= 12 ? (k.data === 4 || k.data === 5 ? ' By how far the key goes down.' : ' By how far the key goes down, through the gamepad curve.') : '';
   t += `<div style="display:flex;gap:16px;align-items:center;margin-top:5px;min-height:20px"><span class="words">${line}${how}</span>${k && k.adv === PAD && k.data > 12 ? slider('Actuation Distance', 'act', 1, FULL, list).replace('class="erow"', 'class="erow" style="margin:0 0 0 auto"').replace('class="lab"', 'class="lab" style="width:auto"') : ''}</div>`;
@@ -603,7 +604,7 @@ function modeSeg(list) {
   let cur = common(list, modeOf);
   if (state.want) cur = state.want;
   const seg = MODES.map(([m, label]) => {
-    const single = m === DKS || m === PAD, bad = (single && selected.size !== 1 && !(m === PAD && !selected.size && hasPadKeys())) || (m === TOGGLE && !selected.size);
+    const single = m === DKS || m === PAD, bad = (single && selected.size !== 1 && !(m === PAD && !selected.size)) || (m === TOGGLE && !selected.size);
     const tip = bad ? (single ? 'Select one key: each has its own.' : 'Select the keys first.') : m === TOGGLE ? 'One press holds the key down, the next lets it go.' : m === DKS ? 'Up to four keys sent by one, at four points of its travel.' : m === PAD ? 'Plays a game controller.' : '';
     return `<button class="${cur === m ? 'on' : ''}" data-mode="${m}"${bad ? ' disabled' : ''}${tip ? ` data-tip="${tip}"` : ''}>${label}</button>`;
   }).join('');
@@ -680,7 +681,7 @@ function renderControls() {
 // Events.
 const frame = document.getElementById('frame'), tip = document.getElementById('tip');
 let handleDrag = null, laneDrag = null;
-function toggleKey(i) { selected.has(i) ? selected.delete(i) : selected.add(i); state.want = null; state.slotPick = null; state.toast = ''; }
+function toggleKey(i) { selected.has(i) ? selected.delete(i) : selected.add(i); if (state.want !== PAD) state.want = null; state.slotPick = null; state.toast = ''; }
 // Starting Trigger is never under 0.2 mm: the firmware lets the key go below it less 0.1 mm, and nothing
 // is below 0.0 (okmc_action).
 function setPoint(p, v) { theDks().pts[p] = Math.max(p === 0 ? 2 : 1, Math.min(FULL, v)); }

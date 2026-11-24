@@ -787,8 +787,14 @@ same x keep the slope they had. Re-read 2026-11-23, two traps:
   on the curve already there.
 - **At power-up the slopes are not computed** (`game_controller_curve_init()`), but for the built-in default, used
   when every y is 0. By the source, then, a stored curve plays **in steps** -- each point's y held to the next --
-  from the moment the board is plugged in until a curve is set again. To try on the K10 HE V3, whose build is
-  newer.
+  from the moment the board is plugged in until a curve is set again. **Not so on the K10 HE V3** (firmware
+  v1.0.0 of 2026-07-17; 2026-11-24): replugged, its stored curve set by nothing since, W pressed slowly three
+  times, `0xA9 0x30` read beside Windows' joystick -- the straight line, 0.3 from it on average over 127, at every
+  travel. An older build, or another board, may still step: setting the curve again cures it.
+
+**Played in steps of 0.1 mm**, as the same recording shows: 36 outputs over the 3.5 mm, the field's own unit and
+not the 1/60 mm one. With its first point at 0 the axis leaves the centre at 0.1 mm of travel, 3 of 127: the first
+point's x is the dead zone, the output being 0 under it.
 
 ### Live readout
 
@@ -918,6 +924,12 @@ rest, `0x02` bottom), `[3]` the state (0 off, 1 power-up, 2 rest, 3 bottom, 4 st
   source has it. / and ' press buttons 0 and 1, Up button 10. All as "Gamepad" numbers them.
 - **The curve, changed by Rico in the Launcher** that day: (0, 0) (8, 31) (26, 95) (35, 127) before,
   (0, 0) (11, 42) (23, 84) (35, 127) after, a straight line. The board's stored curve reads as documented.
+- **Linear and Smooth, read on the board** (2026-11-24, Rico's screenshots, Launcher 1.5.5): Linear is
+  (0, 0) (11, 42) (23, 84) (35, 127), Smooth **(0, 0) (12, 19) (23, 48) (35, 127)**, each stored as it is clicked.
+  Points dragged are not: **Save Curvature** appears. The axes read 0.1 mm to 3.5 mm and 0 to 127, and no point's
+  value is shown. **The curve is the board's, not a profile's**: all three profiles read whole before and after, their
+  bytes the same, only `0xA9 0x20` differing. The Launcher shows its tab on every profile. The "before" above, (8, 31) (26, 95), is the
+  firmware's own default, neither of the two.
 
 ---
 

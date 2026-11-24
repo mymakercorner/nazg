@@ -131,6 +131,21 @@ namespace nazg
                                       { return key.advancedMode == keychron::AdvancedMode::Gamepad; });
     }
 
+    bool SwitchesSection::IsShowingCurve() const
+    {
+        return m_ShowCurve && !m_Curve.empty();
+    }
+
+    bool SwitchesSection::IsOnCurve(const keychron::KeyConfig& config) const
+    {
+        if (ModeOf(config) != Mode::Gamepad || !keychron::IsGamepadControl(config.advancedData) ||
+            keychron::IsGamepadButton(config.advancedData))
+            return false;
+        const bool isTrigger = config.advancedData == keychron::c_GamepadLeftTrigger ||
+                               config.advancedData == keychron::c_GamepadRightTrigger;
+        return !isTrigger || !m_GamepadMode || !(*m_GamepadMode & keychron::GamepadMode::XInput);
+    }
+
     bool SwitchesSection::WantsGameController() const
     {
         return m_Testing && m_Link == Link::Open && HasGamepadKeys();
@@ -161,6 +176,7 @@ namespace nazg
         m_PairFirst.reset();
         m_Levels.reset();
         m_DraggedField.reset();
+        m_CurveState.draggedPoint.reset();
         if (IsBusy())
             return;
 
@@ -486,7 +502,8 @@ namespace nazg
             return;
         m_ShownProfile  = entry;
         m_PendingSelect = static_cast<uint8_t>(entry);
-        m_GamepadOpen   = false;
+        // The curve stays, the whole board's, and the controller, but for the keys it was opened on.
+        m_GamepadOpen   = m_GamepadOpen && std::none_of(m_Selected.begin(), m_Selected.end(), [](bool is) { return is; });
         m_PickCommand.reset();
         m_Trail.Clear();
         ForgetPair();
@@ -568,8 +585,12 @@ namespace nazg
                                : m_Keys[key].position == keychron::FirstKeyOf(pair)  ? 0u
                                : m_Keys[key].position == keychron::SecondKeyOf(pair) ? 1u
                                                                                      : 2u;
-            if (m_ShowPairs ? end < 2 || m_PairFirst == key : key < m_Selected.size() && m_Selected[key])
+            if (m_ShowPairs       ? end < 2 || m_PairFirst == key
+                : IsShowingCurve() ? false
+                                   : key < m_Selected.size() && m_Selected[key])
                 described.marks |= Mark::Selected;
+            if (IsShowingCurve() && IsOnCurve(ConfigOf(key)))
+                described.marks |= Mark::Highlighted;
             if (m_Testing && m_ShowPairs && end < 2 && m_PairTravel[end])
             {
                 described.fill = KeyFill::Heat;
@@ -653,7 +674,7 @@ namespace nazg
         }
         else if (m_PickCommand)
             PickFromBoard(key);
-        else if (key < m_Selected.size())
+        else if (key < m_Selected.size() && !IsShowingCurve())
             m_Selected[key] = !m_Selected[key];
     }
 
@@ -683,7 +704,7 @@ namespace nazg
             PickFromBoard(key);
             return;
         }
-        if (key < m_Selected.size())
+        if (key < m_Selected.size() && !IsShowingCurve())
             m_Selected[key] = !m_Selected[key];
     }
 
@@ -712,6 +733,11 @@ namespace nazg
             m_Request               = WriteGamepadMode(change.mask, change.value);
             return;
         }
+        if (m_PendingCurve)
+        {
+            m_Request = WriteCurve(*std::exchange(m_PendingCurve, std::nullopt));
+            return;
+        }
         if (m_PendingReset)
         {
             m_Request = Reset(*std::exchange(m_PendingReset, std::nullopt));
@@ -726,7 +752,8 @@ namespace nazg
         }
 
         const double now = ImGui::GetTime();
-        if (now - m_LastPoll < c_PollInterval)
+        // While testing, as often as the board answers: what follows a key moves with it (Rico, 2026-11-24).
+        if (!m_Testing && now - m_LastPoll < c_PollInterval)
             return;
         const bool readInUse = now - m_LastInUseRead >= c_InUseInterval;
         m_LastPoll           = now;
@@ -768,13 +795,17 @@ namespace nazg
         keychron::Profile&        profile = m_Profiles[m_ShownProfile];
         const uint8_t             columns = m_Keyboard.definition.matrixColumns;
 
-        // Gamepad Analog needs a control: the controls first, written once one is chosen.
-        m_GamepadOpen = mode == Mode::Gamepad;
+        // Gamepad Analog needs a control: the controls first, written once one is chosen. Back from them to
+        // the mode the keys have, nothing changes -- a new One Key Multiple Commands slot least of all.
+        const bool wasOpen = std::exchange(m_GamepadOpen, mode == Mode::Gamepad);
         if (m_GamepadOpen)
         {
             m_GamepadOpenFor = m_Selected;
             return;
         }
+        if (wasOpen &&
+            std::all_of(targets.begin(), targets.end(), [&](size_t key) { return ModeOf(ConfigOf(key)) == mode; }))
+            return;
 
         // One Key Multiple Commands starts with the key itself, held, as the keymap has it on the
         // layer the board types with (Rico, 2026-11-23).
@@ -1055,6 +1086,7 @@ namespace nazg
 
         ForgetPair();
         m_ShowPairs   = true;
+        m_ShowCurve   = false;
         m_Testing     = false;
         m_GamepadOpen = false;
         m_PickCommand.reset();
@@ -1072,6 +1104,8 @@ namespace nazg
 
     void SwitchesSection::ShowKeys()
     {
+        if (std::exchange(m_ShowCurve, false) || std::exchange(m_GamepadOpen, false))
+            return;
         if (const std::optional<uint8_t> slot = ShownPair())
         {
             const keychron::SocdSlot& pair = Shown()->socdSlots[*slot];
@@ -1391,8 +1425,10 @@ namespace nazg
             { Mode::Gamepad, "Gamepad Analog", "Plays a game controller." },
         };
 
-        // The controls opened with nothing chosen yet belong to the selection they were opened on.
-        if (m_GamepadOpen && m_GamepadOpenFor != m_Selected)
+        // The controls opened with nothing chosen yet belong to the selection they were opened on; opened on
+        // none, they wait for the key to give one to.
+        if (m_GamepadOpen && m_GamepadOpenFor != m_Selected &&
+            std::any_of(m_GamepadOpenFor.begin(), m_GamepadOpenFor.end(), [](bool is) { return is; }))
             m_GamepadOpen = false;
 
         float modesWidth = 0.0f;
@@ -1402,7 +1438,10 @@ namespace nazg
         // read as a name (Rico, 2026-11-23): the keys' marks say there are some.
         const std::vector<uint8_t> pairs    = keychron::SocdSlotsInUse(*Shown());
         const size_t               slots    = Shown()->socdSlots.size();
-        const float                socdWide = slots ? ButtonWidth("SOCD") + style.ItemSpacing.x * 2 : 0.0f;
+        const bool                 hasCurve = !m_Curve.empty();
+        const bool                 onCurve  = IsShowingCurve();
+        const float                socdWide = (slots ? ButtonWidth("SOCD") : 0.0f) + (hasCurve ? ButtonWidth("Curve") : 0.0f) +
+                               (slots || hasCurve ? style.ItemSpacing.x * 2 : 0.0f);
         const float endWidth = ButtonWidth("Select All") + ButtonWidth("Clear") + style.ItemSpacing.x;
         const float right    = ImGui::GetContentRegionMax().x;
         const float modesX   = std::max(ImGui::GetCursorPosX() + ImGui::GetFontSize() * 4.0f,
@@ -1418,6 +1457,11 @@ namespace nazg
             what = std::to_string(pairs.size()) + (pairs.size() == 1 ? " pair of " : " pairs of ") + std::to_string(slots);
             all  = "Each profile has its own " + std::to_string(slots) +
                   ". Keychron's Launcher makes 5 at most; the board takes " + std::to_string(slots) + ".";
+        }
+        else if (onCurve)
+        {
+            what = "Sticks";
+            all  = "This setting is global for the whole board: the same in every profile.";
         }
         else if (selected == 1)
         {
@@ -1458,8 +1502,10 @@ namespace nazg
             const Choice& choice = c_Choices[index];
             if (index)
                 ImGui::SameLine();
-            // From the pairs, every mode goes back to the keys, and changes nothing.
-            if (m_ShowPairs)
+            // From the pairs, the curve or the controller with no key selected, a mode goes back to the keys,
+            // and changes nothing: it would change every key. The controller itself changes nothing either.
+            const bool toController = choice.mode == Mode::Gamepad && !m_ShowPairs && selected <= 1;
+            if ((m_ShowPairs || onCurve || (m_GamepadOpen && selected == 0)) && !toController)
             {
                 if (ImGui::Button(choice.label))
                     ShowKeys();
@@ -1467,9 +1513,10 @@ namespace nazg
                     ImGui::SetTooltip("Back to the keys: changes nothing.");
                 continue;
             }
-            const bool        isCurrent = m_GamepadOpen ? choice.mode == Mode::Gamepad : !mixed && mode == choice.mode;
+            // Gamepad Analog opens with no key selected, on any profile (Rico, 2026-11-24).
+            const bool        isCurrent = onCurve ? false : m_GamepadOpen ? choice.mode == Mode::Gamepad : !mixed && mode == choice.mode;
             const bool        needsOne  = (choice.mode == Mode::Dks && selected != 1) ||
-                                  (choice.mode == Mode::Gamepad && selected != 1 && !(selected == 0 && HasGamepadKeys()));
+                                  (choice.mode == Mode::Gamepad && selected > 1);
             const bool        needs     = needsOne || (choice.mode == Mode::LongPress && selected == 0);
             const std::string tip       = needsOne && !isCurrent ? std::string("Select one key: each has its own.\n\n") + choice.tip
                                           : needs && !isCurrent  ? std::string("Select the keys first.\n\n") + choice.tip
@@ -1478,7 +1525,10 @@ namespace nazg
                 ImGui::PushStyleColor(ImGuiCol_Button, style.Colors[ImGuiCol_ButtonActive]);
             ImGui::BeginDisabled(!isCurrent && (needs || (targets.empty() && choice.mode != Mode::Gamepad)));
             if (ImGui::Button(choice.label) && !isCurrent)
+            {
+                m_ShowCurve = false;
                 AskMode(choice.mode);
+            }
             ImGui::EndDisabled();
             if (isCurrent)
                 ImGui::PopStyleColor();
@@ -1500,7 +1550,26 @@ namespace nazg
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip("Two keys, and what is sent while both are down.");
         }
-        if (m_ShowPairs)
+        if (hasCurve)
+        {
+            ImGui::SameLine(0.0f, slots ? 0.0f : style.ItemSpacing.x * 2);
+            if (onCurve)
+                ImGui::PushStyleColor(ImGuiCol_Button, style.Colors[ImGuiCol_ButtonActive]);
+            if (ImGui::Button("Curve") && !onCurve)
+            {
+                // From the pairs, through the keys: the pair's two selected, its test ended.
+                if (m_ShowPairs)
+                    ShowKeys();
+                m_ShowCurve   = true;
+                m_GamepadOpen = false;
+                m_PickCommand.reset();
+            }
+            if (onCurve)
+                ImGui::PopStyleColor();
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("How far a stick goes for how far its key is pressed.");
+        }
+        if (m_ShowPairs || onCurve)
             return;
 
         ImGui::SameLine();
@@ -1527,6 +1596,13 @@ namespace nazg
             DrawPairs();
             return;
         }
+        if (IsShowingCurve())
+        {
+            m_PickCommand.reset();
+            DrawCurve();
+            return;
+        }
+        m_CurveState.draggedPoint.reset();
         if (m_GamepadOpen || (selected > 0 && std::all_of(targets.begin(), targets.end(), [&](size_t key)
                                                           { return ModeOf(ConfigOf(key)) == Mode::Gamepad; })))
         {
@@ -1645,8 +1721,11 @@ namespace nazg
 
         ImGui::PushTextWrapPos(0.0f);
         if (selected == 0)
-            ColouredText(PanelColour::Muted, "Click a control to select the key that plays it, or a key on the board to give "
-                                             "it a control.");
+            ColouredText(PanelColour::Muted, "%s",
+                         HasGamepadKeys() ? "Click a control to select the key that plays it, or a key on the board to give it "
+                                            "a control."
+                                          : "No key of this profile plays the gamepad. Click a key on the board to give it a "
+                                            "control.");
         else if (!one)
             ColouredText(PanelColour::Muted, "Select one key to choose what it plays.");
         else if (!config)
@@ -1656,13 +1735,27 @@ namespace nazg
         else
             ColouredText(PanelColour::Muted, "Plays %s, by how far the key goes down%s.",
                          keychron::GamepadControlWords(config->advancedData).c_str(),
-                         config->advancedData == keychron::c_GamepadLeftTrigger ||
-                                 config->advancedData == keychron::c_GamepadRightTrigger
-                             ? ""
-                             : ", through the gamepad curve");
+                         IsOnCurve(*config) ? ", through the gamepad curve" : "");
         ImGui::PopTextWrapPos();
-        if (selected > 0 && (config || !one))
+        if (selected > 0 && std::all_of(targets.begin(), targets.end(),
+                                        [&](size_t key) { return ModeOf(ConfigOf(key)) == Mode::Gamepad; }))
             DrawDistances(targets, Mode::Gamepad);
+    }
+
+    void SwitchesSection::DrawCurve()
+    {
+        CurveEditorInput input{ m_Curve, m_FullTravel ? m_FullTravel : c_SourceFullTravel, {}, {} };
+        if (m_Testing && m_Followed && m_Travel && IsOnCurve(ConfigOf(*m_Followed)))
+        {
+            input.key    = m_Keys[*m_Followed].name;
+            input.travel = static_cast<float>(m_Travel->travelSixtieths) / 6.0f;
+        }
+        if (std::optional<std::vector<keychron::CurvePoint>> chosen = DrawCurveEditor(m_CurveState, input))
+        {
+            m_Curve        = *chosen;
+            m_PendingCurve = std::move(chosen);
+            m_Message.clear();
+        }
     }
 
     // The gamepad's settings, the whole board's: one line.
@@ -1677,16 +1770,17 @@ namespace nazg
             m_GamepadMode = static_cast<uint8_t>(set ? mode | bit : mode & ~bit);
             m_Message.clear();
         };
+        // That it is the board's comes first (Rico, 2026-11-24).
         const auto tip = [](const char* words)
         {
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                ImGui::SetTooltip("%s", words);
+                ImGui::SetTooltip("This setting is global for the whole board: the same in every profile.\n\n%s", words);
         };
 
         bool typing = (mode & keychron::GamepadMode::Typing) != 0;
         if (ImGui::Checkbox("Keyboard keys enabled", &typing))
             change(keychron::GamepadMode::Typing, typing);
-        tip("On: a gamepad key also types its key. Off: it types nothing.\n\nThe whole board, every profile.");
+        tip("On: a gamepad key also types its key. Off: it types nothing.");
 
         const bool recognised = (mode & keychron::GamepadMode::RecognitionOff) == 0;
         if (m_HasRecognition)
@@ -1696,7 +1790,7 @@ namespace nazg
             if (ImGui::Checkbox("Controller Recognition Feature", &on))
                 change(keychron::GamepadMode::RecognitionOff, !on);
             tip("Off: the computer does not see a controller, and the gamepad keys play nothing.\n\nTakes effect when the "
-                "board is next plugged in. The whole board, every profile.");
+                "board is next plugged in.");
         }
 
         ImGui::SameLine();
@@ -2270,8 +2364,9 @@ namespace nazg
                 co_return;
             }
 
+            m_Curve = co_await keychron.GetCurve();
             if (!m_TravelMeasured)
-                m_FullTravel = keychron::EstimateFullTravel(co_await keychron.GetCurve());
+                m_FullTravel = keychron::EstimateFullTravel(m_Curve);
 
             // The keys' names as the board types by default -- layer 2, Windows', on a K10 HE.
             try
@@ -2504,6 +2599,31 @@ namespace nazg
         catch (const std::exception& failure)
         {
             Fail(std::string("The gamepad's settings could not be changed: ") + failure.what());
+        }
+    }
+
+    // The gamepad curve, stored at once by the board, and what it kept.
+    Task<void> SwitchesSection::WriteCurve(std::vector<keychron::CurvePoint> curve)
+    {
+        try
+        {
+            keychron::Protocol                keychron(*m_Channel);
+            std::vector<keychron::CurvePoint> kept = co_await keychron.SetCurve(curve);
+            const bool                        same = kept == curve;
+            // A newer one waiting keeps what the user sees; it is read back after it.
+            if (!m_PendingCurve)
+                m_Curve = std::move(kept);
+            Say(same ? "Saved, read back the same" : "The board kept something else -- shown as it is", !same);
+        }
+        catch (const ProtocolError& failure)
+        {
+            Say(std::string("The board refused it: ") + failure.what(), true);
+            m_Link = Link::Closed;   // read everything again
+            m_Channel.reset();
+        }
+        catch (const std::exception& failure)
+        {
+            Fail(std::string("The gamepad curve could not be written: ") + failure.what());
         }
     }
 
