@@ -175,6 +175,8 @@ set(NAZG_CORE_SOURCES
   src/adapters/keychron/NazgKeychronSocd.cpp
   src/adapters/keychron/NazgKeychronCurve.h
   src/adapters/keychron/NazgKeychronCurve.cpp
+  src/adapters/keychron/NazgKeychronCalibration.h
+  src/adapters/keychron/NazgKeychronCalibration.cpp
   src/board/NazgBoardLoad.h
   src/board/NazgBoardLoad.cpp
   src/board/NazgDeviceList.h
@@ -505,6 +507,7 @@ if(NAZG_BUILD_TESTS)
     nazg_add_test(keychron_advanced  tests/KeychronAdvancedTest.cpp)
     nazg_add_test(keychron_socd      tests/KeychronSocdTest.cpp)
     nazg_add_test(keychron_curve     tests/KeychronCurveTest.cpp)
+    nazg_add_test(keychron_calibration tests/KeychronCalibrationTest.cpp)
     nazg_add_test(keychron_recording tests/KeychronRecordingTest.cpp
                   ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/keychron/k10-he-v3-ansi-0ea7-2026-11-08.txt)
     nazg_add_test(key_health         tests/KeyHealthTest.cpp ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/leyden-jar)

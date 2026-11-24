@@ -2729,8 +2729,8 @@ Keychron's Launcher**: changes made back and forth in both, each shown right by 
 ### Round two: advanced keys
 
 *Begun 2026-11-23, scope chosen by Rico: One Key Multiple Commands (DKS), Long-Press Switch (the
-firmware's toggle) and Gamepad Analog. SOCD followed ("SOCD", below), then the gamepad curve;
-calibration comes later. Rico still has the K10 HE V3 for a while.* The mockup:
+firmware's toggle) and Gamepad Analog. SOCD followed ("SOCD", below), then the gamepad curve and
+calibration. Rico still has the K10 HE V3 for a while.* The mockup:
 [ui-design/switches-advanced-keys.html](ui-design/switches-advanced-keys.html). **The
 design is complete, and built.**
 
@@ -2940,6 +2940,35 @@ And, in the mockup he chose from:
 *Built 2026-11-24*: `adapters/keychron/NazgKeychronCurve.*`, `ui/NazgCurveEditor.*`, the rest in the section.
 The drawing, drags, typing and presets checked off screen, **then seen working on the K10 HE V3 by Rico** the same
 day.
+
+### Calibration
+
+*2026-11-24, on the K10 HE V3.* The board learns again where each key rests and where it bottoms out. The wire, its traps
+and what Keychron's Launcher does are keychron-commands.md, "Calibration", a whole one and one left early run there by
+Rico that day. The mockup: [ui-design/switches-calibration.html](ui-design/switches-calibration.html).
+
+**Rico's choices** (2026-11-24):
+- **As Keychron's Launcher does it**: hands off, every key pressed all the way down, green once done, saved by itself.
+  Marking the keys pressed less deep than the others -- the source takes a key as done half way down -- was drawn and
+  removed: the board corrects itself on full presses.
+- **Calibrate... at the strip's end**, before Reset profile...; the panel becomes the calibration. Beside the modes, after
+  Curve, was the other: that line has no room left.
+- **The result stays until Close**, its only button, the board green. Calibrate again beside it was not needed; no button
+  at all, the strip saying the result, was tried and the result gone too soon.
+
+And, in the mockup he chose from:
+- **The board is the progress**: the keys done ticked green, distances and marks hidden. The panel counts them and names
+  the last twelve -- by row and column where the board has a key the drawing lacks, since it waits for that one too.
+- **Nothing else is there while it runs** (`Section::HoldsScreen()`): the header, the column and the strip wait, the keyboard
+  typing nothing. The ways out are **Stop** -- the keys done are kept, the others stay as they were -- and unplugging, which
+  keeps nothing. Quitting Nazg ends it as Stop does, through the channel's farewell.
+- **Stop waits** while the keys are measured at rest and once every key is done, the source being wrong to end it there;
+  what is running is asked of the board again first.
+- **No old values shown**: no command puts them back.
+
+*Built 2026-11-24*: `adapters/keychron/NazgKeychronCalibration.*`, the sequence and its traps tested on scripted bytes, the
+rest in the section. The panel checked off screen, **then run by Nazg on the K10 HE V3 by Rico** the same day: it works.
+Not tried: quitting Nazg or unplugging the board during one.
 
 ### Left from round one
 

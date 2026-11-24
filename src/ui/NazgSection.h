@@ -75,15 +75,15 @@ namespace nazg
         std::vector<std::string> choiceDisabled;
 
         // At the strip's right end too, where there is no choice: a line of words -- muted, or the
-        // success colour when it is news (`noteIsNews`), the warning's with `noteIsWarning` -- and a
-        // button after it: the Switches section's full travel, what was written, and Reset profile
-        // (Rico, 2026-11-23: no line of the panel for them). Empty: neither.
+        // success colour when it is news (`noteIsNews`), the warning's with `noteIsWarning` -- and
+        // buttons after it: the Switches section's full travel, what was written, Calibrate and Reset
+        // profile (Rico, 2026-11-23: no line of the panel for them). Empty: neither.
         std::string note;
         std::string noteTip;
         bool        noteIsNews    = false;
         bool        noteIsWarning = false;
-        std::string action;
-        bool        actionDisabled = false;
+        std::vector<std::string> actions;
+        bool                     actionsDisabled = false;
     };
 
     // The column's groups (ui-design.md, "Nazg's sections, then the board's menus"): the sections
@@ -119,8 +119,8 @@ namespace nazg
         virtual void OnStripGroupChosen(size_t /*entry*/) {}
         virtual void OnStripChoice(size_t /*entry*/) {}
 
-        // The button at the strip's right end, clicked.
-        virtual void OnStripAction() {}
+        // A button at the strip's right end, clicked.
+        virtual void OnStripAction(size_t /*action*/) {}
 
         // 2. The board. Every frame, `board` arrives as the board's definition draws it
         // (DescribeKeyboard()); the section fills it in -- or replaces its keys, to draw
@@ -140,6 +140,10 @@ namespace nazg
         // Jar diagnostics' -- which nothing waits on. It holds nothing back: whatever needs the
         // board stops it through WhileHidden() and waits for IsBusy() to end, a reading at most.
         [[nodiscard]] virtual bool IsPolling() const { return false; }
+
+        // The user stays here until it is over -- a calibration, the board typing nothing meanwhile: the
+        // header, the column and the strip wait. Quitting does not: WhileHidden() ends it.
+        [[nodiscard]] virtual bool HoldsScreen() const { return false; }
 
         // Every frame another section is shown instead, or the board is not shown at all -- Settings,
         // the unlock -- or Nazg waits to do something else with the board: time to stop what runs

@@ -339,6 +339,28 @@ namespace nazg::keychron
         [[nodiscard]] bool IsAbsent() const noexcept { return restValue == 0 && bottomValue == 0; }
     };
 
+    // 0xA9 0x41, where a calibration is. After it the bits of the keys done stay until the board is replugged:
+    // the phase says whether one is running, not them.
+    enum class CalibrationPhase : uint8_t
+    {
+        Off     = 0,
+        PowerUp = 1,
+        Rest    = 2,   // every key measured at rest: hands off
+        Bottom  = 3,   // each key waited for, pressed to the bottom
+        Storing = 4,
+    };
+
+    struct CalibrationState
+    {
+        CalibrationPhase      phase = CalibrationPhase::Off;   // any other value is not Off
+        std::vector<uint32_t> rows;                            // the keys done, a bit a column
+
+        [[nodiscard]] bool IsDone(KeyPosition key) const noexcept
+        {
+            return key.row < rows.size() && key.column < 24 && (rows[key.row] >> key.column & 1u) != 0;
+        }
+    };
+
     class Protocol : public via::Protocol
     {
     public:
@@ -417,6 +439,16 @@ namespace nazg::keychron
         // board holds returned. std::invalid_argument for a curve IsWritableCurve() (NazgKeychronCurve.h)
         // refuses: the firmware would take it, and no other after it.
         [[nodiscard]] Task<std::vector<CurvePoint>> SetCurve(std::vector<CurvePoint> curve);
+
+        // 0xA9 0x41 and 0x40: a calibration's state, started, and ended early. Not called but in the sequence of
+        // NazgKeychronCalibration.h, which knows when ending one is safe.
+        [[nodiscard]] Task<CalibrationState> GetCalibrationState();
+        [[nodiscard]] Task<void>             StartCalibration();
+        [[nodiscard]] Task<void>             StopCalibration();
+        void                                 SetCalibrationFarewell(bool ends);   // closing the channel ends it
+
+        // 0xA9 0x42 for every position: those that have a switch, as the board knows them.
+        [[nodiscard]] Task<std::vector<KeyPosition>> GetAnalogKeys(uint8_t rows, uint8_t columns);
 
         // 0xA9 0x1F: stores `profile` as it is in RAM.
         [[nodiscard]] Task<void> SaveProfile(uint8_t profile);

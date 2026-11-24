@@ -39,6 +39,9 @@ namespace nazg
         // Readings at the firmware's clamp in a row before full travel counts as measured.
         constexpr int c_ClampReadingsToMeasure = 3;
 
+        // A calibration's last keys, named.
+        constexpr size_t c_KeysLeftNamed = 12;
+
         // How long what was written stays at the strip's end, in seconds.
         constexpr double c_MessageTime = 5.0;
 
@@ -124,6 +127,12 @@ namespace nazg
         return IsBusy() && m_RequestIsPoll;
     }
 
+    bool SwitchesSection::HoldsScreen() const
+    {
+        return m_Calibrating == Calibrating::Rest || m_Calibrating == Calibrating::Keys ||
+               m_Calibrating == Calibrating::Saving;
+    }
+
     bool SwitchesSection::HasGamepadKeys() const
     {
         const keychron::Profile* profile = Shown();
@@ -177,10 +186,22 @@ namespace nazg
         m_Levels.reset();
         m_DraggedField.reset();
         m_CurveState.draggedPoint.reset();
+        m_StartCalibrating = false;
         if (IsBusy())
             return;
 
+        // A calibration left -- Nazg quitting, nothing else leaves it: closing the board ends it, its
+        // farewell, where that is safe.
+        m_Calibrating     = Calibrating::No;
+        m_StopCalibrating = false;
+
         // A change asked before leaving is still written: nothing closes the board while it is busy.
+        if (m_Link == Link::Open && m_PendingCurve)
+        {
+            m_RequestIsPoll = false;
+            m_Request       = WriteCurve(*std::exchange(m_PendingCurve, std::nullopt));
+            return;
+        }
         if (m_Link == Link::Open && !m_PendingChanges.empty())
         {
             PendingChange change = std::move(m_PendingChanges.front());
@@ -486,14 +507,25 @@ namespace nazg
                                   "switch: with a longer switch fitted, an Actuation Distance is the same share of its "
                                   "travel, so a little deeper in fact.";
         }
-        strip.action         = "Reset profile...";
-        strip.actionDisabled = IsBusy() && !m_RequestIsPoll;
+        strip.actions         = { "Calibrate...", "Reset profile..." };
+        strip.actionsDisabled = IsBusy() && !m_RequestIsPoll;
         return strip;
     }
 
-    void SwitchesSection::OnStripAction()
+    void SwitchesSection::OnStripAction(size_t action)
     {
-        m_ResetAsked = true;
+        if (action == 1)
+        {
+            m_ResetAsked = true;
+            return;
+        }
+        if (m_ShowPairs)
+            ShowKeys();
+        m_Calibrating = Calibrating::Intro;
+        m_ShowCurve   = false;
+        m_GamepadOpen = false;
+        m_Testing     = false;
+        m_PickCommand.reset();
     }
 
     void SwitchesSection::OnStripChosen(size_t entry)
@@ -502,6 +534,7 @@ namespace nazg
             return;
         m_ShownProfile  = entry;
         m_PendingSelect = static_cast<uint8_t>(entry);
+        m_Calibrating   = Calibrating::No;
         // The curve stays, the whole board's, and the controller, but for the keys it was opened on.
         m_GamepadOpen   = m_GamepadOpen && std::none_of(m_Selected.begin(), m_Selected.end(), [](bool is) { return is; });
         m_PickCommand.reset();
@@ -554,6 +587,14 @@ namespace nazg
             described.fallthrough            = Fallthrough::None;
             described.knob.reset();
             described[LegendSlot::TopLeft]   = { m_Keys[key].name, LegendRole::Label };
+
+            // Calibrating: the keys done, nothing of their settings.
+            if (m_Calibrating != Calibrating::No && m_Calibrating != Calibrating::Intro)
+            {
+                if (m_Calibrating != Calibrating::Rest && m_CalibrationState.IsDone(m_Keys[key].position))
+                    described.marks |= Mark::Checked;
+                continue;
+            }
             if (profile)
             {
                 const keychron::KeyConfig config = ConfigOf(key);
@@ -626,6 +667,8 @@ namespace nazg
     {
         m_HoveredKey = events.hoveredKey && *events.hoveredKey < m_BoardKeys.size() ? m_BoardKeys[*events.hoveredKey]
                                                                                     : std::nullopt;
+        if (m_Calibrating != Calibrating::No)
+            return;
 
         // A key's settings in full on hover: the key holds one value, the tooltip all of them.
         if (events.hoveredKey && *events.hoveredKey < m_BoardKeys.size() && m_BoardKeys[*events.hoveredKey] && Shown())
@@ -681,7 +724,7 @@ namespace nazg
     // A key pressed on the board: followed while testing, else selected or unselected, as a click.
     void SwitchesSection::PressSeen(size_t key)
     {
-        if (IsTestingPair())
+        if (IsTestingPair() || m_Calibrating != Calibrating::No)
             return;
         if (m_ShowPairs && !m_Testing)
         {
@@ -722,6 +765,22 @@ namespace nazg
             m_Request = Open();
             return;
         }
+        // A calibration is all there is while it runs. What was asked before it is written first.
+        if (m_StopCalibrating)
+        {
+            m_StopCalibrating = false;
+            m_Request         = StopCalibrating();
+            return;
+        }
+        if (m_Calibrating == Calibrating::Keys || m_Calibrating == Calibrating::Saving)
+        {
+            if (ImGui::GetTime() - m_LastPoll < c_PollInterval)
+                return;
+            m_LastPoll      = ImGui::GetTime();
+            m_RequestIsPoll = true;
+            m_Request       = WatchCalibrating();
+            return;
+        }
         if (m_PendingSelect)
         {
             m_Request = Select(*std::exchange(m_PendingSelect, std::nullopt));
@@ -748,6 +807,12 @@ namespace nazg
             PendingChange change = std::move(m_PendingChanges.front());
             m_PendingChanges.erase(m_PendingChanges.begin());
             m_Request = Write(std::move(change));
+            return;
+        }
+        if (m_StartCalibrating)
+        {
+            m_StartCalibrating = false;
+            m_Request          = StartCalibrating();
             return;
         }
 
@@ -1351,6 +1416,13 @@ namespace nazg
             return;
         }
 
+        if (m_Calibrating != Calibrating::No)
+        {
+            DrawCalibration();
+            DrawResetQuestion();
+            return;
+        }
+
         DrawHead();
         ImGui::Separator();
         if (m_ShowPairs)
@@ -1756,6 +1828,138 @@ namespace nazg
             m_PendingCurve = std::move(chosen);
             m_Message.clear();
         }
+    }
+
+    // The last few keys not done, by name -- or by position, where the board has a key the drawing lacks.
+    std::string SwitchesSection::KeysLeft() const
+    {
+        std::string names;
+        size_t      left = 0;
+        for (const keychron::KeyPosition position : m_AnalogKeys)
+        {
+            if (m_CalibrationState.IsDone(position))
+                continue;
+            if (++left > c_KeysLeftNamed)
+                return {};
+            const std::optional<size_t> key = KeyAt(position);
+            names += (names.empty() ? "" : ", ") +
+                     (key ? m_Keys[*key].name
+                          : "row " + std::to_string(position.row) + " column " + std::to_string(position.column));
+        }
+        return names;
+    }
+
+    // The calibration, in the panel's place (ui-design.md, "Calibration").
+    void SwitchesSection::DrawCalibration()
+    {
+        const ImGuiStyle& style = ImGui::GetStyle();
+        const auto        title = [](const std::string& words, bool isGood = false)
+        {
+            PushHeaderFont();
+            if (isGood)
+                ColouredText(PanelColour::Success, "%s", words.c_str());
+            else
+                ImGui::TextUnformatted(words.c_str());
+            ImGui::PopFont();
+            ImGui::Spacing();
+        };
+        const size_t total = m_AnalogKeys.size();
+        const size_t done  = keychron::CalibratedCount(m_CalibrationState, m_AnalogKeys);
+
+        ImGui::PushTextWrapPos(0.0f);
+        switch (m_Calibrating)
+        {
+        case Calibrating::No: break;
+
+        case Calibrating::Intro:
+            title("Calibrate the switches");
+            ImGui::TextUnformatted("The board learns again where each key rests and where it bottoms out. It keeps this up to date "
+                                   "by itself as you type: calibrate after changing switches, or when keys misfire.");
+            ImGui::Spacing();
+            ImGui::BulletText("Hands off the keys, then click Start.");
+            ImGui::BulletText("Press every key all the way down, in any order. It ends by itself once all are done.");
+            ImGui::BulletText("Until then the keyboard types nothing: use the mouse.");
+            ImGui::Spacing();
+            if (ImGui::Button("Start"))
+            {
+                m_Calibrating      = Calibrating::Rest;
+                m_StartCalibrating = true;
+                m_Message.clear();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel"))
+                m_Calibrating = Calibrating::No;
+            break;
+
+        case Calibrating::Rest:
+            title("Hands off the keys");
+            ImGui::TextUnformatted("Measuring them at rest...");
+            break;
+
+        case Calibrating::Keys:
+        case Calibrating::Saving:
+        {
+            const bool saving = m_Calibrating == Calibrating::Saving;
+            if (!ImGui::BeginTable("calibration", 2, ImGuiTableFlags_BordersInnerV,
+                                   ImVec2(0.0f, std::max(0.0f, ImGui::GetContentRegionAvail().y))))
+                break;
+            ImGui::TableSetupColumn("keys", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("stop", ImGuiTableColumnFlags_WidthFixed, ImGui::GetFontSize() * 20.0f);
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            title(saving ? "Every key is done: saving..." : "Press every key all the way down");
+            // The count large, what it is of on its baseline.
+            const float top = ImGui::GetCursorPosY();
+            ImGui::PushFont(nullptr, style.FontSizeBase * 2.0f);
+            ImGui::Text("%zu", done);
+            ImGui::PopFont();
+            ImGui::SameLine();
+            ImGui::SetCursorPosY(top + ImGui::GetFontSize() * 0.82f);
+            ColouredText(PanelColour::Muted, "of %zu", total);
+            ImGui::SetCursorPosY(top + ImGui::GetFontSize() * 2.0f + style.ItemSpacing.y);
+            ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ColourOf(PanelColour::Success));
+            ImGui::ProgressBar(total ? static_cast<float>(done) / static_cast<float>(total) : 0.0f,
+                               ImVec2(-FLT_MIN, ImGui::GetFontSize() * 0.6f), "");
+            ImGui::PopStyleColor();
+            ImGui::Spacing();
+            ImGui::PushTextWrapPos(0.0f);
+            if (const std::string left = KeysLeft(); !left.empty())
+            {
+                ColouredText(PanelColour::Muted, "Left:");
+                ImGui::SameLine();
+                ImGui::TextUnformatted(left.c_str());
+            }
+            ImGui::PopTextWrapPos();
+
+            ImGui::TableSetColumnIndex(1);
+            ImGui::BeginDisabled(saving || m_StopCalibrating);
+            if (ImGui::Button("Stop"))
+                m_StopCalibrating = true;
+            ImGui::EndDisabled();
+            ImGui::PushTextWrapPos(0.0f);
+            ColouredText(PanelColour::Muted, "Stopped now, the keys done are kept and the others stay as they were.\n\nTo keep "
+                                             "nothing, unplug the board instead.");
+            ImGui::PopTextWrapPos();
+            ImGui::EndTable();
+            break;
+        }
+
+        case Calibrating::Over:
+            if (total > 0 && done == total)
+                title("All " + std::to_string(total) + " keys calibrated and saved", true);
+            else if (done > 0)
+            {
+                title(std::to_string(done) + (done == 1 ? " key" : " keys") + " calibrated and saved", true);
+                ImGui::TextUnformatted("The others are as they were.");
+            }
+            else
+                title("Nothing calibrated");
+            ImGui::Spacing();
+            if (ImGui::Button("Close"))
+                m_Calibrating = Calibrating::No;
+            break;
+        }
+        ImGui::PopTextWrapPos();
     }
 
     // The gamepad's settings, the whole board's: one line.
@@ -2624,6 +2828,62 @@ namespace nazg
         catch (const std::exception& failure)
         {
             Fail(std::string("The gamepad curve could not be written: ") + failure.what());
+        }
+    }
+
+    // The keys the board has, then started: the rest measured when this is back.
+    Task<void> SwitchesSection::StartCalibrating()
+    {
+        const uint8_t rows    = m_Keyboard.definition.matrixRows;
+        const uint8_t columns = m_Keyboard.definition.matrixColumns;
+        try
+        {
+            keychron::Protocol keychron(*m_Channel);
+            m_AnalogKeys = co_await keychron.GetAnalogKeys(rows, columns);
+            if (m_AnalogKeys.empty())
+                for (const Key& key : m_Keys)
+                    m_AnalogKeys.push_back(key.position);
+            m_CalibrationState = co_await keychron::BeginCalibration(keychron);
+            m_Calibrating      = Calibrating::Keys;
+        }
+        catch (const std::exception& failure)
+        {
+            m_Calibrating = Calibrating::No;
+            Fail(std::string("The calibration could not be started: ") + failure.what() +
+                 ". If the keyboard types nothing, unplug it and plug it in again: it keeps the calibration it had.");
+        }
+    }
+
+    Task<void> SwitchesSection::WatchCalibrating()
+    {
+        try
+        {
+            keychron::Protocol keychron(*m_Channel);
+            m_CalibrationState = co_await keychron::WatchCalibration(keychron, m_AnalogKeys);
+            m_Calibrating = m_CalibrationState.phase == keychron::CalibrationPhase::Off ? Calibrating::Over
+                            : keychron::MayEndCalibration(m_CalibrationState, m_AnalogKeys) ? Calibrating::Keys
+                                                                                            : Calibrating::Saving;
+        }
+        catch (const std::exception& failure)
+        {
+            m_Calibrating = Calibrating::No;
+            Fail(std::string("The board stopped answering while it calibrated: ") + failure.what());
+        }
+    }
+
+    Task<void> SwitchesSection::StopCalibrating()
+    {
+        try
+        {
+            keychron::Protocol keychron(*m_Channel);
+            m_CalibrationState = co_await keychron::EndCalibration(keychron, m_AnalogKeys);
+            m_Calibrating = m_CalibrationState.phase == keychron::CalibrationPhase::Off ? Calibrating::Over : Calibrating::Saving;
+        }
+        catch (const std::exception& failure)
+        {
+            m_Calibrating = Calibrating::No;
+            Fail(std::string("The calibration could not be stopped: ") + failure.what() +
+                 ". Unplug the board and plug it in again.");
         }
     }
 

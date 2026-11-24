@@ -144,7 +144,8 @@ exists, where, and how far it has been proven.
     SOCD beside the modes (2026-11-23, `ui/NazgSocdEditor.*`, `adapters/keychron/NazgKeychronSocd.*`): the pairs, each choice
     drawn, the test on what the computer receives -- working on the K10, the Launcher reading the same (Rico).
     The gamepad curve after it (2026-11-24, `ui/NazgCurveEditor.*`, `adapters/keychron/NazgKeychronCurve.*`), on every profile, working on the
-    K10 (Rico). Left: calibration (ui-design.md, "The Switches section", "SOCD", "The gamepad curve").
+    K10 (Rico). Calibrate... at the strip's end (2026-11-24, `adapters/keychron/NazgKeychronCalibration.*`), working on the
+    K10 (Rico; ui-design.md, "The Switches section", "SOCD", "The gamepad curve", "Calibration").
   - Every planned section is built; `PlaceholderSection` stays as the fallback for a new kind.
   - Shared panel parts: `ui/NazgKeycodePicker.*`, `ui/NazgKeyLine.*` (Sent with and its popup),
     `ui/NazgSlotParts.*` (what the slot sections repeat: reading, Save / Revert, a tag's words).
@@ -178,6 +179,7 @@ one board to unlock).
 | Its advanced keys (Rico, 2026-11-23): Long-Press Switch, One Key Multiple Commands taps and holds (walk and run), gamepad keys assigned, the gamepad test on a Standard Controller beside two vJoy ones | Xbox Controller mode; Turbocharged and PDO keys |
 | SOCD on it (2026-11-23): every type read, played and swapped; Nazg's pairs, six of them, read the same by the Launcher (Rico) | |
 | The gamepad curve on it (2026-11-24): read, played as a line after a replug, written by Nazg, the dot following the key (Rico) | Nazg's curve read by the Launcher; a board of another travel |
+| Its calibration run by Nazg (2026-11-24, Rico); in the Launcher before, whole and left early | Quitting Nazg during one; unplugging during one |
 | Audio planned from a definition, and a firmware without audio said (Concordia, a test definition) | Audio and Clicky read or written, Play a sound -- no board at hand has audio built in |
 | Saved layouts on the Model F (Rico, 2026-10-18): Save; its own file loaded back as "the same"; a changed key found and written back; a .vil from Vial loaded; Nazg's file loaded in Vial; the Concordia's file asked about, its keymap left out. Save on the Concordia (probe). Unlock and apply, a macro and Boot written once unlocked; an ordinary key applied locked (F77 in secure mode). A file the VIA app wrote, loaded and applied on a VIA board (Rico) | |
 | A board's own menus: a few EC features (Concordia Type C); all 35909 registry controls parse (test) | |

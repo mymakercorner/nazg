@@ -420,6 +420,29 @@ Notes:
   `APDAPTIVE_NKRO_ENABLE` (sic) for every board, and `NKRO_SET` then always fails. `NKRO_GET`
   says so with bit 2 set and bit 1 clear.
 
+### The Launcher's Advanced Mode page
+
+*Rico's screenshot of the K10 HE V3's page, Launcher 1.5.5, 2026-11-24. Nothing of it was read from the board, and
+nothing is in Nazg: whether it ever will be is undecided (Rico). Kept so that it is not lost.*
+
+| The Launcher's words | Shown | The command |
+|---|---|---|
+| Auto-Sleep Timeout | 02:00:00 | `WIRELESS_LPM_GET` / `SET`, "sleep after" |
+| Auto Backlight-OFF Timeout | 00:10:00 | the same, "backlight off after" |
+| **Keyboard Matrix Scanning Idle Time** | 00:30:00 | in no published source |
+| NKRO Setting | its text only, no switch | `NKRO_GET` / `SET` |
+
+- Each time in hours, minutes and seconds. The page's two rules: "The starting time of the auto backlight off must be
+  less than the starting time of auto sleep mode", "The matrix scanning idle time must be greater than the
+  backlight turn-off delay and less than the sleep timeout period". So: backlight, then scanning, then sleep.
+- **`WIRELESS_LPM_*` carries two times where it is published** (`2025q3` at `57e682ca`, `wireless_playground`;
+  `hall_effect_playground` does not have it). A guess, unread: the scanning time is a third u16 after them, `[7..8]` of the reply,
+  30 minutes reading as 1800. `0xA7 0x01` and `0xA7 0x0B`, both read-only, would tell.
+- In the source these are the wireless power settings, kept with the wireless configuration: over the cable they may
+  do nothing.
+- **No switch for NKRO**, though this board answers `A7 12 00 03`, on and settable: the Launcher probably goes by the
+  misc bits, whose bit 7 is clear here.
+
 ---
 
 ## `0xA8` — Keychron RGB
@@ -510,7 +533,14 @@ themselves.
 
 A board has three profiles (`PROFILE_COUNT`). One is current, chosen over USB, with the
 `PROF1`–`PROF3` keycodes (the board's own, `QK_KB_n`), or with Fn + P + Z, X or C (matrix
-positions (2, 10) and (4, 2–4) by default: those letters on a K10 HE). Each profile is one
+positions (2, 10) and (4, 2–4) by default: those letters on a K10 HE). **The shortcut is compiled in**
+(`process_profile_select_combo()`, re-read 2026-11-24): P, Z, X and C are matrix positions a board's `config.h`
+may override and no command changes, and *Fn* is **any key held that is an `MO(n)`**. Remapping the four keys
+changes nothing, an `LT` in Fn's place ends it, and the keys still send what the layer has on them. The keycodes
+are the way to map it elsewhere: the K10 HE's definition offers them as Profile 1 to 3. **The same letters on every
+Hall-effect board of `2025q3`**, 28 of its 29 builds read against their keymaps: the rows follow from the matrix (P
+in row 1 and the three in row 3 of five rows, 2 and 4 of six), the Q12 HE moves the columns by 4 for its numpad on
+the left -- and the Q0 HE, a numpad of five columns, has no such positions and so no shortcut. Each profile is one
 packed C structure (`analog_matrix_type.h`, `analog_matrix_profile_t`), which is read raw and
 written field by field. For a matrix of R rows and C columns, D DKS slots and S SOCD slots:
 
@@ -884,6 +914,44 @@ value**, so the board is not usable for typing until it stops. A client should k
 the calibration until it ends, with a visible way to stop it (`0x40 4`). `AMC_GET_CALIBRATE_STATE` answers `[2]` the calibrated bits (`0x01`
 rest, `0x02` bottom), `[3]` the state (0 off, 1 power-up, 2 rest, 3 bottom, 4 storing), and
 `[4 + 3r .. 6 + 3r]` row r's keys already pressed to the bottom, u24 LE.
+
+**Re-read at `2025q3` (`57e682ca`, 2026-11-24)**; a calibration started, watched and ended by Nazg works on the K10 HE V3
+(Rico, that day) keeping to it, its traps untried:
+
+- **The board types nothing while it calibrates**, steps 1 to 3 (`update_raw_value()` returns before the switches are
+  looked at); a key held when it starts may stay down for the computer. Start and stop it with the mouse.
+- **The board shows it**: every key purple, green once done -- off for half a second as it is taken -- and red where the
+  rest reading was out of range, a key held during step 1.
+- **There is no cancel.** `0x40 4` stores what was pressed. Unplugging is the cancel: nothing is written before the end,
+  so the old values come back.
+- **A red key cannot be done**: it has no rest value, so the calibration never ends by itself. Stopped, its old values are
+  what is stored, but in RAM it stays without a rest until the board is replugged.
+- **Never `0x40 4` in state 2**: every value is zero in RAM then, and nothing is stored nor put back -- the board is dead
+  until replugged. Wait for state 3, a few scans later.
+- **Never `0x40 4` in the 3 s after the last key**: the timer is static and stays running, so the next calibration would
+  end at once, with no bottom for any key until a replug. Every key done, wait for state 0.
+- The stored values are those of the keys pressed; a key stopped before its turn keeps its old rest and bottom there,
+  though its new rest is used until the next power-up.
+
+**The Launcher's Calibration page** (Rico's screenshot of the K10 HE V3's, Launcher 1.5.5, 2026-11-24): the board drawn, one
+button, *Exit Calibration*, and four precautions -- the keys turn **red** once it starts, where the source has purple, so
+this firmware differs; each is pressed all the way down, one by one, and turns green on the board and in the page; it
+exits by itself once all are done; "some controls, such as the five-way knob", need none. It says nothing of keeping
+hands off at the start, of the board typing nothing meanwhile, nor of what leaving early keeps.
+**Done once by Rico there that day**: no key turned red, whatever the page says; each key went green as it bottomed out;
+once all were green it was saved, by itself, and Rico typed on it fine after. Read back, the Launcher closed: `0x41`
+answers `A9 41 03 00` -- both calibrated, state 0 -- **then the keys' bits still set**, `FD FF 01` for row 0, exactly the 104
+keys the board has: the bits are the last calibration's, not a running one's. Rest 3176 to 3607, span 1496 to 1817,
+each key reading 7 to 14 above its rest; the space bar (5, 6), 3405 and 1857 on 2026-11-08, is now 3412 and 1840.
+
+**Left early, the same evening** (Rico: Esc and F1 to F12 pressed, then Exit Calibration): **nothing types while it
+calibrates**, as the source says. Read after: state 0, the bits those 13 keys, every key sane and at rest; then replugged,
+**all 104 values exactly the same**, so what leaving early kept is what is stored -- the replug clears the bits. **But the
+keys not pressed did not keep what had been read after the full calibration**: 87 of 91 bottoms differ, by -21 to +33
+(median 1), where the source gives back the stored ones; rests by 2 at most. About 2 % of a key's range, nothing to feel,
+and **unexplained**: the values come from an earlier store, or this firmware does something else. To settle: one full
+calibration, read, replugged, read; then one key pressed and left early, read. Until then a client may only say that the
+keys not pressed keep an earlier calibration, not which.
 
 ---
 

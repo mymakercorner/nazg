@@ -997,7 +997,11 @@ namespace nazg
         if (hasBoard)
             header.hostLayout = m_Settings.legends.hostLayout;
 
+        // A section that holds the screen keeps the header's ways out of it.
+        ImGui::BeginDisabled(std::any_of(m_Board.sections.begin(), m_Board.sections.end(),
+                                         [](const auto& section) { return section->HoldsScreen(); }));
         const HeaderAction action = nazg::DrawHeader(header);
+        ImGui::EndDisabled();
 
         // Picked in the header is chosen, as in Settings.
         if (action.hostLayout)

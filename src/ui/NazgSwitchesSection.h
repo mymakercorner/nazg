@@ -30,6 +30,10 @@
 // is pressed, the whole board's (ui/NazgCurveEditor.h), the keys it plays lit. Its mode buttons go back to
 // the keys, as SOCD's do.
 //
+// Calibrate..., at the strip's end (Rico, 2026-11-24): the panel becomes the calibration, as Keychron's Launcher
+// does it -- hands off, every key pressed all the way down, green on the board once done, saved by itself; the
+// result stays until Close. Nothing else is there while it runs (HoldsScreen()); quitting ends it.
+//
 // Testing is asked for: Test keys follows the key pressed, its travel read live (0xA9 0x30), and its
 // raw values on request; while testing, a press selects nothing.
 //
@@ -47,6 +51,7 @@
 #include <vector>
 
 #include "adapters/keychron/NazgKeychronAdvanced.h"
+#include "adapters/keychron/NazgKeychronCalibration.h"
 #include "adapters/keychron/NazgKeychronCurve.h"
 #include "adapters/keychron/NazgKeychronProtocol.h"
 #include "adapters/keychron/NazgKeychronSocd.h"
@@ -79,7 +84,7 @@ namespace nazg
 
         [[nodiscard]] Strip DescribeStrip() const override;
         void                OnStripChosen(size_t entry) override;
-        void                OnStripAction() override;   // Reset profile...
+        void                OnStripAction(size_t action) override;   // Calibrate..., Reset profile...
 
         void DescribeBoard(BoardDescription& board) override;
         void OnBoardEvents(const BoardDescription& board, const BoardEvents& events) override;
@@ -94,6 +99,7 @@ namespace nazg
 
         [[nodiscard]] bool IsBusy() const override;
         [[nodiscard]] bool IsPolling() const override;
+        [[nodiscard]] bool HoldsScreen() const override;   // while it calibrates
         void               WhileHidden() override;
 
     private:
@@ -205,6 +211,22 @@ namespace nazg
         Task<void> Reset(uint8_t profile);
         Task<void> WriteGamepadMode(uint8_t mask, uint8_t value);
         Task<void> WriteCurve(std::vector<keychron::CurvePoint> curve);
+
+        // The calibration: what it waits for, and what its panel shows.
+        enum class Calibrating : uint8_t
+        {
+            No,
+            Intro,
+            Rest,     // started: the board measures the keys at rest
+            Keys,     // each key pressed to the bottom
+            Saving,   // every key done: the board stores it and stops
+            Over,
+        };
+        Task<void> StartCalibrating();
+        Task<void> WatchCalibrating();
+        Task<void> StopCalibrating();
+        void       DrawCalibration();
+        [[nodiscard]] std::string KeysLeft() const;
         void       Fail(std::string message);
         void       Say(std::string message, bool isWarning);
 
@@ -279,6 +301,13 @@ namespace nazg
         bool                                             m_ShowCurve = false;
         CurveEditorState                                 m_CurveState;
         std::optional<std::vector<keychron::CurvePoint>> m_PendingCurve;
+
+        // The calibration: the keys the board has, and its last reading.
+        Calibrating                        m_Calibrating = Calibrating::No;
+        bool                               m_StartCalibrating = false;
+        bool                               m_StopCalibrating  = false;
+        std::vector<keychron::KeyPosition> m_AnalogKeys;
+        keychron::CalibrationState         m_CalibrationState;
 
         // What the computer receives, while testing a profile with gamepad keys.
         GameControllerReading               m_Controller;

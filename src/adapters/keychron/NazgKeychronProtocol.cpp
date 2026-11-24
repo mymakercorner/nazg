@@ -27,6 +27,10 @@ namespace nazg::keychron
         constexpr size_t  c_ProfileChunkAt  = 6;
         constexpr uint8_t c_ProfileChunkMax = 26;
 
+        // AMC_CALIBRATE's argument: the firmware's own phases, the two it accepts.
+        constexpr uint8_t c_CalibrateStart = 2;
+        constexpr uint8_t c_CalibrateStop  = 4;
+
         // AMC_SET_TRAVAL names its keys from byte 8, three bytes -- 24 columns -- a row.
         constexpr size_t c_TravelRowsAt     = 8;
         constexpr size_t c_TravelColumnsMax = 24;
@@ -340,6 +344,56 @@ namespace nazg::keychron
         const uint32_t bits = ReadLittleEndian32(reply, 9);
         std::memcpy(&value.scaleFactor, &bits, sizeof(float));
         co_return value;
+    }
+
+    Task<CalibrationState> Protocol::GetCalibrationState()
+    {
+        // No status: [2] what is calibrated, [3] the phase, then from [4] three bytes a row.
+        const std::vector<uint8_t> reply =
+            co_await Ask(Command::AnalogMatrix, static_cast<uint8_t>(Analog::GetCalibrateState));
+
+        CalibrationState state;
+        state.phase = static_cast<CalibrationPhase>(reply[3]);
+        for (size_t at = 4; at + 2 < reply.size(); at += 3)
+            state.rows.push_back(reply[at] | static_cast<uint32_t>(reply[at + 1]) << 8 | static_cast<uint32_t>(reply[at + 2]) << 16);
+        co_return state;
+    }
+
+    Task<void> Protocol::StartCalibration()
+    {
+        RequireSuccess(co_await Ask(Command::AnalogMatrix, static_cast<uint8_t>(Analog::Calibrate), { c_CalibrateStart }),
+                       "starting the calibration");
+    }
+
+    Task<void> Protocol::StopCalibration()
+    {
+        RequireSuccess(co_await Ask(Command::AnalogMatrix, static_cast<uint8_t>(Analog::Calibrate), { c_CalibrateStop }),
+                       "ending the calibration");
+    }
+
+    void Protocol::SetCalibrationFarewell(bool ends)
+    {
+        m_Channel.SetFarewell(ends ? MakeRequest(Command::AnalogMatrix, static_cast<uint8_t>(Analog::Calibrate), { c_CalibrateStop })
+                                   : std::vector<uint8_t>{});
+    }
+
+    Task<std::vector<KeyPosition>> Protocol::GetAnalogKeys(uint8_t rows, uint8_t columns)
+    {
+        std::vector<std::vector<uint8_t>> frames;
+        std::vector<KeyPosition>          positions;
+        for (uint8_t row = 0; row < rows; ++row)
+            for (uint8_t column = 0; column < columns; ++column)
+            {
+                frames.push_back(MakeRequest(Command::AnalogMatrix, static_cast<uint8_t>(Analog::GetCalibratedValue), { row, column }));
+                positions.push_back({ row, column });
+            }
+
+        const std::vector<std::vector<uint8_t>> replies = co_await SendFrames(std::move(frames), c_EchoedGroup);
+        std::vector<KeyPosition> keys;
+        for (size_t index = 0; index < replies.size(); ++index)
+            if (ReadLittleEndian16(replies[index], 5) != 0 || ReadLittleEndian16(replies[index], 7) != 0)
+                keys.push_back(positions[index]);
+        co_return keys;
     }
 
     Task<void> Protocol::SelectProfile(uint8_t profile)

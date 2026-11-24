@@ -323,8 +323,10 @@ namespace nazg
             float noteWidth = 0.0f;
             if (strip.choices.empty() && !strip.note.empty())
                 noteWidth = ImGui::CalcTextSize(strip.note.c_str()).x + style.ItemSpacing.x;
-            if (strip.choices.empty() && !strip.action.empty())
-                noteWidth += ImGui::CalcTextSize(strip.action.c_str()).x + 2 * style.FramePadding.x;
+            if (strip.choices.empty())
+                for (size_t index = 0; index < strip.actions.size(); ++index)
+                    noteWidth += ImGui::CalcTextSize(strip.actions[index].c_str()).x + 2 * style.FramePadding.x +
+                                 (index ? style.ItemSpacing.x : 0.0f);
             const float right     = ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x;
             const float available = ImGui::GetContentRegionAvail().x - groupWidth -
                                     (strip.choices.empty() ? 0.0f : choiceWidth + style.ItemSpacing.x) -
@@ -523,7 +525,7 @@ namespace nazg
                 ImGui::PopStyleVar();
             }
 
-            // The words at the right end, and the button after them.
+            // The words at the right end, and the buttons after them.
             if (noteWidth > 0.0f)
             {
                 // Level with the label: at the row's own height, whatever the line before it came to.
@@ -538,19 +540,24 @@ namespace nazg
                                  "%s", strip.note.c_str());
                     if (!strip.noteTip.empty() && ImGui::IsItemHovered())
                         ImGui::SetTooltip("%s", strip.noteTip.c_str());
-                    if (!strip.action.empty())
+                    if (!strip.actions.empty())
                     {
                         ImGui::SameLine();
                         ImGui::SetCursorPosY(rowY);
                     }
                 }
-                if (!strip.action.empty())
+                ImGui::BeginDisabled(strip.actionsDisabled);
+                for (size_t index = 0; index < strip.actions.size(); ++index)
                 {
-                    ImGui::BeginDisabled(strip.actionDisabled);
-                    if (ImGui::Button(strip.action.c_str()))
-                        section.OnStripAction();
-                    ImGui::EndDisabled();
+                    if (index)
+                    {
+                        ImGui::SameLine();
+                        ImGui::SetCursorPosY(rowY);
+                    }
+                    if (ImGui::Button(strip.actions[index].c_str()))
+                        section.OnStripAction(index);
                 }
+                ImGui::EndDisabled();
             }
             section.OnStripHovered(hovered);
         }
@@ -754,7 +761,9 @@ namespace nazg
         // edge takes the place of the spacing after it.
         if (sections.size() > 1)
         {
+            ImGui::BeginDisabled(sections[active]->HoldsScreen());
             DrawColumn(sections, active, protocol, layout);
+            ImGui::EndDisabled();
             ImGui::SameLine(0.0f, 0.0f);
         }
 
@@ -770,7 +779,9 @@ namespace nazg
         ImGui::BeginGroup();
         ImGui::PushID(&section);
 
+        ImGui::BeginDisabled(section.HoldsScreen());
         DrawStrip(section);
+        ImGui::EndDisabled();
 
         // The board takes its height, the panel the rest -- never so little that the panel falls
         // below its minimum, the board giving way then, down to its legibility floor.
